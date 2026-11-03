@@ -32,6 +32,7 @@ godot --path . --editor        # open in the editor
 | Pause / settings | Esc |
 | Debug overlay (debug builds) | F3 |
 | Fire knock / flicker / door / footsteps / silhouette (debug builds) | F5 – F9 |
+| Next act (debug builds) | F10 |
 
 ## Tests
 

@@ -19,7 +19,7 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
 | 0 — Technical foundation | `feat/project-foundation` | 1 (4–10 Nov) | done |
 | 1 — Playable apartment | `feat/player-apartment` | 1 | done |
 | 2 — Horror event framework | `feat/horror-event-system` | 1–2 | done |
-| 3 — Adaptive Horror Director | `feat/adaptive-director` | 2 (11–17 Nov) | planned |
+| 3 — Adaptive Horror Director | `feat/adaptive-director` | 2 (11–17 Nov) | done |
 | 4 — Environmental manipulation (shifts) | `feat/environmental-manipulation` | 2 | planned |
 | 5 — Narrative and endings | `feat/narrative` | 3 (18–24 Nov) | planned |
 | 6 — Polish and release candidate | `feat/polish-release` | 4 (25 Nov–1 Dec) | planned |

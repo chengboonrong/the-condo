@@ -66,3 +66,17 @@ func test_intercom_beat() -> bool:
 	eq(knocks[0]["room"] if not knocks.is_empty() else &"", &"bedroom", "from the bedroom wall")
 	main.queue_free()
 	return true
+
+
+func test_director_runs_in_game_within_budget() -> bool:
+	var main := await _main()
+	var rt: HorrorRuntime = main.runtime
+	WorldState.set_act(WorldState.Act.IMPOSSIBLE)
+	await _frames(60 * 90)  # 90 s of play standing at the spawn point
+	check(not rt.director.decisions.is_empty(), "the director picks events in game")
+	check(WorldState.entity_state != &"dormant", "the entity is awake in act 3")
+	check(rt.director.max_eval_usec < 2000, "a decision takes under 2 ms (max %d µs)" % rt.director.max_eval_usec)
+	print("    director in game: %d picks in 90 s, eval last %d µs, max %d µs (headless)" % [
+		rt.director.decisions.size(), rt.director.last_eval_usec, rt.director.max_eval_usec])
+	main.queue_free()
+	return true

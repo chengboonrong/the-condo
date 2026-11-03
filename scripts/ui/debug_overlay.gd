@@ -30,6 +30,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("debug_overlay"):
 		visible = not visible
+	if event.is_action_pressed("debug_skip_beat") and WorldState.act < WorldState.Act.DECISION:
+		WorldState.set_act(WorldState.act + 1)  # Phase 5's StoryDirector will skip a story beat instead
+		_flash = "F10 → act %d" % WorldState.act
+		_flash_left = 3.0
 	for i in HorrorRuntime.DEBUG_EVENTS.size():
 		if event.is_action_pressed("debug_event_%d" % (i + 1)):
 			var run := runtime.debug_trigger(i)
@@ -59,5 +63,5 @@ func _process(delta: float) -> void:
 	lines.append_array(s.log_lines.slice(maxi(0, s.log_lines.size() - 10)))
 	if _flash_left > 0.0:
 		lines.append("── %s" % _flash)
-	lines.append("F5 knock  F6 lights  F7 door  F8 footsteps  F9 silhouette")
+	lines.append("F5 knock  F6 lights  F7 door  F8 footsteps  F9 silhouette  F10 next act")
 	_label.text = "\n".join(lines)

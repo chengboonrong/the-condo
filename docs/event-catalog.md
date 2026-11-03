@@ -29,8 +29,8 @@ rejected / queued (story)
 | `silhouette` | 0.75 | 70 s | ≤ 4 s | visual | Silhouette anchor in or next to the player's room, ≥ 3.5 m away, out of view (prefers behind). Vanishes 0.3 s after it is on screen. | none | look-behind |
 | `phone_ring` | 0.10 | — | ≤ 90 s | phone | Story only. Rings every 3.6 s until `params.stop_flag` is set. | none | — |
 
-Room shifts (`RoomTransformer`, Phase 4) and the director's scoring (Phase 3) are documented in
-[architecture.md](architecture.md).
+The director's pacing and scoring are in [architecture.md](architecture.md#director); room shifts
+(`RoomTransformer`, Phase 4) will be too.
 
 ## Captions
 

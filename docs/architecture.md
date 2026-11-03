@@ -50,6 +50,26 @@ which is what makes seeded replays and simulated playthroughs possible.
 * Presentation randomness (flicker patterns, footstep variation) uses its own RNG and never feeds
   back into the core.
 
+## Director
+
+Every tick: time → `BehaviorProfiler` → `EntityController` → `EventScheduler` → `HorrorDirector`.
+
+* **Behaviour signals** (0–1, sampled at 10 Hz): curiosity and avoidance (share of the last 8 sounds from
+  another room that the player walked towards or away from), look-behind (sharp turns, decaying),
+  hesitation (standing at a doorway), light dependence (time lit), idle (time still), and per-room
+  avoidance from a decayed time-in-room (90 s half-life). They are behaviour proxies, not a fear measure.
+* **Pacing.** Each event adds `intensity × 0.6` to tension, which decays (τ 40 s) while nothing runs.
+  Each act has a target (act 2: 0.3, act 3: 0.5, act 4: 0.7). The director fires only below target, never
+  while any event runs, and waits a recovery gap of 10–30 s that grows with tension.
+* **Scoring** (4 Hz, only when it may fire): every adaptive event the scheduler would accept gets
+  `base + behaviour + narrative + tension fit − repetition`. Behaviour is the event's weights × signals.
+  Narrative is the act and entity-state bonuses. Tension fit is +1 when the event's intensity fills the
+  gap to target. Repetition is 0.5 per use in the last five, plus 0.8 if it was the last one. One of the top
+  three is drawn with the simulation RNG, weighted by score. Each pick is logged with its parts (F3).
+* **Entity.** A room and a state, no body: dormant (act 1) → observing (two rooms away) →
+  approaching (act 3+, one room closer every 12 s, never into the player's room) → retreating (when seen
+  or walked in on, to the farthest room) → observing. Footsteps start from its room.
+
 ## Visibility
 
 Room swaps and silhouettes need "can the player see this point?". The core asks a `HorrorStage`:
