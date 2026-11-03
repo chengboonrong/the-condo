@@ -35,6 +35,13 @@ func _physics_process(delta: float) -> void:
 			_demo_ring = 3.6
 
 
+func _process(_delta: float) -> void:
+	# Browsers use Esc to leave pointer lock and Godot never sees the key, so on the web any lost capture
+	# pauses the player the way Esc does on desktop.
+	if OS.has_feature("web") and player.input_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not hud.is_inspecting():
+		player.input_enabled = false
+
+
 func _on_interacted(object_id: StringName) -> void:
 	if object_id == &"intercom" and _demo_ring >= 0.0:
 		_demo_ring = -1.0

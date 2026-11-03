@@ -55,6 +55,9 @@ func _ready() -> void:
 
 	_build_inspect(root)
 	_build_start(root)
+	# The HUD only displays; clicks belong to the game's _unhandled_input (start, interact, phone light).
+	for c: Node in root.find_children("*", "Control", true, false):
+		(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	EventBus.objective_changed.connect(func(t: String) -> void: _objective.text = t)
 	EventBus.subtitle_requested.connect(show_subtitle)

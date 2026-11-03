@@ -8,7 +8,7 @@ const KEYS := {
 	&"move_left": [KEY_A, KEY_LEFT],
 	&"move_right": [KEY_D, KEY_RIGHT],
 	&"sprint": [KEY_SHIFT],
-	&"crouch": [KEY_CTRL, KEY_C],
+	&"crouch": [KEY_C],  # not Ctrl: Ctrl+W closes the browser tab
 	&"interact": [KEY_E],
 	&"flashlight": [KEY_F],
 	&"pause": [KEY_ESCAPE],

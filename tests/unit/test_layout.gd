@@ -26,6 +26,8 @@ func test_clock_resets_on_shift() -> bool:
 	eq(WorldState.clock_minutes(), 23 * 60 + 47, "starts 11:47 PM")
 	WorldState.advance_time(5 * 60.0)
 	eq(WorldState.clock_minutes(), 23 * 60 + 52, "five minutes later")
+	WorldState.set_variant(&"gap", &"default")
+	eq(WorldState.clock_minutes(), 23 * 60 + 52, "re-setting the variant an area already has is not a shift")
 	WorldState.set_variant(&"living_chair", &"turned")
 	eq(WorldState.clock_minutes(), 23 * 60 + 47, "a shift puts it back to 11:47 PM")
 	eq(WorldState.time, 300.0, "simulation time never rewinds")

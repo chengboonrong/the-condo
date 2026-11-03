@@ -48,7 +48,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens: float = Settings.get_value("mouse_sensitivity")
 		var invert := -1.0 if Settings.get_value("invert_y") else 1.0
-		set_look(yaw - event.relative.x * sens, pitch - event.relative.y * sens * invert)
+		# screen_relative: same feel at any window size (relative is scaled by the canvas_items stretch)
+		set_look(yaw - event.screen_relative.x * sens, pitch - event.screen_relative.y * sens * invert)
 	elif event.is_action_pressed("flashlight"):
 		toggle_phone_light()
 

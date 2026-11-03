@@ -108,7 +108,7 @@ func is_light_on(room_id: StringName) -> bool:
 
 
 func set_variant(area_id: StringName, variant: StringName) -> void:
-	if variants.get(area_id, &"") == variant:
+	if get_variant(area_id) == variant:
 		return
 	variants[area_id] = variant
 	clock_anchor = time  # the condo shifted: it is 11:47 PM again

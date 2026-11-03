@@ -26,7 +26,7 @@ godot --path . --editor        # open in the editor
 |---|---|
 | Move | W A S D / arrow keys |
 | Sprint | Shift |
-| Crouch (hold) | Ctrl or C |
+| Crouch (hold) | C |
 | Interact | E or left mouse |
 | Phone light | F or right mouse |
 | Pause / settings | Esc |

@@ -61,6 +61,9 @@ func test_walk_reaches_every_room_without_getting_stuck() -> bool:
 		if not ok:
 			failures.append("stuck before (%.2f, %.2f) at %s" % [leg[0], leg[1], player.global_position])
 			break
+		if absf(player.global_position.y) > 0.05 or not player.is_on_floor():
+			failures.append("off the floor at %s" % player.global_position)
+			break
 		if leg[2] != &"":
 			eq(WorldState.player_room, leg[2], "room at (%.2f, %.2f)" % [leg[0], leg[1]])
 		visited[WorldState.player_room] = true
@@ -77,12 +80,29 @@ func test_doors_follow_world_state_and_interaction() -> bool:
 	WorldState.set_door(&"bathroom_door", true, &"test")
 	for i in 90:
 		await tree.physics_frame
-	near(absf(door.rotation.y), Door.OPEN_ANGLE, 0.01, "door swung open")
+	near(door.rotation.y, -ApartmentLayout.DOORS[&"bathroom_door"]["swing"] * Door.OPEN_ANGLE, 0.01, "door swung open")
 	door.interact(main.player)
 	eq(WorldState.is_door_open(&"bathroom_door"), false, "interact closes it")
 	for i in 90:
 		await tree.physics_frame
 	near(door.rotation.y, 0.0, 0.01, "door swung shut")
+	main.queue_free()
+	return true
+
+
+func test_doors_open_into_the_intended_room() -> bool:
+	var main := await _main()
+	WorldState.set_variant(&"bedroom", &"door")  # the gap and mirror doors only exist after the reveal
+	var into := {&"main_door": &"entrance", &"kitchen_door": &"kitchen", &"bathroom_door": &"bathroom",
+		&"bedroom_door": &"bedroom", &"gap_door": &"bedroom", &"mirror_door": &"mirror_room"}
+	for id: StringName in into:
+		WorldState.set_door(id, true, &"test")
+	for i in 90:
+		await tree.physics_frame
+	for id: StringName in into:
+		var door: Door = main.builder.doors[id]
+		var tip := door.global_position + door.global_basis.x * float(ApartmentLayout.DOORS[id]["width"]) * 0.9
+		eq(ApartmentLayout.room_at(tip, WorldState.variants), into[id], "%s opens into" % id)
 	main.queue_free()
 	return true
 
@@ -128,3 +148,34 @@ func test_variant_swap_toggles_visibility_and_collision() -> bool:
 	eq(shape.disabled, false, "gap door collides after the reveal")
 	main.queue_free()
 	return true
+
+
+func test_start_card_click_starts_the_game() -> bool:
+	var main := await _main()
+	var started := [false]
+	main.hud.started.connect(func() -> void: started[0] = true)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = tree.root.get_visible_rect().size / 2.0  # where a captured mouse sits
+	click.global_position = click.position
+	tree.root.push_input(click, true)
+	await tree.process_frame
+	check(started[0], "a click on the start card starts the game")
+	check(main.player.input_enabled, "and hands control to the player")
+	var probe := _UnhandledProbe.new()
+	main.add_child(probe)
+	click.button_index = MOUSE_BUTTON_RIGHT
+	tree.root.push_input(click, true)
+	await tree.process_frame
+	eq(probe.clicks, 1, "a centre click during play reaches the game (crosshair lets it through)")
+	main.queue_free()
+	return true
+
+
+class _UnhandledProbe extends Node:
+	var clicks := 0
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			clicks += 1
