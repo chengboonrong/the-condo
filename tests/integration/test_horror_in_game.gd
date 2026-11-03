@@ -76,6 +76,12 @@ func test_director_runs_in_game_within_budget() -> bool:
 	check(not rt.director.decisions.is_empty(), "the director picks events in game")
 	check(WorldState.entity_state != &"dormant", "the entity is awake in act 3")
 	check(rt.director.max_eval_usec < 2000, "a decision takes under 2 ms (max %d µs)" % rt.director.max_eval_usec)
+	var overlay: DebugOverlay = main.find_children("*", "DebugOverlay", false, false)[0]
+	overlay.visible = true  # F3
+	await tree.process_frame
+	await tree.process_frame  # process_frame fires before _process
+	var text: String = overlay._label.text
+	check(text.contains("director tension") and text.contains("last pick"), "F3 shows the director's last pick and its scores")
 	print("    director in game: %d picks in 90 s, eval last %d µs, max %d µs (headless)" % [
 		rt.director.decisions.size(), rt.director.last_eval_usec, rt.director.max_eval_usec])
 	main.queue_free()
