@@ -77,7 +77,7 @@ const OBJECTS := [
 	[&"tv", Vector3(6.5, 0.95, 4.57), Vector3(1.4, 0.8, 0.06), "Look at the TV", "TV",
 		"Off. In the black glass you can see the room behind you."],
 	[&"shoe_rack", Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0), "Look at the shoe rack", "Shoe rack",
-		"Your work shoes, still damp from the walk home after the night shift.", {&"entrance_shoes": &"default"}],
+		"Your work shoes. The soles are still slick with oil from the mamak floor.", {&"entrance_shoes": &"default"}],
 	# Things that have moved (StoryDirector: noticing one puts it back)
 	[&"shoes_moved", Vector3(2.3, 0.06, 8.5), Vector3(0.4, 0.12, 0.45), "Look at the shoes", "", "", {&"entrance_shoes": &"moved"}],
 	[&"chair_turned", Vector3(3.5, 0.6, 5.2), Vector3(0.5, 0.6, 0.5), "Look at the chair", "", "", {&"living_chair": &"turned"}],
@@ -88,7 +88,7 @@ const OBJECTS := [
 	[&"aircon", Vector3(9.88, 2.3, 0.2), Vector3(0.2, 0.3, 0.9), "Look at the aircon", "Aircon",
 		"Switched off at the wall. The little green light is blinking anyway."],
 	[&"bedroom_window", Vector3(7.8, 1.5, -1.9), Vector3(1.5, 1.1, 0.04), "Look outside", "Window",
-		"Twelve floors down, the mamak on the corner is still open. Someone at a table is looking up.", {&"bedroom": &"default"}],
+		"Twelve floors down, the mamak where you work is still open. Someone in your apron is pulling teh tarik. They stop, and look up.", {&"bedroom": &"default"}],
 	[&"door_1206", Vector3(-2.0, 1.05, 10.1), Vector3(1.0, 2.1, 0.06), "Knock", "B-12-06",
 		"You knock. Nobody answers. A red lantern from last Chinese New Year still hangs by the grille."],
 	[&"door_1208", Vector3(12.0, 1.05, 10.1), Vector3(1.0, 2.1, 0.06), "Knock", "B-12-08",

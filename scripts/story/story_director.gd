@@ -24,7 +24,7 @@ const NOTICE := {
 	&"tap": [&"bathroom_tap", "[You turn the tap off. The handle is warm.]"],
 }
 const ENDINGS := {
-	&"downstairs": ["DOWNSTAIRS", "You knock three times.\n\nUpstairs, someone who has just come home from a night shift stops in the dark and listens.\n\nThe notes under their door are in your handwriting."],
+	&"downstairs": ["DOWNSTAIRS", "You knock three times.\n\nUpstairs, someone who has just come home from a shift at the mamak stops in the dark and listens.\n\nThe notes under their door are in your handwriting."],
 	&"vacant": ["VACANT", "The lift is warm, as if someone has just stepped out of it.\n\nA week later a new notice goes up by the letterboxes:\nUnit B-12-07 has been vacant since November.\n\nThe knocking never stops."],
 }
 
@@ -79,7 +79,7 @@ func tick(delta: float) -> void:
 	_speak(delta)
 	if beat == &"":
 		_go(&"home")
-		WorldState.set_objective("You're home from the night shift. Wash up, then get some sleep.")
+		WorldState.set_objective("You're home from your shift at the mamak. Wash up, then get some sleep.")
 	var t := beat_time()
 	match beat:
 		&"home":
@@ -273,7 +273,7 @@ func _on_interacted(object_id: StringName) -> void:
 		&"sink":
 			if not WorldState.has_flag(&"washed"):
 				WorldState.set_flag(&"washed")
-				say("[Cold water. Your body says it's long past midnight. The oven clock says 11:47.]", 4.5)
+				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5)
 				if beat == &"home":
 					WorldState.set_objective("Get some sleep.")
 			else:
@@ -326,7 +326,7 @@ func _answer_rosnah() -> void:
 
 func _answer_upstairs() -> void:
 	WorldState.set_flag(&"answered_mirror")
-	say("\"Hello? Sorry, so late. I just got home from my shift.\"", 3.5)
+	say("\"Hello? Sorry, so late. I just finished my shift at the mamak.\"", 3.5)
 	say("\"This is upstairs. 12-07.\"", 3.0)
 	say("\"Can you please stop the knocking?\"", 3.5)
 	say("[It's your voice.]", 3.0)

@@ -8,7 +8,7 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
 * **Platforms:** web (itch.io, in the browser) plus macOS and Windows downloads. The project uses the
   **Compatibility** renderer because Forward+ cannot export to the web. Keep every feature WebGL2-safe.
 * **Theme:** the condo *shifting* is the core mechanic. Rooms and objects change only while unobserved,
-  chosen by the Horror Director. The player has just come home from a night shift.
+  chosen by the Horror Director. The player has just come home from a shift at the mamak on the corner.
   Every shift also resets the clock to 11:47 PM (time shifts too).
 * **Repository:** local only until the owner approves creating the public GitHub repo.
 
@@ -28,7 +28,7 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
 
 ## Story outline
 
-1. **The Complaint.** 11:47 PM, just home from a night shift. Wash up, lie down (this walks the player
+1. **The Complaint.** 11:47 PM, just home from a shift at the mamak on the corner. Wash up, lie down (this walks the player
    past the shoes, the tap and the chair that will later move). The intercom rings: Puan Rosnah from
    B-11-07, downstairs, complains about knocking. You have made no noise. Knocks from the bedroom wall;
    touch it and something knocks back.

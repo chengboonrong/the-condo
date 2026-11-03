@@ -2,7 +2,7 @@
 
 First-person psychological horror, made in Godot 4.7 for **GitHub Game Off 2026** (theme: **SHIFT**).
 
-You've just come home from a night shift. At 11:47 PM the intercom rings: the neighbour downstairs
+You've just come home from your shift at the mamak on the corner. At 11:47 PM the intercom rings: the neighbour downstairs
 wants you to stop knocking. You live alone, and you haven't made a sound. Then three knocks come
 from the bedroom wall, and the condo starts to shift whenever you aren't looking.
 
