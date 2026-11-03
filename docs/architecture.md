@@ -35,7 +35,7 @@ which is what makes seeded replays and simulated playthroughs possible.
 | EventScheduler | `scripts/horror/event_scheduler.gd` | RefCounted | Lifecycle `IDLE → VALIDATED → RUNNING → COMPLETED / CANCELLED / FAILED`, cooldowns, channel locks, priority pre-emption, timeouts, queued story requests. |
 | BehaviorProfiler | `scripts/horror/behavior_profiler.gd` | RefCounted | Turns 10 Hz player samples into bounded 0–1 signals (EMAs, decayed room time, last-8 outcome window). |
 | HorrorDirector | `scripts/horror/horror_director.gd` | RefCounted | 4 Hz utility scoring of eligible events, tension model, recovery gaps, seeded pick, explainable decision log. |
-| EntityController | `scripts/world/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. |
+| EntityController | `scripts/horror/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. |
 | RoomTransformer | `scripts/horror/room_transformer.gd` | RefCounted | Applies predefined variants only after the five safety checks pass. |
 | StoryDirector | `scripts/story/story_director.gd` | RefCounted | Acts, objectives, dialogue, clues, fail-safes, endings. |
 | HorrorRuntime | `scripts/horror/horror_runtime.gd` | Node | Composition root for the core; one seeded RNG; fixed tick order. |
@@ -90,6 +90,31 @@ Impossible-space sequence (tested with physics, `tests/integration/test_impossib
 in act 3 the bedroom window becomes a door once the player looks away. Behind it, a corridor that cannot
 fit in the building leads to B-11-07, the flat downstairs. While the player is inside, the corridor grows
 from 10 m to a 28 m loop, so the way back is longer.
+
+## Story
+
+`StoryDirector` runs inside the core tick, on simulation time. It is a list of beats; each beat has an
+exit the player triggers and a fail-safe that fires if they don't, so a player who never acts still
+reaches act 4, and both endings are only a choice away. Story events go through the scheduler as
+`request()`s (priority 5 for hints, 10 for story, 20 for story-critical shifts), never around it.
+
+| Act | Beat | Player exit | Fail-safe |
+|---|---|---|---|
+| 1 | `home` | wash at the sink, lie down → `in_bed` | the intercom rings after 150 s |
+| 1 | `ringing` | answer the intercom (Rosnah's call) | unanswered after 90 s, the story goes on |
+| 1 | `knocked` | touch the bedroom wall, or stay 15 s in the bedroom | the wall answers after 120 s; knocks repeat at 45 s |
+| 2 | `disturbance` | 4 signs (clues + moved things noticed) and 240 s | act 3 at 420 s; a shift every 75 s at most |
+| 3 | `front_door` | go to the front door | the reveal is requested after 60 s |
+| 3 | `reveal_pending` | leave the bedroom, look away | every 30 s: knock at the front door if the player is in the bedroom, else shut the bedroom door |
+| 3 | `revealed` / `in_gap` | through the new door, along the corridor to B-11-07 | knocks behind the door every 30 s |
+| 4 | `decision` | knock back on the wall (*Downstairs*) or take the lift (*Vacant*) | after 210 s, waiting is a choice: *Downstairs* |
+
+A shift that is already safe applies inside `scheduler.request()`, so a beat that waits for a shift
+switches to its waiting beat *before* asking for it. Noticing a moved object puts it back
+(`set_variant(..., is_shift = false)`), which counts as a sign and does not reset the clock.
+
+The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
+`tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds.
 
 ## Visibility
 

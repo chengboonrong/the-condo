@@ -21,18 +21,21 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
 | 2 — Horror event framework | `feat/horror-event-system` | 1–2 | done |
 | 3 — Adaptive Horror Director | `feat/adaptive-director` | 2 (11–17 Nov) | done |
 | 4 — Environmental manipulation (shifts) | `feat/environmental-manipulation` | 2 | done |
-| 5 — Narrative and endings | `feat/narrative` | 3 (18–24 Nov) | planned |
+| 5 — Narrative and endings | `feat/narrative` | 3 (18–24 Nov) | done |
 | 6 — Polish and release candidate | `feat/polish-release` | 4 (25 Nov–1 Dec) | planned |
 
 Branches are stacked: each starts from the previous one. Nothing is merged into `main` without approval.
 
 ## Story outline
 
-1. **The Complaint.** 11:47 PM, just home from a night shift. The intercom rings: Puan Rosnah from
-   B-11-07, downstairs, complains about knocking. You have made no noise. Three knocks from the bedroom wall.
+1. **The Complaint.** 11:47 PM, just home from a night shift. Wash up, lie down (this walks the player
+   past the shoes, the tap and the chair that will later move). The intercom rings: Puan Rosnah from
+   B-11-07, downstairs, complains about knocking. You have made no noise. Knocks from the bedroom wall;
+   touch it and something knocks back.
 2. **The Disturbance.** Search the unit. Knocks, footsteps, doors and lights react to how you play.
    Small things shift while you aren't looking (shoes, a chair, the tap); noticing what moved is how
-   the story advances, backed by clues (B-11-07 is vacant; the call came from your own unit).
+   the story advances, backed by clues (B-11-07 is vacant; the call came from your own unit). Four signs
+   and four minutes move the story on (seven minutes at most).
    Every shift resets the clock to 11:47 PM.
 3. **The Impossible Room.** A knock at the front door draws you away. When you come back, the bedroom
    window is a door. Behind it, a corridor that cannot exist leads to B-11-07.

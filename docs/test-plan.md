@@ -7,9 +7,9 @@ Test files extend `TestCase` (`tests/test_case.gd`). Methods named `test_*` must
 a method that hits a runtime error returns null and is reported as "did not finish". `WorldState` is reset
 before every test.
 
-Known noise: headless runs end with "ObjectDB instances were leaked" and "resources still in use".
-`--verbose` shows they are all `AudioStreamPlaybackWAV`/`AudioStreamWAV`: the headless dummy audio driver
-never mixes, so finished playbacks are never released. It does not happen in a windowed run.
+The runner waits one frame after every test, so a scene the test `queue_free()`d is gone before the next
+test starts (a leftover scene's StoryDirector would otherwise answer the next test's signals). A clean
+run ends without "leaked" or "still in use" warnings.
 
 ## Levels
 
@@ -17,9 +17,12 @@ never mixes, so finished playbacks are never released. It does not happen in a w
 |---|---|---|
 | Unit | `tests/unit/` | room graph, event eligibility, cooldowns, utility scoring, behaviour aggregation, tension decay, lifecycle transitions, seeded selection |
 | Integration | `tests/integration/` | doors, scheduling, world-state updates, room transformations, story progression, endings, a physics walk through every room |
-| Simulated playthroughs | `tests/integration/test_playthroughs.gd` | Explorer, Avoider and Passive bots driving the simulation core to an ending |
+| Story | `tests/unit/test_story.gd` | act 1–3 fail-safes with an idle player, the reveal never in front of the player, noticing moved things, both endings and the decision fail-safe |
+| Simulated playthroughs | `tests/integration/test_playthroughs.gd` | Explorer, Avoider and Passive bots (`tests/sim/playthrough.gd`) driving the simulation core to an ending on three seeds; same seed, same run |
 
 Simulated playthroughs are bots, not people. They are never reported as human playtests.
+`godot --headless --path . --script res://tools/playthroughs.gd` rewrites `docs/playthroughs.md` with each
+bot's event sequence, director scores, progression, completion, errors and warnings.
 
 ## Manual checks (need a window)
 
