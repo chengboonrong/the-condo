@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LightFlickerEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/horror/events/light_flicker_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"light_flicker"
+intensity = 0.3
+base_weight = 0.8
+cooldown = 35.0
+duration = 2.2
+channels = PackedStringArray("lights")
+behavior_weights = {
+"hesitation": 0.3,
+"light_dependence": 1.2
+}
+act_bonus = {
+2: 0.2,
+3: 0.3
+}
+entity_bonus = {
+&"approaching": 0.3
+}

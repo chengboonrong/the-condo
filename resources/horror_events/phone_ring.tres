@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PhoneRingEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/horror/events/phone_ring_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"phone_ring"
+intensity = 0.1
+cooldown = 0.0
+duration = 90.0
+min_act = 1
+channels = PackedStringArray("phone")
+adaptive = false

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="SilhouetteEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/horror/events/silhouette_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"silhouette"
+intensity = 0.75
+base_weight = 0.5
+cooldown = 70.0
+duration = 4.0
+channels = PackedStringArray("visual")
+behavior_weights = {
+"look_behind": 1.5
+}
+act_bonus = {
+3: 0.5,
+4: 0.5
+}
+entity_bonus = {
+&"approaching": 0.6
+}

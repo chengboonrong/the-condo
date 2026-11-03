@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="KnockEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/horror/events/knock_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"knock_wall"
+intensity = 0.35
+base_weight = 1.0
+cooldown = 25.0
+duration = 1.6
+channels = PackedStringArray("audio_major")
+behavior_weights = {
+"curiosity": 0.6,
+"idle": 0.4,
+"room_avoid": 1.0
+}
+act_bonus = {
+2: 0.3
+}
+entity_bonus = {
+&"observing": 0.4
+}

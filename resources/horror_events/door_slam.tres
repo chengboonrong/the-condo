@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DoorEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/horror/events/door_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"door_slam"
+intensity = 0.5
+base_weight = 0.7
+cooldown = 45.0
+duration = 1.2
+channels = PackedStringArray("door")
+behavior_weights = {
+"hesitation": 1.0,
+"room_avoid": 0.5
+}
+act_bonus = {
+3: 0.4,
+4: 0.4
+}
+entity_bonus = {
+&"approaching": 0.5
+}
