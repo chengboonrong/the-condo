@@ -25,6 +25,10 @@ func _initialize() -> void:
 
 func _run_file(path: String, filter: String) -> void:
 	var script: GDScript = load(path)
+	if script == null or not script.can_instantiate():
+		failed += 1
+		printerr("  FAIL %s — does not load (parse error?)" % path.get_file())
+		return
 	var probe: Object = script.new()
 	var names: Array[String] = []
 	for m in probe.get_method_list():
@@ -36,10 +40,16 @@ func _run_file(path: String, filter: String) -> void:
 		root.get_node("WorldState").reset()
 		var t: TestCase = script.new()
 		t.tree = self
+		var before := root.get_children()
 		var started := Time.get_ticks_usec()
 		var result: Variant = await t.call(n)
 		var ms := (Time.get_ticks_usec() - started) / 1000.0
-		await process_frame  # a scene the test queue_free()d must be gone before the next test runs
+		# Whatever the test added (even if it bailed out early) must be gone before the next test runs:
+		# a leftover scene's StoryDirector would answer the next test's signals.
+		for node in root.get_children():
+			if not before.has(node):
+				node.queue_free()
+		await process_frame
 		if result != true:
 			t.failures.append("did not finish (runtime error?)")
 		if t.failures.is_empty():
