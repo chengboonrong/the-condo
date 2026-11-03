@@ -123,8 +123,8 @@ const ANCHORS := {
 const VARIANT_AREAS := {
 	&"bedroom": {"rooms": [&"bedroom"], "variants": [&"default", &"door"], "probes": [Vector3(7.7, 1.2, -1.95), Vector3(6.0, 1.2, -1.9), Vector3(9.5, 1.2, -1.9)]},
 	&"gap": {"rooms": [&"gap"], "variants": [&"default", &"long"], "probes": [Vector3(7.7, 1.2, -8.6), Vector3(7.7, 1.2, -5.0), Vector3(7.7, 1.2, -2.6)]},
-	&"entrance_shoes": {"rooms": [&"entrance"], "variants": [&"default", &"moved"], "probes": [Vector3(0.4, 0.3, 8.0)]},
-	&"living_chair": {"rooms": [&"living"], "variants": [&"default", &"turned"], "probes": [Vector3(4.3, 0.6, 5.2)]},
+	&"entrance_shoes": {"rooms": [&"entrance"], "variants": [&"default", &"moved"], "probes": [Vector3(0.4, 0.3, 8.0), Vector3(2.3, 0.1, 8.5)]},
+	&"living_chair": {"rooms": [&"living"], "variants": [&"default", &"turned"], "probes": [Vector3(4.5, 0.6, 5.5), Vector3(3.5, 0.6, 5.2)]},
 	&"bathroom_tap": {"rooms": [&"bathroom"], "variants": [&"default", &"running"], "probes": [Vector3(3.35, 0.9, 1.0)]},
 }
 

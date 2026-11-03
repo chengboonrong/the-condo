@@ -77,7 +77,14 @@ const OBJECTS := [
 	[&"tv", Vector3(6.5, 0.95, 4.57), Vector3(1.4, 0.8, 0.06), "Look at the TV", "TV",
 		"Off. In the black glass you can see the room behind you."],
 	[&"shoe_rack", Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0), "Look at the shoe rack", "Shoe rack",
-		"Your work shoes, still damp from the walk home after the night shift."],
+		"Your work shoes, still damp from the walk home after the night shift.", {&"entrance_shoes": &"default"}],
+	# Things that have moved (StoryDirector: noticing one puts it back)
+	[&"shoes_moved", Vector3(2.3, 0.06, 8.5), Vector3(0.4, 0.12, 0.45), "Look at the shoes", "", "", {&"entrance_shoes": &"moved"}],
+	[&"chair_turned", Vector3(3.5, 0.6, 5.2), Vector3(0.5, 0.6, 0.5), "Look at the chair", "", "", {&"living_chair": &"turned"}],
+	[&"tap", Vector3(3.22, 1.0, 1.0), Vector3(0.18, 0.2, 0.25), "Turn off the tap", "", "", {&"bathroom_tap": &"running"}],
+	# Going to bed (act 1)
+	[&"sink", Vector3(3.3, 0.95, 1.0), Vector3(0.42, 0.2, 0.5), "Wash your face", "", "", {&"bathroom_tap": &"default"}],
+	[&"bed", Vector3(8.95, 0.6, 0.2), Vector3(1.8, 0.2, 2.0), "Lie down", "", ""],
 	[&"aircon", Vector3(9.88, 2.3, 0.2), Vector3(0.2, 0.3, 0.9), "Look at the aircon", "Aircon",
 		"Switched off at the wall. The little green light is blinking anyway."],
 	[&"bedroom_window", Vector3(7.8, 1.5, -1.9), Vector3(1.5, 1.1, 0.04), "Look outside", "Window",
@@ -88,8 +95,7 @@ const OBJECTS := [
 		"Dark behind the grille. A delivery slip is taped to it, dated last month."],
 	[&"fire_door", Vector3(-3.95, 1.05, 11.25), Vector3(0.06, 2.1, 1.0), "Open the fire door", "Fire exit",
 		"It won't open. Someone has tied it shut with raffia string. From the stairwell side."],
-	[&"lift_button", Vector3(18.9, 1.2, 12.1), Vector3(0.05, 0.15, 0.1), "Call the lift", "Lift",
-		"LIF ROSAK — DALAM PENYELENGGARAAN\nUNDER MAINTENANCE\n\nThe button doesn't light up."],
+	[&"lift_button", Vector3(18.9, 1.2, 12.1), Vector3(0.05, 0.15, 0.1), "Call the lift", "", ""],
 	[&"intercom_mirror", Vector3(5.6, 1.45, -14.6), Vector3(0.08, 0.26, 0.14), "Use intercom", "", "", {&"bedroom": &"door"}],
 	[&"mirror_wall", Vector3(7.75, 1.3, -18.41), Vector3(1.8, 1.2, 0.03), "Touch the wall", "", "", {&"bedroom": &"door"}],
 ]
@@ -407,7 +413,8 @@ func _build_object(o: Array) -> void:
 			color = Color(0.7, 0.7, 0.7)
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
-	if o[0] != &"bedroom_window":
+	# the window and the moved things are drawn by their props; only the click box is added
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)
 	if o.size() > 6:

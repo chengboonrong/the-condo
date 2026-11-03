@@ -15,6 +15,10 @@ var _inspect_title: Label
 var _inspect_text: Label
 var _start: Control
 var _crosshair: ColorRect
+var _ending: ColorRect
+var _ending_title: Label
+var _ending_text: Label
+var _ending_in := -1.0  # seconds until the ending card fades in
 
 
 func _ready() -> void:
@@ -55,6 +59,7 @@ func _ready() -> void:
 
 	_build_inspect(root)
 	_build_start(root)
+	_build_ending(root)
 	# The HUD only displays; clicks belong to the game's _unhandled_input (start, interact, phone light).
 	for c: Node in root.find_children("*", "Control", true, false):
 		(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -62,6 +67,7 @@ func _ready() -> void:
 	EventBus.objective_changed.connect(func(t: String) -> void: _objective.text = t)
 	EventBus.subtitle_requested.connect(show_subtitle)
 	EventBus.inspect_requested.connect(show_inspect)
+	EventBus.ending_reached.connect(func(_id: StringName) -> void: _ending_in = 3.0)
 
 
 func bind(p: PlayerController) -> void:
@@ -129,7 +135,37 @@ func _build_start(root: Control) -> void:
 	click.text = "Click to begin"
 
 
+func _build_ending(root: Control) -> void:
+	_ending = ColorRect.new()
+	_ending.color = Color(0, 0, 0, 0.96)
+	_ending.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ending.visible = false
+	root.add_child(_ending)
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.position = Vector2(-380, -200)
+	box.custom_minimum_size = Vector2(760, 400)
+	box.add_theme_constant_override("separation", 22)
+	_ending.add_child(box)
+	_ending_title = _label(box, 44, HORIZONTAL_ALIGNMENT_CENTER)
+	_ending_text = _label(box, 20, HORIZONTAL_ALIGNMENT_CENTER)
+	_ending_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_ending_text.modulate = Color(1, 1, 1, 0.8)
+	var again := _label(box, 18, HORIZONTAL_ALIGNMENT_CENTER)
+	again.text = "Thank you for playing.\nClick to play again."
+	again.modulate = Color(1, 1, 1, 0.5)
+
+
+func is_ending_shown() -> bool:
+	return _ending.visible
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if _ending.visible:
+		if event is InputEventMouseButton and event.pressed:
+			get_viewport().set_input_as_handled()
+			get_tree().reload_current_scene()
+		return
 	if _start.visible:
 		if event is InputEventMouseButton and event.pressed:
 			_start.visible = false
@@ -174,6 +210,14 @@ func is_inspecting() -> bool:
 
 
 func _process(delta: float) -> void:
+	if _ending_in > 0.0:
+		_ending_in -= delta
+		if _ending_in <= 0.0:
+			var e: Array = StoryDirector.ENDINGS[WorldState.ending]
+			_ending_title.text = e[0]
+			_ending_text.text = e[1]
+			_inspect.visible = false
+			_ending.visible = true
 	if _subtitle_left > 0.0:
 		_subtitle_left -= delta
 		if _subtitle_left <= 0.0:

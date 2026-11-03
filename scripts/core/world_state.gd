@@ -107,11 +107,13 @@ func is_light_on(room_id: StringName) -> bool:
 	return lights.get(room_id, false)
 
 
-func set_variant(area_id: StringName, variant: StringName) -> void:
+## is_shift = false when the player puts something back themselves: that is not the condo shifting.
+func set_variant(area_id: StringName, variant: StringName, is_shift := true) -> void:
 	if get_variant(area_id) == variant:
 		return
 	variants[area_id] = variant
-	clock_anchor = time  # the condo shifted: it is 11:47 PM again
+	if is_shift:
+		clock_anchor = time  # the condo shifted: it is 11:47 PM again
 	EventBus.variant_changed.emit(area_id, variant)
 
 

@@ -50,7 +50,7 @@ func test_impossible_space_sequence() -> bool:
 	player.set_look(0.0)  # looking into the bedroom, at the window wall
 	await _frames(3)
 
-	WorldState.set_act(WorldState.Act.IMPOSSIBLE)  # the stand-in story asks for the reveal
+	sched.request(&"shift", {"area": &"bedroom", "variant": &"door"}, 20)  # as the story asks in act 3
 	await _frames(5)
 	check(sched.is_queued(&"shift"), "the reveal waits while the window is in view")
 	eq(WorldState.get_variant(&"bedroom"), &"default", "the window is still a window")
@@ -78,8 +78,10 @@ func test_impossible_space_sequence() -> bool:
 			break
 		await tree.physics_frame
 	player.scripted_move = Vector2.ZERO
-	await _frames(5)
+	await _frames(2)
 	eq(WorldState.player_room, &"mirror_room", "the corridor leads to B-11-07")
+	sched.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)  # as the story asks in act 4
+	await _frames(5)
 	check(sched.is_queued(&"shift"), "the corridor does not grow while the player watches it")
 	eq(WorldState.get_variant(&"gap"), &"default", "still short")
 	player.set_look(0.0)  # face into B-11-07

@@ -36,9 +36,7 @@ func _ready() -> void:
 	add_child(overlay)
 	hud.bind(player)
 	hud.started.connect(_on_started)
-	EventBus.object_interacted.connect(_on_interacted)
-	EventBus.act_changed.connect(_on_act_changed)
-	EventBus.room_entered.connect(_on_room_entered)
+	EventBus.ending_reached.connect(_on_ending)
 
 
 func _physics_process(delta: float) -> void:
@@ -53,38 +51,20 @@ func _process(_delta: float) -> void:
 		player.input_enabled = false
 
 
-# Phase 2 stand-in for the story (StoryDirector replaces it in Phase 5): the intercom rings, the
-# neighbour complains, and the knocks start, all as story requests through the scheduler.
 func _on_started() -> void:
-	get_tree().create_timer(2.0).timeout.connect(func() -> void:
-		runtime.scheduler.request(&"phone_ring", {"anchor": &"phone_intercom", "stop_flag": &"answered_intercom"}))
+	runtime.start_story()
 
 
-func _on_interacted(object_id: StringName) -> void:
-	if object_id == &"intercom" and runtime.scheduler.is_running(&"phone_ring") and not WorldState.has_flag(&"answered_intercom"):
-		WorldState.set_flag(&"answered_intercom")
-		EventBus.subtitle_requested.emit("\"Hello? Sorry ah, so late. Downstairs, 11-07. Can you stop the knocking?\"", 5.0)
-		get_tree().create_timer(6.0).timeout.connect(func() -> void:
-			runtime.scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0}))
+func _on_ending(_ending_id: StringName) -> void:
+	player.input_enabled = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Phase 1: Esc frees the mouse, a click takes it back. The pause menu replaces this in Phase 6.
+	# Esc frees the mouse, a click takes it back. The pause menu replaces this in Phase 6.
 	if event.is_action_pressed("pause") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not hud.is_inspecting():
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		player.input_enabled = false
-	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and player.interaction.enabled_input and not hud.is_inspecting() and WorldState.time > 0.1:
+	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and player.interaction.enabled_input and not hud.is_inspecting() and WorldState.time > 0.1 and WorldState.ending == &"":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		player.input_enabled = true
-
-
-# Phase 4 stand-in for the story: act 3 reveals the impossible room, and entering B-11-07 grows the
-# corridor behind the player. Story-critical requests wait until RoomTransformer says it is safe.
-func _on_act_changed(act: int) -> void:
-	if act == WorldState.Act.IMPOSSIBLE:
-		runtime.scheduler.request(&"shift", {"area": &"bedroom", "variant": &"door"}, 20)
-
-
-func _on_room_entered(room_id: StringName) -> void:
-	if room_id == &"mirror_room" and WorldState.get_variant(&"gap") == &"default":
-		runtime.scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)

@@ -1,0 +1,364 @@
+class_name StoryDirector
+extends RefCounted
+## Acts, beats, objectives, dialogue, clues and endings. Reacts to what the player does (EventBus) and
+## asks the scheduler for story events. Every beat has a fail-safe, so the story always moves on and
+## both endings stay reachable whatever the adaptive director does. Time is simulation time.
+
+const SIGNS_NEEDED := 4
+const BED_WAIT := 150.0  # fail-safe: the intercom rings even if the player never goes to bed
+const ACT2_MIN := 240.0  # seconds of disturbance before act 3, even with enough signs
+const ACT2_MAX := 420.0  # fail-safe: act 3 starts anyway
+const DECISION_WAIT := 210.0  # fail-safe: waiting this long in B-11-07 is a choice too
+const BEACON_EVERY := 30.0
+
+## Clues that count as signs that something is wrong (others are flavour).
+const SIGN_CLUES: Array[StringName] = [&"vacant", &"own_unit", &"notes", &"mirror"]
+const CLUE_OBJECTS := {
+	&"complaint_slips": &"notes", &"notice_fridge": &"vacant", &"calendar": &"calendar", &"photo": &"photo",
+	&"bathroom_mirror": &"mirror", &"tv": &"tv", &"aircon": &"aircon",
+}
+## Objects that only exist after a small shift: noticing one puts it back and counts as a sign.
+const NOTICE := {
+	&"shoes_moved": [&"entrance_shoes", "[Your work shoes, in the middle of the floor. You always leave them on the rack.]"],
+	&"chair_turned": [&"living_chair", "[Someone has turned the chair to face the bedroom.]"],
+	&"tap": [&"bathroom_tap", "[You turn the tap off. The handle is warm.]"],
+}
+const ENDINGS := {
+	&"downstairs": ["DOWNSTAIRS", "You knock three times.\n\nUpstairs, someone who has just come home from a night shift stops in the dark and listens.\n\nThe notes under their door are in your handwriting."],
+	&"vacant": ["VACANT", "The lift is warm, as if someone has just stepped out of it.\n\nA week later a new notice goes up by the letterboxes:\nUnit B-12-07 has been vacant since November.\n\nThe knocking never stops."],
+}
+
+var scheduler: EventScheduler
+var transformer: RoomTransformer
+var beat: StringName = &""
+var beat_started := 0.0
+var noticed := 0
+var progress: Array[Dictionary] = []  # every beat change, for tests and the playthrough report
+var _fired: Dictionary = {}  # one-shot keys in the current beat
+var _lines: Array = []  # queued [text, seconds]
+var _line_left := 0.0
+var _last_shift := 0.0
+var _bedroom_since := -1.0
+var _next_beacon := INF
+
+
+func _init(event_scheduler: EventScheduler, room_transformer: RoomTransformer) -> void:
+	scheduler = event_scheduler
+	transformer = room_transformer
+	EventBus.object_interacted.connect(_on_interacted)
+	EventBus.room_entered.connect(_on_room_entered)
+	EventBus.variant_changed.connect(_on_variant_changed)
+	scheduler.run_finished.connect(_on_run_finished)
+
+
+func now() -> float:
+	return WorldState.time
+
+
+func beat_time() -> float:
+	return now() - beat_started
+
+
+func signs() -> int:
+	return noticed + SIGN_CLUES.filter(func(c: StringName) -> bool: return WorldState.clues.has(c)).size()
+
+
+## Where the current objective points (bots use it; a hint system could too). "" = anywhere.
+func hint_room() -> StringName:
+	match beat:
+		&"home": return &"bedroom" if WorldState.has_flag(&"washed") else &"bathroom"
+		&"ringing": return &"entrance"
+		&"complained", &"knocked": return &"bedroom"
+		&"front_door", &"reveal_pending": return &"entrance"
+		&"revealed": return &"gap"
+		&"in_gap", &"decision": return &"mirror_room"
+	return &""
+
+
+func tick(delta: float) -> void:
+	_speak(delta)
+	if beat == &"":
+		_go(&"home")
+		WorldState.set_objective("You're home from the night shift. Wash up, then get some sleep.")
+	var t := beat_time()
+	match beat:
+		&"home":
+			if t >= BED_WAIT:
+				_ring()  # fail-safe: never went to bed
+		&"in_bed":
+			if t >= 4.0:
+				_ring()
+		&"ringing":
+			if _once("hint", 30.0):
+				WorldState.set_objective("Answer the intercom. It's by the front door.")
+			if t > 1.0 and not scheduler.is_running(&"phone_ring") and not scheduler.is_queued(&"phone_ring"):
+				say("[The intercom stops ringing.]", 2.5)  # fail-safe: unanswered, the knocks come anyway
+				_go(&"complained")
+		&"complained":
+			if t >= 8.0:
+				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0})
+				WorldState.set_objective("Find where the knocking came from.")
+				_go(&"knocked")
+		&"knocked":
+			if WorldState.player_room == &"bedroom":
+				if _bedroom_since < 0.0:
+					_bedroom_since = now()
+			else:
+				_bedroom_since = -1.0
+				if _once("again", 45.0):
+					scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0}, 5)
+			if t >= 120.0 or (_bedroom_since >= 0.0 and now() - _bedroom_since >= 15.0):
+				_wall_answers()
+		&"disturbance":
+			if t >= 30.0 and now() - _last_shift >= 75.0 and not scheduler.is_queued(&"shift") and not scheduler.is_running(&"shift"):
+				scheduler.request(&"shift", {}, 5)  # make sure there is something to notice
+			if (signs() >= SIGNS_NEEDED and t >= ACT2_MIN) or t >= ACT2_MAX:
+				_start_act3()
+		&"front_door":
+			if t >= 5.0 and [&"entrance", &"corridor"].has(WorldState.player_room):
+				_at_front_door()  # already there when the knocking started
+			elif t >= 60.0:
+				_request_reveal()  # fail-safe: the player never went to the door
+		&"reveal_pending":
+			if not scheduler.is_queued(&"shift") and not scheduler.is_running(&"shift"):
+				scheduler.request(&"shift", {"area": &"bedroom", "variant": &"door"}, 20)  # the last try failed
+			# fail-safe: the reveal needs the player out of the bedroom and not looking at it
+			if now() >= _next_beacon:
+				_next_beacon = now() + BEACON_EVERY
+				if WorldState.player_room == &"bedroom":
+					scheduler.request(&"knock_wall", {"anchor": &"knock_entrance_door", "volume_db": 3.0}, 5)
+				elif WorldState.is_door_open(&"bedroom_door"):
+					scheduler.start(&"door_slam", {"door": &"bedroom_door", "open": false, "story": true}, 10)
+		&"revealed":
+			# fail-safe: knocks from behind the new door keep calling the player back to the bedroom
+			if now() >= _next_beacon and not [&"bedroom", &"gap"].has(WorldState.player_room):
+				_next_beacon = now() + BEACON_EVERY
+				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north"}, 5)
+		&"decision":
+			if _once("ring", 5.0):
+				scheduler.request(&"phone_ring", {"anchor": &"phone_mirror", "stop_flag": &"answered_mirror"})
+				WorldState.set_objective("Answer the intercom.")
+			if _once("choice", 40.0):
+				_offer_choice()
+			if _once("knocks", 120.0):
+				scheduler.request(&"knock_wall", {"anchor": &"knock_mirror"}, 5)
+			if t >= DECISION_WAIT:
+				_end(&"downstairs", "[You waited too long. Your hand is already on the wall.]")
+
+
+func say(text: String, seconds := 3.5) -> void:
+	_lines.append([text, seconds])
+
+
+## Debug (F10): jump to the next act.
+func debug_skip() -> void:
+	match WorldState.act:
+		WorldState.Act.COMPLAINT:
+			_wall_answers()
+		WorldState.Act.DISTURBANCE:
+			_start_act3()
+		WorldState.Act.IMPOSSIBLE:
+			WorldState.set_variant(&"bedroom", &"door")
+			_start_act4()
+		WorldState.Act.DECISION:
+			_end(&"downstairs")
+
+
+func _go(next: StringName) -> void:
+	beat = next
+	beat_started = now()
+	_fired.clear()
+	progress.append({"t": snappedf(now(), 0.1), "beat": next, "act": WorldState.act, "signs": signs()})
+
+
+func _once(key: String, at: float) -> bool:
+	if _fired.has(key) or beat_time() < at:
+		return false
+	_fired[key] = true
+	return true
+
+
+func _speak(delta: float) -> void:
+	_line_left -= delta
+	if _line_left <= 0.0 and not _lines.is_empty():
+		var line: Array = _lines.pop_front()
+		EventBus.subtitle_requested.emit(line[0], line[1])
+		_line_left = float(line[1]) + 0.3
+
+
+func _ring() -> void:
+	scheduler.request(&"phone_ring", {"anchor": &"phone_intercom", "stop_flag": &"answered_intercom"})
+	WorldState.set_objective("Answer the intercom.")
+	_go(&"ringing")
+
+
+func _wall_answers() -> void:
+	EventBus.sound_requested.emit(&"knock1", ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
+	say("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
+	WorldState.set_act(WorldState.Act.DISTURBANCE)
+	WorldState.set_objective("Something in the flat is wrong. Look around.")
+	_last_shift = now()
+	_go(&"disturbance")
+
+
+func _start_act3() -> void:
+	WorldState.set_act(WorldState.Act.IMPOSSIBLE)
+	scheduler.request(&"knock_wall", {"anchor": &"knock_entrance_door", "volume_db": 3.0}, 10)
+	WorldState.set_objective("Someone is knocking at the front door.")
+	_go(&"front_door")
+
+
+func _request_reveal() -> void:
+	if beat != &"front_door":
+		return
+	_go(&"reveal_pending")  # first: a shift that is already safe applies inside request()
+	_next_beacon = now() + BEACON_EVERY
+	scheduler.request(&"shift", {"area": &"bedroom", "variant": &"door"}, 20)
+
+
+func _at_front_door() -> void:
+	say("[Nobody there. The corridor is empty.]", 3.0)
+	say("[Deeper in the flat, something heavy settles.]", 3.5)
+	_request_reveal()
+
+
+func _start_act4() -> void:
+	WorldState.set_act(WorldState.Act.DECISION)
+	transformer.required_rooms = [&"mirror_room"]
+	scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)
+	WorldState.set_prompt(&"mirror_wall", "Knock back three times")
+	WorldState.set_prompt(&"lift_button", "Call the lift")
+	say("[B-11-07. It's your flat, the wrong way round.]", 4.0)
+	_go(&"decision")
+
+
+func _offer_choice() -> void:
+	_fired["choice"] = true
+	WorldState.set_objective("Knock back on the wall. Or get out: the lift is working.")
+
+
+func _end(ending_id: StringName, line := "") -> void:
+	if WorldState.ending != &"":
+		return
+	if line != "":
+		EventBus.subtitle_requested.emit(line, 4.0)
+	match ending_id:
+		&"downstairs":
+			EventBus.sound_requested.emit(&"knock3", ApartmentLayout.ANCHORS[&"knock_mirror"]["pos"], 2.0)
+		&"vacant":
+			EventBus.sound_requested.emit(&"lift_ding", ApartmentLayout.LIFT_POS + Vector3.UP * 1.5, 0.0)
+	for run in scheduler.running.duplicate():
+		scheduler.cancel(run, "story ended")
+	scheduler.queue.clear()
+	WorldState.set_act(WorldState.Act.ENDED)
+	WorldState.set_objective("")
+	WorldState.set_ending(ending_id)
+	_go(&"ended")
+
+
+func _on_interacted(object_id: StringName) -> void:
+	if WorldState.ending != &"":
+		return
+	if CLUE_OBJECTS.has(object_id):
+		WorldState.add_clue(CLUE_OBJECTS[object_id])
+	elif NOTICE.has(object_id):
+		var area: StringName = NOTICE[object_id][0]
+		if WorldState.get_variant(area) != &"default":
+			say(NOTICE[object_id][1], 4.0)
+			WorldState.set_variant(area, &"default", false)  # the player puts it back; not a shift
+			noticed += 1
+			if beat == &"disturbance" and signs() < SIGNS_NEEDED:
+				WorldState.set_objective("Things move when you aren't looking. Keep looking.")
+	match object_id:
+		&"sink":
+			if not WorldState.has_flag(&"washed"):
+				WorldState.set_flag(&"washed")
+				say("[Cold water. Your body says it's long past midnight. The oven clock says 11:47.]", 4.5)
+				if beat == &"home":
+					WorldState.set_objective("Get some sleep.")
+			else:
+				say("[Cold water.]", 2.0)
+		&"bed":
+			if beat == &"home":
+				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0)
+				WorldState.set_objective("")
+				_go(&"in_bed")
+			elif WorldState.act < WorldState.Act.ENDED:
+				say("[You can't sleep. Not now.]", 2.5)
+		&"intercom":
+			if beat == &"ringing" and scheduler.is_running(&"phone_ring"):
+				_answer_rosnah()
+			elif WorldState.has_flag(&"answered_intercom"):
+				WorldState.add_clue(&"own_unit")
+				EventBus.inspect_requested.emit("Intercom", "LAST CALL  23:47\nFROM  B-12-07\n\nB-12-07 is this flat.")
+			else:
+				EventBus.inspect_requested.emit("Intercom", "The little screen is dark.")
+		&"intercom_mirror":
+			if beat == &"decision" and scheduler.is_running(&"phone_ring") and not WorldState.has_flag(&"answered_mirror"):
+				_answer_upstairs()
+			else:
+				EventBus.inspect_requested.emit("Intercom", "The screen shows the corridor outside 11-07. Empty.")
+		&"bedroom_wall":
+			if beat == &"knocked":
+				_wall_answers()
+			else:
+				EventBus.inspect_requested.emit("Bedroom wall", "Cold. Colder than the rest of the room.")
+		&"mirror_wall":
+			if WorldState.act == WorldState.Act.DECISION:
+				_end(&"downstairs")
+		&"lift_button":
+			if WorldState.act == WorldState.Act.DECISION:
+				_end(&"vacant")
+			else:
+				EventBus.inspect_requested.emit("Lift", "LIF ROSAK — DALAM PENYELENGGARAAN\nUNDER MAINTENANCE\n\nThe button doesn't light up.")
+
+
+func _answer_rosnah() -> void:
+	WorldState.set_flag(&"answered_intercom")
+	say("\"Hello? Sorry ah, so late.\"", 2.5)
+	say("\"This is Rosnah. Downstairs, 11-07.\"", 3.0)
+	say("\"Every night also the same. Knock, knock, knock. From your bedroom.\"", 4.0)
+	say("\"Please. Can you stop the knocking?\"", 3.5)
+	say("[The line goes dead.]", 2.5)
+	WorldState.set_objective("You haven't made a sound all night.")
+	_go(&"complained")
+
+
+func _answer_upstairs() -> void:
+	WorldState.set_flag(&"answered_mirror")
+	say("\"Hello? Sorry, so late. I just got home from my shift.\"", 3.5)
+	say("\"This is upstairs. 12-07.\"", 3.0)
+	say("\"Can you please stop the knocking?\"", 3.5)
+	say("[It's your voice.]", 3.0)
+	_offer_choice()
+
+
+func _on_room_entered(room_id: StringName) -> void:
+	match beat:
+		&"front_door":
+			if room_id == &"entrance" or room_id == &"corridor":
+				_at_front_door()
+		&"revealed":
+			if room_id == &"bedroom" and _once("window", 0.0):
+				say("[The window is a door.]", 3.0)
+				WorldState.set_objective("Where does it go?")
+			elif room_id == &"gap":
+				say("[This can't be here. You're on the twelfth floor.]", 4.0)
+				WorldState.set_objective("Follow the corridor.")
+				_go(&"in_gap")
+		&"in_gap":
+			if room_id == &"mirror_room":
+				_start_act4()
+
+
+func _on_variant_changed(area_id: StringName, variant: StringName) -> void:
+	if beat == &"reveal_pending" and area_id == &"bedroom" and variant == &"door":
+		transformer.required_rooms = [&"mirror_room"]
+		_next_beacon = now() + 60.0
+		WorldState.set_objective("Something moved in the bedroom.")
+		_go(&"revealed")
+
+
+func _on_run_finished(run: Dictionary) -> void:
+	if run["id"] == &"shift" and run["state"] == EventScheduler.State.COMPLETED:
+		_last_shift = now()

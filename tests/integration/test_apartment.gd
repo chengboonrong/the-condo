@@ -123,6 +123,23 @@ func test_interaction_reach() -> bool:
 	return true
 
 
+func test_bedtime_objects_can_be_used() -> bool:
+	var main := await _main()
+	var player: PlayerController = main.player
+	for spot: Array in [[&"sink", Vector3(4.1, 0, 1.0), Vector3(3.3, 0.95, 1.0), "Wash your face"], [&"bed", Vector3(7.4, 0, 0.2), Vector3(8.6, 0.6, 0.2), "Lie down"]]:
+		player.global_position = spot[1]
+		var eye: Vector3 = spot[1] + Vector3.UP * 1.62
+		var to: Vector3 = spot[2] - eye
+		player.set_look(atan2(-to.x, -to.z), atan2(to.y, Vector2(to.x, to.z).length()))
+		for i in 3:
+			await tree.physics_frame
+		var hit: Object = player.interaction.target
+		eq(hit.object_id if hit != null else &"", spot[0], "%s in reach" % spot[0])
+		eq(hit.get_prompt() if hit != null else "", spot[3], "%s prompt" % spot[0])
+	main.queue_free()
+	return true
+
+
 func test_knock_plays_at_its_anchor() -> bool:
 	var main := await _main()
 	var pos: Vector3 = ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"]
