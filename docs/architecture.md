@@ -8,7 +8,7 @@ which is what makes seeded replays and simulated playthroughs possible.
 ```
              input / camera / physics                         simulation core (RefCounted, ticked)
 ┌──────────────────────────────────────┐  sample()   ┌───────────────────────────────────────────────┐
-│ PlayerController ─ InteractionSystem │ ──────────▶ │ HorrorRuntime.step(dt, sample)                │
+│ PlayerController ─ InteractionSystem │ ──────────▶ │ HorrorRuntime.step(dt)                        │
 │ GameStage (visibility queries)       │ ◀────────── │  ├ BehaviorProfiler  (bounded scores)         │
 │ ApartmentBuilder (graybox, doors,    │  queries    │  ├ EventScheduler    (lifecycle, locks)       │
 │   lights, variants)                  │             │  ├ HorrorDirector    (utility scoring, 4 Hz)  │
@@ -43,9 +43,10 @@ which is what makes seeded replays and simulated playthroughs possible.
 ## Determinism
 
 * One `RandomNumberGenerator`, seeded once, shared by every core system in a fixed call order.
-* The core advances only through `HorrorRuntime.step(dt, sample)`. Given the same seed and the
-  same sequence of `(dt, sample, interactions)`, the director makes the same decisions; a unit
-  test replays a trace twice and compares the decision logs.
+* The core advances only through `HorrorRuntime.step(dt)`, which reads the player through the
+  `HorrorStage` (position, facing, speed, phone light). Given the same seed and the same sequence of
+  stage states and interactions, the director makes the same decisions; a unit test replays a trace
+  twice and compares the decision logs.
 * Presentation randomness (flicker patterns, footstep variation) uses its own RNG and never feeds
   back into the core.
 

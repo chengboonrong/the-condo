@@ -110,6 +110,8 @@ const ANCHORS := {
 	&"knock_hallway": {"room": &"hallway", "pos": Vector3(9.9, 1.3, 3.25), "kind": "knock"},
 	&"knock_entrance_door": {"room": &"entrance", "pos": Vector3(1.5, 1.3, 10.05), "kind": "knock"},
 	&"knock_mirror": {"room": &"mirror_room", "pos": Vector3(7.75, 1.3, -18.4), "kind": "knock"},
+	&"phone_intercom": {"room": &"entrance", "pos": Vector3(0.1, 1.45, 8.6), "kind": "phone"},
+	&"phone_mirror": {"room": &"mirror_room", "pos": Vector3(5.6, 1.45, -14.6), "kind": "phone"},
 	&"sil_corridor_west": {"room": &"corridor", "pos": Vector3(-3.3, 0, 11.3), "kind": "silhouette"},
 	&"sil_hallway_east": {"room": &"hallway", "pos": Vector3(9.6, 0, 3.25), "kind": "silhouette"},
 	&"sil_kitchen": {"room": &"kitchen", "pos": Vector3(0.6, 0, 3.0), "kind": "silhouette"},

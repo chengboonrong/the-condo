@@ -4,9 +4,12 @@ extends Node3D
 @onready var player: PlayerController = $Player
 @onready var hud: Hud = $Hud
 
+## Fixed for now so runs are reproducible; the story/settings choose it later.
+const SEED := 1147
+
 var builder: ApartmentBuilder
 var audio: AudioDirector
-var _demo_ring := -1.0  # Phase 1 stand-in for the story: seconds until the next intercom ring
+var runtime: HorrorRuntime
 
 
 func _ready() -> void:
@@ -20,19 +23,25 @@ func _ready() -> void:
 	add_child(audio)
 	player.global_position = ApartmentLayout.SPAWN
 	player.set_look(ApartmentLayout.SPAWN_YAW)
+	var stage := GameStage.new(RoomGraph.new(WorldState.variants), player)
+	runtime = HorrorRuntime.new()
+	runtime.name = "Horror"
+	add_child(runtime)
+	runtime.setup(stage, SEED)
+	var silhouette := Silhouette.new()
+	silhouette.stage = stage
+	add_child(silhouette)
+	var overlay := DebugOverlay.new()
+	overlay.runtime = runtime
+	add_child(overlay)
 	hud.bind(player)
-	hud.started.connect(func() -> void: _demo_ring = 2.0)
+	hud.started.connect(_on_started)
 	EventBus.object_interacted.connect(_on_interacted)
 
 
 func _physics_process(delta: float) -> void:
-	WorldState.advance_time(delta)
 	WorldState.set_player_room(ApartmentLayout.room_at(player.global_position, WorldState.variants))
-	if _demo_ring >= 0.0:
-		_demo_ring -= delta
-		if _demo_ring < 0.0:
-			EventBus.sound_requested.emit(&"intercom_ring", Vector3(0.1, 1.45, 8.6), -2.0)
-			_demo_ring = 3.6
+	runtime.step(delta)
 
 
 func _process(_delta: float) -> void:
@@ -42,13 +51,19 @@ func _process(_delta: float) -> void:
 		player.input_enabled = false
 
 
+# Phase 2 stand-in for the story (StoryDirector replaces it in Phase 5): the intercom rings, the
+# neighbour complains, and the knocks start, all as story requests through the scheduler.
+func _on_started() -> void:
+	get_tree().create_timer(2.0).timeout.connect(func() -> void:
+		runtime.scheduler.request(&"phone_ring", {"anchor": &"phone_intercom", "stop_flag": &"answered_intercom"}))
+
+
 func _on_interacted(object_id: StringName) -> void:
-	if object_id == &"intercom" and _demo_ring >= 0.0:
-		_demo_ring = -1.0
+	if object_id == &"intercom" and runtime.scheduler.is_running(&"phone_ring") and not WorldState.has_flag(&"answered_intercom"):
+		WorldState.set_flag(&"answered_intercom")
 		EventBus.subtitle_requested.emit("\"Hello? Sorry ah, so late. Downstairs, 11-07. Can you stop the knocking?\"", 5.0)
 		get_tree().create_timer(6.0).timeout.connect(func() -> void:
-			EventBus.sound_requested.emit(&"knock3", ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 2.0)
-			EventBus.subtitle_requested.emit("[Three knocks from the bedroom]", 3.0))
+			runtime.scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0}))
 
 
 func _unhandled_input(event: InputEvent) -> void:
