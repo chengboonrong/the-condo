@@ -17,6 +17,9 @@ const GAP_MAX := 30.0  # ...and at full tension
 const REPEAT_WINDOW := 5
 const LOG_LIMIT := 30
 
+## Every pick, with its scores (the log above keeps only the last LOG_LIMIT).
+signal decided(decision: Dictionary)
+
 var scheduler: EventScheduler
 var profiler: BehaviorProfiler
 var ctx: EventContext
@@ -165,6 +168,7 @@ func _record(pick: Dictionary, top: Array) -> void:
 	})
 	if decisions.size() > LOG_LIMIT:
 		decisions.pop_front()
+	decided.emit(decisions[-1])
 	scheduler._log("director → %s (%.2f; tension %.2f/%.2f)" % [pick["id"], pick["total"], tension, target()])
 
 
