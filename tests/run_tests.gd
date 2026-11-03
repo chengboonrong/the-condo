@@ -19,6 +19,7 @@ func _initialize() -> void:
 			if file.ends_with(".gd"):
 				await _run_file(dir.path_join(file), filter)
 	print("\nResults: %d passed, %d failed" % [passed, failed])
+	await process_frame  # let queue_free()d test scenes go before exit
 	quit(1 if failed > 0 else 0)
 
 

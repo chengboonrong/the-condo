@@ -34,7 +34,7 @@ const CONNECTIONS := [
 	{"a": &"entrance", "b": &"kitchen", "door": &"kitchen_door", "pos": Vector3(1.45, 0, 7)},
 	{"a": &"living", "b": &"hallway", "door": &"", "pos": Vector3(4, 0, 4)},
 	{"a": &"hallway", "b": &"bathroom", "door": &"bathroom_door", "pos": Vector3(4.3, 0, 2.5)},
-	{"a": &"hallway", "b": &"bedroom", "door": &"bedroom_door", "pos": Vector3(8.65, 0, 2.5)},
+	{"a": &"hallway", "b": &"bedroom", "door": &"bedroom_door", "pos": Vector3(6.75, 0, 2.5)},
 	{"a": &"bedroom", "b": &"gap", "door": &"gap_door", "pos": Vector3(7.7, 0, -2), "requires": {&"bedroom": &"door"}},
 	{"a": &"gap", "b": &"mirror_room", "door": &"mirror_door", "pos": Vector3(7.7, 0, -14), "requires": {&"bedroom": &"door"}},
 ]
@@ -44,8 +44,8 @@ const DOORS := {
 	&"main_door": {"hinge": Vector3(1.0, 0, 10), "axis": "x", "width": 1.0, "swing": -1, "color": Color(0.36, 0.25, 0.18)},
 	&"kitchen_door": {"hinge": Vector3(1.0, 0, 7), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
 	&"bathroom_door": {"hinge": Vector3(3.9, 0, 2.5), "axis": "x", "width": 0.8, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
-	&"bedroom_door": {"hinge": Vector3(8.2, 0, 2.5), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
-	&"gap_door": {"hinge": Vector3(7.25, 0, -2), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.75, 0.72, 0.66), "requires": {&"bedroom": &"door"}},
+	&"bedroom_door": {"hinge": Vector3(6.3, 0, 2.5), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
+	&"gap_door": {"hinge": Vector3(7.25, 0, -2), "axis": "x", "width": 0.9, "swing": 1, "color": Color(0.75, 0.72, 0.66), "requires": {&"bedroom": &"door"}},
 	&"mirror_door": {"hinge": Vector3(7.25, 0, -14), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.32, 0.3, 0.28), "requires": {&"bedroom": &"door"}},
 }
 
@@ -56,7 +56,7 @@ const WALLS := [
 	{"axis": "x", "at": -2.0, "from": 5.5, "to": 10.0, "openings": [[7.0, 8.6, 0.9, 2.1]], "window": true, "requires": {&"bedroom": &"default"}},
 	{"axis": "x", "at": -2.0, "from": 5.5, "to": 10.0, "openings": [[7.25, 8.15, 0.0, DOOR_HEIGHT]], "requires": {&"bedroom": &"door"}},
 	{"axis": "x", "at": 2.5, "from": 0.0, "to": 3.0},
-	{"axis": "x", "at": 2.5, "from": 3.0, "to": 10.0, "openings": [[3.9, 4.7, 0.0, DOOR_HEIGHT], [8.2, 9.1, 0.0, DOOR_HEIGHT]]},
+	{"axis": "x", "at": 2.5, "from": 3.0, "to": 10.0, "openings": [[3.9, 4.7, 0.0, DOOR_HEIGHT], [6.3, 7.2, 0.0, DOOR_HEIGHT]]},
 	{"axis": "x", "at": 4.0, "from": 3.0, "to": 10.0, "openings": [[3.3, 4.7, 0.0, 2.3]]},
 	{"axis": "x", "at": 7.0, "from": 0.0, "to": 3.0, "openings": [[1.0, 1.9, 0.0, DOOR_HEIGHT]]},
 	{"axis": "x", "at": 10.0, "from": -4.0, "to": 19.0, "openings": [[1.0, 2.0, 0.0, DOOR_HEIGHT]]},
@@ -94,7 +94,7 @@ const LIGHTS := {
 	&"kitchen": {"pos": [Vector3(1.5, 2.6, 4.7)], "color": Color(0.9, 0.97, 1.0), "energy": 1.0, "range": 6.0, "on": false, "switch": Vector3(2.1, 1.2, 6.92)},
 	&"hallway": {"pos": [Vector3(6.5, 2.6, 3.25)], "color": Color(1.0, 0.85, 0.65), "energy": 0.7, "range": 6.0, "on": false, "switch": Vector3(3.08, 1.2, 3.2)},
 	&"bathroom": {"pos": [Vector3(4.25, 2.6, 0.2)], "color": Color(0.92, 0.97, 1.0), "energy": 0.9, "range": 5.0, "on": false, "switch": Vector3(3.7, 1.2, 2.58)},
-	&"bedroom": {"pos": [Vector3(7.75, 2.6, 0.25)], "color": Color(1.0, 0.8, 0.6), "energy": 1.0, "range": 7.0, "on": false, "switch": Vector3(9.3, 1.2, 2.42)},
+	&"bedroom": {"pos": [Vector3(7.75, 2.6, 0.25)], "color": Color(1.0, 0.8, 0.6), "energy": 1.0, "range": 7.0, "on": false, "switch": Vector3(7.45, 1.2, 2.42)},
 	&"gap": {"pos": [Vector3(7.7, 2.5, -5), Vector3(7.7, 2.5, -11), Vector3(3, 2.5, -8.7), Vector3(-1.3, 2.5, -5.5), Vector3(4, 2.5, -2.7)], "color": Color(1.0, 0.7, 0.45), "energy": 0.5, "range": 5.0, "on": true, "switch": null},
 	&"mirror_room": {"pos": [Vector3(7.75, 2.6, -16.25)], "color": Color(0.7, 0.75, 0.9), "energy": 0.35, "range": 6.0, "on": true, "switch": null},
 }
@@ -163,3 +163,14 @@ static func room_at(pos: Vector3, variants: Dictionary) -> StringName:
 			if r.has_point(p):
 				return room_id
 	return &""
+
+
+const INITIAL_OPEN_DOORS: Array[StringName] = [&"kitchen_door", &"bedroom_door", &"mirror_door"]
+
+
+## Puts lights and doors in their 11:47 PM state. Call once at game start, before building the scene.
+static func apply_initial_state() -> void:
+	for room_id: StringName in LIGHTS:
+		WorldState.set_light(room_id, LIGHTS[room_id]["on"])
+	for door_id: StringName in DOORS:
+		WorldState.set_door(door_id, INITIAL_OPEN_DOORS.has(door_id), &"init")

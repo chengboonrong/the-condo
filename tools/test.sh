@@ -5,4 +5,4 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
 "$GODOT" --headless --path . --import >/dev/null 2>&1
-"$GODOT" --headless --path . --script res://tests/run_tests.gd -- "$@"
+"$GODOT" --headless --fixed-fps 60 --path . --script res://tests/run_tests.gd -- "$@"

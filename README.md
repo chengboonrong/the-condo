@@ -56,6 +56,8 @@ See [docs/test-plan.md](docs/test-plan.md).
 
 ## Tools
 
+* `tools/screenshots.gd` renders a contact sheet of every room (needs a window):
+  `godot --path . --script res://tools/screenshots.gd -- --out=/tmp/condo_sheet.png`
 * `tools/setup_input_map.gd` rewrites the input actions in `project.godot`.
 * `tools/gen_audio.py` regenerates every sound (Python 3, standard library only).
 

@@ -5,7 +5,8 @@ enum Act { COMPLAINT = 1, DISTURBANCE = 2, IMPOSSIBLE = 3, DECISION = 4, ENDED =
 
 const HISTORY_LIMIT := 64
 
-var time := 0.0  # simulation seconds since the call at 11:47 PM
+var time := 0.0  # simulation seconds since the game started; never rewinds
+var clock_anchor := 0.0  # sim time when the wall clock last read 11:47 PM (every shift resets it)
 var act: int = Act.COMPLAINT
 var objective := ""
 var flags: Dictionary = {}  # StringName -> Variant
@@ -24,6 +25,7 @@ var ending: StringName = &""
 
 func reset() -> void:
 	time = 0.0
+	clock_anchor = 0.0
 	act = Act.COMPLAINT
 	objective = ""
 	flags.clear()
@@ -42,6 +44,11 @@ func reset() -> void:
 
 func advance_time(dt: float) -> void:
 	time += dt
+
+
+## Minutes past midnight shown on the in-game clock. It starts at 11:47 PM and jumps back on every shift.
+func clock_minutes() -> int:
+	return (23 * 60 + 47 + int((time - clock_anchor) / 60.0)) % (24 * 60)
 
 
 func set_act(value: int) -> void:
@@ -104,6 +111,7 @@ func set_variant(area_id: StringName, variant: StringName) -> void:
 	if variants.get(area_id, &"") == variant:
 		return
 	variants[area_id] = variant
+	clock_anchor = time  # the condo shifted: it is 11:47 PM again
 	EventBus.variant_changed.emit(area_id, variant)
 
 

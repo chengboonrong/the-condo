@@ -9,14 +9,15 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
   **Compatibility** renderer because Forward+ cannot export to the web. Keep every feature WebGL2-safe.
 * **Theme:** the condo *shifting* is the core mechanic. Rooms and objects change only while unobserved,
   chosen by the Horror Director. The player has just come home from a night shift.
+  Every shift also resets the clock to 11:47 PM (time shifts too).
 * **Repository:** local only until the owner approves creating the public GitHub repo.
 
 ## Phases
 
 | Phase | Branch | Week | Status |
 |---|---|---|---|
-| 0 — Technical foundation | `feat/project-foundation` | 1 (4–10 Nov) | in progress |
-| 1 — Playable apartment | `feat/player-apartment` | 1 | planned |
+| 0 — Technical foundation | `feat/project-foundation` | 1 (4–10 Nov) | done |
+| 1 — Playable apartment | `feat/player-apartment` | 1 | done |
 | 2 — Horror event framework | `feat/horror-event-system` | 1–2 | planned |
 | 3 — Adaptive Horror Director | `feat/adaptive-director` | 2 (11–17 Nov) | planned |
 | 4 — Environmental manipulation (shifts) | `feat/environmental-manipulation` | 2 | planned |
@@ -30,7 +31,9 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
 1. **The Complaint.** 11:47 PM, just home from a night shift. The intercom rings: Puan Rosnah from
    B-11-07, downstairs, complains about knocking. You have made no noise. Three knocks from the bedroom wall.
 2. **The Disturbance.** Search the unit. Knocks, footsteps, doors and lights react to how you play.
-   Small things shift while you aren't looking; noticing them moves the story on.
+   Small things shift while you aren't looking (shoes, a chair, the tap); noticing what moved is how
+   the story advances, backed by clues (B-11-07 is vacant; the call came from your own unit).
+   Every shift resets the clock to 11:47 PM.
 3. **The Impossible Room.** A knock at the front door draws you away. When you come back, the bedroom
    window is a door. Behind it, a corridor that cannot exist leads to B-11-07.
 4. **The Decision.** Inside B-11-07 the intercom rings again. Knock back three times (ending: *Downstairs*)

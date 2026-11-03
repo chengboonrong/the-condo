@@ -7,6 +7,10 @@ Test files extend `TestCase` (`tests/test_case.gd`). Methods named `test_*` must
 a method that hits a runtime error returns null and is reported as "did not finish". `WorldState` is reset
 before every test.
 
+Known noise: headless runs end with "ObjectDB instances were leaked" and "resources still in use".
+`--verbose` shows they are all `AudioStreamPlaybackWAV`/`AudioStreamWAV`: the headless dummy audio driver
+never mixes, so finished playbacks are never released. It does not happen in a windowed run.
+
 ## Levels
 
 | Level | Where | Covers |
