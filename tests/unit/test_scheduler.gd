@@ -41,7 +41,7 @@ func _run_for(seconds: float) -> void:
 
 func test_definitions_are_sane() -> bool:
 	_setup(&"living", Vector3(6.5, 0, 8.4))
-	eq(sched.events.size(), 6, "six events loaded")
+	eq(sched.events.size(), 7, "seven events loaded")
 	for id: StringName in sched.events:
 		var ev: HorrorEvent = sched.events[id]
 		check(ev.min_act <= ev.max_act, "%s act range" % id)

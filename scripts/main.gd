@@ -37,6 +37,8 @@ func _ready() -> void:
 	hud.bind(player)
 	hud.started.connect(_on_started)
 	EventBus.object_interacted.connect(_on_interacted)
+	EventBus.act_changed.connect(_on_act_changed)
+	EventBus.room_entered.connect(_on_room_entered)
 
 
 func _physics_process(delta: float) -> void:
@@ -74,3 +76,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and player.interaction.enabled_input and not hud.is_inspecting() and WorldState.time > 0.1:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		player.input_enabled = true
+
+
+# Phase 4 stand-in for the story: act 3 reveals the impossible room, and entering B-11-07 grows the
+# corridor behind the player. Story-critical requests wait until RoomTransformer says it is safe.
+func _on_act_changed(act: int) -> void:
+	if act == WorldState.Act.IMPOSSIBLE:
+		runtime.scheduler.request(&"shift", {"area": &"bedroom", "variant": &"door"}, 20)
+
+
+func _on_room_entered(room_id: StringName) -> void:
+	if room_id == &"mirror_room" and WorldState.get_variant(&"gap") == &"default":
+		runtime.scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)

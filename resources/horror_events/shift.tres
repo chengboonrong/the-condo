@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ShiftEvent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/horror/events/shift_event.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"shift"
+intensity = 0.2
+base_weight = 0.9
+cooldown = 40.0
+duration = 0.5
+channels = PackedStringArray("shift")
+areas = PackedStringArray("entrance_shoes", "living_chair", "bathroom_tap")
+behavior_weights = {
+"curiosity": 0.5,
+"room_avoid": 0.5
+}
+act_bonus = {
+2: 0.6,
+3: 0.3
+}

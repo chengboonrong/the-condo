@@ -36,7 +36,7 @@ which is what makes seeded replays and simulated playthroughs possible.
 | BehaviorProfiler | `scripts/horror/behavior_profiler.gd` | RefCounted | Turns 10 Hz player samples into bounded 0–1 signals (EMAs, decayed room time, last-8 outcome window). |
 | HorrorDirector | `scripts/horror/horror_director.gd` | RefCounted | 4 Hz utility scoring of eligible events, tension model, recovery gaps, seeded pick, explainable decision log. |
 | EntityController | `scripts/world/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. |
-| RoomTransformer | `scripts/world/room_transformer.gd` | RefCounted | Applies predefined variants only after the five safety checks pass. |
+| RoomTransformer | `scripts/horror/room_transformer.gd` | RefCounted | Applies predefined variants only after the five safety checks pass. |
 | StoryDirector | `scripts/story/story_director.gd` | RefCounted | Acts, objectives, dialogue, clues, fail-safes, endings. |
 | HorrorRuntime | `scripts/horror/horror_runtime.gd` | Node | Composition root for the core; one seeded RNG; fixed tick order. |
 
@@ -69,6 +69,27 @@ Every tick: time → `BehaviorProfiler` → `EntityController` → `EventSchedul
 * **Entity.** A room and a state, no body: dormant (act 1) → observing (two rooms away) →
   approaching (act 3+, one room closer every 12 s, never into the player's room) → retreating (when seen
   or walked in on, to the farthest room) → observing. Footsteps start from its room.
+
+## Room shifts
+
+`RoomTransformer` swaps an area (`ApartmentLayout.VARIANT_AREAS`) to a predefined variant only when all
+five checks pass, in this order:
+
+1. the player is outside every affected room (the area's rooms plus rooms that depend on the variant,
+   e.g. the reveal also creates the gap and B-11-07);
+2. none of the area's probe points is visible (`HorrorStage.can_see`: the camera and a ray in game);
+3. every affected room that still exists afterwards is reachable from the player;
+4. the player's spot is still inside a room afterwards, and that room still leads to the corridor;
+5. every room in `required_rooms` (set by the story) stays reachable.
+
+All shifts go through the `shift` event: the director flips small objects, and the story requests the
+structural ones, which wait in the scheduler queue until the checks pass. Every shift resets the
+clock to 11:47 PM.
+
+Impossible-space sequence (tested with physics, `tests/integration/test_impossible_space.gd`):
+in act 3 the bedroom window becomes a door once the player looks away. Behind it, a corridor that cannot
+fit in the building leads to B-11-07, the flat downstairs. While the player is inside, the corridor grows
+from 10 m to a 28 m loop, so the way back is longer.
 
 ## Visibility
 

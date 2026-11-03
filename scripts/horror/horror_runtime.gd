@@ -15,6 +15,7 @@ var scheduler: EventScheduler
 var profiler: BehaviorProfiler
 var entity: EntityController
 var director: HorrorDirector
+var transformer: RoomTransformer
 
 
 func setup(stage: HorrorStage, seed_value: int) -> void:
@@ -26,8 +27,10 @@ func setup(stage: HorrorStage, seed_value: int) -> void:
 	ctx.rng = rng
 	profiler = BehaviorProfiler.new(graph)
 	entity = EntityController.new(graph, rng)
+	transformer = RoomTransformer.new(graph, stage)
 	ctx.profiler = profiler
 	ctx.entity = entity
+	ctx.transformer = transformer
 	scheduler = EventScheduler.new(ctx)
 	scheduler.load_dir(EVENTS_DIR)
 	scheduler.run_started.connect(_on_run_started)

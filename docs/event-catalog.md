@@ -27,10 +27,11 @@ rejected / queued (story)
 | `door_slam` | 0.50 | 45 s | 1.2 s | door, door:<id> | A door of the player's room at least 1.8 m away; never the front, gap or mirror door (story only). | door shut/opened; restored on cancel/fail | hesitation, room avoidance |
 | `footsteps` | 0.55 | 50 s | ≤ 7 s | audio_major | From the entity's room if ≤ 2 away, else a room ≤ 2 away; walks the room graph and stops at the player's doorway. | none | avoidance, idle |
 | `silhouette` | 0.75 | 70 s | ≤ 4 s | visual | Silhouette anchor in or next to the player's room, ≥ 3.5 m away, out of view (prefers behind). Vanishes 0.3 s after it is on screen. | none | look-behind |
+| `shift` | 0.20 | 40 s | 0.5 s | shift, shift:<area> | Adaptive: flips the shoes, the chair or the tap, never one the player can see or is next to (weighted towards avoided rooms). Story: `params.area` + `params.variant`, retried until safe. | the area's variant; resets the clock to 11:47 PM | curiosity, room avoidance |
 | `phone_ring` | 0.10 | — | ≤ 90 s | phone | Story only. Rings every 3.6 s until `params.stop_flag` is set. | none | — |
 
-The director's pacing and scoring are in [architecture.md](architecture.md#director); room shifts
-(`RoomTransformer`, Phase 4) will be too.
+The director's pacing and scoring, and the room-shift safety checks, are in
+[architecture.md](architecture.md#director).
 
 ## Captions
 
