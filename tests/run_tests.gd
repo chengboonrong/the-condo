@@ -39,6 +39,7 @@ func _run_file(path: String, filter: String) -> void:
 		var started := Time.get_ticks_usec()
 		var result: Variant = await t.call(n)
 		var ms := (Time.get_ticks_usec() - started) / 1000.0
+		await process_frame  # a scene the test queue_free()d must be gone before the next test runs
 		if result != true:
 			t.failures.append("did not finish (runtime error?)")
 		if t.failures.is_empty():
