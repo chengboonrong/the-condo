@@ -1,0 +1,9 @@
+# Godot cache and local state
+.godot/
+/android/
+# Export output
+/builds/
+# OS
+.DS_Store
+# Local reports from benchmark runs are copied into docs/ when worth keeping
+/tests/reports/
