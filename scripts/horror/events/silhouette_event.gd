@@ -6,6 +6,15 @@ extends HorrorEvent
 const MIN_DISTANCE := 3.5
 
 
+## Points on the figure standing at pos, facing the viewer: feet, waist, head and both sides.
+## Any of them on screen means it is in view (a head-only test misses it when the player looks down).
+static func body_points(pos: Vector3, viewer: Vector3) -> Array[Vector3]:
+	var to := Vector3(viewer.x - pos.x, 0, viewer.z - pos.z)
+	var side := to.normalized().cross(Vector3.UP) * 0.25 if to.length() > 0.01 else Vector3.RIGHT * 0.25
+	var waist := pos + Vector3.UP * 1.0
+	return [pos + Vector3.UP * 0.1, waist, pos + Vector3.UP * 1.6, waist + side, waist - side]
+
+
 func prepare(ctx: EventContext, run: Dictionary) -> String:
 	var here := ctx.player_room()
 	var options: Array = []
@@ -18,7 +27,7 @@ func prepare(ctx: EventContext, run: Dictionary) -> String:
 		if ctx.graph.distance(here, a["room"]) > 1 or ctx.stage.distance_to(a["pos"]) < MIN_DISTANCE:
 			continue
 		var head: Vector3 = a["pos"] + Vector3.UP * 1.6
-		if ctx.stage.can_see(head) and not ctx.stage.is_behind(head):
+		if ctx.stage.any_visible(body_points(a["pos"], ctx.stage.player_position())) and not ctx.stage.is_behind(head):
 			continue  # it must appear out of view
 		options.append([a_id, 2.0 if ctx.stage.is_behind(head) else 1.0])
 	var anchor: Variant = HorrorEvent.pick_weighted(ctx.rng, options) if not options.is_empty() else null

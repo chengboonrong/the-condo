@@ -56,17 +56,20 @@ func _on_requested(anchor: StringName, duration: float) -> void:
 
 
 func _process(delta: float) -> void:
-	if not visible:
-		return
-	_left -= delta
-	if _fading:
+	if visible and _fading:
 		_material.albedo_color.a -= delta * 2.5
 		if _material.albedo_color.a <= 0.0:
 			visible = false
+
+
+## Sightings feed the simulation, so they are decided on the fixed physics tick, not per rendered frame.
+func _physics_process(delta: float) -> void:
+	if not visible or _fading:
 		return
+	_left -= delta
 	var head := global_position + Vector3.UP * 1.6
 	var close := stage.distance_to(global_position) < VANISH_DISTANCE
-	if stage.can_see(head) or close:
+	if stage.any_visible(SilhouetteEvent.body_points(global_position, stage.player_position())) or close:
 		_seen_for += delta
 	if _seen_for >= SEEN_AFTER or close:
 		_fading = true

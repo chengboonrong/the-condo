@@ -9,6 +9,7 @@ const ARRIVE := 0.25
 func _main() -> Node3D:
 	var main: Node3D = load("res://scenes/main.tscn").instantiate()
 	tree.root.add_child(main)
+	main.player.input_enabled = true  # past the start card: time only runs while playing
 	await tree.physics_frame
 	await tree.physics_frame
 	return main

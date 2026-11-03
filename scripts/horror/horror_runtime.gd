@@ -18,6 +18,7 @@ var director: HorrorDirector
 var transformer: RoomTransformer
 var story: StoryDirector
 var story_running := false
+var _sightings: Array[StringName] = []  # silhouettes seen since the last step
 
 
 func setup(stage: HorrorStage, seed_value: int) -> void:
@@ -48,6 +49,10 @@ func _exit_tree() -> void:
 
 ## Advances the whole simulation by delta seconds.
 func step(delta: float) -> void:
+	for _anchor in _sightings:  # applied inside the tick, so the core's order never depends on frame rate
+		scheduler.mark(&"silhouette", "seen")
+		entity.notice()
+	_sightings.clear()
 	WorldState.advance_time(delta)
 	profiler.observe(delta, ctx.stage.sample())
 	entity.tick(delta)
@@ -84,6 +89,5 @@ func _on_run_started(run: Dictionary) -> void:
 		profiler.note_stimulus(run["room"])
 
 
-func _on_silhouette_seen(_anchor: StringName) -> void:
-	scheduler.mark(&"silhouette", "seen")
-	entity.notice()
+func _on_silhouette_seen(anchor: StringName) -> void:
+	_sightings.append(anchor)

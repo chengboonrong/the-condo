@@ -172,3 +172,50 @@ func test_phone_rings_until_answered() -> bool:
 	eq(run["state"], EventScheduler.State.COMPLETED, "answering stops it")
 	_teardown()
 	return true
+
+
+func test_flicker_only_darkens_rooms_with_a_switch() -> bool:
+	_setup(&"corridor", Vector3(1.0, 0, 11.0))
+	var run := sched.start(&"light_flicker", {"chance_off": 1.0})
+	_run_for(3.0)
+	eq(run["state"], EventScheduler.State.COMPLETED, "flicker completed")
+	eq(WorldState.is_light_on(&"corridor"), true, "the corridor has no switch, so its light never goes out")
+	_teardown()
+	return true
+
+
+func test_preemption_undoes_the_old_run_before_preparing_the_new_one() -> bool:
+	_setup(&"hallway", Vector3(4.0, 0, 3.25))
+	var adaptive := sched.start(&"door_slam", {"door": &"bedroom_door"})
+	eq(WorldState.is_door_open(&"bedroom_door"), false, "the director slams the bedroom door")
+	eq(adaptive["room"], &"bedroom", "heard from the far side of the door")
+	var story := sched.request(&"door_slam", {"door": &"bedroom_door", "open": true})
+	eq(adaptive["state"], EventScheduler.State.CANCELLED, "the story request pre-empts it, which puts the door back open")
+	check(story["state"] != EventScheduler.State.RUNNING and not sched.is_queued(&"door_slam"), "then the story finds the door already open: nothing left to do (%s)" % story["reason"])
+	_run_for(5.0)
+	eq(WorldState.is_door_open(&"bedroom_door"), true, "and the door stays open")
+	_teardown()
+	return true
+
+
+func test_preempted_story_requests_come_back() -> bool:
+	_setup(&"bedroom", Vector3(7.7, 0, 1.0))
+	var hint := sched.request(&"knock_wall", {"anchor": &"knock_bedroom_north"}, 5)
+	sched.request(&"knock_wall", {"anchor": &"knock_bedroom_west"}, 20)
+	eq(hint["state"], EventScheduler.State.CANCELLED, "a story-critical request pre-empts a story hint")
+	check(sched.is_queued(&"knock_wall"), "the hint goes back in the queue")
+	_run_for(5.0)
+	var done := WorldState.event_history.filter(func(e: Dictionary) -> bool: return e["id"] == &"knock_wall" and e["result"] == &"completed")
+	eq(done.size(), 2, "both knocks are heard in the end")
+	_teardown()
+	return true
+
+
+func test_a_cut_short_door_is_not_swung_at_the_player() -> bool:
+	_setup(&"hallway", Vector3(4.0, 0, 3.25))
+	var run := sched.start(&"door_slam", {"door": &"bedroom_door"})
+	ctx.stage.position = Vector3(6.75, 0, 3.0)  # the player walks up to the shut door
+	sched.cancel(run)
+	eq(WorldState.is_door_open(&"bedroom_door"), false, "it stays shut instead of swinging open into them")
+	_teardown()
+	return true

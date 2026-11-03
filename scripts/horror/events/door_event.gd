@@ -24,6 +24,8 @@ func prepare(ctx: EventContext, run: Dictionary) -> String:
 		door = HorrorEvent.pick_weighted(ctx.rng, options) if not options.is_empty() else &""
 		if door == &"":
 			return "no_door_out_of_reach"
+	if not ApartmentLayout.DOORS.has(door):
+		return "unknown_door"
 	if not ApartmentLayout.requires_met(ApartmentLayout.DOORS[door].get("requires", {}), WorldState.variants):
 		return "door_unavailable"
 	if ctx.stage.distance_to(_center(door)) < MIN_DISTANCE:
@@ -36,7 +38,7 @@ func prepare(ctx: EventContext, run: Dictionary) -> String:
 	run["was_open"] = was_open
 	run["target_open"] = target
 	run["position"] = _center(door)
-	run["room"] = here
+	run["room"] = _far_side(ctx, door, here)
 	run["channels"].append("door:%s" % door)
 	return ""
 
@@ -46,9 +48,18 @@ func start(_ctx: EventContext, run: Dictionary) -> void:
 	EventBus.subtitle_requested.emit("[A door slams]" if not run["target_open"] else "[A door creaks open]", 2.0)
 
 
-func finish(_ctx: EventContext, run: Dictionary, result: StringName) -> void:
-	if result != &"completed":
+func finish(ctx: EventContext, run: Dictionary, result: StringName) -> void:
+	# cut short: put the door back, unless the player has come within reach (both states are valid)
+	if result != &"completed" and ctx.stage.distance_to(_center(run["door"])) >= MIN_DISTANCE:
 		WorldState.set_door(run["door"], run["was_open"], &"restore")
+
+
+## The room on the other side of the door from the player: where the sound comes from.
+static func _far_side(ctx: EventContext, door: StringName, here: StringName) -> StringName:
+	for c: Dictionary in ctx.graph.connections():
+		if c["door"] == door:
+			return c["a"] if c["b"] == here else c["b"]
+	return here
 
 
 static func _center(door: StringName) -> Vector3:

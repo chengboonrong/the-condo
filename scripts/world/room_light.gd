@@ -28,8 +28,11 @@ func _on_light_changed(id: StringName, on: bool) -> void:
 
 
 func _on_flicker(id: StringName, duration: float) -> void:
-	if id == room_id:
-		_flicker_left = duration
+	if id != room_id:
+		return
+	_flicker_left = duration
+	if duration <= 0.0:  # stopped early (cancelled or failed): show the real state again
+		_set_lit(WorldState.is_light_on(room_id), 1.0)
 
 
 func _process(delta: float) -> void:

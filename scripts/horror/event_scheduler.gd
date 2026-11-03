@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## Priorities: 0 = adaptive (director), 5 = story hint, 10 = story, 20 = story-critical.
 ## A request may pre-empt running events of strictly lower priority that share a channel.
-## Queued requests (story) are retried every tick until they start; they are never dropped.
+## Queued requests (story) are retried every tick until they start. The only ones dropped are those
+## whose target already holds ("door_already_shut", "already_door"): there is nothing left to do.
 
 signal run_started(run: Dictionary)
 signal run_finished(run: Dictionary)
@@ -32,8 +33,9 @@ func register(event: HorrorEvent) -> void:
 	events[event.id] = event
 
 
+## ResourceLoader, not DirAccess: in an exported pack the files are renamed *.tres.remap.
 func load_dir(path: String) -> void:
-	var files := Array(DirAccess.get_files_at(path))
+	var files := Array(ResourceLoader.list_directory(path))
 	files.sort()  # deterministic registration order
 	for f: String in files:
 		if f.ends_with(".tres"):
@@ -94,18 +96,36 @@ func request(id: StringName, params: Dictionary = {}, priority := 10) -> Diction
 	var p := params.duplicate()
 	p["story"] = true
 	var run := start(id, p, priority)
+	if run["reason"] == "unknown_event":
+		push_error("story request for unknown event %s" % id)
+		return run
 	if run["state"] != State.RUNNING:
-		queue.append({"id": id, "params": p, "priority": priority, "since": ctx.now()})
+		if _satisfied(run):
+			_log("%s not needed (%s)" % [id, run["reason"]])
+			return run
+		queue.append({"id": id, "params": p, "priority": priority, "since": ctx.now(), "reason": run["reason"]})
 		_log("%s queued (%s)" % [id, run["reason"]])
 	return run
 
 
-## Starts a run that check() validated in this same tick.
+## Starts a run that check() validated in this same tick. If it pre-empts other runs, their finish()
+## restores the world first and the run is prepared again against that; it may then not start
+## (state back to IDLE with a reason). Pre-empted story requests go back to the front of the queue.
 func begin(run: Dictionary) -> void:
 	assert(run["state"] == State.VALIDATED)
+	var preempted := false
 	for other in running.duplicate():
 		if _shares_channel(run, other):
 			cancel(other, "preempted by %s" % run["id"])
+			preempted = true
+			if other["params"].get("story", false):
+				queue.push_front({"id": other["id"], "params": other["params"], "priority": other["priority"], "since": ctx.now(), "reason": "preempted"})
+	if preempted:
+		var again := check(run["id"], run["params"], run["priority"])
+		run.merge(again, true)
+		if run["state"] != State.VALIDATED:
+			_log("%s rejected after pre-empting: %s" % [run["id"], run["reason"]])
+			return
 	var ev: HorrorEvent = events[run["id"]]
 	run["state"] = State.RUNNING
 	run["started_at"] = ctx.now()
@@ -158,8 +178,12 @@ func tick(delta: float) -> void:
 		var run := check(q["id"], q["params"], q["priority"])
 		if run["state"] == State.VALIDATED:
 			begin(run)
-		else:
-			queue.append(q)
+		if run["state"] == State.RUNNING or _satisfied(run):
+			continue
+		if run["reason"] != q["reason"]:
+			q["reason"] = run["reason"]
+			_log("%s still queued (%s)" % [q["id"], run["reason"]])
+		queue.append(q)
 
 
 func is_running(id: StringName) -> bool:
@@ -183,6 +207,11 @@ func _end(run: Dictionary, state: State) -> void:
 	WorldState.record_event({"id": run["id"], "room": run["room"], "t": snappedf(ctx.now(), 0.01), "result": result, "priority": run["priority"]})
 	EventBus.horror_event_finished.emit(run["id"], result)
 	run_finished.emit(run)
+
+
+## The world is already the way the request wants it.
+static func _satisfied(run: Dictionary) -> bool:
+	return String(run["reason"]).contains("already")
 
 
 func _shares_channel(a: Dictionary, b: Dictionary) -> bool:

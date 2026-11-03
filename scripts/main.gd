@@ -41,7 +41,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	WorldState.set_player_room(ApartmentLayout.room_at(player.global_position, WorldState.variants))
-	runtime.step(delta)
+	# Time stands still on the start card, when paused (Esc or lost pointer lock) and after the ending;
+	# it keeps running while the player reads something.
+	if player.input_enabled or hud.is_inspecting():
+		runtime.step(delta)
 
 
 func _process(_delta: float) -> void:

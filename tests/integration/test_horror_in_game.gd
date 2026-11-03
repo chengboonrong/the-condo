@@ -5,6 +5,7 @@ extends TestCase
 func _main() -> Node3D:
 	var main: Node3D = load("res://scenes/main.tscn").instantiate()
 	tree.root.add_child(main)
+	main.player.input_enabled = true  # past the start card: time only runs while playing
 	await tree.physics_frame
 	await tree.physics_frame
 	return main
@@ -47,6 +48,46 @@ func test_silhouette_behind_then_seen() -> bool:
 	eq(run["state"], EventScheduler.State.COMPLETED, "turning round to it ends the event")
 	await _frames(40)
 	check(not fig.visible, "and it has faded")
+	main.queue_free()
+	return true
+
+
+func test_cut_short_flicker_shows_the_real_light() -> bool:
+	var main := await _main()
+	var rt: HorrorRuntime = main.runtime
+	var run := rt.debug_trigger(1)  # living room
+	await _frames(20)
+	rt.scheduler.cancel(run)
+	await _frames(2)
+	var lights := main.find_children("*", "", true, false).filter(func(n: Node) -> bool: return n is RoomLight and n.room_id == &"living")
+	var light: RoomLight = lights[0]
+	check(light.visible and is_equal_approx(light.light_energy, light.base_energy), "the light is back as WorldState says (visible %s, energy %.2f of %.2f)" % [light.visible, light.light_energy, light.base_energy])
+	main.queue_free()
+	return true
+
+
+func test_silhouette_never_appears_in_view_when_looking_down() -> bool:
+	var main := await _main()
+	var player: PlayerController = main.player
+	player.global_position = Vector3(4, 0, 8)
+	player.set_look(5.76, -0.6)  # the head is above the frame, the body is on screen
+	await _frames(3)
+	var rt: HorrorRuntime = main.runtime
+	var run := rt.scheduler.start(&"silhouette", {"anchor": &"sil_living_balcony", "ignore_act": true})
+	eq(run["reason"], "no_hidden_anchor", "it does not appear where its body can be seen")
+	main.queue_free()
+	return true
+
+
+func test_time_stands_still_while_paused() -> bool:
+	var main := await _main()
+	main.player.input_enabled = false  # Esc, the start card or a lost pointer lock
+	var t := WorldState.time
+	await _frames(30)
+	eq(WorldState.time, t, "no simulation time passes while paused")
+	main.hud.show_inspect("Note", "Text")
+	await _frames(30)
+	check(WorldState.time > t, "but it does while the player reads")
 	main.queue_free()
 	return true
 

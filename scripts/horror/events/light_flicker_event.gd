@@ -14,7 +14,9 @@ func prepare(ctx: EventContext, run: Dictionary) -> String:
 	run["room"] = room
 	run["position"] = ApartmentLayout.LIGHTS[room]["pos"][0]
 	run["channels"].append("lights:%s" % room)
-	run["goes_dark"] = ctx.rng.randf() < float(run["params"].get("chance_off", chance_off))
+	var roll := ctx.rng.randf()  # always rolled, so the RNG sequence doesn't depend on the room
+	# only where there is a switch to turn it back on (the corridor, the gap and B-11-07 have none)
+	run["goes_dark"] = roll < float(run["params"].get("chance_off", chance_off)) and ApartmentLayout.LIGHTS[room].get("switch") != null
 	return ""
 
 

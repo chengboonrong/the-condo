@@ -49,6 +49,10 @@ which is what makes seeded replays and simulated playthroughs possible.
   twice and compares the decision logs.
 * Presentation randomness (flicker patterns, footstep variation) uses its own RNG and never feeds
   back into the core.
+* Input from the presentation reaches the core inside the tick: a silhouette sighting is detected on the
+  physics tick and applied at the start of the next `step()`.
+* The game steps the core only while the player is playing (or reading): not on the start card, while
+  paused or after the ending, so pauses don't count as idle time or time spent in a room.
 
 ## Director
 

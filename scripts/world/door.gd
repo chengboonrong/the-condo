@@ -42,7 +42,7 @@ func _on_door_changed(id: StringName, open: bool, source: StringName) -> void:
 	if id != door_id:
 		return
 	_target = OPEN_ANGLE if open else 0.0
-	var slam := source != &"player" and not open
+	var slam := source != &"player" and source != &"restore" and not open  # a restore closes quietly
 	_speed = SPEED * (2.5 if slam else 1.0)
 	var sound := &"door_slam" if slam else (&"door_open" if open else &"door_close")
 	EventBus.sound_requested.emit(sound, global_position + global_basis.x * 0.45 + Vector3.UP, 0.0)
