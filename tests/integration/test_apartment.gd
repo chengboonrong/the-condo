@@ -107,6 +107,22 @@ func test_doors_open_into_the_intended_room() -> bool:
 	return true
 
 
+func test_a_door_opening_by_itself_is_louder_than_the_players() -> bool:
+	var main := await _main()
+	var heard := {}
+	var on_sound := func(id: StringName, _pos: Vector3, db: float) -> void:
+		if id == &"door_open":
+			heard[heard.size()] = db
+	EventBus.sound_requested.connect(on_sound)
+	WorldState.set_door(&"bathroom_door", true, &"player")
+	WorldState.set_door(&"bathroom_door", false, &"player")
+	WorldState.set_door(&"bathroom_door", true, &"door_event")
+	EventBus.sound_requested.disconnect(on_sound)
+	eq(heard.values(), [-11.0, -4.0], "the player's door is quiet; a door opening by itself is a scare")
+	main.queue_free()
+	return true
+
+
 func test_interaction_reach() -> bool:
 	var main := await _main()
 	var player: PlayerController = main.player

@@ -42,7 +42,8 @@ tools/smoke.sh                         # runs the macOS app and the web build (C
 ```
 
 The web build has no threads, so it runs on itch.io without special headers. The macOS app is signed
-ad hoc, not notarised: on first launch, right-click the app and choose Open. Windows and Linux builds are
+ad hoc, not notarised: on first launch macOS blocks it; open System Settings › Privacy & Security and
+click Open Anyway (on macOS 14 and earlier, right-click the app and choose Open). Windows and Linux builds are
 exported but have not been run yet. Performance results and how to measure them: [docs/performance.md](docs/performance.md).
 
 ## Tests

@@ -14,7 +14,7 @@ var pause: PauseMenu
 var silhouette: Silhouette
 var ready_msec := 0  # engine start to the condo built, for the perf report
 var loaded := false  # the shader warm-up is done and the player's camera is back (tools wait for this)
-var _had_capture := false
+var _uncaptured := 0.0  # web: seconds in play without pointer lock
 var _automated := false
 
 
@@ -99,8 +99,7 @@ func _compile_shaders() -> void:
 ## Release checks: `-- --smoke` / `-- --perf` on desktop, `?smoke` / `?perf` on the web.
 static func has_flag(flag: String) -> bool:
 	if OS.has_feature("web"):
-		var query: Variant = JavaScriptBridge.eval("location.search", true)
-		return query is String and (query as String).contains(flag)
+		return JavaScriptBridge.eval("new URLSearchParams(location.search).has('%s')" % flag, true) == true
 	return OS.get_cmdline_user_args().has("--" + flag)
 
 
@@ -130,18 +129,22 @@ func _physics_process(delta: float) -> void:
 		runtime.step(delta)
 
 
-func _process(_delta: float) -> void:
-	# Browsers use Esc to leave pointer lock and Godot never sees the key, so on the web a lost capture
-	# opens the pause menu. Only once capture was actually held: browsers grant it a moment after the click.
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		_had_capture = true
-	elif _had_capture and player.input_enabled and not pause.is_open():
-		_had_capture = false
+func _process(delta: float) -> void:
+	# Browsers use Esc to leave pointer lock without Godot seeing the key, and refuse a lock that wasn't
+	# asked for by a click (or comes within a second of leaving). So on the web the game never runs without
+	# the mouse: half a second in play without pointer lock opens the menu, whose Resume button is a click.
+	# The half second covers the moment a browser takes to grant the lock after a click.
+	if not OS.has_feature("web") or _automated or pause.is_open() or not player.input_enabled or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_uncaptured = 0.0
+		return
+	_uncaptured += delta
+	if _uncaptured > 0.5:
 		pause.open()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and player.input_enabled and not pause.is_open() and not _automated:
+	# Reading a note counts: time keeps running behind it.
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and (player.input_enabled or hud.is_inspecting()) and not pause.is_open() and not _automated:
 		pause.open()
 
 
@@ -156,8 +159,8 @@ func _on_ending(_ending_id: StringName) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# The HUD sees input first: Esc while reading closes the note instead.
-	if event.is_action_pressed("pause") and player.input_enabled:
-		pause.open()
+	if event.is_action_pressed("pause") and (player.input_enabled or hud.is_on_start_card()):
+		pause.open(player.input_enabled)  # from the start card: settings (reduced flashing) before playing
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and player.input_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # in case the browser refused the first request

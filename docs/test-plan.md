@@ -40,5 +40,7 @@ see [performance.md](performance.md).
 ## Manual checks (need a window)
 
 * Mouse capture and release in a real window and in browsers (pointer lock), the pause menu by mouse.
+  On the web, Esc leaves pointer lock and the menu opens within half a second; only the Resume click
+  closes it, and a refused lock (Resume clicked within a second of leaving) reopens it.
 * Lighting readability at default brightness; reduced-flashing option.
 * A few minutes in real Safari (Playwright's WebKit can't measure a visible window for long here).

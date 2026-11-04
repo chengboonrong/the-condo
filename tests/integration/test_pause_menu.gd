@@ -74,3 +74,28 @@ func test_settings_change_the_game_and_persist() -> bool:
 	menu.close()
 	main.queue_free()
 	return true
+
+
+func test_settings_open_from_the_start_card_without_starting() -> bool:
+	var main: Node3D = load("res://scenes/main.tscn").instantiate()
+	tree.root.add_child(main)
+	await _frames(3)
+	await _press_pause()
+	check(main.pause.is_open(), "Esc on the start card opens the settings (reduced flashing before any flicker)")
+	await _press_pause()
+	check(not main.pause.is_open(), "Esc closes them again")
+	check(main.hud.is_on_start_card(), "back on the start card")
+	check(not main.player.input_enabled, "the game has not started")
+	eq(WorldState.time, 0.0, "and no time has passed")
+	main.queue_free()
+	return true
+
+
+func test_losing_focus_while_reading_pauses() -> bool:
+	var main := await _main()
+	main.hud.show_inspect("Note", "Text")
+	main.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	check(main.pause.is_open(), "time runs behind a note, so alt-tab while reading pauses too")
+	main.pause.close()
+	main.queue_free()
+	return true

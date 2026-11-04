@@ -46,7 +46,11 @@ func _on_door_changed(id: StringName, open: bool, source: StringName) -> void:
 	_speed = SPEED * (2.5 if slam else 1.0)
 	var sound := &"door_slam" if slam else (&"door_open" if open else &"door_close")
 	# The player opens doors all the time; that must stay well under a slam (docs/architecture.md, Audio levels).
-	EventBus.sound_requested.emit(sound, global_position + global_basis.x * 0.45 + Vector3.UP, -11.0 if sound == &"door_open" else 0.0)
+	# A door opening by itself is a scare: up with the slam, still under the stinger.
+	var gain := 0.0
+	if sound == &"door_open":
+		gain = -11.0 if source == &"player" else -4.0
+	EventBus.sound_requested.emit(sound, global_position + global_basis.x * 0.45 + Vector3.UP, gain)
 
 
 func _physics_process(delta: float) -> void:

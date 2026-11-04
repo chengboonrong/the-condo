@@ -17,8 +17,14 @@ const dir = path.resolve(process.argv.slice(2).find((a) => !a.startsWith('--')) 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.png': 'image/png' };
 
 const server = http.createServer(async (req, res) => {
-  const file = path.join(dir, decodeURIComponent(new URL(req.url, 'http://x').pathname));
-  if (!file.startsWith(dir)) return res.writeHead(403).end();
+  let file;
+  try {
+    file = path.join(dir, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  } catch {
+    return res.writeHead(400).end();
+  }
+  const rel = path.relative(dir, file);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return res.writeHead(403).end();
   try {
     const body = await fs.readFile(file);
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] ?? 'application/octet-stream' }).end(body);

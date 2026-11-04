@@ -3,10 +3,9 @@ extends CanvasLayer
 ## Esc (or a lost pointer lock on the web, or the window losing focus) pauses the whole tree and shows
 ## this menu: resume, the settings, restart, quit. Everything else stops, including the simulation.
 
-signal resumed
-
 var _panel: Control
 var _quit: Button
+var _capture_on_close := true
 
 
 func _ready() -> void:
@@ -38,7 +37,7 @@ func _ready() -> void:
 	box.add_child(title)
 	_button(box, "Resume", close)
 	_slider(box, "Brightness", "brightness", 0.5, 1.8, 0.05)
-	_slider(box, "Mouse sensitivity", "mouse_sensitivity", 0.0008, 0.006, 0.0002)
+	_slider(box, "Mouse sensitivity", "mouse_sensitivity", 0.0008, 0.006, 0.0001)  # 0.0001 steps reach the 0.0025 default
 	_slider(box, "Volume", "master_volume", 0.0, 1.0, 0.05)
 	_check(box, "Invert mouse Y", "invert_y")
 	_check(box, "Captions for sounds (dialogue always shows)", "subtitles")
@@ -55,7 +54,9 @@ func is_open() -> bool:
 	return visible
 
 
-func open() -> void:
+## capture: take the mouse back on close (false from the start card, which needs a free cursor).
+func open(capture := true) -> void:
+	_capture_on_close = capture
 	visible = true
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -64,12 +65,13 @@ func open() -> void:
 func close() -> void:
 	visible = false
 	get_tree().paused = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # a click on Resume is the gesture browsers need
-	resumed.emit()
+	if _capture_on_close:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # a click on Resume is the gesture browsers need
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("pause"):
+	# Not on the web: a key press can't take pointer lock back, so only the Resume click closes the menu.
+	if visible and event.is_action_pressed("pause") and not OS.has_feature("web"):
 		close()
 		get_viewport().set_input_as_handled()
 

@@ -143,11 +143,12 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Stinger (silhouette seen) | −8.8 dB | 0 dB | −8.8 dB |
 | Intercom ring | −8.2 | −2 | −10.2 |
 | Lift ding (ending) | −10.7 | 0 | −10.7 |
+| Door opening by itself (event) | −6.9 | −4 | −10.9 |
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
-| Door opening | −6.9 | −11 | −17.9 |
+| Door opening (the player) | −6.9 | −11 | −17.9 |
 | Door closing | −20.6 | 0 | −20.6 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
 | Your footsteps (walk / sprint / crouch) | −19.8 to −15.9 | −15 / −10 / −22 | about −33 / −28 / −40 |
