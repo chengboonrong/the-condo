@@ -142,22 +142,30 @@ aberration. The fear comes from the place being ordinary.
 
 * `ApartmentBuilder` builds the structure (walls, floors, doors, lights) from `ApartmentLayout`;
   `Decor` (`scripts/world/decor.gd`) adds furniture, trim, door frames, window grilles and fixtures.
-  `Decor` draws into one mesh per room and material, so a ceiling light only touches the meshes of its
-  own room (WebGL2 draws each light that reaches a mesh as one more pass).
+  `Decor` draws into one mesh per room and material, keeping the number of lights that reach a mesh
+  small. The Compatibility renderer shades up to `rendering/limits/opengl/max_lights_per_object`
+  unshadowed lights per mesh in the same pass and silently drops the rest, in pairing order, not the
+  farthest. It pairs by bounding box (a cube for an omni light), and with every lamp on the living room
+  meshes are reached by 9, so the limit is 9 instead of the default 8
+  (`test_no_mesh_loses_a_light_with_every_lamp_on`). Only the phone light casts shadows; it draws what
+  it reaches once more.
 * **Contact shadows** without SSAO: soft quads under furniture and along the wall-floor and
   wall-ceiling edges, with a squared falloff texture. Unshaded, so lights don't touch them.
-* **Light fittings** match the room: fluorescent tubes in the kitchen, bathroom and corridor, a
-  ceiling dome in the living room and bedroom, downlights in the entrance and hallway, a caged bulkhead
-  in the gap, a bare bulb in B-11-07. Light colours follow them: cool tubes and dome, warm downlights and bulb.
+* **Light fittings** match the room: fluorescent tubes in the kitchen, bathroom and corridor, a light
+  under the living room fan, a ceiling dome in the bedroom, downlights in the entrance and hallway, caged
+  bulkheads in the gap, a bare bulb in B-11-07. Light colours follow them: cool tubes and fan light, warm
+  downlights, dome and bulb.
 * **Grain and vignette** are one full-screen `canvas_item` shader under the HUD text (`Hud.FILM_SHADER`).
-  The grain stays the same strength in the darkened corners.
+  The vignette darkens grain and picture alike, so the corners don't fizz. The grain changes 24 times a
+  second; its frame number wraps at 256, or float rounding turns it into a fixed tile after half an hour.
 * **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
 
 Two rules keep the decor from breaking the game:
 
-* `Decor.solid()` colliders are at most 0.5 m tall: enough to stop the player, never tall enough to
-  hide a probe from `GameStage.can_see` (a tall table collider let the chair turn while the player
-  watched it over the table). `test_furniture_never_hides_a_shift_probe` checks every probe.
+* `Decor.solid()` colliders are at most 0.3 m tall: the player's capsule meets them at its widest, so
+  they still stop it, but they never hide a probe from `GameStage.can_see`, which uses physics rays (a
+  tall table collider let the chair turn while the player watched it over the table).
+  `test_furniture_never_hides_a_shift_probe` checks every probe from standing and crouching eye height.
 * Nothing may show a material for the first time mid-game: the shader warm-up only compiles what it
   sees. The blinking aircon LED therefore shares the material of the other indicator lights.
 

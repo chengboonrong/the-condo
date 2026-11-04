@@ -50,5 +50,5 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
   and every sound is synthesised.
 * **Web performance on slower machines.** Measured only on an M1 Max (see
   [performance.md](performance.md)): 120 fps in Chromium, 60 fps in headless WebKit, no frame over 25 ms.
-  The detail pass raised draw calls by about 40 %. Real Safari, integrated graphics and older GPUs are
+  The detail pass raised draw calls by about a third. Real Safari, integrated graphics and older GPUs are
   unmeasured.
