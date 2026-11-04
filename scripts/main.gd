@@ -99,7 +99,8 @@ func _compile_shaders() -> void:
 ## Release checks: `-- --smoke` / `-- --perf` on desktop, `?smoke` / `?perf` on the web.
 static func has_flag(flag: String) -> bool:
 	if OS.has_feature("web"):
-		return JavaScriptBridge.eval("new URLSearchParams(location.search).has('%s')" % flag, true) == true
+		# A string, not a JS boolean: in Godot 4.7.2 web builds a boolean result never compared equal to true.
+		return str(JavaScriptBridge.eval("String(new URLSearchParams(location.search).has('%s'))" % flag, true)) == "true"
 	return OS.get_cmdline_user_args().has("--" + flag)
 
 
