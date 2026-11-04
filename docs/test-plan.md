@@ -8,8 +8,11 @@ a method that hits a runtime error returns null and is reported as "did not fini
 before every test.
 
 The runner waits one frame after every test, so a scene the test `queue_free()`d is gone before the next
-test starts (a leftover scene's StoryDirector would otherwise answer the next test's signals). A clean
-run ends without "leaked" or "still in use" warnings.
+test starts (a leftover scene's StoryDirector would otherwise answer the next test's signals). The full
+suite ends without "leaked" or "still in use" warnings. A filtered run whose last test is an in-game one
+can report `AudioStreamPlaybackWAV` leaks: the headless dummy audio driver never releases the looping
+ambience of a scene freed in the last frame. Tests use `user://test_settings.cfg` and default settings,
+never the player's own.
 
 ## Levels
 
@@ -26,6 +29,6 @@ bot's event sequence, director scores, progression, completion, errors and warni
 
 ## Manual checks (need a window)
 
-* Mouse capture and release, pause menu, settings.
+* Mouse capture and release in a real window and in browsers (pointer lock), the pause menu by mouse.
 * Lighting readability at default brightness; reduced-flashing option.
 * Performance capture on real hardware (see the README's Performance section).

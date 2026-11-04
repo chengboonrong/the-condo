@@ -36,8 +36,11 @@ func _run_file(path: String, filter: String) -> void:
 		if n.begins_with("test_") and (filter == "" or (path + ":" + n).contains(filter)):
 			names.append(n)
 	probe = null
+	var settings := root.get_node("Settings")
+	settings.path = "user://test_settings.cfg"  # never the player's own settings
 	for n in names:
 		root.get_node("WorldState").reset()
+		settings.values = settings.DEFAULTS.duplicate()
 		var t: TestCase = script.new()
 		t.tree = self
 		var before := root.get_children()

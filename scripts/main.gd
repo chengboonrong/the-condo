@@ -10,6 +10,8 @@ const SEED := 1147
 var builder: ApartmentBuilder
 var audio: AudioDirector
 var runtime: HorrorRuntime
+var pause: PauseMenu
+var _had_capture := false
 
 
 func _ready() -> void:
@@ -34,6 +36,9 @@ func _ready() -> void:
 	var overlay := DebugOverlay.new()
 	overlay.runtime = runtime
 	add_child(overlay)
+	pause = PauseMenu.new()
+	pause.name = "PauseMenu"
+	add_child(pause)
 	hud.bind(player)
 	hud.started.connect(_on_started)
 	EventBus.ending_reached.connect(_on_ending)
@@ -41,17 +46,25 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	WorldState.set_player_room(ApartmentLayout.room_at(player.global_position, WorldState.variants))
-	# Time stands still on the start card, when paused (Esc or lost pointer lock) and after the ending;
-	# it keeps running while the player reads something.
+	# Time stands still on the start card and after the ending (and the pause menu pauses the whole
+	# tree); it keeps running while the player reads something.
 	if player.input_enabled or hud.is_inspecting():
 		runtime.step(delta)
 
 
 func _process(_delta: float) -> void:
-	# Browsers use Esc to leave pointer lock and Godot never sees the key, so on the web any lost capture
-	# pauses the player the way Esc does on desktop.
-	if OS.has_feature("web") and player.input_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not hud.is_inspecting():
-		player.input_enabled = false
+	# Browsers use Esc to leave pointer lock and Godot never sees the key, so on the web a lost capture
+	# opens the pause menu. Only once capture was actually held: browsers grant it a moment after the click.
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_had_capture = true
+	elif _had_capture and player.input_enabled and not pause.is_open():
+		_had_capture = false
+		pause.open()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and player.input_enabled and not pause.is_open():
+		pause.open()
 
 
 func _on_started() -> void:
@@ -64,10 +77,9 @@ func _on_ending(_ending_id: StringName) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Esc frees the mouse, a click takes it back. The pause menu replaces this in Phase 6.
-	if event.is_action_pressed("pause") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not hud.is_inspecting():
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		player.input_enabled = false
-	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE and player.interaction.enabled_input and not hud.is_inspecting() and WorldState.time > 0.1 and WorldState.ending == &"":
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		player.input_enabled = true
+	# The HUD sees input first: Esc while reading closes the note instead.
+	if event.is_action_pressed("pause") and player.input_enabled:
+		pause.open()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.pressed and player.input_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # in case the browser refused the first request

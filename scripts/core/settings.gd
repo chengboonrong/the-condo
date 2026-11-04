@@ -14,11 +14,12 @@ const DEFAULTS := {
 }
 
 var values: Dictionary = DEFAULTS.duplicate()
+var path := PATH  # the test runner points this elsewhere
 
 
 func _ready() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(PATH) == OK:
+	if cfg.load(path) == OK:
 		for key: String in DEFAULTS:
 			values[key] = cfg.get_value("settings", key, DEFAULTS[key])
 	_apply_volume()
@@ -35,7 +36,7 @@ func set_value(key: String, value: Variant) -> void:
 	var cfg := ConfigFile.new()
 	for k: String in values:
 		cfg.set_value("settings", k, values[k])
-	cfg.save(PATH)
+	cfg.save(path)
 
 
 func _apply_volume() -> void:
