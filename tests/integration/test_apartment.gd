@@ -183,6 +183,28 @@ func test_variant_swap_toggles_visibility_and_collision() -> bool:
 	return true
 
 
+func test_furniture_never_hides_a_shift_probe() -> bool:
+	# Decor's colliders only stop walking. A tall one would let a chair turn while the player watches it
+	# over a table or through the laundry.
+	var main := await _main()
+	var space: PhysicsDirectSpaceState3D = main.player.get_world_3d().direct_space_state
+	var hidden: Array[String] = []
+	for area: StringName in ApartmentLayout.VARIANT_AREAS:
+		for probe: Vector3 in ApartmentLayout.VARIANT_AREAS[area]["probes"]:
+			for xi in range(-8, 40):
+				for zi in range(-10, 24):
+					var eye := Vector3(xi * 0.5, 1.62, zi * 0.5)
+					if eye.distance_to(probe) > 6.0:
+						continue
+					var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, probe, 1))
+					if not hit.is_empty() and hit["collider"].get_parent() == main.builder.decor \
+							and (hit["position"] as Vector3).distance_to(probe) >= 0.3:
+						hidden.append("%s from %s" % [area, eye])
+	eq(hidden, [] as Array[String], "probes hidden by furniture colliders")
+	main.queue_free()
+	return true
+
+
 func test_start_card_click_starts_the_game() -> bool:
 	var main := await _main()
 	var started := [false]

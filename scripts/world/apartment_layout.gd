@@ -41,11 +41,11 @@ const CONNECTIONS := [
 
 # Doors: axis "x" = panel runs along x (wall at fixed z). swing = +1 opens towards +z/+x side.
 const DOORS := {
-	&"main_door": {"hinge": Vector3(1.0, 0, 10), "axis": "x", "width": 1.0, "swing": -1, "color": Color(0.36, 0.25, 0.18)},
-	&"kitchen_door": {"hinge": Vector3(1.0, 0, 7), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
-	&"bathroom_door": {"hinge": Vector3(3.9, 0, 2.5), "axis": "x", "width": 0.8, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
-	&"bedroom_door": {"hinge": Vector3(6.3, 0, 2.5), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.75, 0.72, 0.66)},
-	&"gap_door": {"hinge": Vector3(7.25, 0, -2), "axis": "x", "width": 0.9, "swing": 1, "color": Color(0.75, 0.72, 0.66), "requires": {&"bedroom": &"door"}},
+	&"main_door": {"hinge": Vector3(1.0, 0, 10), "axis": "x", "width": 1.0, "swing": -1, "color": Color(0.3, 0.2, 0.14)},
+	&"kitchen_door": {"hinge": Vector3(1.0, 0, 7), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.42, 0.3, 0.2)},
+	&"bathroom_door": {"hinge": Vector3(3.9, 0, 2.5), "axis": "x", "width": 0.8, "swing": -1, "color": Color(0.42, 0.3, 0.2)},
+	&"bedroom_door": {"hinge": Vector3(6.3, 0, 2.5), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.42, 0.3, 0.2)},
+	&"gap_door": {"hinge": Vector3(7.25, 0, -2), "axis": "x", "width": 0.9, "swing": 1, "color": Color(0.42, 0.3, 0.2), "requires": {&"bedroom": &"door"}},
 	&"mirror_door": {"hinge": Vector3(7.25, 0, -14), "axis": "x", "width": 0.9, "swing": -1, "color": Color(0.32, 0.3, 0.28), "requires": {&"bedroom": &"door"}},
 }
 
@@ -86,17 +86,19 @@ const WALLS := [
 	{"axis": "z", "at": 10.0, "from": -18.5, "to": -14.0, "requires": {&"bedroom": &"door"}},
 ]
 
-# Ceiling lights per room; switch = wall switch position (null = no switch).
+# Ceiling lights per room; switch = wall switch position (null = no switch). Colours are the lamps: cool
+# "daylight" tubes and LEDs as most homes here use, a little green in the old kitchen and bathroom tubes,
+# warm downlights in the entrance and hallway, a warm dome in the bedroom, a bare bulb in B-11-07.
 const LIGHTS := {
-	&"corridor": {"pos": [Vector3(0, 2.6, 11.2), Vector3(7, 2.6, 11.2), Vector3(14, 2.6, 11.2)], "color": Color(0.85, 0.95, 1.0), "energy": 0.9, "range": 8.0, "on": true, "switch": null},
-	&"entrance": {"pos": [Vector3(1.5, 2.6, 8.5)], "color": Color(1.0, 0.85, 0.65), "energy": 0.8, "range": 5.0, "on": false, "switch": Vector3(0.08, 1.2, 9.4)},
-	&"living": {"pos": [Vector3(6.5, 2.6, 7)], "color": Color(1.0, 0.82, 0.6), "energy": 1.3, "range": 9.0, "on": true, "switch": Vector3(3.08, 1.2, 9.8)},
-	&"kitchen": {"pos": [Vector3(1.5, 2.6, 4.7)], "color": Color(0.9, 0.97, 1.0), "energy": 1.0, "range": 6.0, "on": false, "switch": Vector3(2.1, 1.2, 6.92)},
-	&"hallway": {"pos": [Vector3(6.5, 2.6, 3.25)], "color": Color(1.0, 0.85, 0.65), "energy": 0.7, "range": 6.0, "on": false, "switch": Vector3(3.08, 1.2, 3.2)},
-	&"bathroom": {"pos": [Vector3(4.25, 2.6, 0.2)], "color": Color(0.92, 0.97, 1.0), "energy": 0.9, "range": 5.0, "on": false, "switch": Vector3(3.7, 1.2, 2.58)},
+	&"corridor": {"pos": [Vector3(0, 2.6, 11.2), Vector3(7, 2.6, 11.2), Vector3(14, 2.6, 11.2)], "color": Color(0.84, 0.94, 1.0), "energy": 0.9, "range": 8.0, "on": true, "switch": null},
+	&"entrance": {"pos": [Vector3(1.5, 2.6, 8.5)], "color": Color(1.0, 0.8, 0.56), "energy": 0.8, "range": 5.0, "on": false, "switch": Vector3(0.08, 1.2, 9.4)},
+	&"living": {"pos": [Vector3(6.5, 2.32, 7)], "color": Color(0.88, 0.95, 1.0), "energy": 1.3, "range": 9.0, "on": true, "switch": Vector3(3.08, 1.2, 9.8)},
+	&"kitchen": {"pos": [Vector3(1.5, 2.6, 4.7)], "color": Color(0.9, 1.0, 0.94), "energy": 1.0, "range": 6.0, "on": false, "switch": Vector3(2.1, 1.2, 6.92)},
+	&"hallway": {"pos": [Vector3(6.5, 2.6, 3.25)], "color": Color(1.0, 0.8, 0.56), "energy": 0.7, "range": 6.0, "on": false, "switch": Vector3(3.08, 1.2, 3.2)},
+	&"bathroom": {"pos": [Vector3(4.25, 2.6, 0.2)], "color": Color(0.9, 0.99, 0.97), "energy": 0.9, "range": 5.0, "on": false, "switch": Vector3(3.7, 1.2, 2.58)},
 	&"bedroom": {"pos": [Vector3(7.75, 2.6, 0.25)], "color": Color(1.0, 0.8, 0.6), "energy": 1.0, "range": 7.0, "on": false, "switch": Vector3(7.45, 1.2, 2.42)},
 	&"gap": {"pos": [Vector3(7.7, 2.5, -5), Vector3(7.7, 2.5, -11), Vector3(3, 2.5, -8.7), Vector3(-1.3, 2.5, -5.5), Vector3(4, 2.5, -2.7)], "color": Color(1.0, 0.7, 0.45), "energy": 0.5, "range": 5.0, "on": true, "switch": null},
-	&"mirror_room": {"pos": [Vector3(7.75, 2.6, -16.25)], "color": Color(0.7, 0.75, 0.9), "energy": 0.35, "range": 6.0, "on": true, "switch": null},
+	&"mirror_room": {"pos": [Vector3(7.75, 2.25, -16.25)], "color": Color(1.0, 0.72, 0.48), "energy": 0.35, "range": 6.0, "on": true, "switch": null},
 }
 
 # Sound and sighting anchors used by horror events.

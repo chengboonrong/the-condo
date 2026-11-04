@@ -12,32 +12,66 @@ var _left := 0.0
 var _seen_for := 0.0
 var _fading := false
 var _material := StandardMaterial3D.new()
+var _apron := StandardMaterial3D.new()
+
+# A person, not a pawn: [mesh, position, rotation z, scale]. Arms hang a little too low, the head is tipped.
+# It wears the apron from the mamak (the window: "Someone in your apron is pulling teh tarik").
+const BODY := [
+	["capsule", 0.075, 0.86, Vector3(-0.1, 0.43, 0), 0.0, Vector3.ONE],  # legs
+	["capsule", 0.075, 0.86, Vector3(0.1, 0.43, 0), 0.0, Vector3.ONE],
+	["capsule", 0.17, 0.66, Vector3(0, 1.16, 0), 0.0, Vector3(1.15, 1.0, 0.62)],  # torso and shoulders
+	["capsule", 0.05, 0.16, Vector3(0, 1.5, 0.01), 0.0, Vector3.ONE],  # neck
+	["sphere", 0.105, 0.24, Vector3(0.015, 1.62, 0.02), 0.2, Vector3(0.9, 1.0, 1.0)],  # head, tipped
+	["capsule", 0.045, 0.76, Vector3(-0.235, 1.05, 0), -0.05, Vector3.ONE],  # arms
+	["capsule", 0.045, 0.76, Vector3(0.235, 1.05, 0), 0.05, Vector3.ONE],
+]
 
 
 func _ready() -> void:
-	_material.albedo_color = Color(0.0, 0.0, 0.0, 0.95)
-	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Near-black but lit, so a room light finds its shoulders and head; in the dark it is a shape against
+	# whatever is behind it.
+	_material.albedo_color = Color(0.03, 0.03, 0.032, 0.95)
+	_material.roughness = 0.95
 	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_material.disable_fog = true
-	var body := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 0.22
-	capsule.height = 1.55
-	body.mesh = capsule
-	body.position.y = 0.78
-	body.scale = Vector3(1.0, 1.0, 0.6)
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.13
-	sphere.height = 0.3
-	head.mesh = sphere
-	head.position.y = 1.68
-	for m: MeshInstance3D in [body, head]:
-		m.material_override = _material
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(m)
+	_apron.albedo_color = Color(0.52, 0.5, 0.45, 0.95)  # lit by the room: it shows only where there is light
+	_apron.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_apron.roughness = 0.9
+	for part: Array in BODY:
+		var m := MeshInstance3D.new()
+		if part[0] == "capsule":
+			var c := CapsuleMesh.new()
+			c.radius = part[1]
+			c.height = part[2]
+			m.mesh = c
+		else:
+			var s := SphereMesh.new()
+			s.radius = part[1]
+			s.height = part[2]
+			m.mesh = s
+		m.position = part[3]
+		m.rotation.z = part[4]
+		m.scale = part[5]
+		_add(m, _material)
+	for piece: Array in [[Vector3(0.22, 0.2, 0.012), Vector3(0, 1.31, 0.112)], [Vector3(0.4, 0.52, 0.012), Vector3(0, 0.9, 0.115)]]:  # bib, skirt
+		var m := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = piece[0]
+		m.mesh = b
+		m.position = piece[1]
+		_add(m, _apron)
 	visible = false
 	EventBus.silhouette_requested.connect(_on_requested)
+
+
+func _add(m: MeshInstance3D, material: Material) -> void:
+	m.material_override = material
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(m)
+
+
+func _set_alpha(a: float) -> void:
+	_material.albedo_color.a = a
+	_apron.albedo_color.a = a
 
 
 func _on_requested(anchor: StringName, duration: float) -> void:
@@ -51,7 +85,7 @@ func _on_requested(anchor: StringName, duration: float) -> void:
 	_left = duration
 	_seen_for = 0.0
 	_fading = false
-	_material.albedo_color.a = 0.95
+	_set_alpha(0.95)
 	visible = true
 
 
@@ -65,7 +99,7 @@ func warm_up(pos: Vector3) -> void:
 
 func _process(delta: float) -> void:
 	if visible and _fading:
-		_material.albedo_color.a -= delta * 2.5
+		_set_alpha(_material.albedo_color.a - delta * 2.5)
 		if _material.albedo_color.a <= 0.0:
 			visible = false
 

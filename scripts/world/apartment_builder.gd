@@ -1,11 +1,12 @@
 class_name ApartmentBuilder
 extends Node3D
-## Builds the graybox condo from ApartmentLayout. Anything tied to a variant is shown, and collides,
-## only while that variant is active. Replace meshes here when real art arrives; keep the data in the layout.
+## Builds the condo from ApartmentLayout: rooms, walls, doors, lights and the furniture that matters to play.
+## Anything tied to a variant is shown, and collides, only while that variant is active. Trim, fittings and
+## small things are Decor's.
 
 const WALL := Color(0.83, 0.81, 0.75)
-const WALL_GAP := Color(0.4, 0.37, 0.32)
-const WALL_MIRROR := Color(0.52, 0.52, 0.5)
+const WALL_GAP := Color(0.5, 0.49, 0.46)  # bare concrete: the gap was never meant to be finished
+const WALL_MIRROR := Color(0.6, 0.58, 0.53)  # B-11-07: the same paint, years of nobody
 const CEILING_COLOR := Color(0.9, 0.9, 0.88)
 
 # Props: [center, size, color, requires]. Collide unless the size is tiny or the entry says otherwise.
@@ -17,14 +18,12 @@ const PROPS := [
 	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
 	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), Color(0.45, 0.32, 0.22)],
 	[Vector3(6.5, 0.25, 4.3), Vector3(2.0, 0.5, 0.45), Color(0.4, 0.29, 0.2)],
-	[Vector3(4.5, 0.38, 6.2), Vector3(1.1, 0.76, 0.75), Color(0.5, 0.36, 0.25)],
 	[Vector3(4.5, 0.45, 6.85), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22)],
 	[Vector3(4.5, 0.75, 7.05), Vector3(0.42, 0.55, 0.05), Color(0.45, 0.32, 0.22)],
 	[Vector3(4.5, 0.45, 5.55), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"default"}],
 	[Vector3(4.5, 0.75, 5.35), Vector3(0.42, 0.55, 0.05), Color(0.45, 0.32, 0.22), {&"living_chair": &"default"}],
 	[Vector3(3.45, 0.45, 5.2), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"turned"}],
 	[Vector3(3.65, 0.75, 5.2), Vector3(0.05, 0.55, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"turned"}],
-	[Vector3(9.55, 0.45, 9.5), Vector3(0.4, 0.9, 0.4), Color(0.2, 0.35, 0.2)],
 	[Vector3(6.5, 2.3, 4.14), Vector3(0.95, 0.3, 0.2), Color(0.9, 0.9, 0.88)],  # aircon above the TV
 	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
 	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
@@ -39,28 +38,17 @@ const PROPS := [
 	[Vector3(0.35, 0.45, 4.9), Vector3(0.6, 0.9, 3.0), Color(0.6, 0.55, 0.48)],
 	[Vector3(0.22, 2.0, 4.9), Vector3(0.35, 0.7, 3.0), Color(0.62, 0.57, 0.5)],
 	[Vector3(0.35, 0.92, 5.6), Vector3(0.5, 0.04, 0.5), Color(0.12, 0.12, 0.12)],
-	[Vector3(0.35, 0.91, 4.2), Vector3(0.45, 0.03, 0.5), Color(0.7, 0.72, 0.74)],
-	[Vector3(0.35, 1.03, 3.7), Vector3(0.28, 0.26, 0.28), Color(0.92, 0.9, 0.85)],  # rice cooker
-	[Vector3(0.35, 1.04, 5.6), Vector3(0.2, 0.22, 0.2), Color(0.66, 0.66, 0.68)],  # kettle on the stove
 	# Bathroom
-	[Vector3(3.3, 0.85, 1.0), Vector3(0.42, 0.12, 0.5), Color(0.92, 0.92, 0.9)],
-	[Vector3(3.3, 0.4, 1.0), Vector3(0.15, 0.8, 0.15), Color(0.9, 0.9, 0.88)],
-	[Vector3(5.15, 0.22, 0.4), Vector3(0.45, 0.44, 0.65), Color(0.93, 0.93, 0.92)],
-	[Vector3(5.38, 0.6, 0.4), Vector3(0.2, 0.4, 0.5), Color(0.93, 0.93, 0.92)],
 	[Vector3(3.6, 1.0, -0.6), Vector3(1.0, 2.0, 0.02), Color(0.7, 0.85, 0.9, 0.25)],
 	[Vector3(3.2, 2.0, -1.5), Vector3(0.22, 0.45, 0.3), Color(0.95, 0.95, 0.95)],
-	[Vector3(5.2, 0.17, 1.25), Vector3(0.3, 0.34, 0.3), Color(0.72, 0.14, 0.12)],  # pail
-	[Vector3(5.2, 0.38, 1.25), Vector3(0.14, 0.08, 0.14), Color(0.2, 0.45, 0.75)],  # gayung
 	[Vector3(3.22, 0.96, 1.0), Vector3(0.02, 0.1, 0.02), Color(0.6, 0.8, 1.0, 0.6), {&"bathroom_tap": &"running"}],
 	# Bedroom
-	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), Color(0.55, 0.5, 0.45)],
-	[Vector3(8.95, 0.56, -0.62), Vector3(1.2, 0.12, 0.35), Color(0.85, 0.85, 0.8)],
+	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), Color(0.3, 0.21, 0.15)],
 	[Vector3(5.85, 1.0, 1.4), Vector3(0.6, 2.0, 1.4), Color(0.5, 0.38, 0.28)],
 	[Vector3(6.1, 0.38, -1.25), Vector3(1.0, 0.76, 0.55), Color(0.5, 0.38, 0.28)],
 	# Corridor
-	[Vector3(-2.0, 0.25, 10.35), Vector3(0.8, 0.5, 0.3), Color(0.35, 0.25, 0.2)],
-	[Vector3(12.0, 0.25, 10.35), Vector3(0.8, 0.5, 0.3), Color(0.35, 0.25, 0.2)],
-	[Vector3(5.5, 0.45, 12.15), Vector3(0.4, 0.9, 0.4), Color(0.2, 0.35, 0.2)],
+	[Vector3(-0.95, 0.25, 10.35), Vector3(0.8, 0.5, 0.3), Color(0.35, 0.25, 0.2)],  # shoe racks beside the neighbours' gates
+	[Vector3(13.05, 0.25, 10.35), Vector3(0.8, 0.5, 0.3), Color(0.35, 0.25, 0.2)],
 	[Vector3(18.96, 1.05, 11.25), Vector3(0.04, 2.1, 1.3), Color(0.6, 0.62, 0.64)],
 	# B-11-07: the bedroom, mirrored, dusty
 	[Vector3(6.55, 0.25, -16.3), Vector3(1.8, 0.5, 2.0), Color(0.4, 0.38, 0.35), {&"bedroom": &"door"}],
@@ -119,6 +107,7 @@ const LABELS := [
 	["|||  |||  |||  |||  |||  |||\n|||  |||  |||  |||  |||  |||\n|||  |||  |||  |||  |||  |||\n|||  |||  |||  |||  |||", Vector3(7.75, 1.3, -18.4), 0.0, 0.004, Color(0.15, 0.1, 0.1), {&"bedroom": &"door"}],
 ]
 
+var decor: Decor
 var doors: Dictionary = {}  # door_id -> Door
 var lights: Dictionary = {}  # room_id -> Array[RoomLight]
 var environment: Environment
@@ -136,6 +125,9 @@ func _ready() -> void:
 
 
 func build() -> void:
+	decor = Decor.new()
+	decor.builder = self
+	add_child(decor)
 	_build_environment()
 	for room_id: StringName in ApartmentLayout.ROOMS:
 		_build_room_surfaces(room_id)
@@ -147,14 +139,18 @@ func build() -> void:
 		_build_lights(room_id, ApartmentLayout.LIGHTS[room_id])
 	for p: Array in PROPS:
 		var node := _box(self, p[0], p[1], p[2], p[1].y > 0.15)  # flat decor (shoes, pillow, stove top) is walk-through
-		if p.size() > 3:
-			_gate(node, p[3])
+		var requires: Dictionary = p[3] if p.size() > 3 else {}
+		gate(node, requires)
+		if p[1].y > 0.15 and p[0].y - p[1].y * 0.5 < 0.02:
+			decor.foot(p[0], Vector2(p[1].x, p[1].z) * 0.5, 0.5, requires)
 	for o: Array in OBJECTS:
 		_build_object(o)
 	for l: Array in LABELS:
 		_build_label(l)
 	_build_fan()
 	_build_skyline()
+	decor.dress()
+	decor.finish()
 
 
 ## Shows and enables exactly the nodes whose variant conditions hold.
@@ -199,12 +195,12 @@ func _plaster(color: Color) -> StandardMaterial3D:
 	if _plaster_tex == null:
 		var noise := FastNoiseLite.new()
 		noise.seed = 1207
-		noise.frequency = 0.03
+		noise.frequency = 0.05
 		var img := noise.get_seamless_image(128, 128)
 		img.convert(Image.FORMAT_L8)
 		var px := img.get_data()
 		for i in px.size():
-			px[i] = 222 + px[i] * 33 / 255  # 87–100 % brightness
+			px[i] = 233 + px[i] * 22 / 255  # 91–100 % brightness: paint, not clouds
 		img = Image.create_from_data(128, 128, false, Image.FORMAT_L8, px)
 		img.generate_mipmaps()
 		_plaster_tex = ImageTexture.create_from_image(img)
@@ -241,7 +237,7 @@ func _box(parent: Node3D, center: Vector3, size: Vector3, color: Color, collide 
 	return body
 
 
-func _gate(node: Node3D, requires: Dictionary) -> void:
+func gate(node: Node3D, requires: Dictionary) -> void:
 	if not requires.is_empty():
 		_gated.append([node, requires])
 
@@ -253,7 +249,8 @@ func _set_collision(node: Node, on: bool) -> void:
 		_set_collision(child, on)
 
 
-func _tile_material(base: Color, grout: Color, tile_m: float) -> StandardMaterial3D:
+## Tiles with 2 px grout, projected in world space. size: tile width, and height on walls.
+func tile_material(base: Color, grout: Color, size := Vector2(0.6, 0.6)) -> StandardMaterial3D:
 	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
 	img.fill(base)
 	for i in 64:
@@ -264,7 +261,7 @@ func _tile_material(base: Color, grout: Color, tile_m: float) -> StandardMateria
 	m.albedo_texture = ImageTexture.create_from_image(img)
 	m.uv1_triplanar = true
 	m.uv1_world_triplanar = true
-	m.uv1_scale = Vector3.ONE / tile_m
+	m.uv1_scale = Vector3(1.0 / size.x, 1.0 / size.y, 1.0 / size.x)
 	m.roughness = 0.35
 	return m
 
@@ -275,15 +272,15 @@ func _build_room_surfaces(room_id: StringName) -> void:
 	var floor_mat: Material
 	match room_id:
 		&"gap":
-			floor_mat = _material(Color(0.3, 0.28, 0.25))
+			floor_mat = _plaster(Color(0.42, 0.41, 0.39))  # screed
 		&"mirror_room":
-			floor_mat = _tile_material(Color(0.48, 0.45, 0.4), Color(0.3, 0.28, 0.25), 0.6)
+			floor_mat = tile_material(Color(0.48, 0.45, 0.4), Color(0.3, 0.28, 0.25))
 		&"corridor":
-			floor_mat = _tile_material(Color(0.55, 0.55, 0.53), Color(0.4, 0.4, 0.4), 0.3)
+			floor_mat = tile_material(Color(0.55, 0.55, 0.53), Color(0.4, 0.4, 0.4), Vector2(0.3, 0.3))
 		&"bathroom":
-			floor_mat = _tile_material(Color(0.7, 0.76, 0.78), Color(0.5, 0.55, 0.56), 0.3)
+			floor_mat = tile_material(Color(0.7, 0.76, 0.78), Color(0.5, 0.55, 0.56), Vector2(0.3, 0.3))
 		_:
-			floor_mat = _tile_material(Color(0.82, 0.76, 0.66), Color(0.62, 0.57, 0.5), 0.6)
+			floor_mat = tile_material(Color(0.82, 0.76, 0.66), Color(0.62, 0.57, 0.5))
 	var sets := [[room["rects"], requires]]
 	if room.has("long_rects"):
 		sets = [[room["rects"], requires.merged({room_id: &"default"})], [room["long_rects"], requires.merged({room_id: &"long"})]]
@@ -291,7 +288,7 @@ func _build_room_surfaces(room_id: StringName) -> void:
 		var holder := Node3D.new()
 		holder.name = "%s_surfaces" % room_id
 		add_child(holder)
-		_gate(holder, s[1])
+		gate(holder, s[1])
 		for r: Rect2 in s[0]:
 			var c := r.get_center()
 			_box(holder, Vector3(c.x, -0.05, c.y), Vector3(r.size.x + 0.15, 0.1, r.size.y + 0.15), Color.WHITE, true, floor_mat)
@@ -302,7 +299,7 @@ func _build_wall(w: Dictionary) -> void:
 	var holder := Node3D.new()
 	add_child(holder)
 	var requires: Dictionary = w.get("requires", {})
-	_gate(holder, requires)
+	gate(holder, requires)
 	var color := WALL
 	var max_z: float = w["at"] if w["axis"] == "x" else w["to"]
 	if requires.has(&"gap"):
@@ -311,12 +308,16 @@ func _build_wall(w: Dictionary) -> void:
 		color = WALL_MIRROR
 	var h := ApartmentLayout.CEILING
 	var t := ApartmentLayout.WALL_T
+	var axis := Vector3.RIGHT if w["axis"] == "x" else Vector3.BACK
 	var a: float = w["from"]
 	var b: float = w["to"]
 	var openings: Array = w.get("openings", []).duplicate()
 	openings.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
 	var pieces: Array = []  # [from, to, bottom, top]
-	var cursor := a - t * 0.5
+	# Pieces run half a wall past their ends to close the corners. The gap's walls stop a hair short, so
+	# their ends hide inside the walls they meet instead of flickering through the bedroom's.
+	var ext := t * 0.5 - (0.004 if requires.has(&"gap") else 0.0)
+	var cursor := a - ext
 	for o: Array in openings:
 		pieces.append([cursor, o[0], 0.0, h])
 		if o[3] < h:
@@ -324,7 +325,7 @@ func _build_wall(w: Dictionary) -> void:
 		if o[2] > 0.0:
 			pieces.append([o[0], o[1], 0.0, o[2]])
 		cursor = o[1]
-	pieces.append([cursor, b + t * 0.5, 0.0, h])
+	pieces.append([cursor, b + ext, 0.0, h])
 	for p: Array in pieces:
 		if p[1] - p[0] < 0.01 or p[3] - p[2] < 0.01:
 			continue
@@ -335,13 +336,22 @@ func _build_wall(w: Dictionary) -> void:
 		var center := Vector3(along, y, w["at"]) if w["axis"] == "x" else Vector3(w["at"], y, along)
 		var size := Vector3(length, hh, t) if w["axis"] == "x" else Vector3(t, hh, length)
 		_box(holder, center, size, color, true, _plaster(color))
-	if w.get("window", false):
-		for o: Array in openings:
-			var along: float = (o[0] + o[1]) * 0.5
+		decor.wall_piece(center, size, axis, requires, not requires.has(&"gap"))
+		if w.get("parapet", false) and p[3] < h:
+			decor.box(Vector3(center.x, p[3] + 0.025, center.z), Vector3(size.x, 0.05, t + 0.08), Color(0.6, 0.59, 0.56))  # coping
+	for o: Array in openings:
+		var mid: float = (o[0] + o[1]) * 0.5
+		var at_floor := Vector3(mid, 0, w["at"]) if w["axis"] == "x" else Vector3(w["at"], 0, mid)
+		if o[2] == 0.0 and is_equal_approx(o[3], ApartmentLayout.DOOR_HEIGHT):
+			decor.door_frame(at_floor, axis, o[1] - o[0], _frame_color(at_floor), requires)
+		if w.get("window", false):
 			var y: float = (o[2] + o[3]) * 0.5
-			var center := Vector3(along, y, w["at"]) if w["axis"] == "x" else Vector3(w["at"], y, along)
+			var center := at_floor + Vector3.UP * y
 			var size := Vector3(o[1] - o[0], o[3] - o[2], 0.02) if w["axis"] == "x" else Vector3(0.02, o[3] - o[2], o[1] - o[0])
 			_box(holder, center, size, Color(0.55, 0.65, 0.75, 0.18))
+			var n := Vector3.BACK if w["axis"] == "x" else Vector3.RIGHT
+			var inward := n if ApartmentLayout.room_at(center + n * 0.5, requires) != &"" else -n
+			decor.window(center, axis, inward, o[1] - o[0], o[3] - o[2], requires)
 	if w.get("parapet", false):
 		# Invisible barrier above the corridor's half wall.
 		var body := StaticBody3D.new()
@@ -352,6 +362,15 @@ func _build_wall(w: Dictionary) -> void:
 		body.position = Vector3((a + b) * 0.5, 1.1 + (h - 1.1) * 0.5, w["at"])
 		body.add_child(shape)
 		holder.add_child(body)
+
+
+## The door frame matches its door, a shade darker.
+func _frame_color(at_floor: Vector3) -> Color:
+	for id: StringName in ApartmentLayout.DOORS:
+		var d: Dictionary = ApartmentLayout.DOORS[id]
+		if absf(d["hinge"].z - at_floor.z) < 0.01 and absf(d["hinge"].x + d["width"] * 0.5 - at_floor.x) < 0.1:
+			return (d["color"] as Color).darkened(0.25)
+	return Decor.WOOD
 
 
 func _build_door(door_id: StringName, data: Dictionary) -> void:
@@ -366,10 +385,14 @@ func _build_door(door_id: StringName, data: Dictionary) -> void:
 	shape.position = Vector3(width * 0.5, ApartmentLayout.DOOR_HEIGHT * 0.5, 0)
 	door.add_child(shape)
 	_box(door, shape.position, box.size, data["color"], false)
-	_box(door, Vector3(width - 0.1, 1.0, 0.06), Vector3(0.04, 0.04, 0.14), Color(0.7, 0.68, 0.6), false)
+	for s: float in [-1.0, 1.0]:  # lever handles on both sides
+		_box(door, Vector3(width - 0.1, 1.0, s * 0.045), Vector3(0.06, 0.06, 0.015), Color(0.7, 0.68, 0.6), false)
+		_box(door, Vector3(width - 0.15, 1.0, s * 0.07), Vector3(0.12, 0.02, 0.02), Color(0.7, 0.68, 0.6), false)
+	if door_id == &"main_door":
+		_box(door, Vector3(width * 0.5, 1.55, 0.0), Vector3(0.025, 0.025, 0.07), Color(0.6, 0.55, 0.4), false)  # peephole
 	add_child(door)
 	doors[door_id] = door
-	_gate(door, data.get("requires", {}))
+	gate(door, data.get("requires", {}))
 
 
 func _build_lights(room_id: StringName, data: Dictionary) -> void:
@@ -379,8 +402,8 @@ func _build_lights(room_id: StringName, data: Dictionary) -> void:
 		var pos: Vector3 = data["pos"][i]
 		var holder := Node3D.new()
 		add_child(holder)
-		_gate(holder, _light_requires(room_id, pos, room_requires))
-		var fixture := _box(holder, pos + Vector3.UP * 0.06, Vector3(0.35, 0.04, 0.35) if room_id != &"corridor" else Vector3(1.2, 0.05, 0.12), data["color"], false) as MeshInstance3D
+		gate(holder, _light_requires(room_id, pos, room_requires))
+		var fixture := _fixture(room_id, pos, holder)
 		fixture.material_override = _material(data["color"], 2.0).duplicate()
 		var light := RoomLight.new()
 		light.position = pos
@@ -402,8 +425,67 @@ func _build_lights(room_id: StringName, data: Dictionary) -> void:
 		box.size = Vector3(0.1, 0.12, 0.1)
 		shape.shape = box
 		sw.add_child(shape)
-		_box(sw, Vector3.ZERO, Vector3(0.08, 0.1, 0.08), Color(0.95, 0.95, 0.92), false)
+		var room := ApartmentLayout.room_at(sw.position, {})
+		var thin_x := ApartmentLayout.room_at(sw.position + Vector3(0.1, 0, 0), {}) != room or ApartmentLayout.room_at(sw.position - Vector3(0.1, 0, 0), {}) != room
+		_box(sw, Vector3.ZERO, Vector3(0.012, 0.086, 0.086) if thin_x else Vector3(0.086, 0.086, 0.012), Color(0.9, 0.89, 0.85), false)
 		add_child(sw)
+
+
+## The lamp you can see. It is what lights a room here: a fluorescent tube in the kitchen, bathroom and
+## corridor, downlights in the entrance and hallway, a light under the living room fan, a ceiling dome in
+## the bedroom, caged bulkheads in the gap, and a bare bulb on a flex in B-11-07. Returns the glowing part.
+func _fixture(room_id: StringName, pos: Vector3, holder: Node3D) -> MeshInstance3D:
+	var top := ApartmentLayout.CEILING
+	var white := Color(0.9, 0.9, 0.88)
+	var glow := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.radial_segments = 20
+	match room_id:
+		&"kitchen", &"bathroom", &"corridor":
+			var along_x := room_id == &"corridor"
+			var length := 0.6 if room_id == &"bathroom" else 1.2
+			_box(holder, Vector3(pos.x, top - 0.02, pos.z), Vector3(length + 0.04, 0.04, 0.08) if along_x else Vector3(0.08, 0.04, length + 0.04), white, false)
+			var tube := BoxMesh.new()
+			tube.size = Vector3(length, 0.03, 0.03) if along_x else Vector3(0.03, 0.03, length)
+			glow.mesh = tube
+			glow.position = Vector3(pos.x, top - 0.055, pos.z)
+		&"living":
+			cyl.top_radius = 0.09
+			cyl.bottom_radius = 0.15
+			cyl.height = 0.08
+			glow.mesh = cyl
+			glow.position = Vector3(pos.x, 2.4, pos.z)
+		&"bedroom":
+			cyl.top_radius = 0.2
+			cyl.bottom_radius = 0.18
+			cyl.height = 0.06
+			glow.mesh = cyl
+			glow.position = Vector3(pos.x, top - 0.03, pos.z)
+		&"gap":
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.12, 0.06, 0.22)
+			glow.mesh = bm
+			glow.position = Vector3(pos.x, top - 0.25, pos.z)
+			for dz: float in [-0.06, 0.06]:
+				_box(holder, glow.position + Vector3(0, -0.035, dz), Vector3(0.14, 0.012, 0.012), Color(0.15, 0.15, 0.15), false)
+			_box(holder, glow.position + Vector3(0, 0.035, 0), Vector3(0.15, 0.02, 0.25), Color(0.3, 0.3, 0.3), false)
+		&"mirror_room":
+			var bulb := SphereMesh.new()
+			bulb.radius = 0.04
+			bulb.height = 0.1
+			glow.mesh = bulb
+			glow.position = pos
+			_box(holder, Vector3(pos.x, (top + pos.y) * 0.5 + 0.025, pos.z), Vector3(0.008, top - pos.y - 0.05, 0.008), Color(0.12, 0.12, 0.12), false)
+		_:  # recessed downlight
+			cyl.top_radius = 0.075
+			cyl.bottom_radius = 0.075
+			cyl.height = 0.01
+			glow.mesh = cyl
+			glow.position = Vector3(pos.x, top - 0.004, pos.z)
+			_box(holder, glow.position + Vector3.UP * 0.001, Vector3(0.18, 0.006, 0.18), white, false)
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(glow)
+	return glow
 
 
 ## A light in a room with variant rects exists only in the variants whose rects contain it.
@@ -451,11 +533,11 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# the window and the moved things are drawn by their props; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)
 	if o.size() > 6:
-		_gate(it, o[6])
+		gate(it, o[6])
 
 
 func _build_label(l: Array) -> void:
@@ -470,13 +552,14 @@ func _build_label(l: Array) -> void:
 	label.shaded = true
 	add_child(label)
 	if l.size() > 5:
-		_gate(label, l[5])
+		gate(label, l[5])
 
 
 func _build_fan() -> void:
 	_fan = Node3D.new()
 	_fan.position = Vector3(6.5, 2.5, 7.0)
 	add_child(_fan)
+	_box(self, Vector3(6.5, 2.6, 7.0), Vector3(0.03, 0.2, 0.03), Color(0.85, 0.85, 0.82), false)  # downrod
 	_box(_fan, Vector3.ZERO, Vector3(0.18, 0.12, 0.18), Color(0.85, 0.85, 0.82), false)
 	for i in 3:
 		var blade := Node3D.new()
@@ -492,8 +575,8 @@ func _build_environment() -> void:
 	environment.background_mode = Environment.BG_COLOR
 	environment.background_color = Color(0.015, 0.018, 0.035)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.13, 0.13, 0.18)
-	environment.ambient_light_energy = 0.28
+	environment.ambient_light_color = Color(0.12, 0.13, 0.17)
+	environment.ambient_light_energy = 0.22
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
 	environment.fog_light_color = Color(0.03, 0.035, 0.06)

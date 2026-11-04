@@ -4,6 +4,27 @@ extends CanvasLayer
 
 signal started
 
+const FILM_SHADER := """
+shader_type canvas_item;
+uniform float grain = 0.035;
+uniform float vignette = 0.55;
+
+float hash(vec2 p) {  // Dave Hoskins' hash12 (MIT): no sin(), so no patterns on mobile GPUs
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
+
+void fragment() {
+	vec2 d = (SCREEN_UV - 0.5) * vec2(1.0, 0.82);
+	float v = smoothstep(0.3, 0.75, length(d)) * vignette;
+	float n = hash(FRAGCOORD.xy + floor(TIME * 24.0) * 61.7);  // new grain 24 times a second, like film
+	// Darken by v, then add the grain at a fixed strength: the grain must not grow with the vignette.
+	float a = v + grain * (1.0 - v);
+	COLOR = vec4(vec3(n * grain * (1.0 - v) / a), a);
+}
+"""
+
 var player: PlayerController
 var _prompt: Label
 var _objective: Label
@@ -28,6 +49,16 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+
+	# Film grain and a vignette over the 3D view, under the text. The grain also hides the banding that
+	# 8-bit dark gradients show on most screens.
+	var film := ColorRect.new()
+	film.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var shader := Shader.new()
+	shader.code = FILM_SHADER
+	film.material = ShaderMaterial.new()
+	(film.material as ShaderMaterial).shader = shader
+	root.add_child(film)
 
 	_crosshair = ColorRect.new()
 	_crosshair.color = Color(1, 1, 1, 0.55)
