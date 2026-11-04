@@ -10,7 +10,7 @@ const ROUTE := [
 	[1.5, 7.6, &""], [1.5, 6.2, &""], [1.5, 5.0, &"kitchen"], [1.5, 6.2, &""], [1.5, 7.6, &""],
 	[2.0, 8.5, &""], [3.6, 8.5, &""], [5.6, 8.0, &""], [5.6, 5.0, &""], [4.0, 4.8, &""], [4.0, 3.25, &"hallway"],
 	[4.33, 3.25, &""], [4.33, 1.8, &""], [4.3, 0.0, &"bathroom"], [4.33, 1.8, &""], [4.33, 3.25, &""],
-	[6.75, 3.25, &""], [6.75, 1.6, &"bedroom"], [7.5, -1.2, &""], [9.4, 1.6, &""],
+	[6.75, 3.25, &""], [6.75, 1.6, &"bedroom"], [7.5, -1.2, &""], [7.6, 1.6, &""], [9.4, 1.6, &""],  # round the bed, not into its corner
 	[6.75, 1.6, &""], [6.75, 3.25, &""], [4.0, 3.25, &""], [4.0, 4.8, &""], [5.6, 5.0, &""],
 	[5.6, 8.0, &""], [3.6, 8.5, &""], [1.53, 9.0, &""], [1.53, 10.8, &"corridor"], [10.0, 11.3, &""],
 	[18.0, 11.3, &""], [-3.0, 11.3, &""], [1.53, 10.8, &""], [1.53, 9.0, &"entrance"], [3.6, 8.5, &""],
@@ -185,22 +185,48 @@ func test_variant_swap_toggles_visibility_and_collision() -> bool:
 
 func test_furniture_never_hides_a_shift_probe() -> bool:
 	# Decor's colliders only stop walking. A tall one would let a chair turn while the player watches it
-	# over a table or through the laundry.
+	# over a table or through the laundry, standing or crouching.
 	var main := await _main()
 	var space: PhysicsDirectSpaceState3D = main.player.get_world_3d().direct_space_state
+	var eyes := [PlayerController.STAND_HEIGHT - PlayerController.EYE_DROP, PlayerController.CROUCH_HEIGHT - PlayerController.EYE_DROP]
 	var hidden: Array[String] = []
 	for area: StringName in ApartmentLayout.VARIANT_AREAS:
 		for probe: Vector3 in ApartmentLayout.VARIANT_AREAS[area]["probes"]:
 			for xi in range(-8, 40):
-				for zi in range(-10, 24):
-					var eye := Vector3(xi * 0.5, 1.62, zi * 0.5)
-					if eye.distance_to(probe) > 6.0:
-						continue
-					var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, probe, 1))
-					if not hit.is_empty() and hit["collider"].get_parent() == main.builder.decor \
-							and (hit["position"] as Vector3).distance_to(probe) >= 0.3:
-						hidden.append("%s from %s" % [area, eye])
+				for zi in range(-10, 26):
+					for eye_y: float in eyes:
+						var eye := Vector3(xi * 0.5, eye_y, zi * 0.5)
+						if eye.distance_to(probe) > 10.0:
+							continue
+						var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, probe, 1))
+						if not hit.is_empty() and hit["collider"].get_parent() == main.builder.decor \
+								and (hit["position"] as Vector3).distance_to(probe) >= 0.3:
+							hidden.append("%s from %s" % [area, eye])
 	eq(hidden, [] as Array[String], "probes hidden by furniture colliders")
+	main.queue_free()
+	return true
+
+
+func test_no_mesh_loses_a_light_with_every_lamp_on() -> bool:
+	# Past rendering/limits/opengl/max_lights_per_object the renderer drops lights in pairing order, not the
+	# farthest, so a room could lose its own lamp. Godot pairs by bounding box: a cube for an omni light.
+	var main := await _main()
+	for room: StringName in ApartmentLayout.LIGHTS:
+		WorldState.set_light(room, true)
+	WorldState.set_variant(&"bedroom", &"door")  # the gap's lights too
+	await tree.process_frame
+	var limit: int = ProjectSettings.get_setting("rendering/limits/opengl/max_lights_per_object")
+	var lights: Array = main.builder.find_children("*", "OmniLight3D", true, false).filter(func(l: Node3D) -> bool: return l.is_visible_in_tree())
+	var over: Array[String] = []
+	for m: MeshInstance3D in main.builder.find_children("*", "MeshInstance3D", true, false):
+		if not m.is_visible_in_tree() or m.mesh == null:
+			continue
+		var box: AABB = m.global_transform * m.get_aabb()
+		var n := lights.filter(func(l: OmniLight3D) -> bool: return box.intersects(AABB(l.global_position - Vector3.ONE * l.omni_range, Vector3.ONE * l.omni_range * 2.0))).size()
+		if n > limit:
+			over.append("%s: %d" % [m.name, n])
+	check(lights.size() >= 12, "the gap's lights are on (%d lights)" % lights.size())
+	eq(over, [] as Array[String], "meshes reached by more than %d lights" % limit)
 	main.queue_free()
 	return true
 

@@ -21,8 +21,9 @@ void fragment() {
 	// New grain 24 times a second, like film. The frame number wraps at 256: unbounded, the offset grows
 	// so large that float32 rounding turns the grain into a tile repeating every 97 px after ~30 minutes.
 	float n = hash(FRAGCOORD.xy + mod(floor(TIME * 24.0), 256.0) * 61.7);
-	// Darken by v, then add the grain at a fixed strength: the grain must not grow with the vignette.
-	float a = v + grain * (1.0 - v);
+	// Grain over the picture, then the vignette darkens both: (1 - v) * mix(picture, n, grain). The grain
+	// fades into the dark corners with everything else instead of standing out there.
+	float a = max(v + grain * (1.0 - v), 0.0001);
 	COLOR = vec4(vec3(n * grain * (1.0 - v) / a), a);
 }
 """

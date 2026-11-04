@@ -116,7 +116,7 @@ const ANCHORS := {
 	&"phone_mirror": {"room": &"mirror_room", "pos": Vector3(5.6, 1.45, -14.6), "kind": "phone"},
 	&"sil_corridor_west": {"room": &"corridor", "pos": Vector3(-3.3, 0, 11.3), "kind": "silhouette"},
 	&"sil_hallway_east": {"room": &"hallway", "pos": Vector3(9.6, 0, 3.25), "kind": "silhouette"},
-	&"sil_kitchen": {"room": &"kitchen", "pos": Vector3(0.6, 0, 3.0), "kind": "silhouette"},
+	&"sil_kitchen": {"room": &"kitchen", "pos": Vector3(1.1, 0, 3.0), "kind": "silhouette"},
 	&"sil_living_balcony": {"room": &"living", "pos": Vector3(9.6, 0, 5.0), "kind": "silhouette"},
 	&"sil_gap": {"room": &"gap", "pos": Vector3(7.7, 0, -12.5), "kind": "silhouette"},
 }

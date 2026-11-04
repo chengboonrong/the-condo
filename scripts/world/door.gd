@@ -15,7 +15,10 @@ var _speed := SPEED
 func setup(id: StringName, data: Dictionary) -> void:
 	door_id = id
 	swing = data["swing"]
-	position = data["hinge"]  # every door sits in an x-axis wall; the panel extends along +x
+	# Every door sits in an x-axis wall; the panel extends along +x. The pin is on the face of the frame the
+	# door opens towards, like a real hinge, so the open panel clears its frame instead of turning through it
+	# (lining 2 cm wide and WALL_T + 6 mm deep: Decor.door_frame).
+	position = data["hinge"] + Vector3(0.02, 0, swing * (ApartmentLayout.WALL_T * 0.5 + 0.003))
 
 
 func _ready() -> void:

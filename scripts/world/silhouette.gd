@@ -36,6 +36,9 @@ func _ready() -> void:
 	_apron.albedo_color = Color(0.52, 0.5, 0.45, 0.95)  # lit by the room: it shows only where there is light
 	_apron.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_apron.roughness = 0.9
+	# Drawn after the shades, which are see-through too, so a stain on the wall behind never paints over it.
+	_material.render_priority = 1
+	_apron.render_priority = 1
 	for part: Array in BODY:
 		var m := MeshInstance3D.new()
 		if part[0] == "capsule":

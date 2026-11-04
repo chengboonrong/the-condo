@@ -336,9 +336,7 @@ func _build_wall(w: Dictionary) -> void:
 		var center := Vector3(along, y, w["at"]) if w["axis"] == "x" else Vector3(w["at"], y, along)
 		var size := Vector3(length, hh, t) if w["axis"] == "x" else Vector3(t, hh, length)
 		_box(holder, center, size, color, true, _plaster(color))
-		decor.wall_piece(center, size, axis, requires, not requires.has(&"gap"))
-		if w.get("parapet", false) and p[3] < h:
-			decor.box(Vector3(center.x, p[3] + 0.025, center.z), Vector3(size.x, 0.05, t + 0.08), Color(0.6, 0.59, 0.56))  # coping
+		decor.wall_piece(center, size, axis, requires, not requires.has(&"gap"), w.get("parapet", false) and p[3] < h)
 	for o: Array in openings:
 		var mid: float = (o[0] + o[1]) * 0.5
 		var at_floor := Vector3(mid, 0, w["at"]) if w["axis"] == "x" else Vector3(w["at"], 0, mid)
@@ -378,18 +376,19 @@ func _build_door(door_id: StringName, data: Dictionary) -> void:
 	door.name = String(door_id)
 	door.setup(door_id, data)
 	var width: float = data["width"]
+	var back: float = -data["swing"] * 0.025  # the panel hangs behind its hinge pin (Door.setup)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(width - 0.04, ApartmentLayout.DOOR_HEIGHT - 0.03, 0.05)
+	box.size = Vector3(width - 0.046, ApartmentLayout.DOOR_HEIGHT - 0.03, 0.05)  # 3 mm gaps to the frame
 	shape.shape = box
-	shape.position = Vector3(width * 0.5, ApartmentLayout.DOOR_HEIGHT * 0.5, 0)
+	shape.position = Vector3(width * 0.5 - 0.02, ApartmentLayout.DOOR_HEIGHT * 0.5, back)
 	door.add_child(shape)
 	_box(door, shape.position, box.size, data["color"], false)
 	for s: float in [-1.0, 1.0]:  # lever handles on both sides
-		_box(door, Vector3(width - 0.1, 1.0, s * 0.045), Vector3(0.06, 0.06, 0.015), Color(0.7, 0.68, 0.6), false)
-		_box(door, Vector3(width - 0.15, 1.0, s * 0.07), Vector3(0.12, 0.02, 0.02), Color(0.7, 0.68, 0.6), false)
+		_box(door, Vector3(width - 0.12, 1.0, back + s * 0.045), Vector3(0.06, 0.06, 0.015), Color(0.7, 0.68, 0.6), false)
+		_box(door, Vector3(width - 0.17, 1.0, back + s * 0.07), Vector3(0.12, 0.02, 0.02), Color(0.7, 0.68, 0.6), false)
 	if door_id == &"main_door":
-		_box(door, Vector3(width * 0.5, 1.55, 0.0), Vector3(0.025, 0.025, 0.07), Color(0.6, 0.55, 0.4), false)  # peephole
+		_box(door, Vector3(width * 0.5 - 0.02, 1.55, back), Vector3(0.025, 0.025, 0.07), Color(0.6, 0.55, 0.4), false)  # peephole
 	add_child(door)
 	doors[door_id] = door
 	gate(door, data.get("requires", {}))
@@ -465,7 +464,7 @@ func _fixture(room_id: StringName, pos: Vector3, holder: Node3D) -> MeshInstance
 			var bm := BoxMesh.new()
 			bm.size = Vector3(0.12, 0.06, 0.22)
 			glow.mesh = bm
-			glow.position = Vector3(pos.x, top - 0.25, pos.z)
+			glow.position = Vector3(pos.x, top - 0.045, pos.z)  # screwed to the ceiling, its plate touching it
 			for dz: float in [-0.06, 0.06]:
 				_box(holder, glow.position + Vector3(0, -0.035, dz), Vector3(0.14, 0.012, 0.012), Color(0.15, 0.15, 0.15), false)
 			_box(holder, glow.position + Vector3(0, 0.035, 0), Vector3(0.15, 0.02, 0.25), Color(0.3, 0.3, 0.3), false)

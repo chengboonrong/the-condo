@@ -25,6 +25,7 @@ var _looks := {}
 var _led: MeshInstance3D  # standby light on the bedroom aircon, blinking although it is switched off
 var _hands: Array[Node3D] = []  # living room clock: hour, minute; it follows the game clock, shifts and all
 var _leak: Node3D  # corridor light under the front door, while the door is shut
+var _anchor: Variant = null  # while set, pieces join the batch of the room at this point, not at their own centre
 var _rng := RandomNumberGenerator.new()
 
 
@@ -91,15 +92,19 @@ func cylinder(base: Vector3, radius: float, height: float, color: Color, look :=
 
 ## A soft shadow (or stain, with a colour): full strength over the rect, fading to nothing over `margin`.
 ## Horizontal (n up or down): half = half sizes along x and z. On a wall: along the wall, then up.
-func shade(center: Vector3, n: Vector3, half: Vector2, margin: float, color: Color, requires := {}, into: SurfaceTool = null) -> void:
+## edges, when given, are the margins on the -u, +u, -v and +v sides instead.
+func shade(center: Vector3, n: Vector3, half: Vector2, margin: float, color: Color, requires := {}, into: SurfaceTool = null, edges := Vector4(-1, -1, -1, -1)) -> void:
 	var u := Vector3.RIGHT if absf(n.y) > 0.5 else n.cross(Vector3.UP).normalized()
 	var v := Vector3.BACK if absf(n.y) > 0.5 else Vector3.UP
 	var st := into if into else _st(center, Look.SHADE, requires)
-	var us := [-half.x - margin, -half.x, half.x, half.x + margin]
-	var vs := [-half.y - margin, -half.y, half.y, half.y + margin]
+	var e := edges if edges.x >= 0.0 else Vector4(margin, margin, margin, margin)
+	var us := [-half.x - e.x, -half.x, half.x, half.x + e.y]
+	var vs := [-half.y - e.z, -half.y, half.y, half.y + e.w]
 	var ts := [0.0, 0.5, 0.5, 1.0]  # nine patches: the middle samples the texture's full-strength centre
 	for i in 3:
 		for j in 3:
+			if us[i + 1] - us[i] < 0.0001 or vs[j + 1] - vs[j] < 0.0001:
+				continue
 			var p := []
 			var uv := []
 			for c: Array in [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]]:
@@ -113,10 +118,11 @@ func foot(center: Vector3, half: Vector2, strength := 0.5, requires := {}) -> vo
 	shade(Vector3(center.x, 0.012, center.z), Vector3.UP, half, 0.18, Color(0, 0, 0, strength), requires)
 
 
-## Invisible collision for furniture standing on the floor. At most 0.5 m tall: that stops the player's
-## capsule, and anything taller would hide what the player can see past it (GameStage.can_see casts rays).
+## Invisible collision for furniture standing on the floor. At most 0.3 m tall: the player's capsule (radius
+## 0.3) meets that at its widest, so it still stops them, and anything taller would hide what the player can
+## see past it, even crouching (GameStage.can_see casts rays).
 func solid(center: Vector3, size: Vector3) -> void:
-	var h := minf(size.y, 0.5)
+	var h := minf(size.y, 0.3)
 	var body := StaticBody3D.new()
 	body.position = Vector3(center.x, h * 0.5, center.z)
 	var shape := CollisionShape3D.new()
@@ -132,6 +138,7 @@ func finish() -> void:
 	for key: String in _batches:
 		var b: Array = _batches[key]
 		var mesh := MeshInstance3D.new()
+		mesh.name = key.validate_node_name()  # room|look|variant: readable in the remote scene tree
 		mesh.mesh = (b[0] as SurfaceTool).commit()
 		mesh.material_override = _look(b[1])
 		if b[1] == Look.SHADE or b[1] == Look.UNLIT:
@@ -156,9 +163,10 @@ func _poly(st: SurfaceTool, p: Array, n: Vector3, color: Color, uv: Array = [], 
 
 
 func _st(at: Vector3, look: Look, requires: Dictionary) -> SurfaceTool:
-	# One batch per room keeps each mesh's bounds small, so only nearby lights touch it (WebGL2 draws
-	# every light that touches a mesh as one more pass).
-	var key := "%s|%d|%s" % [ApartmentLayout.room_at(at, requires), look, requires]
+	# One batch per room keeps each mesh's bounds small. The Compatibility renderer gives a mesh only the
+	# first max_lights_per_object lights that reach it (in pairing order, not the nearest; project.godot),
+	# and the phone light, which casts shadows, draws every mesh it reaches once more.
+	var key := "%s|%d|%s" % [ApartmentLayout.room_at(at if _anchor == null else _anchor, requires), look, requires]
 	if not _batches.has(key):
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -191,12 +199,12 @@ func _look(look: Look) -> Material:
 
 ## White with alpha 1 at the centre falling to 0 at the edges and corners, squared like real occlusion.
 static func _falloff() -> ImageTexture:
+	# No mipmaps: seen at a grazing angle, the small ones flatten the falloff into a hard-edged rectangle.
 	var img := Image.create(64, 64, false, Image.FORMAT_LA8)
 	for y in 64:
 		for x in 64:
 			var d := minf(Vector2(absf(x - 31.5), absf(y - 31.5)).length() / 31.5, 1.0)
 			img.set_pixel(x, y, Color(1, 1, 1, pow(1.0 - d, 2.0)))
-	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)
 
 
@@ -207,31 +215,76 @@ static func _sz(along: Vector3, length: float, height: float, depth: float) -> V
 
 # --- walls (called by ApartmentBuilder) ---------------------------------------------------------
 
-## Tile skirting and the soft shadow where a wall piece meets the floor and the ceiling.
-func wall_piece(center: Vector3, size: Vector3, along: Vector3, requires: Dictionary, skirting: bool) -> void:
-	var half := Vector2(size.x, size.z) * 0.5
-	if center.y - size.y * 0.5 < 0.01:
-		if skirting:
-			box(Vector3(center.x, 0.05, center.z), size + _sz(along, 0.0, 0.1 - size.y, 0.02), SKIRTING, Look.GLOSS, requires)
-		shade(Vector3(center.x, 0.004, center.z), Vector3.UP, half, 0.32, Color(0, 0, 0, 0.5), requires)
-	if center.y + size.y * 0.5 > ApartmentLayout.CEILING - 0.01:
-		shade(Vector3(center.x, ApartmentLayout.CEILING - 0.004, center.z), Vector3.DOWN, half, 0.28, Color(0, 0, 0, 0.35), requires)
+## Tile skirting and the soft shadows where a wall piece meets the floor and the ceiling. Each face is cut
+## where the room beside it changes, and each part goes in that room's batch (the outside of the building
+## gets nothing). The shadows fade out over a part's last 15 cm, so they stop at a doorway and inside a wall
+## the piece runs into, not on the floor beyond it. coping: the corridor's half wall gets a concrete cap.
+func wall_piece(center: Vector3, size: Vector3, along: Vector3, requires: Dictionary, skirting: bool, coping := false) -> void:
+	var length := size.x if absf(along.x) > 0.5 else size.z
+	var t := size.z if absf(along.x) > 0.5 else size.x
+	var across := Vector3(along.z, 0.0, along.x)  # horizontal, through the wall
+	var mid := center.x if absf(along.x) > 0.5 else center.z
+	var cuts := [-length * 0.5, length * 0.5]  # along the piece, from its centre
+	for room_id: StringName in ApartmentLayout.ROOMS:
+		for r: Rect2 in ApartmentLayout.room_rects(room_id, requires):
+			for edge: float in ([r.position.x, r.end.x] if absf(along.x) > 0.5 else [r.position.y, r.end.y]):
+				if absf(edge - mid) < length * 0.5 - 0.01 and not cuts.has(edge - mid):
+					cuts.append(edge - mid)
+	cuts.sort()
+	for s: float in [-1.0, 1.0]:
+		var n := across * s
+		var face := center + n * t * 0.5
+		for i in cuts.size() - 1:
+			var a: float = cuts[i]
+			var b: float = cuts[i + 1]
+			if b - a < 0.01 or ApartmentLayout.room_at(face + along * (a + b) * 0.5 + n * 0.05, requires) == &"":
+				continue
+			_anchor = face + along * (a + b) * 0.5 + n * 0.05
+			# A cut lies on another wall's centre line or an open boundary: run on under that wall's half.
+			var a2 := a - (t * 0.5 if i > 0 else 0.0)
+			var b2 := b + (t * 0.5 if i < cuts.size() - 2 else 0.0)
+			var fade := minf(0.15, (b2 - a2) * 0.5)
+			var at := face + along * (a2 + b2) * 0.5
+			if center.y - size.y * 0.5 < 0.01:
+				if skirting:
+					box(Vector3(face.x, 0.05, face.z) + along * (a + b) * 0.5 + n * 0.01, _sz(along, b - a, 0.1, 0.02), SKIRTING, Look.GLOSS, requires)
+				_wall_shade(Vector3(at.x, 0.004, at.z), Vector3.UP, along, n, (b2 - a2) * 0.5 - fade, fade, 0.32, 0.5, requires)
+			if center.y + size.y * 0.5 > ApartmentLayout.CEILING - 0.01:
+				_wall_shade(Vector3(at.x, ApartmentLayout.CEILING - 0.004, at.z), Vector3.DOWN, along, n, (b2 - a2) * 0.5 - fade, fade, 0.28, 0.35, requires)
+			if coping:
+				box(center + Vector3.UP * (size.y * 0.5 + 0.025), _sz(along, length, 0.05, t + 0.08), Color(0.6, 0.59, 0.56))
+				coping = false
+			_anchor = null
+
+
+## A strip of shadow along a wall face: `half` along the wall at full strength, `fade` at each end, `margin`
+## out into the room on side n.
+func _wall_shade(c: Vector3, n: Vector3, along: Vector3, side: Vector3, half: float, fade: float, margin: float, strength: float, requires: Dictionary) -> void:
+	var out := Vector2(margin if side.x + side.z < 0.0 else 0.0, margin if side.x + side.z > 0.0 else 0.0)  # (-, +) across
+	if absf(along.x) > 0.5:
+		shade(c, n, Vector2(half, 0.0), 0.0, Color(0, 0, 0, strength), requires, null, Vector4(fade, fade, out.x, out.y))
+	else:
+		shade(c, n, Vector2(0.0, half), 0.0, Color(0, 0, 0, strength), requires, null, Vector4(out.x, out.y, fade, fade))
 
 
 ## Architrave around a doorway (c: middle of the opening on the wall's centre line, at the floor).
 func door_frame(c: Vector3, along: Vector3, width: float, color: Color, requires: Dictionary) -> void:
 	var h := ApartmentLayout.DOOR_HEIGHT
 	var t := ApartmentLayout.WALL_T
+	var across := Vector3(along.z, 0.0, along.x)
+	_anchor = c + across * 0.3 if ApartmentLayout.room_at(c + across * 0.3, requires) != &"" else c - across * 0.3
 	for s: float in [-1.0, 1.0]:
 		box(c + along * s * (width * 0.5 + 0.035) + Vector3.UP * (h + 0.07) * 0.5, _sz(along, 0.07, h + 0.07, t + 0.03), color, Look.MATTE, requires)
 		box(c + along * s * (width * 0.5 - 0.01) + Vector3.UP * h * 0.5, _sz(along, 0.02, h, t + 0.006), color, Look.MATTE, requires)
 	box(c + Vector3.UP * (h + 0.035), _sz(along, width + 0.14, 0.07, t + 0.03), color, Look.MATTE, requires)
 	box(c + Vector3.UP * (h - 0.006), _sz(along, width, 0.012, t + 0.006), color, Look.MATTE, requires)
+	_anchor = null
 
 
 ## Aluminium frame, tiled sill and a painted iron grille on the room side of a window opening.
 func window(c: Vector3, along: Vector3, inward: Vector3, width: float, height: float, requires: Dictionary) -> void:
 	var t := ApartmentLayout.WALL_T
+	_anchor = c + inward * 0.3
 	for s: float in [-1.0, 1.0]:
 		box(c + along * s * (width * 0.5 - 0.025), _sz(along, 0.05, height, 0.09), BRONZE, Look.GLOSS, requires)
 		box(c + Vector3.UP * s * (height * 0.5 - 0.025), _sz(along, width, 0.05, 0.09), BRONZE, Look.GLOSS, requires)
@@ -245,6 +298,7 @@ func window(c: Vector3, along: Vector3, inward: Vector3, width: float, height: f
 		box(g + along * (width * (float(i) / bars - 0.5)), _sz(along, 0.014, height - 0.02, 0.014), GRILLE, Look.GLOSS, requires)
 	for y: float in [-0.48, 0.0, 0.48]:
 		box(g + Vector3.UP * y * (height - 0.06), _sz(along, width - 0.02, 0.02, 0.02), GRILLE, Look.GLOSS, requires)
+	_anchor = null
 
 
 ## Folding iron gate on the corridor side of a front door (x0..x1 along the wall at z); bunched when open.
@@ -423,11 +477,12 @@ func _kitchen() -> void:
 	box_xf(Transform3D(Basis(Vector3.BACK, -0.6), Vector3(0.48, 1.0, 5.6)), Vector3(0.12, 0.025, 0.025), STEEL, Look.GLOSS)
 	cylinder(Vector3(0.2, 0.93, 6.12), 0.04, 0.26, Color(0.8, 0.62, 0.15), Look.GLOSS)
 	cylinder(Vector3(0.28, 0.93, 6.22), 0.03, 0.22, Color(0.1, 0.06, 0.04), Look.GLOSS)
-	# Gas cylinder at the end of the counter, hose up to the hob.
+	# Gas cylinder at the end of the counter; the hose goes into the cabinet, to the hob.
 	cylinder(Vector3(0.3, 0, 6.66), 0.16, 0.5, Color(0.6, 0.3, 0.18), Look.GLOSS, {}, 0.14)
 	cylinder(Vector3(0.3, 0.5, 6.66), 0.06, 0.06, Color(0.5, 0.5, 0.5))
 	box(Vector3(0.3, 0.58, 6.66), Vector3(0.08, 0.06, 0.08), Color(0.15, 0.15, 0.15))
-	box(Vector3(0.3, 0.75, 6.5), Vector3(0.02, 0.35, 0.02), Color(0.2, 0.2, 0.2))
+	box(Vector3(0.3, 0.62, 6.53), Vector3(0.02, 0.02, 0.22), Color(0.2, 0.2, 0.2))
+	box(Vector3(0.3, 0.715, 6.41), Vector3(0.02, 0.21, 0.02), Color(0.2, 0.2, 0.2))
 	solid(Vector3(0.3, 0.3, 6.66), Vector3(0.34, 0.6, 0.34))
 	foot(Vector3(0.3, 0, 6.66), Vector2(0.15, 0.15), 0.5)
 
@@ -440,7 +495,6 @@ func _entrance() -> void:
 		box(Vector3(0.25, y, 8.0), Vector3(0.38, 0.02, 1.0), WOOD)
 	for z: float in [7.75, 7.88]:
 		box(Vector3(0.25, 0.33, z), Vector3(0.26, 0.025, 0.09), Color(0.55, 0.22, 0.2))
-	solid(Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0))
 	foot(Vector3(0.25, 0, 8.0), Vector2(0.19, 0.5), 0.45)
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat
 	box(Vector3(0.155, 1.48, 8.56), Vector3(0.03, 0.2, 0.05), Color(0.82, 0.81, 0.78), Look.GLOSS)  # intercom handset
@@ -476,7 +530,7 @@ func _bathroom() -> void:
 	box(Vector3(5.4, 0.62, 0.74), Vector3(0.03, 0.06, 0.05), CHROME, Look.GLOSS)
 	box(Vector3(5.39, 0.6, 0.79), Vector3(0.03, 0.12, 0.035), PLASTIC_WHITE, Look.GLOSS)
 	box(Vector3(5.38, 0.33, 0.78), Vector3(0.012, 0.5, 0.012), Color(0.75, 0.75, 0.75), Look.GLOSS)
-	solid(Vector3(5.2, 0.4, 0.4), Vector3(0.55, 0.8, 0.46))
+	solid(Vector3(5.145, 0.4, 0.4), Vector3(0.55, 0.8, 0.46))  # seat rim to the tiles
 	foot(Vector3(5.15, 0, 0.4), Vector2(0.24, 0.2), 0.45)
 	# Basin on its pedestal, a glass shelf, one toothbrush.
 	cylinder(Vector3(3.3, 0, 1.0), 0.08, 0.8, PORCELAIN, Look.GLOSS, {}, 0.06)
@@ -502,12 +556,13 @@ func _bathroom() -> void:
 	cylinder(Vector3(5.2, 0.31, 1.22), 0.07, 0.06, Color(0.2, 0.42, 0.7))
 	box(Vector3(5.2, 0.37, 1.34), Vector3(0.025, 0.02, 0.16), Color(0.2, 0.42, 0.7), Look.GLOSS)
 	foot(Vector3(5.2, 0, 1.25), Vector2(0.13, 0.13), 0.45)
+	solid(Vector3(5.2, 0.17, 1.25), Vector3(0.28, 0.34, 0.28))
 	shade(Vector3(4.25, ApartmentLayout.CEILING - 0.005, -1.3), Vector3.DOWN, Vector2(0.3, 0.2), 0.45, Color(0.4, 0.3, 0.12, 0.35))  # damp
 
 
 func _bedroom() -> void:
 	# Bed: mattress and sheet, two pillows, the bolster, the blanket kicked down. A headboard.
-	box(Vector3(8.95, 0.45, 0.2), Vector3(1.8, 0.2, 1.98), Color(0.8, 0.79, 0.75))
+	box(Vector3(8.95, 0.45, 0.2), Vector3(1.78, 0.2, 1.98), Color(0.8, 0.79, 0.75))  # inside the frame: no shared faces
 	box(Vector3(8.95, 0.48, -0.84), Vector3(1.86, 0.96, 0.06), WOOD_DARK)
 	box(Vector3(8.6, 0.6, -0.56), Vector3(0.58, 0.12, 0.36), Color(0.87, 0.86, 0.82), Look.MATTE, {}, 0.06)
 	box(Vector3(9.3, 0.6, -0.54), Vector3(0.58, 0.12, 0.36), Color(0.87, 0.86, 0.82), Look.MATTE, {}, -0.04)
@@ -536,11 +591,11 @@ func _bedroom() -> void:
 	_led.position = Vector3(9.776, 2.2, -0.15)
 	add_child(_led)
 	_socket(Vector3(6.2, 0.3, -1.925), Vector3.BACK)
-	# Curtains, pushed to the sides. They stay when the window is a door.
-	box(Vector3(7.8, 2.25, -1.85), Vector3(2.3, 0.025, 0.025), STEEL, Look.GLOSS)
+	# Curtains, pushed to the sides, hanging clear of the sill. They stay when the window is a door.
+	box(Vector3(7.8, 2.25, -1.74), Vector3(2.3, 0.025, 0.025), STEEL, Look.GLOSS)
 	for x0: float in [6.9, 8.35]:
 		for i in 4:
-			box(Vector3(x0 + 0.035 + i * 0.07, 1.47, -1.83 + (i % 2) * 0.03), Vector3(0.075, 1.54, 0.03), Color(0.36, 0.2, 0.19))
+			box(Vector3(x0 + 0.035 + i * 0.07, 1.47, -1.72 + (i % 2) * 0.03), Vector3(0.075, 1.54, 0.03), Color(0.36, 0.2, 0.19))
 
 
 func _corridor() -> void:
@@ -548,7 +603,7 @@ func _corridor() -> void:
 	grille_gate(-2.5, -1.5, 10.2, false)
 	grille_gate(11.5, 12.5, 10.2, false)
 	# B-12-06's red lantern from last Chinese New Year; B-12-08's delivery slip.
-	box(Vector3(-2.68, 2.08, 10.24), Vector3(0.006, 0.2, 0.006), Color(0.1, 0.1, 0.1))
+	box(Vector3(-2.68, (1.98 + ApartmentLayout.CEILING) * 0.5, 10.24), Vector3(0.006, ApartmentLayout.CEILING - 1.98, 0.006), Color(0.1, 0.1, 0.1))  # string from the ceiling
 	cylinder(Vector3(-2.68, 1.76, 10.24), 0.09, 0.22, Color(0.62, 0.08, 0.06), Look.MATTE, {}, 0.09)
 	box(Vector3(-2.68, 1.66, 10.24), Vector3(0.012, 0.16, 0.012), Color(0.75, 0.6, 0.2))
 	box(Vector3(12.2, 1.32, 10.215), Vector3(0.1, 0.14, 0.004), Color(0.92, 0.9, 0.84))
@@ -573,9 +628,9 @@ func _beyond() -> void:
 			var c := r.get_center()
 			var along_x := r.size.x > r.size.y
 			var off := Vector3(0, 0, r.size.y * 0.5 - 0.12) if along_x else Vector3(r.size.x * 0.5 - 0.12, 0, 0)
-			box(Vector3(c.x, 2.62, c.y) + off, Vector3(r.size.x, 0.035, 0.035) if along_x else Vector3(0.035, 0.035, r.size.y), Color(0.45, 0.45, 0.43), Look.MATTE, variant[1])
+			box(Vector3(c.x, ApartmentLayout.CEILING - 0.018, c.y) + off, Vector3(r.size.x, 0.035, 0.035) if along_x else Vector3(0.035, 0.035, r.size.y), Color(0.45, 0.45, 0.43), Look.MATTE, variant[1])
 	for z: float in [-4.0, -7.5, -11.0]:
-		shade(Vector3(7.005 + 0.07, 1.9, z), Vector3.RIGHT, Vector2(0.15, 0.6), 0.3, Color(0.25, 0.2, 0.1, 0.35), gap.merged({&"gap": &"default"}))
+		shade(Vector3(7.0 + 0.08, 1.9, z), Vector3.RIGHT, Vector2(0.15, 0.6), 0.3, Color(0.25, 0.2, 0.1, 0.35), gap.merged({&"gap": &"default"}))
 	# B-11-07: vacant since March. Newspapers on the floor, water stains, dust.
 	for p: Array in [[Vector3(6.6, 0.004, -15.0), 0.3], [Vector3(7.1, 0.006, -14.8), -0.5], [Vector3(8.9, 0.004, -17.6), 1.2]]:
 		box(p[0], Vector3(0.58, 0.004, 0.4), Color(0.78, 0.74, 0.62), Look.MATTE, gap, p[1])
