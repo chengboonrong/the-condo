@@ -146,7 +146,7 @@ aberration. The fear comes from the place being ordinary.
   small. The Compatibility renderer shades up to `rendering/limits/opengl/max_lights_per_object`
   unshadowed lights per mesh in the same pass and silently drops the rest, in pairing order, not the
   farthest. It pairs by bounding box (a cube for an omni light). With every lamp on and the gap at its
-  longest, the plaster wall the bathroom, hallway and kitchen share is reached by 10, so the limit is 10
+  longest, the long wall at x = 3 (bathroom, hallway, living room and kitchen) is reached by 10, so the limit is 10
   instead of the default 8 (`test_no_mesh_loses_a_light_with_every_lamp_on` checks before the reveal,
   after it and with the long gap). Only the phone light casts shadows; it draws what
   it reaches once more.
