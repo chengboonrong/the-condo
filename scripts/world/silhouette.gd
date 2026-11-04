@@ -81,7 +81,7 @@ func _physics_process(delta: float) -> void:
 		_seen_for += delta
 	if _seen_for >= SEEN_AFTER or close:
 		_fading = true
-		EventBus.sound_requested.emit(&"stinger", head, -2.0)
+		EventBus.sound_requested.emit(&"stinger", head, 0.0)  # the loudest sound in the game
 		EventBus.silhouette_seen.emit(_anchor)
 	elif _left <= 0.0:
 		visible = false

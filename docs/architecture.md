@@ -133,6 +133,32 @@ Room swaps and silhouettes need "can the player see this point?". The core asks 
 The project uses the **Compatibility** (OpenGL 3 / WebGL2) renderer so one project exports to the web
 (itch.io) and to desktop. Avoid Forward+-only features: SDFGI, SSAO/SSIL, volumetric fog, decals.
 
+## Audio levels
+
+Measured from the files (`assets/audio/`, the loudest 100 ms) plus the volume each is played at, before
+distance attenuation. Scares sit at the top, the player's own noise near the bottom, beds underneath.
+
+| Sound | File | Played at | Heard at |
+|---|---|---|---|
+| Stinger (silhouette seen) | −8.8 dB | 0 dB | −8.8 dB |
+| Intercom ring | −8.2 | −2 | −10.2 |
+| Lift ding (ending) | −10.7 | 0 | −10.7 |
+| Door slam | −11.8 | 0 | −11.8 |
+| Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
+| Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
+| Light buzz (flicker) | −10.8 | −6 | −16.8 |
+| Door opening | −6.9 | −11 | −17.9 |
+| Door closing | −20.6 | 0 | −20.6 |
+| Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
+| Your footsteps (walk / sprint / crouch) | −19.8 to −15.9 | −15 / −10 / −22 | about −33 / −28 / −40 |
+| Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
+| Tap running (loop) | −19.4 | −8 | −27.4 |
+| Corridor hum (loop) | −14.7 | −20 | −34.7 |
+| Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
+
+Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pass, opening a door
+(−6.9 dB) was the loudest sound in the game, louder than the stinger and the slam.
+
 ## Collision layers
 
 | Layer | Name | Used by |

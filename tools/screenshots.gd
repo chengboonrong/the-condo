@@ -29,7 +29,8 @@ func _initialize() -> void:
 	root.size = Vector2i(1280, 720)
 	var main: Node3D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
-	await process_frame
+	while not main.loaded:  # the shader warm-up moves its own camera around first
+		await process_frame
 	main.hud.visible = false
 	var world := root.get_node("WorldState")  # autoload names don't resolve in --script files
 	var player = main.player  # untyped: project class names can't be referenced from the startup script

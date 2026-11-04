@@ -25,6 +25,10 @@ const PROPS := [
 	[Vector3(3.45, 0.45, 5.2), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"turned"}],
 	[Vector3(3.65, 0.75, 5.2), Vector3(0.05, 0.55, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"turned"}],
 	[Vector3(9.55, 0.45, 9.5), Vector3(0.4, 0.9, 0.4), Color(0.2, 0.35, 0.2)],
+	[Vector3(6.5, 2.3, 4.14), Vector3(0.95, 0.3, 0.2), Color(0.9, 0.9, 0.88)],  # aircon above the TV
+	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
+	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
+	[Vector3(2.6, 0.015, 9.62), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],
 	# Entrance: shoes on the rack, or lined up facing the hallway
 	[Vector3(0.22, 0.64, 7.8), Vector3(0.12, 0.08, 0.28), Color(0.1, 0.1, 0.1), {&"entrance_shoes": &"default"}],
 	[Vector3(0.36, 0.64, 7.8), Vector3(0.12, 0.08, 0.28), Color(0.1, 0.1, 0.1), {&"entrance_shoes": &"default"}],
@@ -36,6 +40,8 @@ const PROPS := [
 	[Vector3(0.22, 2.0, 4.9), Vector3(0.35, 0.7, 3.0), Color(0.62, 0.57, 0.5)],
 	[Vector3(0.35, 0.92, 5.6), Vector3(0.5, 0.04, 0.5), Color(0.12, 0.12, 0.12)],
 	[Vector3(0.35, 0.91, 4.2), Vector3(0.45, 0.03, 0.5), Color(0.7, 0.72, 0.74)],
+	[Vector3(0.35, 1.03, 3.7), Vector3(0.28, 0.26, 0.28), Color(0.92, 0.9, 0.85)],  # rice cooker
+	[Vector3(0.35, 1.04, 5.6), Vector3(0.2, 0.22, 0.2), Color(0.66, 0.66, 0.68)],  # kettle on the stove
 	# Bathroom
 	[Vector3(3.3, 0.85, 1.0), Vector3(0.42, 0.12, 0.5), Color(0.92, 0.92, 0.9)],
 	[Vector3(3.3, 0.4, 1.0), Vector3(0.15, 0.8, 0.15), Color(0.9, 0.9, 0.88)],
@@ -43,6 +49,8 @@ const PROPS := [
 	[Vector3(5.38, 0.6, 0.4), Vector3(0.2, 0.4, 0.5), Color(0.93, 0.93, 0.92)],
 	[Vector3(3.6, 1.0, -0.6), Vector3(1.0, 2.0, 0.02), Color(0.7, 0.85, 0.9, 0.25)],
 	[Vector3(3.2, 2.0, -1.5), Vector3(0.22, 0.45, 0.3), Color(0.95, 0.95, 0.95)],
+	[Vector3(5.2, 0.17, 1.25), Vector3(0.3, 0.34, 0.3), Color(0.72, 0.14, 0.12)],  # pail
+	[Vector3(5.2, 0.38, 1.25), Vector3(0.14, 0.08, 0.14), Color(0.2, 0.45, 0.75)],  # gayung
 	[Vector3(3.22, 0.96, 1.0), Vector3(0.02, 0.1, 0.02), Color(0.6, 0.8, 1.0, 0.6), {&"bathroom_tap": &"running"}],
 	# Bedroom
 	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), Color(0.55, 0.5, 0.45)],
@@ -117,6 +125,7 @@ var environment: Environment
 var _gated: Array = []  # [Node3D, requires]
 var _materials: Dictionary = {}
 var _fan: Node3D
+var _plaster_tex: ImageTexture
 
 
 func _ready() -> void:
@@ -178,6 +187,34 @@ func _material(color: Color, emission := 0.0) -> StandardMaterial3D:
 		m.emission_enabled = true
 		m.emission = color
 		m.emission_energy_multiplier = emission
+	_materials[key] = m
+	return m
+
+
+## Painted plaster: a faint mottle so walls and ceilings aren't flat colour. One shared 128 px texture.
+func _plaster(color: Color) -> StandardMaterial3D:
+	var key := "plaster/%s" % color.to_html()
+	if _materials.has(key):
+		return _materials[key]
+	if _plaster_tex == null:
+		var noise := FastNoiseLite.new()
+		noise.seed = 1207
+		noise.frequency = 0.03
+		var img := noise.get_seamless_image(128, 128)
+		img.convert(Image.FORMAT_L8)
+		var px := img.get_data()
+		for i in px.size():
+			px[i] = 222 + px[i] * 33 / 255  # 87–100 % brightness
+		img = Image.create_from_data(128, 128, false, Image.FORMAT_L8, px)
+		img.generate_mipmaps()
+		_plaster_tex = ImageTexture.create_from_image(img)
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.albedo_texture = _plaster_tex
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3.ONE * 0.4  # one tile every 2.5 m
+	m.roughness = 0.9
 	_materials[key] = m
 	return m
 
@@ -258,7 +295,7 @@ func _build_room_surfaces(room_id: StringName) -> void:
 		for r: Rect2 in s[0]:
 			var c := r.get_center()
 			_box(holder, Vector3(c.x, -0.05, c.y), Vector3(r.size.x + 0.15, 0.1, r.size.y + 0.15), Color.WHITE, true, floor_mat)
-			_box(holder, Vector3(c.x, ApartmentLayout.CEILING + 0.05, c.y), Vector3(r.size.x + 0.15, 0.1, r.size.y + 0.15), CEILING_COLOR)
+			_box(holder, Vector3(c.x, ApartmentLayout.CEILING + 0.05, c.y), Vector3(r.size.x + 0.15, 0.1, r.size.y + 0.15), CEILING_COLOR, true, _plaster(CEILING_COLOR))
 
 
 func _build_wall(w: Dictionary) -> void:
@@ -297,7 +334,7 @@ func _build_wall(w: Dictionary) -> void:
 		var hh: float = p[3] - p[2]
 		var center := Vector3(along, y, w["at"]) if w["axis"] == "x" else Vector3(w["at"], y, along)
 		var size := Vector3(length, hh, t) if w["axis"] == "x" else Vector3(t, hh, length)
-		_box(holder, center, size, color)
+		_box(holder, center, size, color, true, _plaster(color))
 	if w.get("window", false):
 		for o: Array in openings:
 			var along: float = (o[0] + o[1]) * 0.5
@@ -349,7 +386,7 @@ func _build_lights(room_id: StringName, data: Dictionary) -> void:
 		light.position = pos
 		light.light_color = data["color"]
 		light.omni_range = data["range"]
-		light.omni_attenuation = 1.4
+		light.omni_attenuation = 2.0  # pools of light; corners fall into shadow
 		light.shadow_enabled = false  # omni shadows artifact and cost a lot in WebGL2; the phone light casts shadows
 		light.setup(room_id, data["energy"], fixture)
 		holder.add_child(light)
@@ -456,7 +493,7 @@ func _build_environment() -> void:
 	environment.background_color = Color(0.015, 0.018, 0.035)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.13, 0.13, 0.18)
-	environment.ambient_light_energy = 0.35
+	environment.ambient_light_energy = 0.28
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
 	environment.fog_light_color = Color(0.03, 0.035, 0.06)

@@ -36,19 +36,23 @@ godot --path . -- --perf                           # debug build from the projec
 
 ## Results
 
+Measured after the art pass (plaster texture on walls and ceilings, nine props). The debug-build row and
+the "before the art pass" row were measured just before it, with the same tour.
+
 | Build | Runs | Avg frame | fps | p50 | p95 | p99 | Worst | Frames > 25 ms | Render CPU avg / p95 |
 |---|---|---|---|---|---|---|---|---|---|
-| macOS app (release), 1600×900, vsync off | 3 | 2.52–2.73 ms | 367–396 | 2.64–2.71 ms | 3.40–3.53 ms | 3.81–3.90 ms | 12.4–13.6 ms | 0 | 0.98–1.05 / 1.43–1.46 ms |
-| Project in the editor binary (debug), 1600×900, vsync off | 1 | 2.41 ms | 414 | 2.41 ms | 3.50 ms | 4.07 ms | 11.5 ms | 0 | 0.99 / 1.49 ms |
-| Web, Chromium (Playwright 1.63), 1280×720, visible window | 1 | 8.34 ms | 120 | 8.30 ms | 11.1 ms | 12.2 ms | 17.2 ms | 0 | 0.51 / 0.80 ms |
-| Web, WebKit (Playwright 1.63), 1280×720, headless | 1 | 16.66 ms | 60 | 17 ms | 18 ms | 19 ms | 23 ms | 0 | 2.15 / 3.00 ms |
+| macOS app (release), 1600×900, vsync off | 3 | 2.95–2.98 ms | 335–339 | 2.95–2.98 ms | 3.73 ms | 4.10–4.11 ms | 18.2–20.8 ms | 0 | 1.19–1.20 / 1.58–1.60 ms |
+| macOS app (release), before the art pass | 3 | 2.52–2.73 ms | 367–396 | 2.64–2.71 ms | 3.40–3.53 ms | 3.81–3.90 ms | 12.4–13.6 ms | 0 | 0.98–1.05 / 1.43–1.46 ms |
+| Project in the editor binary (debug), before the art pass, 1600×900, vsync off | 1 | 2.41 ms | 414 | 2.41 ms | 3.50 ms | 4.07 ms | 11.5 ms | 0 | 0.99 / 1.49 ms |
+| Web, Chromium (Playwright 1.63), 1280×720, visible window | 1 | 8.33 ms | 120 | 8.30 ms | 11.1 ms | 12.2 ms | 14.5 ms | 0 | 0.51 / 0.80 ms |
+| Web, WebKit (Playwright 1.63), 1280×720, headless | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 23 ms | 0 | 2.12 / 3.00 ms |
 
 | Build | Simulation step avg / p95 / max | Director eval avg / max (153 evals) | Draw calls avg / max |
 |---|---|---|---|
-| macOS app (release) | 55–58 / 104–109 / 283–346 µs | 2–3 / 7–8 µs | 59–61 / 191 |
-| Debug build | 61 / 127 / 427 µs | 3 / 8 µs | 58 / 191 |
-| Chromium | 169 / 300 / 3900 µs | 7 / 100 µs | 63 / 189 |
-| WebKit | 138 / 1000 / 4000 µs | under 1 ms (the browser's timer only has 1 ms steps) | 63 / 188 |
+| macOS app (release) | 59–62 / 105–110 / 325–347 µs | 3–4 / 7–10 µs | 65–66 / 208 |
+| Debug build (before the art pass) | 61 / 127 / 427 µs | 3 / 8 µs | 58 / 191 |
+| Chromium | 166 / 300 / 3800 µs | 7 / 100 µs | 68 / 207 |
+| WebKit | 118 / 1000 / 4000 µs | under 1 ms (the browser's timer only has 1 ms steps) | 68 / 207 |
 
 Browser timers are coarse (0.1 ms steps in Chromium, 1 ms in WebKit), so the web simulation and director
 numbers are rounded, not exact. The simulation costs well under a millisecond per physics tick on every
@@ -62,10 +66,10 @@ is a maximum, often the first evaluation, not a typical cost.
 
 | Build | Memory | Condo built | Shader warm-up done |
 |---|---|---|---|
-| macOS app (release) | 250–251 MB peak resident; video 81.2 MB | 482–516 ms | 1.89–2.02 s |
-| Debug build | static 48.6 MB; video 81.2 MB | 586 ms | 2.08 s |
-| Chromium | video 65.6 MB | 710 ms | 2.24 s (first ever run on this Mac: 11.8 s) |
-| WebKit | video 63.6 MB | 430 ms | 2.45 s |
+| macOS app (release) | 251–253 MB peak resident; video 81.2 MB | 490–519 ms | 1.91–1.95 s |
+| Debug build (before the art pass) | static 48.6 MB; video 81.2 MB | 586 ms | 2.08 s |
+| Chromium | video 65.6 MB | 729 ms | 2.27 s (first ever run on this Mac: 11.8 s) |
+| WebKit | video 63.6 MB | 445 ms | 2.52 s |
 
 The first time Chromium ever ran the game on this Mac, compiling the shaders took 9.7 s; later runs took
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in

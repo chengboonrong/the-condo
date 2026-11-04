@@ -13,6 +13,7 @@ var runtime: HorrorRuntime
 var pause: PauseMenu
 var silhouette: Silhouette
 var ready_msec := 0  # engine start to the condo built, for the perf report
+var loaded := false  # the shader warm-up is done and the player's camera is back (tools wait for this)
 var _had_capture := false
 var _automated := false
 
@@ -52,6 +53,7 @@ func _ready() -> void:
 func _finish_loading() -> void:
 	if DisplayServer.get_name() != "headless":  # nothing is drawn headless (tests), so nothing to compile
 		await _compile_shaders()
+	loaded = true
 	hud.allow_start()
 	if has_flag("smoke"):
 		_smoke()
