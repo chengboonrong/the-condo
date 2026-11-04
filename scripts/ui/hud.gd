@@ -18,7 +18,9 @@ float hash(vec2 p) {  // Dave Hoskins' hash12 (MIT): no sin(), so no patterns on
 void fragment() {
 	vec2 d = (SCREEN_UV - 0.5) * vec2(1.0, 0.82);
 	float v = smoothstep(0.3, 0.75, length(d)) * vignette;
-	float n = hash(FRAGCOORD.xy + floor(TIME * 24.0) * 61.7);  // new grain 24 times a second, like film
+	// New grain 24 times a second, like film. The frame number wraps at 256: unbounded, the offset grows
+	// so large that float32 rounding turns the grain into a tile repeating every 97 px after ~30 minutes.
+	float n = hash(FRAGCOORD.xy + mod(floor(TIME * 24.0), 256.0) * 61.7);
 	// Darken by v, then add the grain at a fixed strength: the grain must not grow with the vignette.
 	float a = v + grain * (1.0 - v);
 	COLOR = vec4(vec3(n * grain * (1.0 - v) / a), a);
