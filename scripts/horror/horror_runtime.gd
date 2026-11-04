@@ -19,6 +19,7 @@ var transformer: RoomTransformer
 var story: StoryDirector
 var story_running := false
 var _sightings: Array[StringName] = []  # silhouettes seen since the last step
+var last_step_usec := 0
 
 
 func setup(stage: HorrorStage, seed_value: int) -> void:
@@ -49,6 +50,7 @@ func _exit_tree() -> void:
 
 ## Advances the whole simulation by delta seconds.
 func step(delta: float) -> void:
+	var t0 := Time.get_ticks_usec()
 	for _anchor in _sightings:  # applied inside the tick, so the core's order never depends on frame rate
 		scheduler.mark(&"silhouette", "seen")
 		entity.notice()
@@ -61,6 +63,7 @@ func step(delta: float) -> void:
 	scheduler.tick(delta)
 	director.tick(delta)
 	WorldState.behavior["tension"] = director.tension
+	last_step_usec = Time.get_ticks_usec() - t0
 
 
 ## The story begins when the player dismisses the start card (tests and bots call it directly).

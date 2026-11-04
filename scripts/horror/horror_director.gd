@@ -28,6 +28,8 @@ var paused := false
 var decisions: Array[Dictionary] = []
 var last_eval_usec := 0
 var max_eval_usec := 0
+var total_eval_usec := 0
+var eval_count := 0
 var _next_eval := 0.0
 var _quiet_until := 0.0
 
@@ -58,6 +60,8 @@ func tick(delta: float) -> void:
 	_evaluate()
 	last_eval_usec = Time.get_ticks_usec() - t0
 	max_eval_usec = maxi(max_eval_usec, last_eval_usec)
+	total_eval_usec += last_eval_usec
+	eval_count += 1
 
 
 ## Scores every adaptive event now, without starting anything. Each entry: id, total, parts, run.

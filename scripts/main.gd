@@ -11,8 +11,10 @@ var builder: ApartmentBuilder
 var audio: AudioDirector
 var runtime: HorrorRuntime
 var pause: PauseMenu
+var silhouette: Silhouette
+var ready_msec := 0  # engine start to the condo built, for the perf report
 var _had_capture := false
-var _smoking := false
+var _automated := false
 
 
 func _ready() -> void:
@@ -31,7 +33,7 @@ func _ready() -> void:
 	runtime.name = "Horror"
 	add_child(runtime)
 	runtime.setup(stage, SEED)
-	var silhouette := Silhouette.new()
+	silhouette = Silhouette.new()
 	silhouette.stage = stage
 	add_child(silhouette)
 	var overlay := DebugOverlay.new()
@@ -43,11 +45,56 @@ func _ready() -> void:
 	hud.bind(player)
 	hud.started.connect(_on_started)
 	EventBus.ending_reached.connect(_on_ending)
+	ready_msec = Time.get_ticks_msec()
+	_finish_loading.call_deferred()
+
+
+func _finish_loading() -> void:
+	if DisplayServer.get_name() != "headless":  # nothing is drawn headless (tests), so nothing to compile
+		await _compile_shaders()
+	hud.allow_start()
 	if has_flag("smoke"):
-		_smoke.call_deferred()
+		_smoke()
+	elif has_flag("perf"):
+		_automated = true
+		var probe := PerfProbe.new()
+		probe.hud = hud
+		probe.player = player
+		probe.runtime = runtime
+		probe.scene_ready_msec = ready_msec
+		add_child(probe)
 
 
-## Release checks: `-- --smoke` on desktop, `?smoke` on the web.
+## Behind the start card, looks around every room with the ceiling lights on, off and with the phone light,
+## so the renderer compiles every shader variant now instead of mid-game: the first silhouette, the first
+## flicker and the first phone light each cost a 30–110 ms hitch on an M1 Max otherwise.
+func _compile_shaders() -> void:
+	var cam := Camera3D.new()
+	var phone := player.phone_light.duplicate() as SpotLight3D  # same light, but where this camera looks
+	cam.add_child(phone)
+	add_child(cam)
+	cam.make_current()
+	var lights := builder.find_children("*", "OmniLight3D", true, false)
+	var was_on := lights.map(func(l: Light3D) -> bool: return l.visible)
+	for room: StringName in ApartmentLayout.APARTMENT_ROOMS + [&"corridor"]:
+		for i in 4:
+			cam.global_position = ApartmentLayout.room_center(room) + Vector3(0, 1.6, 0)
+			cam.rotation.y = i * PI / 2
+			for state: Array in [[true, false], [false, true], [true, true]]:  # ceiling lights, phone light
+				for l: Light3D in lights:
+					l.visible = state[0]
+				phone.visible = state[1]
+				await get_tree().process_frame
+	for k in lights.size():
+		(lights[k] as Light3D).visible = was_on[k]
+	silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	player.camera.make_current()
+	cam.queue_free()
+
+
+## Release checks: `-- --smoke` / `-- --perf` on desktop, `?smoke` / `?perf` on the web.
 static func has_flag(flag: String) -> bool:
 	if OS.has_feature("web"):
 		var query: Variant = JavaScriptBridge.eval("location.search", true)
@@ -57,16 +104,18 @@ static func has_flag(flag: String) -> bool:
 
 ## Plays the first 3 seconds of a built game and reports whether the simulation runs.
 func _smoke() -> void:
-	_smoking = true
+	_automated = true
 	hud.start()
 	await get_tree().create_timer(3.0).timeout
 	var events := runtime.scheduler.events.size()
-	var ok := events == 7 and WorldState.time > 2.0 and runtime.story.beat == &"home"  # 7 event definitions
+	var lights := builder.find_children("*", "OmniLight3D", true, false).filter(func(l: Node) -> bool: return l is RoomLight)
+	var restored := get_viewport().get_camera_3d() == player.camera and lights.all(func(l: RoomLight) -> bool: return l.visible == WorldState.is_light_on(l.room_id))
+	var ok := events == 7 and WorldState.time > 2.0 and runtime.story.beat == &"home" and restored  # 7 event definitions
 	var shot := ""
 	if not OS.has_feature("web"):
 		shot = ProjectSettings.globalize_path("user://smoke.png")
 		get_viewport().get_texture().get_image().save_png(shot)
-	print("SMOKE %s events=%d time=%.1f beat=%s gpu=%s %s" % ["ok" if ok else "FAIL", events, WorldState.time, runtime.story.beat, RenderingServer.get_video_adapter_name(), shot])
+	print("SMOKE %s events=%d time=%.1f beat=%s warm-up-restored=%s gpu=%s %s" % ["ok" if ok else "FAIL", events, WorldState.time, runtime.story.beat, restored, RenderingServer.get_video_adapter_name(), shot])
 	if not OS.has_feature("web"):
 		get_tree().quit(0 if ok else 1)
 
@@ -90,7 +139,7 @@ func _process(_delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and player.input_enabled and not pause.is_open() and not _smoking:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and player.input_enabled and not pause.is_open() and not _automated:
 		pause.open()
 
 

@@ -190,6 +190,23 @@ func test_start_card_click_starts_the_game() -> bool:
 	return true
 
 
+func test_the_start_card_waits_until_loading_is_done() -> bool:
+	var main: Node3D = load("res://scenes/main.tscn").instantiate()
+	tree.root.add_child(main)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = tree.root.get_visible_rect().size / 2.0
+	tree.root.push_input(click, true)  # before the first frame: still loading
+	check(not main.player.input_enabled, "a click while loading does nothing")
+	await tree.process_frame
+	tree.root.push_input(click, true)
+	await tree.process_frame
+	check(main.player.input_enabled, "the same click works once loading is done")
+	main.queue_free()
+	return true
+
+
 class _UnhandledProbe extends Node:
 	var clicks := 0
 

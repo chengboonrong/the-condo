@@ -14,6 +14,8 @@ var _inspect: PanelContainer
 var _inspect_title: Label
 var _inspect_text: Label
 var _start: Control
+var _click: Label
+var _can_start := false
 var _crosshair: ColorRect
 var _ending: ColorRect
 var _ending_title: Label
@@ -131,8 +133,8 @@ func _build_start(root: Control) -> void:
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.text = "Headphones recommended. Contains flickering lights, sudden sounds and themes of isolation.\nReduced flashing and brightness are in the pause menu (Esc)."
 	body.modulate = Color(1, 1, 1, 0.7)
-	var click := _label(box, 22, HORIZONTAL_ALIGNMENT_CENTER)
-	click.text = "Click to begin"
+	_click = _label(box, 22, HORIZONTAL_ALIGNMENT_CENTER)
+	_click.text = "Loading…"
 
 
 func _build_ending(root: Control) -> void:
@@ -167,13 +169,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_tree().reload_current_scene()
 		return
 	if _start.visible:
-		if event is InputEventMouseButton and event.pressed:
+		if _can_start and event is InputEventMouseButton and event.pressed:
 			start()
 			get_viewport().set_input_as_handled()
 		return
 	if _inspect.visible and (event.is_action_pressed("interact") or event.is_action_pressed("pause")):
 		close_inspect()
 		get_viewport().set_input_as_handled()
+
+
+## Main calls this once the shaders are compiled (see Main._compile_shaders).
+func allow_start() -> void:
+	_can_start = true
+	_click.text = "Click to begin"
 
 
 ## Leaves the start card and starts the game (a click, or the release smoke check).

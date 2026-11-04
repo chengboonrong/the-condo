@@ -55,6 +55,14 @@ func _on_requested(anchor: StringName, duration: float) -> void:
 	visible = true
 
 
+## Shows the figure for a moment at pos without it counting as a sighting (no stinger, no signal), so its
+## shader is compiled behind the start card and not on the first scare (a 110 ms hitch on an M1 Max).
+func warm_up(pos: Vector3) -> void:
+	global_position = pos
+	_fading = true  # _process fades it out and hides it again
+	visible = true
+
+
 func _process(delta: float) -> void:
 	if visible and _fading:
 		_material.albedo_color.a -= delta * 2.5
