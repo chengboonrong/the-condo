@@ -10,8 +10,8 @@ which is what makes seeded replays and simulated playthroughs possible.
 ┌──────────────────────────────────────┐  sample()   ┌───────────────────────────────────────────────┐
 │ PlayerController ─ InteractionSystem │ ──────────▶ │ HorrorRuntime.step(dt)                        │
 │ GameStage (visibility queries)       │ ◀────────── │  ├ BehaviorProfiler  (bounded scores)         │
-│ ApartmentBuilder (graybox, doors,    │  queries    │  ├ EventScheduler    (lifecycle, locks)       │
-│   lights, variants)                  │             │  ├ HorrorDirector    (utility scoring, 4 Hz)  │
+│ ApartmentBuilder (rooms, doors,      │  queries    │  ├ EventScheduler    (lifecycle, locks)       │
+│   lights, variants) + Decor          │             │  ├ HorrorDirector    (utility scoring, 4 Hz)  │
 │ AudioDirector, Silhouette, HUD, UI   │             │  ├ EntityController  (abstract FSM)           │
 └──────────────────────────────────────┘             │  ├ RoomTransformer   (validated variant swaps)│
           ▲  listens                                 │  └ StoryDirector     (acts, objectives)       │
@@ -133,6 +133,34 @@ Room swaps and silhouettes need "can the player see this point?". The core asks 
 The project uses the **Compatibility** (OpenGL 3 / WebGL2) renderer so one project exports to the web
 (itch.io) and to desktop. Avoid Forward+-only features: SDFGI, SSAO/SSIL, volumetric fog, decals.
 
+## Look
+
+The aim is a real Malaysian condo at night, not generic horror: grilles on the windows and gates,
+wall tiles to 1.8 m in the bathroom, laundry drying by the window, a gas cylinder at the end of the counter, a
+tudung saji on the table, the corridor light under the front door. No blood, no red fog, no chromatic
+aberration. The fear comes from the place being ordinary.
+
+* `ApartmentBuilder` builds the structure (walls, floors, doors, lights) from `ApartmentLayout`;
+  `Decor` (`scripts/world/decor.gd`) adds furniture, trim, door frames, window grilles and fixtures.
+  `Decor` draws into one mesh per room and material, so a ceiling light only touches the meshes of its
+  own room (WebGL2 draws each light that reaches a mesh as one more pass).
+* **Contact shadows** without SSAO: soft quads under furniture and along the wall-floor and
+  wall-ceiling edges, with a squared falloff texture. Unshaded, so lights don't touch them.
+* **Light fittings** match the room: fluorescent tubes in the kitchen, bathroom and corridor, a
+  ceiling dome in the living room and bedroom, downlights in the entrance and hallway, a caged bulkhead
+  in the gap, a bare bulb in B-11-07. Light colours follow them: cool tubes and dome, warm downlights and bulb.
+* **Grain and vignette** are one full-screen `canvas_item` shader under the HUD text (`Hud.FILM_SHADER`).
+  The grain stays the same strength in the darkened corners.
+* **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
+
+Two rules keep the decor from breaking the game:
+
+* `Decor.solid()` colliders are at most 0.5 m tall: enough to stop the player, never tall enough to
+  hide a probe from `GameStage.can_see` (a tall table collider let the chair turn while the player
+  watched it over the table). `test_furniture_never_hides_a_shift_probe` checks every probe.
+* Nothing may show a material for the first time mid-game: the shader warm-up only compiles what it
+  sees. The blinking aircon LED therefore shares the material of the other indicator lights.
+
 ## Audio levels
 
 Measured from the files (`assets/audio/`, the loudest 100 ms) plus the volume each is played at, before
@@ -175,9 +203,9 @@ active variant's rects), not from Area3D triggers, so it is exact and identical 
 * `scripts/core/save_manager.gd` is not present. A 10–15 minute run does not need save slots;
   `Settings` persists options. Add a save manager if checkpoints become necessary.
 * Room detection uses layout rects instead of Area3D triggers (see above).
-* The graybox is built in code from `ApartmentLayout` by `ApartmentBuilder` rather than hand-placed
-  in `.tscn` files, so geometry, the room graph and the tests cannot drift apart. Replacing the
-  graybox with modelled rooms means swapping the builder's mesh calls, not the data.
+* The condo is built in code from `ApartmentLayout` by `ApartmentBuilder` and `Decor` rather than
+  hand-placed in `.tscn` files, so geometry, the room graph and the tests cannot drift apart. Replacing
+  it with modelled rooms means swapping the mesh calls, not the data.
 * `scenes/corridor/` and `scenes/entities/` are folded into the builder and `scenes/main.tscn`.
 * Story code lives in `scripts/story/` (not listed in the brief).
 

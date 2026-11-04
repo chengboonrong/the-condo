@@ -36,23 +36,33 @@ godot --path . -- --perf                           # debug build from the projec
 
 ## Results
 
-Measured after the art pass (plaster texture on walls and ceilings, nine props). The debug-build row and
-the "before the art pass" row were measured just before it, with the same tour.
+Measured after the detail pass (furniture, trim, fixtures, soft contact shadows, grain and vignette; see
+[architecture.md](architecture.md#look)). The "before the detail pass" rows are the Phase 6 build (plaster
+walls, nine box props); the "before the art pass" rows came before that. Same tour every time.
 
 | Build | Runs | Avg frame | fps | p50 | p95 | p99 | Worst | Frames > 25 ms | Render CPU avg / p95 |
 |---|---|---|---|---|---|---|---|---|---|
-| macOS app (release), 1600×900, vsync off | 3 | 2.95–2.98 ms | 335–339 | 2.95–2.98 ms | 3.73 ms | 4.10–4.11 ms | 18.2–20.8 ms | 0 | 1.19–1.20 / 1.58–1.60 ms |
+| macOS app (release), 1600×900, vsync off | 3 | 2.97–3.00 ms | 334–337 | 2.97–2.98 ms | 3.71–3.77 ms | 3.94–4.07 ms | 13.6–14.7 ms | 0 | 1.17–1.18 / 1.64–1.70 ms |
+| macOS app (release), before the detail pass | 3 | 2.95–2.98 ms | 335–339 | 2.95–2.98 ms | 3.73 ms | 4.10–4.11 ms | 18.2–20.8 ms | 0 | 1.19–1.20 / 1.58–1.60 ms |
 | macOS app (release), before the art pass | 3 | 2.52–2.73 ms | 367–396 | 2.64–2.71 ms | 3.40–3.53 ms | 3.81–3.90 ms | 12.4–13.6 ms | 0 | 0.98–1.05 / 1.43–1.46 ms |
 | Project in the editor binary (debug), before the art pass, 1600×900, vsync off | 1 | 2.41 ms | 414 | 2.41 ms | 3.50 ms | 4.07 ms | 11.5 ms | 0 | 0.99 / 1.49 ms |
-| Web, Chromium (Playwright 1.63), 1280×720, visible window | 1 | 8.33 ms | 120 | 8.30 ms | 11.1 ms | 12.2 ms | 14.5 ms | 0 | 0.51 / 0.80 ms |
-| Web, WebKit (Playwright 1.63), 1280×720, headless | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 23 ms | 0 | 2.12 / 3.00 ms |
+| Web, Chromium (Playwright 1.63), 1280×720, visible window | 1 | 8.33 ms | 120 | 8.30 ms | 11.0 ms | 11.9 ms | 15.2 ms | 0 | 0.56 / 0.80 ms |
+| Web, WebKit (Playwright 1.63), 1280×720, headless | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 18 ms | 22 ms | 0 | 2.44 / 4.00 ms |
+| Web, Chromium, before the detail pass | 1 | 8.33 ms | 120 | 8.30 ms | 11.1 ms | 12.2 ms | 14.5 ms | 0 | 0.51 / 0.80 ms |
+| Web, WebKit, before the detail pass | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 23 ms | 0 | 2.12 / 3.00 ms |
 
 | Build | Simulation step avg / p95 / max | Director eval avg / max (153 evals) | Draw calls avg / max |
 |---|---|---|---|
-| macOS app (release) | 59–62 / 105–110 / 325–347 µs | 3–4 / 7–10 µs | 65–66 / 208 |
+| macOS app (release) | 52–54 / 90–102 / 230–260 µs | 3 / 6–7 µs | 92 / 288–289 |
+| macOS app (release), before the detail pass | 59–62 / 105–110 / 325–347 µs | 3–4 / 7–10 µs | 65–66 / 208 |
 | Debug build (before the art pass) | 61 / 127 / 427 µs | 3 / 8 µs | 58 / 191 |
-| Chromium | 166 / 300 / 3800 µs | 7 / 100 µs | 68 / 207 |
-| WebKit | 118 / 1000 / 4000 µs | under 1 ms (the browser's timer only has 1 ms steps) | 68 / 207 |
+| Chromium | 149 / 300 / 3700 µs | 3 / 100 µs | 97 / 287 |
+| WebKit | 130 / 1000 / 4000 µs | under 1 ms (the browser's timer only has 1 ms steps) | 97 / 287 |
+| Chromium / WebKit, before the detail pass | 166 / 300 / 3800 µs; 118 / 1000 / 4000 µs | 7 / 100 µs; under 1 ms | 68 / 207 |
+
+The detail pass raised draw calls from about 66 to 92 a frame on average (max 208 to 289): each room's
+furniture is one mesh per material, and each ceiling light that reaches a mesh draws it once more. On this
+machine the frame time did not change; on integrated graphics it is unmeasured.
 
 Browser timers are coarse (0.1 ms steps in Chromium, 1 ms in WebKit), so the web simulation and director
 numbers are rounded, not exact. The simulation costs well under a millisecond per physics tick on every
@@ -66,10 +76,11 @@ is a maximum, often the first evaluation, not a typical cost.
 
 | Build | Memory | Condo built | Shader warm-up done |
 |---|---|---|---|
-| macOS app (release) | 251–253 MB peak resident; video 81.2 MB | 490–519 ms | 1.91–1.95 s |
+| macOS app (release) | 276–280 MB peak resident; video 82.5 MB | 497–533 ms | 2.39–2.48 s |
+| macOS app (release), before the detail pass | 251–253 MB peak resident; video 81.2 MB | 490–519 ms | 1.91–1.95 s |
 | Debug build (before the art pass) | static 48.6 MB; video 81.2 MB | 586 ms | 2.08 s |
-| Chromium | video 65.6 MB | 729 ms | 2.27 s (first ever run on this Mac: 11.8 s) |
-| WebKit | video 63.6 MB | 445 ms | 2.52 s |
+| Chromium | video 66.9 MB | 780 ms | 2.58 s (before the detail pass: 2.27 s; first ever run on this Mac: 11.8 s) |
+| WebKit | video 64.8 MB | 495 ms | 2.73 s (before: 2.52 s) |
 
 The first time Chromium ever ran the game on this Mac, compiling the shaders took 9.7 s; later runs took
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in
@@ -89,6 +100,7 @@ each one happened and which event had just started:
 | 99–111 ms | about 1 s after the silhouette was requested | the silhouette's transparent material compiled on its first draw | warm-up draws the silhouette once |
 | 27–110 ms | the first light flicker | an object losing its last ceiling light needs another shader variant | warm-up turns the ceiling lights off |
 | (not yet measured before the fix) | the first phone light | shadowed spot light variants | warm-up uses a copy of the phone light |
+| 112–143 ms, once in each of 3 runs | 0.2 s or 4.7 s into the living room, facing north | the bedroom aircon's blinking LED had a material of its own; the warm-up usually ran while it was dark, so it compiled on its first blink (walls don't hide it from the renderer) | the LED uses the same material as the other indicator lights |
 
 The warm-up (`Main._compile_shaders`) runs while the start card is up, which says "Loading…" and ignores
 clicks until it is done. A camera looks around every apartment room and the corridor with the ceiling

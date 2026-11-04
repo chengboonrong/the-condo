@@ -44,8 +44,11 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
 
 ## Known risks
 
-* **Graphics and Audio are judged.** Phase 6 added night lighting, a plaster texture, local props and
-  balanced sound levels, but the rooms are still made of boxes and every sound is synthesised.
+* **Graphics and Audio are judged.** Phase 6 added night lighting, plaster walls and balanced sound
+  levels; the detail pass added furniture, trim, fixtures, contact shadows and grain (see
+  [architecture.md](architecture.md#look)). Everything is still built from boxes and cylinders in code,
+  and every sound is synthesised.
 * **Web performance on slower machines.** Measured only on an M1 Max (see
   [performance.md](performance.md)): 120 fps in Chromium, 60 fps in headless WebKit, no frame over 25 ms.
-  Real Safari, integrated graphics and older GPUs are unmeasured.
+  The detail pass raised draw calls by about 40 %. Real Safari, integrated graphics and older GPUs are
+  unmeasured.

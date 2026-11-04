@@ -60,7 +60,7 @@ See [docs/test-plan.md](docs/test-plan.md).
 | Path | Contents |
 |---|---|
 | `scripts/core/` | EventBus, WorldState, Settings (autoloads) |
-| `scripts/world/` | Apartment layout data, room graph, builder, doors, interactables |
+| `scripts/world/` | Apartment layout data, room graph, builder, decor (furniture, trim, fixtures), doors, interactables |
 | `scripts/player/` | First-person controller and interaction |
 | `scripts/horror/` | Events, scheduler, director, behaviour profiler, entity, room transformer |
 | `scripts/story/` | Story director: acts, objectives, dialogue, fail-safes, endings |
