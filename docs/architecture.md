@@ -145,9 +145,10 @@ aberration. The fear comes from the place being ordinary.
   `Decor` draws into one mesh per room and material, keeping the number of lights that reach a mesh
   small. The Compatibility renderer shades up to `rendering/limits/opengl/max_lights_per_object`
   unshadowed lights per mesh in the same pass and silently drops the rest, in pairing order, not the
-  farthest. It pairs by bounding box (a cube for an omni light), and with every lamp on the living room
-  meshes are reached by 9, so the limit is 9 instead of the default 8
-  (`test_no_mesh_loses_a_light_with_every_lamp_on`). Only the phone light casts shadows; it draws what
+  farthest. It pairs by bounding box (a cube for an omni light). With every lamp on and the gap at its
+  longest, the plaster wall the bathroom, hallway and kitchen share is reached by 10, so the limit is 10
+  instead of the default 8 (`test_no_mesh_loses_a_light_with_every_lamp_on` checks before the reveal,
+  after it and with the long gap). Only the phone light casts shadows; it draws what
   it reaches once more.
 * **Contact shadows** without SSAO: soft quads under furniture and along the wall-floor and
   wall-ceiling edges, with a squared falloff texture. Unshaded, so lights don't touch them.

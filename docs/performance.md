@@ -37,30 +37,30 @@ godot --path . -- --perf                           # debug build from the projec
 ## Results
 
 Measured after the detail pass (furniture, trim, fixtures, soft contact shadows, grain and vignette; see
-[architecture.md](architecture.md#look)) and its review fixes, with up to 9 lights per mesh. The "before the detail pass" rows are the Phase 6 build (plaster
+[architecture.md](architecture.md#look)) and its review fixes, with up to 10 lights per mesh. The "before the detail pass" rows are the Phase 6 build (plaster
 walls, nine box props); the "before the art pass" rows came before that. Same tour every time.
 
 | Build | Runs | Avg frame | fps | p50 | p95 | p99 | Worst | Frames > 25 ms | Render CPU avg / p95 |
 |---|---|---|---|---|---|---|---|---|---|
-| macOS app (release), 1600×900, vsync off | 6 | 2.89–2.98 ms | 336–346 | 2.86–2.95 ms | 3.70–3.78 ms | 3.97–4.09 ms | 12.6–18.2 ms | 0 | 1.13–1.18 / 1.65–1.69 ms |
+| macOS app (release), 1600×900, vsync off | 3 | 2.93–3.01 ms | 333–342 | 2.96–3.00 ms | 3.72–3.77 ms | 3.96–4.04 ms | 14.2–18.0 ms | 0 | 1.16–1.19 / 1.64–1.65 ms |
 | macOS app (release), before the detail pass | 3 | 2.95–2.98 ms | 335–339 | 2.95–2.98 ms | 3.73 ms | 4.10–4.11 ms | 18.2–20.8 ms | 0 | 1.19–1.20 / 1.58–1.60 ms |
 | macOS app (release), before the art pass | 3 | 2.52–2.73 ms | 367–396 | 2.64–2.71 ms | 3.40–3.53 ms | 3.81–3.90 ms | 12.4–13.6 ms | 0 | 0.98–1.05 / 1.43–1.46 ms |
 | Project in the editor binary (debug), before the art pass, 1600×900, vsync off | 1 | 2.41 ms | 414 | 2.41 ms | 3.50 ms | 4.07 ms | 11.5 ms | 0 | 0.99 / 1.49 ms |
-| Web, Chromium (Playwright 1.63), 1280×720, visible window | 2 | 8.33 ms | 120 | 8.30 ms | 10.7–10.9 ms | 11.7–11.9 ms | 12.9–14.7 ms | 0 | 0.52 / 0.80 ms (first run) |
-| Web, WebKit (Playwright 1.63), 1280×720, headless | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 25 ms | 0 | 2.06 / 3.00 ms |
+| Web, Chromium (Playwright 1.63), 1280×720, visible window | 2 | 8.33 ms | 120 | 8.30 ms | 10.9–11.1 ms | 11.8–11.9 ms | 13.4–14.3 ms | 0 | 0.55–0.57 / 0.80–0.90 ms |
+| Web, WebKit (Playwright 1.63), 1280×720, headless | 2 | 16.67 ms | 60 | 17 ms | 18 ms | 18–19 ms | 23 ms | 0 | 2.34–2.37 / 4.00 ms |
 | Web, Chromium, before the detail pass | 1 | 8.33 ms | 120 | 8.30 ms | 11.1 ms | 12.2 ms | 14.5 ms | 0 | 0.51 / 0.80 ms |
 | Web, WebKit, before the detail pass | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 23 ms | 0 | 2.12 / 3.00 ms |
 
 | Build | Simulation step avg / p95 / max | Director eval avg / max (153 evals) | Draw calls avg / max |
 |---|---|---|---|
-| macOS app (release) | 50–55 / 84–103 / 222–249 µs | 2–3 / 6–7 µs | 87–88 / 286 |
+| macOS app (release) | 52–55 / 95–99 / 239–356 µs | 3 / 6–8 µs | 87–89 / 284 |
 | macOS app (release), before the detail pass | 59–62 / 105–110 / 325–347 µs | 3–4 / 7–10 µs | 65–66 / 208 |
 | Debug build (before the art pass) | 61 / 127 / 427 µs | 3 / 8 µs | 58 / 191 |
-| Chromium | 126 / 300 / 2700 µs | 3 / 100 µs | 93 / 284 |
-| WebKit | 123 / 1000 / 4000 µs | under 1 ms (the browser's timer only has 1 ms steps) | 93 / 285 |
+| Chromium | 148–154 / 300 / 3500–3600 µs | 5–8 / 100 µs | 93 / 283 |
+| WebKit | 146–159 / 1000 / 5000 µs | at most 1 ms (the browser's timer only has 1 ms steps) | 93 / 283 |
 | Chromium / WebKit, before the detail pass | 166 / 300 / 3800 µs; 118 / 1000 / 4000 µs | 7 / 100 µs; under 1 ms | 68 / 207 |
 
-The detail pass raised draw calls from about 66 to 88 a frame on average (max 208 to 286): each room's
+The detail pass raised draw calls from about 66 to 88 a frame on average (max 208 to 284): each room's
 furniture is one mesh per material. Ceiling lights add no draw calls in this renderer (each mesh is shaded
 by its lights in one pass); only the phone light, which casts shadows, draws what it reaches once more.
 On this machine the frame time did not change; on integrated graphics it is unmeasured.
@@ -77,15 +77,16 @@ is a maximum, often the first evaluation, not a typical cost.
 
 | Build | Memory | Condo built | Shader warm-up done |
 |---|---|---|---|
-| macOS app (release) | 280–281 MB peak resident (3 runs); video 82.5 MB | 518–563 ms | 2.40–2.45 s |
+| macOS app (release) | 280 MB peak resident; video 82.5 MB | 522–544 ms | 2.39–2.43 s; 3.11 s on the first run after the export |
 | macOS app (release), before the detail pass | 251–253 MB peak resident; video 81.2 MB | 490–519 ms | 1.91–1.95 s |
 | Debug build (before the art pass) | static 48.6 MB; video 81.2 MB | 586 ms | 2.08 s |
-| Chromium | video 66.9 MB | 787–1091 ms | 2.58 s; 6.78 s on the first run after the shaders changed (before the detail pass: 2.27 s; first ever run on this Mac: 11.8 s) |
-| WebKit | video 62.9 MB | 514 ms | 2.84 s (before: 2.52 s) |
+| Chromium | video 66.9 MB | 836–1071 ms | 2.64 s; 6.61 s on the first run after the shaders changed (before the detail pass: 2.27 s; first ever run on this Mac: 11.8 s) |
+| WebKit | video 62.8 MB | 508–772 ms | 2.73 s; 6.78 s on the first run after the shaders changed (before the detail pass: 2.52 s) |
 
 The first time Chromium ever ran the game on this Mac, compiling the shaders took 9.7 s; later runs took
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in
-Chrome may wait that long on "Loading…". The download is 9.6 MB of gzip-compressed engine (`index.wasm`,
+Chrome may wait that long on "Loading…". A change to the shaders starts it over: the first run after the
+light limit changed took 6.6 s in Chromium and 6.8 s in WebKit, the next 2.6–2.7 s. The download is 9.6 MB of gzip-compressed engine (`index.wasm`,
 37.7 MB raw) plus 0.6 MB of game data.
 
 Desktop downloads: macOS zip 61 MB, Windows exe 110 MB, Linux binary 74 MB.

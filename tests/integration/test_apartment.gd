@@ -213,20 +213,24 @@ func test_no_mesh_loses_a_light_with_every_lamp_on() -> bool:
 	var main := await _main()
 	for room: StringName in ApartmentLayout.LIGHTS:
 		WorldState.set_light(room, true)
-	WorldState.set_variant(&"bedroom", &"door")  # the gap's lights too
-	await tree.process_frame
 	var limit: int = ProjectSettings.get_setting("rendering/limits/opengl/max_lights_per_object")
-	var lights: Array = main.builder.find_children("*", "OmniLight3D", true, false).filter(func(l: Node3D) -> bool: return l.is_visible_in_tree())
-	var over: Array[String] = []
-	for m: MeshInstance3D in main.builder.find_children("*", "MeshInstance3D", true, false):
-		if not m.is_visible_in_tree() or m.mesh == null:
-			continue
-		var box: AABB = m.global_transform * m.get_aabb()
-		var n := lights.filter(func(l: OmniLight3D) -> bool: return box.intersects(AABB(l.global_position - Vector3.ONE * l.omni_range, Vector3.ONE * l.omni_range * 2.0))).size()
-		if n > limit:
-			over.append("%s: %d" % [m.name, n])
-	check(lights.size() >= 12, "the gap's lights are on (%d lights)" % lights.size())
-	eq(over, [] as Array[String], "meshes reached by more than %d lights" % limit)
+	# Before the reveal, then with the gap's lights too, then with the gap at its longest.
+	for state: Array in [[&"default", &"default"], [&"door", &"default"], [&"door", &"long"]]:
+		WorldState.set_variant(&"bedroom", state[0])
+		WorldState.set_variant(&"gap", state[1])
+		await tree.process_frame
+		var lights: Array = main.builder.find_children("*", "OmniLight3D", true, false).filter(func(l: Node3D) -> bool: return l.is_visible_in_tree())
+		var over: Array[String] = []
+		for m: MeshInstance3D in main.builder.find_children("*", "MeshInstance3D", true, false):
+			if not m.is_visible_in_tree() or m.mesh == null:
+				continue
+			var box: AABB = m.global_transform * m.get_aabb()
+			var n := lights.filter(func(l: OmniLight3D) -> bool: return box.intersects(AABB(l.global_position - Vector3.ONE * l.omni_range, Vector3.ONE * l.omni_range * 2.0))).size()
+			if n > limit:
+				over.append("%s: %d" % [m.name, n])
+		if state[0] == &"door":
+			check(lights.size() >= 12, "the gap's lights are on (%d lights)" % lights.size())
+		eq(over, [] as Array[String], "%s/%s: meshes reached by more than %d lights" % [state[0], state[1], limit])
 	main.queue_free()
 	return true
 

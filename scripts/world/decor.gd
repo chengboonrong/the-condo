@@ -217,40 +217,68 @@ static func _sz(along: Vector3, length: float, height: float, depth: float) -> V
 
 ## Tile skirting and the soft shadows where a wall piece meets the floor and the ceiling. Each face is cut
 ## where the room beside it changes, and each part goes in that room's batch (the outside of the building
-## gets nothing). The shadows fade out over a part's last 15 cm, so they stop at a doorway and inside a wall
-## the piece runs into, not on the floor beyond it. coping: the corridor's half wall gets a concrete cap.
+## gets nothing). A face can border a room that only exists in a later variant (the gap's long form behind
+## the bathroom): that part is drawn for that variant only. The shadows fade out over a part's last 15 cm,
+## so they stop at a doorway and inside a wall the piece runs into, not on the floor beyond it. The gap has
+## no skirting. coping: the corridor's half wall gets a concrete cap.
 func wall_piece(center: Vector3, size: Vector3, along: Vector3, requires: Dictionary, skirting: bool, coping := false) -> void:
 	var length := size.x if absf(along.x) > 0.5 else size.z
 	var t := size.z if absf(along.x) > 0.5 else size.x
 	var across := Vector3(along.z, 0.0, along.x)  # horizontal, through the wall
 	var mid := center.x if absf(along.x) > 0.5 else center.z
-	var cuts := [-length * 0.5, length * 0.5]  # along the piece, from its centre
+	var options: Array[Dictionary] = [requires]  # the piece's own variant first, then the later rooms'
 	for room_id: StringName in ApartmentLayout.ROOMS:
-		for r: Rect2 in ApartmentLayout.room_rects(room_id, requires):
-			for edge: float in ([r.position.x, r.end.x] if absf(along.x) > 0.5 else [r.position.y, r.end.y]):
-				if absf(edge - mid) < length * 0.5 - 0.01 and not cuts.has(edge - mid):
-					cuts.append(edge - mid)
+		var room: Dictionary = ApartmentLayout.ROOMS[room_id]
+		for form: StringName in ([&"default", &"long"] if room.has("long_rects") else [&""]):
+			if form != &"" and requires.get(room_id, form) != form:
+				continue  # never outside the piece's own variant
+			var o := requires.merged(room.get("requires", {}))
+			if form != &"":
+				o[room_id] = form
+			if not options.has(o):
+				options.append(o)
+	var cuts := [-length * 0.5, length * 0.5]  # along the piece, from its centre
+	for o: Dictionary in options:
+		for room_id: StringName in ApartmentLayout.ROOMS:
+			for r: Rect2 in ApartmentLayout.room_rects(room_id, o):
+				for edge: float in ([r.position.x, r.end.x] if absf(along.x) > 0.5 else [r.position.y, r.end.y]):
+					if absf(edge - mid) < length * 0.5 - 0.01 and not cuts.has(edge - mid):
+						cuts.append(edge - mid)
 	cuts.sort()
 	for s: float in [-1.0, 1.0]:
 		var n := across * s
 		var face := center + n * t * 0.5
+		var parts := []  # [a, b, room, variant], neighbours in the same room and variant joined
 		for i in cuts.size() - 1:
 			var a: float = cuts[i]
 			var b: float = cuts[i + 1]
-			if b - a < 0.01 or ApartmentLayout.room_at(face + along * (a + b) * 0.5 + n * 0.05, requires) == &"":
+			if b - a < 0.01:
 				continue
+			for o: Dictionary in options:
+				var room := ApartmentLayout.room_at(face + along * (a + b) * 0.5 + n * 0.05, o)
+				if room == &"":
+					continue
+				if not parts.is_empty() and parts[-1][1] == a and parts[-1][2] == room and parts[-1][3] == o:
+					parts[-1][1] = b
+				else:
+					parts.append([a, b, room, o])
+				break
+		for part: Array in parts:
+			var a: float = part[0]
+			var b: float = part[1]
+			var o: Dictionary = part[3]
 			_anchor = face + along * (a + b) * 0.5 + n * 0.05
 			# A cut lies on another wall's centre line or an open boundary: run on under that wall's half.
-			var a2 := a - (t * 0.5 if i > 0 else 0.0)
-			var b2 := b + (t * 0.5 if i < cuts.size() - 2 else 0.0)
+			var a2 := a - (t * 0.5 if a > cuts[0] else 0.0)
+			var b2 := b + (t * 0.5 if b < cuts[-1] else 0.0)
 			var fade := minf(0.15, (b2 - a2) * 0.5)
 			var at := face + along * (a2 + b2) * 0.5
 			if center.y - size.y * 0.5 < 0.01:
-				if skirting:
-					box(Vector3(face.x, 0.05, face.z) + along * (a + b) * 0.5 + n * 0.01, _sz(along, b - a, 0.1, 0.02), SKIRTING, Look.GLOSS, requires)
-				_wall_shade(Vector3(at.x, 0.004, at.z), Vector3.UP, along, n, (b2 - a2) * 0.5 - fade, fade, 0.32, 0.5, requires)
+				if skirting and part[2] != &"gap":
+					box(Vector3(face.x, 0.05, face.z) + along * (a + b) * 0.5 + n * 0.01, _sz(along, b - a, 0.1, 0.02), SKIRTING, Look.GLOSS, o)
+				_wall_shade(Vector3(at.x, 0.004, at.z), Vector3.UP, along, n, (b2 - a2) * 0.5 - fade, fade, 0.32, 0.5, o)
 			if center.y + size.y * 0.5 > ApartmentLayout.CEILING - 0.01:
-				_wall_shade(Vector3(at.x, ApartmentLayout.CEILING - 0.004, at.z), Vector3.DOWN, along, n, (b2 - a2) * 0.5 - fade, fade, 0.28, 0.35, requires)
+				_wall_shade(Vector3(at.x, ApartmentLayout.CEILING - 0.004, at.z), Vector3.DOWN, along, n, (b2 - a2) * 0.5 - fade, fade, 0.28, 0.35, o)
 			if coping:
 				box(center + Vector3.UP * (size.y * 0.5 + 0.025), _sz(along, length, 0.05, t + 0.08), Color(0.6, 0.59, 0.56))
 				coping = false
@@ -495,6 +523,7 @@ func _entrance() -> void:
 		box(Vector3(0.25, y, 8.0), Vector3(0.38, 0.02, 1.0), WOOD)
 	for z: float in [7.75, 7.88]:
 		box(Vector3(0.25, 0.33, z), Vector3(0.26, 0.025, 0.09), Color(0.55, 0.22, 0.2))
+	solid(Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0))  # the rack's Interactable only collides while the shoes are on it
 	foot(Vector3(0.25, 0, 8.0), Vector2(0.19, 0.5), 0.45)
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat
 	box(Vector3(0.155, 1.48, 8.56), Vector3(0.03, 0.2, 0.05), Color(0.82, 0.81, 0.78), Look.GLOSS)  # intercom handset
