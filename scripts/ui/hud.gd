@@ -71,9 +71,7 @@ func _ready() -> void:
 	root.add_child(_crosshair)
 
 	_prompt = _label(root, 22, HORIZONTAL_ALIGNMENT_CENTER)
-	_prompt.set_anchors_preset(Control.PRESET_CENTER)
-	_prompt.position = Vector2(-300, 28)
-	_prompt.size = Vector2(600, 40)
+	_anchor(_prompt, Control.PRESET_CENTER, Rect2(-300, 28, 600, 40))
 
 	_objective = _label(root, 20, HORIZONTAL_ALIGNMENT_LEFT)
 	_objective.position = Vector2(32, 26)
@@ -81,15 +79,11 @@ func _ready() -> void:
 	_objective.modulate = Color(0.85, 0.85, 0.8, 0.9)
 
 	_clock = _label(root, 20, HORIZONTAL_ALIGNMENT_RIGHT)
-	_clock.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_clock.position = Vector2(-232, 26)
-	_clock.size = Vector2(200, 40)
+	_anchor(_clock, Control.PRESET_TOP_RIGHT, Rect2(-232, 26, 200, 40))
 	_clock.modulate = Color(0.95, 0.4, 0.35, 0.9)
 
 	_subtitle = _label(root, 24, HORIZONTAL_ALIGNMENT_CENTER)
-	_subtitle.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_subtitle.position = Vector2(-560, -150)
-	_subtitle.size = Vector2(1120, 110)
+	_anchor(_subtitle, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -150, 1120, 110))
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 
@@ -123,6 +117,16 @@ func _label(parent: Control, size: int, align: HorizontalAlignment) -> Label:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(l)
 	return l
+
+
+## Anchors c to a preset and places rect relative to the anchor point. Once c is in the sized root,
+## assigning position would measure from the root's corner instead, and put c off screen.
+static func _anchor(c: Control, preset: Control.LayoutPreset, rect: Rect2) -> void:
+	c.set_anchors_preset(preset)
+	c.offset_left = rect.position.x
+	c.offset_top = rect.position.y
+	c.offset_right = rect.end.x
+	c.offset_bottom = rect.end.y
 
 
 func _build_inspect(root: Control) -> void:
