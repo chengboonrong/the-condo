@@ -27,8 +27,17 @@ Simulated playthroughs are bots, not people. They are never reported as human pl
 `godot --headless --path . --script res://tools/playthroughs.gd` rewrites `docs/playthroughs.md` with each
 bot's event sequence, director scores, progression, completion, errors and warnings.
 
+## Builds
+
+`tools/smoke.sh` (after `tools/export.sh`) starts the exported macOS app with `-- --smoke` and the web build
+with `?smoke` in Chromium and WebKit. The game starts itself, plays 3 s and prints `SMOKE ok` only if all
+7 event definitions loaded from the exported pack, time is running, the story is at its first beat, and
+the shader warm-up gave back the player's camera and the real light states. It also saves a screenshot.
+Windows and Linux builds are not checked (no machine). `-- --perf` / `?perf` is the performance tour,
+see [performance.md](performance.md).
+
 ## Manual checks (need a window)
 
 * Mouse capture and release in a real window and in browsers (pointer lock), the pause menu by mouse.
 * Lighting readability at default brightness; reduced-flashing option.
-* Performance capture on real hardware (see the README's Performance section).
+* A few minutes in real Safari (Playwright's WebKit can't measure a visible window for long here).
