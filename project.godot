@@ -14,6 +14,7 @@ config/name="The Condo: 11:47 PM"
 config/description="First-person psychological horror prototype."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
 
 [autoload]
 
@@ -124,6 +125,8 @@ debug_skip_beat={
 3d_physics/layer_3="room_triggers"
 
 [rendering]
+
+textures/vram_compression/import_etc2_astc=true
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

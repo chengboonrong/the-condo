@@ -12,6 +12,7 @@ var audio: AudioDirector
 var runtime: HorrorRuntime
 var pause: PauseMenu
 var _had_capture := false
+var _smoking := false
 
 
 func _ready() -> void:
@@ -42,6 +43,32 @@ func _ready() -> void:
 	hud.bind(player)
 	hud.started.connect(_on_started)
 	EventBus.ending_reached.connect(_on_ending)
+	if has_flag("smoke"):
+		_smoke.call_deferred()
+
+
+## Release checks: `-- --smoke` on desktop, `?smoke` on the web.
+static func has_flag(flag: String) -> bool:
+	if OS.has_feature("web"):
+		var query: Variant = JavaScriptBridge.eval("location.search", true)
+		return query is String and (query as String).contains(flag)
+	return OS.get_cmdline_user_args().has("--" + flag)
+
+
+## Plays the first 3 seconds of a built game and reports whether the simulation runs.
+func _smoke() -> void:
+	_smoking = true
+	hud.start()
+	await get_tree().create_timer(3.0).timeout
+	var events := runtime.scheduler.events.size()
+	var ok := events == 7 and WorldState.time > 2.0 and runtime.story.beat == &"home"  # 7 event definitions
+	var shot := ""
+	if not OS.has_feature("web"):
+		shot = ProjectSettings.globalize_path("user://smoke.png")
+		get_viewport().get_texture().get_image().save_png(shot)
+	print("SMOKE %s events=%d time=%.1f beat=%s gpu=%s %s" % ["ok" if ok else "FAIL", events, WorldState.time, runtime.story.beat, RenderingServer.get_video_adapter_name(), shot])
+	if not OS.has_feature("web"):
+		get_tree().quit(0 if ok else 1)
 
 
 func _physics_process(delta: float) -> void:
@@ -63,7 +90,7 @@ func _process(_delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and player.input_enabled and not pause.is_open():
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and player.input_enabled and not pause.is_open() and not _smoking:
 		pause.open()
 
 

@@ -168,15 +168,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _start.visible:
 		if event is InputEventMouseButton and event.pressed:
-			_start.visible = false
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-			player.input_enabled = true
-			started.emit()
+			start()
 			get_viewport().set_input_as_handled()
 		return
 	if _inspect.visible and (event.is_action_pressed("interact") or event.is_action_pressed("pause")):
 		close_inspect()
 		get_viewport().set_input_as_handled()
+
+
+## Leaves the start card and starts the game (a click, or the release smoke check).
+func start() -> void:
+	_start.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	player.input_enabled = true
+	started.emit()
 
 
 func show_subtitle(text: String, duration: float) -> void:
