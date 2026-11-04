@@ -22,7 +22,7 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
 | 3 — Adaptive Horror Director | `feat/adaptive-director` | 2 (11–17 Nov) | done |
 | 4 — Environmental manipulation (shifts) | `feat/environmental-manipulation` | 2 | done |
 | 5 — Narrative and endings | `feat/narrative` | 3 (18–24 Nov) | done |
-| 6 — Polish and release candidate | `feat/polish-release` | 4 (25 Nov–1 Dec) | planned |
+| 6 — Polish and release candidate | `feat/polish-release` | 4 (25 Nov–1 Dec) | done; Windows and Linux builds not run |
 
 Branches are stacked: each starts from the previous one. Nothing is merged into `main` without approval.
 
@@ -44,6 +44,8 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
 
 ## Known risks
 
-* **Graphics and Audio are judged.** The graybox and the synthesised sounds are placeholders; week 4 has
-  an art and audio pass using CC0 or self-made assets.
-* **Web performance.** Shadows from several omni lights in WebGL2; measure the web build early (week 3).
+* **Graphics and Audio are judged.** Phase 6 added night lighting, a plaster texture, local props and
+  balanced sound levels, but the rooms are still made of boxes and every sound is synthesised.
+* **Web performance on slower machines.** Measured only on an M1 Max (see
+  [performance.md](performance.md)): 120 fps in Chromium, 60 fps in headless WebKit, no frame over 25 ms.
+  Real Safari, integrated graphics and older GPUs are unmeasured.
