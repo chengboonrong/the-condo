@@ -66,6 +66,23 @@ func test_cut_short_flicker_shows_the_real_light() -> bool:
 	return true
 
 
+func test_visibility_follows_the_window_shape() -> bool:
+	var main := await _main()
+	var stage: GameStage = main.runtime.ctx.stage
+	main.player.global_position = ApartmentLayout.SPAWN
+	main.player.set_look(0.0)  # facing north
+	await tree.physics_frame
+	var side := Vector3(-sin(PI / 4), 0, -cos(PI / 4))  # 45° to the left
+	var point: Vector3 = main.player.camera.global_position + side * 3.0
+	eq(tree.root.size, Vector2i(1600, 900), "tests run in the game's 16:9 window")
+	check(stage.can_see(point), "45° off centre is on screen in a 16:9 window (about 107° across)")
+	tree.root.size = Vector2i(900, 900)
+	check(not stage.can_see(point), "but not in a square one (75° across)")
+	tree.root.size = Vector2i(1600, 900)
+	main.queue_free()
+	return true
+
+
 func test_silhouette_never_appears_in_view_when_looking_down() -> bool:
 	var main := await _main()
 	var player: PlayerController = main.player

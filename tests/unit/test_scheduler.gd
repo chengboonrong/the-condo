@@ -124,6 +124,28 @@ func test_failures_leave_the_world_valid() -> bool:
 	return true
 
 
+func test_a_run_past_its_timeout_fails_and_cleans_up() -> bool:
+	_setup(&"hallway", Vector3(4.0, 0, 3.25), PI / 2)  # facing west: the hallway's anchors are behind
+	var hidden := [false]
+	var on_request := func(_anchor: StringName, duration: float) -> void:
+		if duration <= 0.0:
+			hidden[0] = true
+	EventBus.silhouette_requested.connect(on_request)
+	var run := sched.start(&"silhouette", {"timeout": 0.5})  # the figure stays 4 s unless seen
+	eq(run["state"], EventScheduler.State.RUNNING, "the figure appears")
+	_run_for(0.4)
+	eq(run["state"], EventScheduler.State.RUNNING, "still there before the timeout")
+	_run_for(0.3)
+	eq(run["state"], EventScheduler.State.FAILED, "fails once the timeout passes")
+	eq(run["reason"], "timeout", "because of the timeout")
+	check(hidden[0], "and the figure is taken away")
+	check(not sched.is_running(&"silhouette"), "nothing is left running")
+	eq(WorldState.event_history.back()["result"], &"failed", "the history records a failure")
+	EventBus.silhouette_requested.disconnect(on_request)
+	_teardown()
+	return true
+
+
 func test_doors_never_move_next_to_the_player() -> bool:
 	_setup(&"hallway", Vector3(6.75, 0, 3.0))
 	eq(sched.start(&"door_slam", {"door": &"bedroom_door"})["reason"], "player_too_close", "no slam within reach")

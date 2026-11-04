@@ -12,7 +12,8 @@ test starts (a leftover scene's StoryDirector would otherwise answer the next te
 suite ends without "leaked" or "still in use" warnings. A filtered run whose last test is an in-game one
 can report `AudioStreamPlaybackWAV` leaks: the headless dummy audio driver never releases the looping
 ambience of a scene freed in the last frame. Tests use `user://test_settings.cfg` and default settings,
-never the player's own.
+never the player's own. The runner sets the viewport to the game's 16:9 window (1600×900); headless
+Godot otherwise uses a square one, which sees less at the sides than a player does.
 
 ## Levels
 

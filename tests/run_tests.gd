@@ -10,6 +10,9 @@ var failed := 0
 
 func _initialize() -> void:
 	await process_frame
+	# The game's 16:9 window (project.godot), not the headless default: a wider view sees more at the
+	# sides, and visibility tests must judge what a player would actually see.
+	root.size = Vector2i(1600, 900)
 	var filter := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--filter="):
