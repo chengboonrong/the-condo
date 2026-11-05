@@ -167,6 +167,16 @@ aberration. The fear comes from the place being ordinary.
   touching the saved settings. While it is on, the grain is snapped to 3D pixels (`pixel_size` in
   `Hud.FILM_SHADER`); off, it is per window pixel, as before. `TARGET_LINES` is the knob: up to 540 if thin
   things shimmer or a moved object gets hard to see.
+* **Colour grade** (`Look`, `Look.GRADES`): the Environment's own adjustment (saturation, contrast and a
+  two-point colour-correction ramp), no extra pass. Act 1, at home after the shift, is a little warm and full
+  (saturation 1.08, a creamy white); each later act is a step colder and greyer (0.62, 0.54, 0.46, with the
+  white going bluer and the black lifted a touch); B-11-07 (`mirror_room`) is the greyest place in the game
+  (0.34). The ending keeps act 4's grade. The grade follows `WorldState.act` and `WorldState.player_room`,
+  polled each frame (`reset()` sets the act without a signal, and the room is set on the physics tick), and
+  it eases over `Look.EASE_SECONDS` (4 s, smoothstep) from wherever it is, so it never cuts. A still grade
+  writes nothing, so the ramp texture is not re-uploaded. `Look.settle()` jumps to the target at once (a new
+  shift starts warm, and the stills call it per shot). The adjustment is switched on in `_ready()`, so the
+  start card's warm-up compiles it and nothing compiles mid-game.
 * **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
   Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are

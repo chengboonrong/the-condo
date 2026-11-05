@@ -11,6 +11,11 @@ func _main() -> Node3D:
 	return main
 
 
+func _frames(n: int) -> void:
+	for i in n:
+		await tree.physics_frame
+
+
 func test_the_filter_follows_the_window_height() -> bool:
 	eq(Look.divisor_for(900), 2, "900 px tall: 450 lines")
 	eq(Look.divisor_for(1080), 2, "1080: 540 lines")
@@ -45,5 +50,55 @@ func test_the_filter_follows_a_resized_window() -> bool:
 	tree.root.size = Vector2i(1600, 900)  # the runner's size, for the tests after this one
 	await tree.process_frame
 	near(tree.root.scaling_3d_scale, 0.5, 0.001, "back to a half")
+	main.queue_free()
+	return true
+
+
+func test_act_one_is_warm_and_full_from_the_first_frame() -> bool:
+	var main := await _main()
+	var env: Environment = main.builder.environment
+	check(env.adjustment_enabled, "the grade is on from the start, so nothing compiles mid-game")
+	near(env.adjustment_saturation, 1.08, 0.001, "act 1 saturation")
+	near(env.adjustment_contrast, 1.02, 0.001, "act 1 contrast")
+	var g: Gradient = (env.adjustment_color_correction as GradientTexture1D).gradient
+	eq(g.get_color(1), Color(1.0, 0.96, 0.88), "a warm white")
+	main.queue_free()
+	return true
+
+
+func test_each_act_eases_colder() -> bool:
+	var main := await _main()
+	var env: Environment = main.builder.environment
+	WorldState.set_act(2)
+	await _frames(30)  # half a second of a 4 s ease
+	check(env.adjustment_saturation < 1.08 and env.adjustment_saturation > 0.62, "it eases, it does not cut")
+	await _frames(250)
+	near(env.adjustment_saturation, 0.62, 0.001, "act 2 saturation")
+	near(env.adjustment_contrast, 1.08, 0.001, "act 2 contrast")
+	WorldState.set_act(3)
+	main.look.settle()
+	check(env.adjustment_saturation < 0.62, "act 3 is more drained")
+	check((env.adjustment_color_correction as GradientTexture1D).gradient.get_color(1).r < 0.88, "and colder")
+	main.queue_free()
+	return true
+
+
+func test_b1107_is_the_most_drained() -> bool:
+	for k: Variant in Look.GRADES:
+		check(Look.GRADES[&"mirror_room"]["saturation"] <= Look.GRADES[k]["saturation"], "nothing is greyer than B-11-07 (%s)" % k)
+	var main := await _main()
+	WorldState.set_variant(&"bedroom", &"door")
+	main.player.global_position = ApartmentLayout.room_center(&"mirror_room", WorldState.variants)
+	await _frames(2)  # main sets player_room on the physics tick
+	main.look.settle()
+	near(main.builder.environment.adjustment_saturation, 0.34, 0.001, "B-11-07's grade")
+	main.queue_free()
+	return true
+
+
+func test_a_new_shift_starts_warm() -> bool:
+	WorldState.act = 3  # a cold act left over from the last shift; main resets it
+	var main := await _main()
+	near(main.builder.environment.adjustment_saturation, 1.08, 0.001, "warm at once, no ease from cold")
 	main.queue_free()
 	return true
