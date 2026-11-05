@@ -126,19 +126,23 @@ func test_colliders_do_not_outgrow_their_models() -> bool:
 
 
 func test_the_stream_is_clear_water_that_starts_at_the_tap() -> bool:
-	var water := ApartmentBuilder.model(&"tap_water")
+	var main := await _main()
+	var water: Node3D = main.builder.models[&"tap_water"]
+	check(not water.visible, "the water is off until the tap is left running")
+	WorldState.set_variant(&"bathroom_tap", &"running")
+	await tree.process_frame
+	check(water.visible, "the water shows while the tap is left running")
 	var meshes := water.find_children("*", "MeshInstance3D", true, false)
 	eq(meshes.size(), 1, "the stream is one mesh")
-	var mat := (meshes[0] as MeshInstance3D).get_active_material(0) as BaseMaterial3D
-	check([BaseMaterial3D.TRANSPARENCY_ALPHA, BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS].has(mat.transparency), "the stream blends by alpha (glTF BLEND imports with a depth pre-pass)")
+	var stream := meshes[0] as MeshInstance3D
+	var mat := stream.get_active_material(0) as BaseMaterial3D
+	eq(mat.transparency, BaseMaterial3D.TRANSPARENCY_ALPHA, "the stream is plain alpha, like the game's other glass and water")
+	eq(stream.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "the stream casts no shadow")
 	near(mat.albedo_color.a, 0.6, 0.01, "its alpha")
 	check(mat.albedo_texture == null, "its colour is plain, not baked")
-	water.free()
-	var main := await _main()
 	var tap: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"tap")[0]
-	var spout: Vector3 = main.builder.models[&"tap_water"].position
-	check(AABB(tap[1] - tap[2] / 2.0, tap[2]).has_point(spout), "the spout at %s is inside the tap's click box" % spout)
-	check(not main.builder.models[&"tap_water"].visible, "the water is off until the tap is left running")
+	check(AABB(tap[1] - tap[2] / 2.0, tap[2]).has_point(water.position), "the spout at %s is inside the tap's click box" % water.position)
+	WorldState.set_variant(&"bathroom_tap", &"default")
 	main.queue_free()
 	return true
 

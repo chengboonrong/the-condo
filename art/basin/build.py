@@ -157,9 +157,8 @@ def porcelain(name: str, bowl: bool) -> bpy.types.Material:
     xyz = node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords}).outputs
     colour = lerp(nt, (0.72, 0.71, 0.66), (0.6, 0.56, 0.45), mapped(nt, noise(nt, coords, 5.0, 4.0), 0.4, 0.7, 0.0, 1.0))
     rough = 0.16
-    dark = node(nt, "ShaderNodeAmbientOcclusion", {"Distance": 0.04}, samples=32, only_local=True).outputs["AO"]
-    grime = maths(nt, "MULTIPLY", mapped(nt, dark, 0.85, 0.15, 0.0, 0.85), mapped(nt, noise(nt, coords, 30.0, 3.0), 0.3, 0.7, 0.4, 1.0))
-    height = 0.0
+    ao = node(nt, "ShaderNodeAmbientOcclusion", {"Distance": 0.04}, samples=32, only_local=True).outputs["AO"]
+    grime = maths(nt, "MULTIPLY", mapped(nt, ao, 0.85, 0.15, 0.0, 0.85), mapped(nt, noise(nt, coords, 30.0, 3.0), 0.3, 0.7, 0.4, 1.0))
     flat_xy = node(nt, "ShaderNodeCombineXYZ", {"X": xyz["X"], "Y": xyz["Y"]}).outputs["Vector"]
 
     def spot(x: float, y: float) -> bpy.types.NodeSocket:  # distance from (x, y) in plan
@@ -182,7 +181,7 @@ def porcelain(name: str, bowl: bool) -> bpy.types.Material:
         colour = lerp(nt, colour, (0.03, 0.025, 0.02), mapped(nt, around, 0.013, 0.01, 0.0, 1.0))  # the drain's dark centre
         colour = lerp(nt, colour, (0.33, 0.29, 0.24), chip)
         rough = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", rough, maths(nt, "MULTIPLY", scale, 0.8)), maths(nt, "MAXIMUM", maths(nt, "MULTIPLY", rust, 0.55), maths(nt, "MULTIPLY", chip, 0.7)))
-        height = scale
+        height = scale  # the limescale stands proud of the glaze
     else:
         foot = maths(nt, "MULTIPLY", mapped(nt, xyz["Z"], 0.07, 0.0, 0.0, 0.45), mapped(nt, noise(nt, coords, 18.0, 4.0), 0.35, 0.65, 0.4, 1.0))
         runs = node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": (60.0, 60.0, 4.0)}).outputs["Vector"]

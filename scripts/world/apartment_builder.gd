@@ -282,7 +282,9 @@ func _collider(center: Vector3, size: Vector3, requires: Dictionary) -> void:
 		decor.foot(center, Vector2(size.x, size.z) * 0.5, 0.5, requires)
 
 
-## Places MODELS. B-11-07's dusty copies get their own greyed, matte materials.
+## Places MODELS. A blended surface is drawn as plain alpha, like the game's other glass and water, and casts no
+## shadow (glTF imports it with a depth pre-pass and cannot say no to shadows). B-11-07's dusty copies get their own
+## greyed, matte materials.
 func _build_models() -> void:
 	for m: Array in MODELS:
 		var node := model(m[1])
@@ -291,6 +293,14 @@ func _build_models() -> void:
 		add_child(node)
 		models[m[0]] = node
 		gate(node, m[3])
+		for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			for s in mesh.mesh.get_surface_count():
+				var blend := mesh.get_active_material(s) as BaseMaterial3D
+				if blend and blend.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+					blend = blend.duplicate()
+					blend.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					mesh.set_surface_override_material(s, blend)
+					mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if m.size() > 4 and m[4]:
 			for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 				for s in mesh.mesh.get_surface_count():
