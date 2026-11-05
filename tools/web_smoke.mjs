@@ -1,7 +1,8 @@
 // Serves an exported web build and loads it with ?smoke in Chromium and WebKit. Exit 1 if either fails.
-//   node tools/web_smoke.mjs [builds/web] [--perf] [--chromium|--webkit]
+//   node tools/web_smoke.mjs [builds/web] [--perf] [--chromium|--webkit] [--nofilter]
 // --perf runs the perf tour (?perf) in visible browser windows instead, so the real GPU is used
 // (add --headless to compare: a visible window that is covered by others can be throttled by macOS).
+// --nofilter adds &nofilter to the URL: that run draws the sharp picture, as `-- --nofilter` does on the desktop.
 // Needs Playwright with its browsers; set PLAYWRIGHT_FROM=/some/dir/ if it isn't installed next to the project.
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -33,7 +34,7 @@ const server = http.createServer(async (req, res) => {
   }
 }).listen(0, '127.0.0.1');
 await once(server, 'listening');
-const url = `http://127.0.0.1:${server.address().port}/index.html?${perf ? 'perf' : 'smoke'}`;
+const url = `http://127.0.0.1:${server.address().port}/index.html?${perf ? 'perf' : 'smoke'}${process.argv.includes('--nofilter') ? '&nofilter' : ''}`;
 
 let failed = 0;
 const only = process.argv.find((a) => a === '--chromium' || a === '--webkit')?.slice(2);

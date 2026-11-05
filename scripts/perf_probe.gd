@@ -82,7 +82,7 @@ func _report() -> void:
 	var static_mb: String = "static %.1f (peak %.1f)" % [mb.call(Performance.MEMORY_STATIC), mb.call(Performance.MEMORY_STATIC_MAX)] if mb.call(Performance.MEMORY_STATIC_MAX) > 0.0 else "static n/a (release builds don't track it)"
 	var started := WorldState.event_history.size()
 	print("\n".join(PackedStringArray([
-		"PERF %s | %s | window %dx%d | vsync %s | %.1f s, %d frames, %d events started" % [OS.get_name(), RenderingServer.get_video_adapter_name(), get_window().size.x, get_window().size.y, "on (browser)" if web else "off", _t, _frame.size(), started],
+		"PERF %s | %s | window %dx%d | 3D scale %.2f | vsync %s | %.1f s, %d frames, %d events started" % [OS.get_name(), RenderingServer.get_video_adapter_name(), get_window().size.x, get_window().size.y, get_window().scaling_3d_scale, "on (browser)" if web else "off", _t, _frame.size(), started],
 		"PERF frame ms: avg %.2f (%.0f fps) p50 %.2f p95 %.2f p99 %.2f max %.2f" % [_avg(_frame), 1000.0 / _avg(_frame), _pct(_frame, 0.5), _pct(_frame, 0.95), _pct(_frame, 0.99), _pct(_frame, 1.0)],
 		"PERF render ms: cpu avg %.2f p95 %.2f | gpu %s" % [_avg(_cpu), _pct(_cpu, 0.95), "avg %.2f p95 %.2f" % [_avg(_gpu), _pct(_gpu, 0.95)] if _pct(_gpu, 1.0) > 0.0 else "not reported by this renderer"],
 		"PERF frames over 25 ms: %d, over 50 ms: %d | worst: %s" % [_slow.size(), _over(50.0), _worst()],

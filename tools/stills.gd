@@ -1,22 +1,24 @@
 # Renders the trailer's stills, one PNG per shot, plus a contact sheet (needs a window, not --headless).
-#   godot --path . --script res://tools/stills.gd -- --out=/tmp/condo-stills/after [--before=/tmp/condo-stills/before]
+#   godot --path . --script res://tools/stills.gd -- --out=/tmp/condo-stills/after [--before=/tmp/condo-stills/before] [--act=2]
 # With --before, each cell of sheet.png pairs the same still from that directory (left) with the new one (right).
+# --act=N shoots every still in act N (default 1), so in that act's colour grade; each shot settles the grade first.
 extends SceneTree
 
-# [name, x, z, yaw, pitch, lights on, variants, figure or null, phone light, fov or 0 for the default]
+# [name, x, z, yaw, pitch, lights on, variants, figure or null, phone light, fov or 0 for the default, faces away]
 const SHOTS := [
-	["living", 6.5, 8.4, 0.0, 0.15, [], {}, null, false, 0.0],
-	["entrance", 2.75, 7.25, 2.24, -0.1, [&"entrance"], {}, null, false, 0.0],
-	["bedroom_wall", 7.2, 2.1, 0.149, -0.12, [], {}, null, true, 0.0],
-	["shoes", 2.7, 9.6, 0.7, -0.5, [&"entrance"], {}, null, false, 0.0],
-	["shoes_moved", 2.7, 9.6, 0.7, -0.5, [&"entrance"], {&"entrance_shoes": &"moved"}, null, false, 0.0],
-	["chair_turned", 5.5, 7.0, 0.723, -0.3, [], {&"living_chair": &"turned"}, null, false, 0.0],
-	["tap", 4.4, 0.3, 2.137, -0.35, [], {&"bathroom_tap": &"running"}, null, true, 0.0],
-	["hallway_figure", 4.6, 3.25, -PI / 2, 0.0, [&"hallway"], {}, Vector3(9.6, 0, 3.25), false, 0.0],
-	["kitchen_figure", 1.5, 6.5, 0.114, -0.05, [], {}, Vector3(1.1, 0, 3.0), true, 0.0],
-	["clock", 5.3, 5.6, 0.0, 0.28, [], {}, null, false, 28.0],
-	["bedroom_lit", 7.2, 1.9, 0.1, 0.0, [&"bedroom"], {}, null, false, 0.0],
-	["b1107", 7.75, -14.6, 0.0, -0.1, [], {&"bedroom": &"door"}, null, false, 0.0],
+	["living", 6.5, 8.4, 0.0, 0.15, [], {}, null, false, 0.0, false],
+	["entrance", 2.75, 7.25, 2.24, -0.1, [&"entrance"], {}, null, false, 0.0, false],
+	["bedroom_wall", 7.2, 2.1, 0.149, -0.12, [], {}, null, true, 0.0, false],
+	["shoes", 2.7, 9.6, 0.7, -0.5, [&"entrance"], {}, null, false, 0.0, false],
+	["shoes_moved", 2.7, 9.6, 0.7, -0.5, [&"entrance"], {&"entrance_shoes": &"moved"}, null, false, 0.0, false],
+	["chair_turned", 5.5, 7.0, 0.723, -0.3, [], {&"living_chair": &"turned"}, null, false, 0.0, false],
+	["tap", 4.4, 0.3, 2.137, -0.35, [], {&"bathroom_tap": &"running"}, null, true, 0.0, false],
+	["hallway_figure", 4.6, 3.25, -PI / 2, 0.0, [&"hallway"], {}, Vector3(9.6, 0, 3.25), false, 0.0, false],
+	["kitchen_figure", 1.5, 6.5, 0.114, -0.05, [], {}, Vector3(1.1, 0, 3.0), true, 0.0, false],
+	["clock", 5.3, 5.6, 0.0, 0.28, [], {}, null, false, 28.0, false],
+	["bedroom_lit", 7.2, 1.9, 0.1, 0.0, [&"bedroom"], {}, null, false, 0.0, false],
+	["b1107", 7.75, -14.6, 0.0, -0.1, [], {&"bedroom": &"door"}, null, false, 0.0, false],
+	["still_gap", 7.7, -2.6, 0.0, 0.0, [], {&"bedroom": &"door"}, Vector3(7.7, 0, -11.2), false, 0.0, true],
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 3
@@ -25,17 +27,22 @@ const COLUMNS := 3
 func _initialize() -> void:
 	var out := "/tmp/condo-stills/after"
 	var before := ""
+	var act := 1
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			out = arg.trim_prefix("--out=")
 		elif arg.begins_with("--before="):
 			before = arg.trim_prefix("--before=")
+		elif arg.begins_with("--act="):
+			act = arg.trim_prefix("--act=").to_int()
 	DirAccess.make_dir_recursive_absolute(out)
 	var main: Node3D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	while not main.loaded:  # the shader warm-up moves its own camera around first
 		await process_frame
 	var world := root.get_node("WorldState")  # autoload names don't resolve in --script files
+	world.set_act(act)
+	var layout = load("res://scripts/world/apartment_layout.gd")
 	var player = main.player  # untyped: project class names can't be referenced from the startup script
 	var hud = main.hud
 	var sil = main.silhouette
@@ -68,13 +75,17 @@ func _initialize() -> void:
 		player.camera.fov = s[9] if s[9] > 0.0 else fov
 		if s[7] != null:
 			sil.global_position = s[7]
-			sil.look_at(Vector3(s[1], 0, s[2]), Vector3.UP, true)
+			sil.look_at(Vector3(s[1], 0, s[2]), Vector3.UP, not s[10])  # the model faces +Z: true turns it to the camera, false its back
 			sil._set_alpha(0.95)
 			sil._fading = false  # warm_up() left it fading: shoot it solid, as it is first seen
 			sil.visible = true
 		else:
 			sil.visible = false
-		for f in 10:
+		# The grade follows the player's room, which main only updates on the next physics tick: set it now so
+		# settle() jumps to this shot's grade (B-11-07's for b1107) instead of easing there over 4 s.
+		world.set_player_room(layout.room_at(player.global_position, world.variants))
+		main.look.settle()
+		for f in 10:  # also lets the grade's ramp texture refresh (deferred) before the capture
 			await process_frame
 		var img := root.get_texture().get_image()
 		img.save_png("%s/%s.png" % [out, s[0]])
