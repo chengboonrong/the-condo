@@ -483,7 +483,6 @@ func _entrance() -> void:
 	solid(Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0))  # the rack's Interactable only collides while the shoes are on it
 	foot(Vector3(0.25, 0, 8.0), Vector2(0.19, 0.5), 0.45)
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat
-	box(Vector3(0.155, 1.48, 8.56), Vector3(0.03, 0.2, 0.05), Color(0.82, 0.81, 0.78), Look.GLOSS)  # intercom handset
 	box(Vector3(0.105, 2.05, 9.3), Vector3(0.06, 0.36, 0.3), Color(0.68, 0.68, 0.66), Look.GLOSS)  # DB box
 	_socket(Vector3(0.075, 0.3, 7.4), Vector3.RIGHT)
 	# Light from the corridor under the front door.

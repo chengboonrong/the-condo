@@ -49,6 +49,8 @@ const PROPS := [
 const MODELS: Array[Array] = [
 	# Entrance: the shoe rack, and the work shoes on it or, when they have moved, lined up facing the living room
 	[&"shoe_rack", &"shoe_rack", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.25, 0, 8.0)), {}],
+	# The intercom handset unit by the front door, its back on the west wall's face (x = WALL_T / 2).
+	[&"intercom", &"intercom", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.075, 1.48, 8.56)), {}],
 	[&"shoes_on_rack", &"work_shoes", Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(0.29, 0.6, 7.8)), {&"entrance_shoes": &"default"}],
 	[&"shoes_moved", &"work_shoes", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(2.3, 0, 8.5)), {&"entrance_shoes": &"moved"}],
 	# Living room: the dining table, with the tudung saji and the teh tarik on it, and its three chairs. The turned
@@ -457,12 +459,19 @@ func _build_door(door_id: StringName, data: Dictionary) -> void:
 	shape.shape = box
 	shape.position = Vector3(width * 0.5 - 0.02, ApartmentLayout.DOOR_HEIGHT * 0.5, back)
 	door.add_child(shape)
-	_box(door, shape.position, box.size, data["color"], false)
-	for s: float in [-1.0, 1.0]:  # lever handles on both sides
-		_box(door, Vector3(width - 0.12, 1.0, back + s * 0.045), Vector3(0.06, 0.06, 0.015), Color(0.7, 0.68, 0.6), false)
-		_box(door, Vector3(width - 0.17, 1.0, back + s * 0.07), Vector3(0.12, 0.02, 0.02), Color(0.7, 0.68, 0.6), false)
 	if door_id == &"main_door":
-		_box(door, Vector3(width * 0.5 - 0.02, 1.55, back), Vector3(0.025, 0.025, 0.07), Color(0.6, 0.55, 0.4), false)  # peephole
+		# The front door is a model: panel, lever handles, deadbolt and peephole. It fills the collision box, its outside
+		# (the model's front) towards the corridor at +z. A model, so the shader warm-up shows its material too.
+		var panel := model(&"front_door")
+		panel.name = &"front_door"
+		panel.position = Vector3(shape.position.x - box.size.x * 0.5, shape.position.y - box.size.y * 0.5, back)  # its hinge-side bottom edge, mid-thickness
+		door.add_child(panel)
+		models[&"front_door"] = panel
+	else:
+		_box(door, shape.position, box.size, data["color"], false)
+		for s: float in [-1.0, 1.0]:  # lever handles on both sides
+			_box(door, Vector3(width - 0.12, 1.0, back + s * 0.045), Vector3(0.06, 0.06, 0.015), Color(0.7, 0.68, 0.6), false)
+			_box(door, Vector3(width - 0.17, 1.0, back + s * 0.07), Vector3(0.12, 0.02, 0.02), Color(0.7, 0.68, 0.6), false)
 	add_child(door)
 	doors[door_id] = door
 	gate(door, data.get("requires", {}))
@@ -606,7 +615,7 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# the window and the moved things are drawn by their props; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)
 	if o.size() > 6:

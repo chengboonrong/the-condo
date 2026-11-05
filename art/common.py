@@ -182,6 +182,16 @@ def box(bm: bmesh.types.BMesh, centre: tuple, size: tuple, material: int) -> Non
         f.material_index = material
 
 
+def chamfered_box(bm: bmesh.types.BMesh, centre: tuple, size: tuple, chamfer: float, material: int) -> None:
+    """A box with all twelve edges chamfered, chamfer metres in along each face."""
+    old = set(bm.faces)  # the bevel replaces the cube's faces, and bmesh reuses freed slots: the new ones are not the last
+    verts = bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.LocRotScale(Vector(centre), None, Vector(size)))["verts"]
+    bmesh.ops.bevel(bm, geom=list({e for v in verts for e in v.link_edges}), offset=chamfer, offset_type="OFFSET", segments=1, affect="EDGES")
+    for f in bm.faces:
+        if f not in old:
+            f.material_index = material
+
+
 def post(bm: bmesh.types.BMesh, z0: float, z1: float, bottom: tuple, top: tuple, material: int) -> None:
     """A four-sided post from z0 to z1, slanted or tapered: bottom and top are (centre x, centre y, width, depth)."""
     def ring(z: float, r: tuple) -> list:

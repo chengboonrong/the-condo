@@ -3,7 +3,7 @@ extends TestCase
 
 # Triangles each model may have. Each object task adds its ids.
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
-	&"basin": 4000, &"tap_water": 300}
+	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
@@ -143,6 +143,48 @@ func test_the_stream_is_clear_water_that_starts_at_the_tap() -> bool:
 	var tap: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"tap")[0]
 	check(AABB(tap[1] - tap[2] / 2.0, tap[2]).has_point(water.position), "the spout at %s is inside the tap's click box" % water.position)
 	WorldState.set_variant(&"bathroom_tap", &"default")
+	main.queue_free()
+	return true
+
+
+func test_front_door_model_fills_its_panel() -> bool:
+	var main := await _main()
+	var door: Door = main.builder.doors[&"main_door"]
+	var shape := door.get_child(0) as CollisionShape3D
+	var panel := door.get_node_or_null("front_door") as Node3D
+	check(shape != null, "the collision shape is the door's first child")
+	check(panel != null, "the front door's model is a child of the door")
+	if shape == null or panel == null:
+		main.queue_free()
+		return true
+	check(main.builder.models.get(&"front_door") == panel, "it is one of the builder's models, so the shader warm-up shows it")
+	var a := AABB()
+	var first := true
+	for m: MeshInstance3D in panel.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = door.global_transform.affine_inverse() * m.global_transform * m.get_aabb()
+		a = b if first else a.merge(b)
+		first = false
+	var size := (shape.shape as BoxShape3D).size
+	for axis in 2:  # width and height are the panel's alone: the hardware lies inside them
+		near(a.get_center()[axis], shape.position[axis], 0.005, "model centre, axis %d" % axis)
+		near(a.size[axis], size[axis], 0.005, "model size, axis %d" % axis)
+	# The levers, the deadbolt and the peephole stand out of both faces, so the depth is the panel's and then some.
+	check(a.position.z <= shape.position.z - size.z / 2.0 + 0.005 and a.end.z >= shape.position.z + size.z / 2.0 - 0.005, "the panel is as thick as its collider")
+	check(a.size.z < size.z + 0.2, "the hardware stands out %.3f m in all, not more than 0.2 m" % (a.size.z - size.z))
+	main.queue_free()
+	return true
+
+
+func test_intercom_sits_on_the_wall_inside_its_click_box() -> bool:
+	var main := await _main()
+	check(main.builder.models.has(&"intercom"), "the intercom is a placed model")
+	if main.builder.models.has(&"intercom"):
+		var a := _aabb(main.builder.models[&"intercom"])
+		var click: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"intercom")[0]
+		check(AABB(click[1] - click[2] / 2.0, click[2]).has_point(a.get_center()), "its centre %s is inside the click box" % a.get_center())
+		near(a.position.x, ApartmentLayout.WALL_T / 2.0, 0.005, "its back is on the wall, not floating off it")
+		near(a.size.z, 0.09, 0.01, "it is 9 cm wide, along the wall")
+		check(a.size.y > 0.22 and a.size.y < 0.3, "it is 22 cm tall and its cord hangs a little lower (%.3f m in all)" % a.size.y)
 	main.queue_free()
 	return true
 
