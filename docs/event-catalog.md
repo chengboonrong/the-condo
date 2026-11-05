@@ -43,6 +43,7 @@ The director's pacing and scoring, and the room-shift safety checks, are in
 ## Captions
 
 Every event that makes a story-relevant sound also emits a caption ("[Three knocks from the bedroom]",
-"[A door slams]", "[Footsteps, coming closer]", "[The lights buzz and flicker]", "[The intercom is ringing]";
-the visitor's: "[A lift chimes down the corridor]", "[Footsteps in the corridor, coming closer]", "[The footsteps stop outside your door]").
-Nothing is captioned when the feet go: nothing is heard. Captions can be turned off in settings; dialogue always shows.
+"[A door slams]", "[Footsteps, coming closer]", "[The lights buzz and flicker]", "[The intercom is ringing]").
+The visitor's are "[A lift chimes down the corridor]", "[Footsteps in the corridor, coming closer]" and
+"[The footsteps stop outside your door]". Nothing is captioned when the feet go: nothing is heard. Captions
+can be turned off in settings; dialogue always shows.

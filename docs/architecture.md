@@ -186,10 +186,12 @@ aberration. The fear comes from the place being ordinary.
   shift starts warm, and the stills call it per shot). The adjustment is switched on in `_ready()`, so the
   start card's warm-up compiles it and nothing compiles mid-game.
 * **The feet** are what is missing from the light under the front door. `Decor` draws that strip twice, sharing
-  one additive material: `door_leak`, whole, and `door_leak_feet`, with two soft-edged gaps at x = 1.37 and 1.63
-  (0.12 m dark, 0.16 m with the 0.04 m edges). `EventBus.door_feet_requested` swaps one for the other while the
-  front door is shut, and an open door hides both. They are gaps, not a texture, so they are as faint as the strip:
-  readable from 2.5–3 m, faint from the far end of the living room.
+  one additive material: `door_leak`, whole, and `door_leak_feet`, with two soft-edged gaps centred at x = 1.31 and
+  1.65, each dark over 0.16 m and back to full strength 0.04 m either side. `EventBus.door_feet_requested` swaps
+  one for the other while the front door is shut, and an open door hides both. They are gaps, not a texture, so
+  they are as faint as the strip: in the `door_feet` still (from 2.9 m in the living room, 1920×1080) they show as
+  two dark breaks that split the strip into three short lit pieces, a small, faint feature at the foot of the
+  dark door rather than an obvious pair of feet.
 * **The peephole view**: the `Peephole` on the front door's inside face owns a `Camera3D` (field of view 140)
   just outside the door, facing the corridor. Looking through it makes that camera current and shows the lens, an
   inline `canvas_item` shader (`Hud.LENS_SHADER`) that reads the screen, bends it like a fisheye (it follows

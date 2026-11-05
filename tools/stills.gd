@@ -2,7 +2,7 @@
 #   godot --path . --script res://tools/stills.gd -- --out=/tmp/condo-stills/after [--before=/tmp/condo-stills/before] [--act=2]
 # With --before, each cell of sheet.png pairs the same still from that directory (left) with the new one (right).
 # --act=N shoots every still in act N (default 1), so in that act's colour grade; each shot settles the grade first.
-# door_feet and peephole are the visitor's, an act 2 event: shoot them with --act=2.
+# door_feet and peephole are the visitor's, an act 2 event: they are meant for --act=2.
 extends SceneTree
 
 # [name, x, z, yaw, pitch, lights on, variants, figure or null, phone light, fov or 0 for the default, faces away]

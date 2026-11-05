@@ -484,8 +484,8 @@ func _entrance() -> void:
 	var lm := (_look(Finish.SHADE) as StandardMaterial3D).duplicate() as StandardMaterial3D
 	lm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_leak = _leak_strip("door_leak", lm, [[1.04, 1.96, 0.12, 0.12]])
-	# Gaps 0.12 m dark and 0.16 m with their soft edges (0.04 m) at x = 1.37 and 1.63: the strip is what is left between them.
-	_leak_feet = _leak_strip("door_leak_feet", lm, [[1.04, 1.27, 0.12, 0.04], [1.47, 1.53, 0.04, 0.04], [1.73, 1.96, 0.04, 0.12]])
+	# Two gaps, each dark over 0.16 m and back to full strength 0.04 m either side, centred on x = 1.31 and 1.65: the strip is what is left between them.
+	_leak_feet = _leak_strip("door_leak_feet", lm, [[1.04, 1.19, 0.12, 0.04], [1.43, 1.53, 0.04, 0.04], [1.77, 1.96, 0.04, 0.12]])
 	_show_leak()
 
 
