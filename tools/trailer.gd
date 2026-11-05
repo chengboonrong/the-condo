@@ -1,9 +1,12 @@
 # Films the trailer (needs a window, not --headless): plays the shot list in the game through its own state, signals and
 # nodes, and draws the cuts, the black and the text cards itself, so a Movie Maker recording of the run is the trailer.
-#   godot --path . --resolution 1920x1080 [--write-movie <abs>/frame.png] --script res://tools/trailer.gd [-- --until=<seconds>]
+#   godot --path . --resolution 1920x1080 --write-movie <abs>/frame.png --script res://tools/trailer.gd [-- --until=<seconds>]
+#   godot --path . --resolution 1920x1080 --fixed-fps 60 --script res://tools/trailer.gd [-- --until=<seconds>]
+# The second form is the preview. Only --write-movie or --fixed-fps 60 gives true timing: without them the frame counter
+# runs at the display rate (120 Hz, say) while fades run in real time.
 # Prints TRAILER_FRAMES <first> <count>: the movie frame the trailer starts on and its length in frames (everything
-# before is loading, under black). Exits 1 if a figure cue was not seen within 1.5 s: the game's own sighting plays the
-# stinger and sends the hallway figure away, so the trailer would be wrong.
+# before is loading, under black). Exits 1 if a figure cue was not seen within 1.5 s. The game's own sighting is what
+# plays the stinger and sends the hallway figure away, so a figure that is never seen means the trailer is wrong.
 # Movie Maker records at the project's window size, not --resolution: 1920x1080 needs a temporary override.cfg with
 # display/window/size/window_width_override=1920 and window_height_override=1080.
 extends SceneTree
@@ -16,7 +19,7 @@ const CARDS := {
 	"red": [56, Color(0.95, 0.4, 0.35, 0.9), 0, 0.5, 0.0],  # the HUD clock's red
 	"line": [40, Color(1, 1, 1, 0.92), 8, 0.3, 0.0],  # over the picture, clear of the subtitle
 	"title": [72, Color(1, 1, 1), 0, 0.5, 0.0],
-	"small": [30, Color(1, 1, 1, 0.8), 0, 0.5, 70.0],  # under the title
+	"small": [36, Color(1, 1, 1, 0.8), 0, 0.5, 70.0],  # under the title
 }
 ## The captions are the game's own text (pinned by tests/integration/test_trailer.gd): a --script file can't reach
 ## StoryDirector or ApartmentLayout while it compiles, so the shot list holds their values.
@@ -58,7 +61,7 @@ const SHOTS: Array[Dictionary] = [
 		"walk": Vector2.ZERO, "creep": 0.0,
 		"cues": [[0.8, "sound", &"knock3", Vector3(6.6, 1.3, -1.9), 0.0],  # the knock_bedroom_north anchor
 			[0.8, "say", "[Three knocks from the bedroom]", 3.0]]},
-	{"name": "shoes", "at": 30.0, "len": 6.0, "act": 2, "pos": Vector3(2.7, 0, 9.6), "yaw": 0.7, "pitch": -0.5,
+	{"name": "shoes", "at": 30.0, "len": 6.0, "act": 2, "pos": Vector3(2.7, 0, 9.6), "yaw": 0.7, "pitch": -0.66,
 		"lights_on": [&"entrance"], "lights_off": [], "variants": {}, "phone": false, "fov": 0.0, "clock": false,
 		"black": false, "walk": Vector2.ZERO, "creep": 0.0,
 		"cues": [[1.2, "turn", 1.5, 0.5], [1.9, "variant", &"entrance_shoes", &"moved"], [2.1, "turn", -1.5, 0.5],
@@ -78,9 +81,10 @@ const SHOTS: Array[Dictionary] = [
 	{"name": "kitchen", "at": 49.0, "len": 4.0, "act": 2, "pos": Vector3(1.5, 0, 6.5), "yaw": 0.114, "pitch": -0.05,
 		"lights_on": [], "lights_off": [], "variants": {}, "phone": true, "fov": 0.0, "clock": false, "black": false,
 		"walk": Vector2.ZERO, "creep": 0.0,
-		# Seen, the figure plays the game's stinger; cut to black on the bedroom door slamming.
-		"cues": [[0.3, "figure", &"sil_kitchen", 5.0], [1.2, "black"],
-			[1.2, "sound", &"door_slam", Vector3(6.75, 1.2, 2.5), 0.0]]},
+		# Seen at about 0.6 s, the figure plays the game's stinger; cut to black on the bedroom door slamming at 0.7,
+		# while the figure is still nearly solid.
+		"cues": [[0.3, "figure", &"sil_kitchen", 5.0], [0.7, "black"],
+			[0.7, "sound", &"door_slam", Vector3(6.75, 1.2, 2.5), 0.0]]},
 	{"name": "clock", "at": 53.0, "len": 4.0, "act": 2, "pos": Vector3(5.3, 0, 5.6), "yaw": 0.0, "pitch": 0.28,
 		"lights_on": [], "lights_off": [], "variants": {}, "phone": false, "fov": 28.0, "clock": true, "black": false,
 		"walk": Vector2.ZERO, "creep": 0.0,

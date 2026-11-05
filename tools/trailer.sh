@@ -11,18 +11,23 @@ out=builds/trailer
 raw=$out/raw
 mp4=$out/the-condo-trailer.mp4
 
-if [ "${1:-}" != "--encode-only" ]; then
-  # Movie Maker records at the project's window size, not --resolution: 1920x1080 needs a window override.
-  if [ -e override.cfg ]; then echo "override.cfg already exists: not overwriting it"; exit 1; fi
-  trap 'rm -f override.cfg' EXIT
-  printf '[display]\nwindow/size/window_width_override=1920\nwindow/size/window_height_override=1080\n' > override.cfg
-  rm -rf "$raw"
-  mkdir -p "$raw"
-  "$GODOT" --path . --resolution 1920x1080 --write-movie "$PWD/$raw/frame.png" --script res://tools/trailer.gd 2>&1 \
-    | tee "$out/render.log" || { echo "render failed"; exit 1; }
-  rm -f override.cfg
-  trap - EXIT
-fi
+case "${1:-}" in
+  "")
+    # Movie Maker records at the project's window size, not --resolution: 1920x1080 needs a window override.
+    if [ -e override.cfg ]; then echo "override.cfg already exists: not overwriting it"; exit 1; fi
+    trap 'rm -f override.cfg' EXIT
+    printf '[display]\nwindow/size/window_width_override=1920\nwindow/size/window_height_override=1080\n' > override.cfg
+    rm -rf "$raw"
+    mkdir -p "$raw"
+    "$GODOT" --path . --resolution 1920x1080 --write-movie "$PWD/$raw/frame.png" --quit-after 4500 \
+      --script res://tools/trailer.gd 2>&1 | tee "$out/render.log" || { echo "render failed"; exit 1; }
+    rm -f override.cfg
+    trap - EXIT
+    ;;
+  --encode-only) ;;
+  *) echo "usage: tools/trailer.sh [--encode-only]" >&2; exit 2 ;;
+esac
+if grep -q "SCRIPT ERROR" "$out/render.log"; then echo "script errors in $out/render.log"; exit 1; fi
 
 read -r first count < <(sed -n 's/^TRAILER_FRAMES //p' "$out/render.log") \
   || { echo "no TRAILER_FRAMES line in $out/render.log"; exit 1; }
@@ -31,7 +36,7 @@ LEN=$(awk -v c="$count" 'BEGIN { printf "%.6f", c / 60 }')
 
 # Prints "<integrated LUFS> <true peak dBTP>" from ebur128's summary for the given input arguments.
 loudness() {
-  ffmpeg -hide_banner -nostats "$@" -af ebur128=peak=true:framelog=quiet -f null - 2>&1 \
+  ffmpeg -nostdin -hide_banner -nostats "$@" -af ebur128=peak=true:framelog=quiet -f null - 2>&1 \
     | awk '/Summary:/ { s = 1 } s && $1 == "I:" { i = $2 } s && $1 == "Peak:" { p = $2 } END { print i, p }'
 }
 
@@ -41,7 +46,7 @@ gain=$(awk -v i="$in_i" 'BEGIN { printf "%.2f", -18 - i }')
 fade_out=$(awk -v l="$LEN" 'BEGIN { printf "%.3f", l - 1.5 }')
 
 # One fixed gain, then the limiter holds back only the hits (limit 0.75 = -2.5 dBFS, under -1 dBTP after AAC).
-ffmpeg -hide_banner -loglevel error -y \
+ffmpeg -nostdin -hide_banner -loglevel error -y \
   -framerate 60 -start_number "$first" -i "$raw/frame%08d.png" -ss "$S" -t "$LEN" -i "$raw/frame.wav" \
   -frames:v "$count" \
   -af "volume=${gain}dB,alimiter=limit=0.75:attack=5:release=80:level=0:latency=1,afade=t=in:d=0.5,afade=t=out:st=${fade_out}:d=1.5,aresample=48000" \
@@ -64,10 +69,10 @@ limit=$(awk -v a="$in_tp" -v g="$gain" -v b="$out_tp" 'BEGIN { printf "%.2f", a 
 
 # The contact sheet before the checks, so a failed run still has one to look at.
 sel=""
-for t in 0.5 7 12.5 17.5 21 25 28 31 34.5 37.5 40.5 44 48 49.8 52.5 55 59 61; do
+for t in 1.0 7 12.5 17.5 21 25 28 31 34.5 37.5 40.5 44 48 49.45 52.5 55 59 61; do
   sel+=$(awk -v t="$t" 'BEGIN { printf "eq(n,%d)+", t * 60 + 0.5 }')
 done
-ffmpeg -hide_banner -loglevel error -y -i "$mp4" -vf "select='${sel%+}',scale=480:-1,tile=6x3" \
+ffmpeg -nostdin -hide_banner -loglevel error -y -i "$mp4" -vf "select='${sel%+}',scale=480:-1,tile=6x3" \
   -frames:v 1 -update 1 "$out/sheet.png"
 
 fails=$(awk -v w="$width" -v h="$height" -v d="$dur" -v vc="$vcodec" -v pf="$pixfmt" -v ac="$acodec" -v r="$rate" \
