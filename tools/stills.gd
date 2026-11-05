@@ -2,6 +2,7 @@
 #   godot --path . --script res://tools/stills.gd -- --out=/tmp/condo-stills/after [--before=/tmp/condo-stills/before] [--act=2]
 # With --before, each cell of sheet.png pairs the same still from that directory (left) with the new one (right).
 # --act=N shoots every still in act N (default 1), so in that act's colour grade; each shot settles the grade first.
+# door_feet and peephole are the visitor's, an act 2 event: shoot them with --act=2.
 extends SceneTree
 
 # [name, x, z, yaw, pitch, lights on, variants, figure or null, phone light, fov or 0 for the default, faces away]
@@ -19,6 +20,9 @@ const SHOTS := [
 	["bedroom_lit", 7.2, 1.9, 0.1, 0.0, [&"bedroom"], {}, null, false, 0.0, false],
 	["b1107", 7.75, -14.6, 0.0, -0.1, [], {&"bedroom": &"door"}, null, false, 0.0, false],
 	["still_gap", 7.7, -2.6, 0.0, 0.0, [], {&"bedroom": &"door"}, Vector3(7.7, 0, -11.2), false, 0.0, true],
+	# The visitor's two looks (act 2): the feet are set by name below, and so is the HUD's lens view. Nothing of the reveal.
+	["door_feet", 3.5, 7.8, 2.386, -0.45, [], {}, null, false, 0.0, false],
+	["peephole", 1.5, 9.0, 0.0, 0.0, [], {}, null, false, 0.0, false],
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 3
@@ -46,6 +50,8 @@ func _initialize() -> void:
 	var player = main.player  # untyped: project class names can't be referenced from the startup script
 	var hud = main.hud
 	var sil = main.silhouette
+	var bus := root.get_node("EventBus")
+	var peephole = main.builder.doors[&"main_door"].get_node("peephole")
 	var initial_lights: Dictionary = world.lights.duplicate()
 	var areas := {}  # every area some shot varies, so each shot starts from the defaults
 	for s: Array in SHOTS:
@@ -53,6 +59,7 @@ func _initialize() -> void:
 			areas[area] = true
 	player.set_physics_process(false)
 	sil.set_physics_process(false)  # no sighting and no stinger while the figure is on show
+	main.set_physics_process(false)  # the simulation stands still: no director event (a slam, a visit) lands in a shot
 	hud._start.visible = false
 	hud._objective.text = ""
 	hud._crosshair.visible = false
@@ -85,10 +92,18 @@ func _initialize() -> void:
 		# settle() jumps to this shot's grade (B-11-07's for b1107) instead of easing there over 4 s.
 		world.set_player_room(layout.room_at(player.global_position, world.variants))
 		main.look.settle()
+		if s[0] == "door_feet":
+			bus.door_feet_requested.emit(true)
+		elif s[0] == "peephole":
+			hud.show_peephole(peephole.view)
 		for f in 10:  # also lets the grade's ramp texture refresh (deferred) before the capture
 			await process_frame
 		var img := root.get_texture().get_image()
 		img.save_png("%s/%s.png" % [out, s[0]])
+		if s[0] == "door_feet":
+			bus.door_feet_requested.emit(false)
+		elif s[0] == "peephole":
+			hud._leave_peephole()
 		img.convert(Image.FORMAT_RGB8)
 		img.resize(CELL.x, CELL.y)
 		var at := Vector2i((i % COLUMNS) * cell_w, (i / COLUMNS) * CELL.y)

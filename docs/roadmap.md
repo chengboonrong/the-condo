@@ -10,7 +10,7 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
 * **Theme:** the condo *shifting* is the core mechanic. Rooms and objects change only while unobserved,
   chosen by the Horror Director. The player has just come home from a shift at the mamak on the corner.
   Every shift also resets the clock to 11:47 PM (time shifts too).
-* **Repository:** local only until the owner approves creating the public GitHub repo.
+* **Repository:** public at <https://github.com/chengboonrong/the-condo>.
 
 ## Phases
 

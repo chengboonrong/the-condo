@@ -24,7 +24,7 @@ which is what makes seeded replays and simulated playthroughs possible.
 
 | Module | File | Kind | Responsibility |
 |---|---|---|---|
-| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. |
+| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). |
 | WorldState | `scripts/core/world_state.gd` | autoload | Authoritative state: act, objective, flags, clues, player room, doors, lights, variants, entity, event history, ending. Mutated only through explicit methods, each of which emits on EventBus. `reset()` for tests. |
 | Settings | `scripts/core/settings.gd` | autoload | Player options in `user://settings.cfg`. |
 | ApartmentLayout | `scripts/world/apartment_layout.gd` | static data | Rooms, walls, doors, lights, anchors, variant areas. The builder, RoomGraph and the tests all read this one file. |
@@ -50,7 +50,8 @@ which is what makes seeded replays and simulated playthroughs possible.
 * Presentation randomness (flicker patterns, footstep variation) uses its own RNG and never feeds
   back into the core.
 * Input from the presentation reaches the core inside the tick: a silhouette sighting is detected on the
-  physics tick and applied at the start of the next `step()`.
+  physics tick and applied at the start of the next `step()`, and so is a look through the peephole
+  (`object_interacted(&"peephole")` marks the running visit "peeked").
 * The game steps the core only while the player is playing (or reading): not on the start card, while
   paused or after the ending, so pauses don't count as idle time or time spent in a room.
 
@@ -184,6 +185,18 @@ aberration. The fear comes from the place being ordinary.
   writes nothing, so the ramp texture is not re-uploaded. `Look.settle()` jumps to the target at once (a new
   shift starts warm, and the stills call it per shot). The adjustment is switched on in `_ready()`, so the
   start card's warm-up compiles it and nothing compiles mid-game.
+* **The feet** are what is missing from the light under the front door. `Decor` draws that strip twice, sharing
+  one additive material: `door_leak`, whole, and `door_leak_feet`, with two soft-edged gaps at x = 1.37 and 1.63
+  (0.12 m dark, 0.16 m with the 0.04 m edges). `EventBus.door_feet_requested` swaps one for the other while the
+  front door is shut, and an open door hides both. They are gaps, not a texture, so they are as faint as the strip:
+  readable from 2.5–3 m, faint from the far end of the living room.
+* **The peephole view**: the `Peephole` on the front door's inside face owns a `Camera3D` (field of view 140)
+  just outside the door, facing the corridor. Looking through it makes that camera current and shows the lens, an
+  inline `canvas_item` shader (`Hud.LENS_SHADER`) that reads the screen, bends it like a fisheye (it follows
+  `view.fov`) and cuts it to a round black mask. The lens is drawn under the film, so the grain stays fine; "[E] step back"
+  is drawn over it. The player is held and time keeps running, as for a note; E or Esc steps back, and so
+  does the front door opening. The lens is drawn once behind the start card (`Hud.set_lens`), so it never compiles
+  mid-game.
 * **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
   Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are
