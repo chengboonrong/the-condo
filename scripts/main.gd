@@ -1,3 +1,4 @@
+class_name Main
 extends Node3D
 ## Composition root: builds the condo, places the player, wires presentation to the simulation.
 
@@ -15,11 +16,12 @@ var look: Look
 var silhouette: Silhouette
 var ready_msec := 0  # engine start to the condo built, for the perf report
 var loaded := false  # the shader warm-up is done and the player's camera is back (tools wait for this)
-var _uncaptured := 0.0  # web: seconds in play without pointer lock
 var _automated := false
 
 
 func _ready() -> void:
+	if Journey.road_ending != &"":  # he has come down from the road: a black card until the flat is built
+		hud.show_card("11:47 PM")
 	WorldState.reset()
 	ApartmentLayout.apply_initial_state()
 	builder = ApartmentBuilder.new()
@@ -66,6 +68,9 @@ func _finish_loading() -> void:
 		await _compile_shaders()
 	loaded = true
 	hud.allow_start()
+	if Journey.road_ending != &"":  # no start card: he was already playing, and wakes at 11:47
+		hud.start()
+		hud.hide_card(1.5)
 	if has_flag("smoke"):
 		_smoke()
 	elif has_flag("perf"):
@@ -155,22 +160,17 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
-	# Browsers use Esc to leave pointer lock without Godot seeing the key, and refuse a lock that wasn't
-	# asked for by a click (or comes within a second of leaving). So on the web the game never runs without
-	# the mouse: half a second in play without pointer lock opens the menu, whose Resume button is a click.
-	# The half second covers the moment a browser takes to grant the lock after a click.
-	if not OS.has_feature("web") or _automated or pause.is_open() or not player.input_enabled or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		_uncaptured = 0.0
-		return
-	_uncaptured += delta
-	if _uncaptured > 0.5:
-		pause.open()
+	pause.guard(delta, _playing(), OS.has_feature("web"))
 
 
 func _notification(what: int) -> void:
-	# Reading a note counts: time keeps running behind it.
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and (player.input_enabled or hud.is_inspecting()) and not pause.is_open() and not _automated:
-		pause.open()
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null:
+		pause.focus_lost(_playing())
+
+
+## In the world: moving, or holding still to read a note or look through the peephole (time keeps running behind them).
+func _playing() -> bool:
+	return (player.input_enabled or hud.is_inspecting()) and not _automated
 
 
 func _on_started() -> void:

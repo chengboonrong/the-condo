@@ -12,7 +12,7 @@ config_version=5
 
 config/name="The Condo: 11:47 PM"
 config/description="First-person psychological horror prototype."
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/road.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 EventBus="*res://scripts/core/event_bus.gd"
 WorldState="*res://scripts/core/world_state.gd"
 Settings="*res://scripts/core/settings.gd"
+Journey="*res://scripts/core/journey.gd"
 
 [display]
 

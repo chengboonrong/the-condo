@@ -1,5 +1,7 @@
 // Serves an exported web build and loads it with ?smoke in Chromium and WebKit. Exit 1 if either fails.
-//   node tools/web_smoke.mjs [builds/web] [--perf] [--chromium|--webkit] [--nofilter]
+//   node tools/web_smoke.mjs [builds/web] [--perf] [--chromium|--webkit] [--nofilter] [--flat]
+// The game starts on the road, so a run needs a "ROAD-SMOKE ok" line and then a "SMOKE ok" line. --flat adds
+// &flat to the URL, which skips the road and checks the flat alone.
 // --perf runs the perf tour (?perf) in visible browser windows instead, so the real GPU is used
 // (add --headless to compare: a visible window that is covered by others can be throttled by macOS).
 // --nofilter adds &nofilter to the URL: that run draws the sharp picture, as `-- --nofilter` does on the desktop.
@@ -13,6 +15,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(process.env.PLAYWRIGHT_FROM ?? import.meta.url);
 const { chromium, webkit } = require('playwright');
 const perf = process.argv.includes('--perf');
+const flat = process.argv.includes('--flat');
 const headed = perf && !process.argv.includes('--headless');
 const dir = path.resolve(process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'builds/web');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.png': 'image/png' };
@@ -34,7 +37,7 @@ const server = http.createServer(async (req, res) => {
   }
 }).listen(0, '127.0.0.1');
 await once(server, 'listening');
-const url = `http://127.0.0.1:${server.address().port}/index.html?${perf ? 'perf' : 'smoke'}${process.argv.includes('--nofilter') ? '&nofilter' : ''}`;
+const url = `http://127.0.0.1:${server.address().port}/index.html?${perf ? 'perf' : 'smoke'}${process.argv.includes('--nofilter') ? '&nofilter' : ''}${flat ? '&flat' : ''}`;
 
 let failed = 0;
 const only = process.argv.find((a) => a === '--chromium' || a === '--webkit')?.slice(2);
@@ -47,11 +50,13 @@ for (const [name, type] of [['chromium', chromium], ['webkit', webkit]].filter((
   const t0 = Date.now();
   await page.goto(url);
   await page.bringToFront();
-  let smoke;
-  const done = perf ? 'PERF load' : 'SMOKE';
+  let smoke, road;
+  const done = perf ? 'PERF load' : 'SMOKE';  // "ROAD-SMOKE" does not start with "SMOKE": the road's line never stands in for the flat's
   for (let i = 0; i < 240 && !smoke; i++) {
     await page.waitForTimeout(500);
     smoke = lines.find((l) => l.startsWith(done));
+    road = lines.find((l) => l.startsWith('ROAD-SMOKE'));
+    if (road && !road.startsWith('ROAD-SMOKE ok')) break;  // the flat does not follow a failed road
   }
   if (perf) {
     console.log(`${name}:\n${lines.filter((l) => l.startsWith('PERF')).join('\n') || 'no PERF lines'}`);
@@ -61,10 +66,12 @@ for (const [name, type] of [['chromium', chromium], ['webkit', webkit]].filter((
   }
   const shot = path.join(dir, '..', `smoke-${name}.png`);
   await page.screenshot({ path: shot });
+  if (!flat) console.log(`${name}: ${road ?? 'no ROAD-SMOKE line'}`);
   console.log(`${name}: ${smoke ?? 'no SMOKE line'} (${((Date.now() - t0) / 1000).toFixed(1)} s, ${shot})`);
   // Pointer lock needs a click; the smoke run has none, so that error is expected.
   for (const l of lines.filter((l) => /error/i.test(l) && !/pointer lock/i.test(l))) console.log('  ', l);
-  if (!smoke?.startsWith('SMOKE ok')) failed++;
+  const roadOk = flat || (road?.startsWith('ROAD-SMOKE ok') && lines.indexOf(road) < lines.indexOf(smoke));
+  if (!smoke?.startsWith('SMOKE ok') || !roadOk) failed++;
   await browser.close();
 }
 server.close();

@@ -6,6 +6,7 @@ extends CanvasLayer
 var _panel: Control
 var _quit: Button
 var _capture_on_close := true
+var _uncaptured := 0.0  # web: seconds in play without pointer lock
 
 
 func _ready() -> void:
@@ -49,7 +50,7 @@ func _ready() -> void:
 	_check(box, "Reduced flashing", "reduced_flashing")
 	_button(box, "Restart", func() -> void:
 		get_tree().paused = false
-		get_tree().reload_current_scene())
+		Journey.restart())
 	_quit = _button(box, "Quit", func() -> void: get_tree().quit())
 	_quit.visible = not OS.has_feature("web")  # a browser tab is closed, not quit
 	visible = false
@@ -72,6 +73,26 @@ func close() -> void:
 	get_tree().paused = false
 	if _capture_on_close:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # a click on Resume is the gesture browsers need
+
+
+## The scene calls this every frame. Browsers use Esc to leave pointer lock without Godot seeing the key, and
+## refuse a lock that wasn't asked for by a click (or comes within a second of leaving). So on the web the game
+## never runs without the mouse: half a second in play without pointer lock opens the menu, whose Resume button
+## is a click. The half second covers the moment a browser takes to grant the lock after a click.
+## playing: the player is in the world, moving or holding still to read or peep, and nothing automated is driving.
+func guard(delta: float, playing: bool, web: bool) -> void:
+	if not web or not playing or is_open() or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_uncaptured = 0.0
+		return
+	_uncaptured += delta
+	if _uncaptured > 0.5:
+		open()
+
+
+## The scene calls this when the window loses focus. Time runs behind a note too, so reading counts as playing.
+func focus_lost(playing: bool) -> void:
+	if playing and not is_open():
+		open()
 
 
 func _unhandled_input(event: InputEvent) -> void:

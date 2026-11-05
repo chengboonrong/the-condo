@@ -1,6 +1,7 @@
 class_name Hud
 extends CanvasLayer
-## Crosshair, interaction prompt, objective, clock, subtitles, inspection panel, the peephole's lens and the start card.
+## Crosshair, interaction prompt, objective, clock, subtitles, inspection panel, the peephole's lens, the start card
+## and a black card for scene changes.
 
 signal started
 
@@ -66,6 +67,10 @@ var _inspect_text: Label
 var _start: Control
 var _click: Label
 var _can_start := false
+var _started := false
+var _card: ColorRect
+var _card_label: Label
+var _card_tween: Tween
 var _crosshair: ColorRect
 var _ending: ColorRect
 var _ending_title: Label
@@ -128,6 +133,7 @@ func _ready() -> void:
 	_anchor(_clock, Control.PRESET_TOP_RIGHT, Rect2(-232, 26, 200, 40))
 	_clock.modulate = Color(0.95, 0.4, 0.35, 0.9)
 
+	_build_card(root)  # over the labels above, under the subtitles
 	_subtitle = _label(root, 24, HORIZONTAL_ALIGNMENT_CENTER)
 	_anchor(_subtitle, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -150, 1120, 110))
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -204,6 +210,17 @@ func _build_inspect(root: Control) -> void:
 	root.add_child(_inspect)
 
 
+func _build_card(root: Control) -> void:
+	_card = ColorRect.new()
+	_card.color = Color.BLACK
+	_card.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card.visible = false
+	root.add_child(_card)
+	_card_label = _label(_card, 56, HORIZONTAL_ALIGNMENT_CENTER)
+	_card_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
 func _build_start(root: Control) -> void:
 	_start = ColorRect.new()
 	(_start as ColorRect).color = Color(0, 0, 0, 0.94)
@@ -262,7 +279,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _ending.visible:
 		if event is InputEventMouseButton and event.pressed:
 			get_viewport().set_input_as_handled()
-			get_tree().reload_current_scene()
+			Journey.restart()
 		return
 	if _start.visible and _can_start and event is InputEventMouseButton and event.pressed:
 		start()
@@ -275,12 +292,46 @@ func allow_start() -> void:
 	_click.text = "Click to begin"
 
 
-## Leaves the start card and starts the game (a click, or the release smoke check).
+## Leaves the start card and starts the game (a click, or the release smoke check). Once only: a second call does nothing.
 func start() -> void:
+	if _started:
+		return
+	_started = true
 	_start.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	player.input_enabled = true
 	started.emit()
+
+
+## A black card with centred text over everything but the subtitles. It replaces the start card, which a player
+## who comes from the road has already passed.
+func show_card(text: String) -> void:
+	if _card_tween != null:
+		_card_tween.kill()
+	_card.modulate.a = 1.0
+	_card_label.text = text
+	_card.visible = true
+	_start.visible = false
+
+
+## Fades the card out over `seconds`.
+func hide_card(seconds: float) -> void:
+	if _card_tween != null:
+		_card_tween.kill()
+	if seconds <= 0.0:
+		_card.visible = false
+		return
+	_card_tween = create_tween()
+	_card_tween.tween_property(_card, "modulate:a", 0.0, seconds)
+	_card_tween.tween_callback(func() -> void: _card.visible = false)
+
+
+func is_card_shown() -> bool:
+	return _card.visible
+
+
+func card_text() -> String:
+	return _card_label.text
 
 
 func show_subtitle(text: String, duration: float) -> void:
