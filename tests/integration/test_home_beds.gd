@@ -59,6 +59,7 @@ func test_a_new_shift_brings_the_home_sounds_back() -> bool:
 	var main := await _main()
 	await _frames(30)
 	check(main.audio.beds[&"tv"].playing and main.audio.beds[&"fan"].playing, "home again")
+	near(main.audio.beds[&"tv"].volume_db, AudioDirector.BEDS[&"tv"]["db"], 0.01, "the TV at its level, not fading")
 	eq(main.builder.fan_speed, 1.0, "the fan turns")
 	main.queue_free()
 	return true

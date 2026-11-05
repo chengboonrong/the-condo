@@ -191,14 +191,14 @@ def main():
     # The home beds (act 1, then they stop one at a time). Each has its own Random, so the files above never
     # change. Every one is 0.5 s longer than its loop and made seamless by loopable().
     beds = {}
-    r = random.Random(1209)  # chosen so the loop point falls on a small step (on other seeds, a normal one of up to 0.03)
-    air = lowpass(lowpass(noise(6.5, r), 900), 900)  # two poles: through one, the air steps 0.04 a sample (hiss)
+    r = random.Random(1201)
+    air = lowpass(noise(6.5, r), 900)
     beds["fan"] = [  # air with a blade-pass swell, 7 per 6 s loop, and a faint motor
         a * (1 + 0.25 * math.sin(2 * math.pi * 7 / 6 * i / SR)) + 0.025 * math.sin(2 * math.pi * 100 * i / SR)
         for i, a in enumerate(air)
     ]
     r = random.Random(1202)
-    rumble = lowpass(lowpass(noise(4.5, r), 300), 300)
+    rumble = lowpass(noise(4.5, r), 300)
     beds["fridge"] = [  # compressor hum, wobbling once per 4 s loop
         (math.sin(2 * math.pi * 50 * i / SR) + 0.5 * math.sin(2 * math.pi * 100 * i / SR) + 0.25 * math.sin(2 * math.pi * 150 * i / SR))
         * (0.85 + 0.15 * math.sin(2 * math.pi * 0.25 * i / SR)) + rumble[i]
@@ -220,10 +220,13 @@ def main():
     talk = [deep[i] * envs[0][i] + light[i] * envs[1][i] for i in range(n)]
     beds["tv_murmur"] = lowpass(talk, 450)  # through the wall
     for name, x in beds.items():
-        x = loopable(x, 0.5)
+        x = normalize(loopable(x, 0.5), 0.5)
+        seam = abs(x[-1] - x[0])
+        p99 = sorted(abs(b - a) for a, b in zip(x, x[1:]))[int(0.99 * (len(x) - 1))]
+        print(f"{name}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS, loop seam {seam:.4f} (p99 step {p99:.4f})")
+        if seam > p99:  # the join jumps further than the sound itself does 99% of the time: a click
+            raise SystemExit(f"{name}: its loop seam clicks")
         save(name, x, 0.5)
-        x = normalize(x, 0.5)
-        print(f"{name}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS, loop seam {abs(x[-1] - x[0]):.4f}")
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ const POOL_SIZE := 14
 const BEDS := {
 	&"tv": {"stream": preload("res://assets/audio/tv_murmur.wav"), "pos": Vector3(10.4, 1.0, 1.0), "db": -22.5,
 		"act": 2, "after": 0.0, "fade": 1.5},  # when the wall has just knocked back
-	&"fridge": {"stream": preload("res://assets/audio/fridge.wav"), "pos": Vector3(0.45, 1.0, 2.95), "db": -27.0,
+	&"fridge": {"stream": preload("res://assets/audio/fridge.wav"), "pos": Vector3(0.45, 1.0, 2.95), "db": -26.0,
 		"act": 2, "after": 75.0, "fade": 1.5},
 	&"fan": {"stream": preload("res://assets/audio/fan.wav"), "pos": Vector3(6.5, 2.4, 7.0), "db": -18.5,
 		"act": 3, "after": 15.0, "fade": 3.0},  # winds down: pitch and blades too

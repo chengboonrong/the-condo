@@ -217,8 +217,8 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
 | Tap running (loop) | −19.4 | −8 | −27.4 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
-| Ceiling fan (loop) | −17.4 | −18.5 | −35.9 |
-| Fridge (loop) | −11.2 | −27 | −38.2 |
+| Ceiling fan (loop) | −17.3 | −18.5 | −35.8 |
+| Fridge (loop) | −11.9 | −26 | −37.9 |
 | Neighbour's TV through the wall (loop) | −17.5 | −22.5 | −40 |
 | Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
 
