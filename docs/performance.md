@@ -117,7 +117,7 @@ The first time Chromium ever ran the game on this Mac, compiling the shaders too
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in
 Chrome may wait that long on "Loading…". A change to the shaders starts it over: the first run after the
 light limit changed took 6.6 s in Chromium and 6.8 s in WebKit, the next 2.6–2.7 s. The download is the engine, `index.wasm`, 39.5 MB raw
-(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 6.35 MB raw (6,351,932 bytes after the vibe pass; it was
+(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 6.35 MB raw (6,351,932 bytes after the vibe pass, 6,130,936 with `gzip -6`; it was
 5.95 MB after the object rebuild and about 0.74 MB before it).
 
 Desktop downloads after the vibe pass: macOS zip 66,606,827 bytes, Windows exe 115,620,424, Linux binary 79,871,352
