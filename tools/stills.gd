@@ -69,7 +69,6 @@ func _initialize() -> void:
 		if s[7] != null:
 			sil.global_position = s[7]
 			sil.look_at(Vector3(s[1], 0, s[2]), Vector3.UP, true)
-			sil._left = 10.0
 			sil._set_alpha(0.95)
 			sil._fading = false  # warm_up() left it fading: shoot it solid, as it is first seen
 			sil.visible = true
