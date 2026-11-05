@@ -188,6 +188,12 @@ aberration. The fear comes from the place being ordinary.
   `apron_hung`, `basin`, `bed`, `ceiling_fan`, `dining_chair`, `dining_table`, `figure`, `fridge`, `front_door`,
   `intercom`, `shoe_rack`, `tap_water`, `tv_cabinet`, `wall_clock` and `work_shoes`. No model borrows a file (there
   is no `art/*/vendor/`, so no credits list); the one outside source is the Inter font, see References consulted.
+* **The trailer** is filmed in the game: `tools/trailer.gd` plays the shot list through the game's own state,
+  signals and nodes and draws the cuts, black and cards itself, and `tools/trailer.sh` records it with Movie
+  Maker at 1920×1080 (through a temporary `override.cfg`, removed afterwards), encodes it with ffmpeg at about
+  −18 LUFS with light limiting, and checks it. The output is in `builds/trailer/`, which git ignores:
+  `the-condo-trailer.mp4`, `report.txt` (ffprobe and loudness numbers), `sheet.png` (one frame per beat) and
+  `render.log`. `tools/trailer.sh --encode-only` re-encodes from the kept `raw/` frames after a failed check.
 
 Two rules keep the decor from breaking the game:
 
