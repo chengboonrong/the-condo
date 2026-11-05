@@ -17,7 +17,6 @@ const PROPS := [
 	[Vector3(5.3, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
 	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
 	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), Color(0.45, 0.32, 0.22)],
-	[Vector3(6.5, 0.25, 4.3), Vector3(2.0, 0.5, 0.45), Color(0.4, 0.29, 0.2)],
 	[Vector3(6.5, 2.3, 4.14), Vector3(0.95, 0.3, 0.2), Color(0.9, 0.9, 0.88)],  # aircon above the TV
 	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
 	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
@@ -64,6 +63,8 @@ const MODELS: Array[Array] = [
 	[&"bed", &"bed", Transform3D(Basis(), Vector3(8.95, 0, 0.2)), {}],
 	# Kitchen: the fridge, its doors facing east (+X): the management notice hangs on the flat of the nearer one
 	[&"fridge", &"fridge", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.4, 0, 2.95)), {}],
+	# The TV corner: the chipboard cabinet with the TV, the decoder and the router on it. The TV's glass lies on the `tv` click box.
+	[&"tv_cabinet", &"tv_cabinet", Transform3D(Basis(), Vector3(6.5, 0, 4.3)), {}],
 	# B-11-07: the same intercom on the mirror room's west wall (face at x = 5.5 + WALL_T / 2), dusty
 	[&"intercom_mirror", &"intercom", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(5.575, 1.45, -14.6)), {&"bedroom": &"door"}, true],
 	# B-11-07: the same bed, turned half round like the room (headboard at +Z, towards the wall with the door), dusty
@@ -79,6 +80,7 @@ const COLLIDERS: Array[Array] = [
 	[Vector3(4.5, 0.6875, 7.05), Vector3(0.42, 0.425, 0.05), {}],
 	[Vector3(4.5, 0.6875, 5.35), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"default"}],
 	[Vector3(3.45, 0.6875, 5.4), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"turned"}],
+	[Vector3(6.5, 0.25, 4.3), Vector3(2.0, 0.5, 0.45), {}],
 ]
 
 # Interactables: id, pos, size, prompt, title, text, requires. Story-driven objects have no text.
@@ -623,7 +625,7 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# the window and the moved things are drawn by their props; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)
 	if o.size() > 6:

@@ -4,7 +4,7 @@ extends TestCase
 # Triangles each model may have. Each object task adds its ids.
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
 	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000, &"fridge": 4000,
-	&"ceiling_fan": 3000}
+	&"ceiling_fan": 3000, &"tv_cabinet": 6000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
@@ -15,6 +15,7 @@ const FOOTPRINTS := {
 	&"bed": [8.95, 0.2, 1.8, 2.0],  # its headboard stands a little past the base
 	&"bed_b1107": [6.55, -16.3, 1.8, 2.0],
 	&"fridge": [0.4, 2.95, 0.7, 0.7],
+	&"tv_cabinet": [6.5, 4.3, 2.0, 0.45],  # the TV stands a few cm proud of its front
 }
 
 
@@ -350,5 +351,29 @@ func test_fan_turns_under_the_ceiling() -> bool:
 	for i in 10:
 		await tree.process_frame
 	check(not is_equal_approx(blades.rotation.y, r), "turns")
+	main.queue_free()
+	return true
+
+
+func test_the_tv_screen_lies_on_its_click_box() -> bool:
+	var main := await _main()
+	var tv: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"tv")[0]
+	var screen := main.builder.models[&"tv_cabinet"].get_node_or_null("TvScreen") as MeshInstance3D
+	check(screen != null, "the TV model has a TvScreen mesh of its own")
+	if screen == null:
+		main.queue_free()
+		return true
+	var a: AABB = screen.global_transform * screen.get_aabb()
+	var box := AABB(tv[1] - tv[2] / 2.0, tv[2])
+	# The click box is no longer drawn, so the glass is what the player sees there: a few mm behind its front face, and as wide
+	# and as tall as it is.
+	var gap := box.end.z - a.end.z
+	check(gap >= 0.0 and gap <= 0.008, "the glass is %.4f m behind the click box's front, not 0 to 8 mm" % gap)
+	near(a.size.z, 0.0, 0.0005, "the glass is flat")
+	for axis in 2:
+		check(a.position[axis] <= box.position[axis] and a.end[axis] >= box.end[axis], "the glass covers the click box along axis %d (%.3f to %.3f, box %.3f to %.3f)" % [axis, a.position[axis], a.end[axis], box.position[axis], box.end[axis]])
+	var mat := screen.get_active_material(0) as BaseMaterial3D
+	check(mat.albedo_texture == null, "the glass has no texture")
+	near(mat.roughness, 0.1, 0.02, "the glass is glossy")
 	main.queue_free()
 	return true

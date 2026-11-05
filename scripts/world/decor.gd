@@ -395,19 +395,7 @@ func _living() -> void:
 		box(Vector3(x, 0.49 - (0.015 if i == 0 else 0.0), 9.39), Vector3(0.72, 0.1, 0.56), Color(0.33, 0.36, 0.41))
 		box(Vector3(x, 0.78, 9.62), Vector3(0.72, 0.36, 0.14), Color(0.32, 0.35, 0.4))
 	box_xf(Transform3D(Basis.from_euler(Vector3(-0.35, 0.4, 0.1)), Vector3(7.25, 0.67, 9.42)), Vector3(0.38, 0.38, 0.11), Color(0.56, 0.45, 0.24))
-	# TV corner: cabinet doors, the Astro box and the router, both left on.
-	box(Vector3(6.5, 0.25, 4.528), Vector3(1.96, 0.008, 0.004), WOOD_DARK)
-	for x: float in [5.83, 7.17]:
-		box(Vector3(x, 0.25, 4.528), Vector3(0.008, 0.46, 0.004), WOOD_DARK)
-	box(Vector3(6.5, 0.95, 4.555), Vector3(1.43, 0.83, 0.03), Color(0.07, 0.07, 0.075), Look.GLOSS)
-	box(Vector3(6.5, 0.525, 4.48), Vector3(0.36, 0.05, 0.18), Color(0.07, 0.07, 0.075), Look.GLOSS)
-	box(Vector3(5.75, 0.525, 4.3), Vector3(0.3, 0.05, 0.22), Color(0.06, 0.06, 0.07), Look.GLOSS)
-	box(Vector3(5.66, 0.53, 4.412), Vector3(0.012, 0.008, 0.004), Color(1.0, 0.12, 0.05), Look.UNLIT)
-	box(Vector3(7.35, 0.52, 4.25), Vector3(0.22, 0.04, 0.15), PLASTIC_WHITE, Look.GLOSS)
-	for x: float in [7.26, 7.44]:
-		box(Vector3(x, 0.66, 4.2), Vector3(0.012, 0.24, 0.012), Color(0.15, 0.15, 0.15))
-	for x: float in [7.3, 7.34, 7.38]:
-		box(Vector3(x, 0.525, 4.326), Vector3(0.008, 0.006, 0.004), Color(0.2, 1.0, 0.35), Look.UNLIT)
+	# The TV corner (cabinet, TV, decoder with its light, router with its antennas and lights) is a model: art/tv_cabinet.
 	box(Vector3(6.5, 2.165, 4.243), Vector3(0.85, 0.03, 0.008), Color(0.2, 0.2, 0.2))  # aircon vent
 	_socket(Vector3(5.4, 0.3, 4.075), Vector3.BACK)
 	_socket(Vector3(7.9, 0.3, 4.075), Vector3.BACK)
