@@ -142,6 +142,7 @@ var doors: Dictionary = {}  # door_id -> Door
 var models: Dictionary = {}  # node name -> the placed model, Decor's too (the wall clock and the fan)
 var lights: Dictionary = {}  # room_id -> Array[RoomLight]
 var environment: Environment
+var fan_speed := 1.0  # 1 turns the blades at 2.6 rad/s; AudioDirector winds it to 0 with the fan's sound
 var _gated: Array = []  # [Node3D, requires]
 var _materials: Dictionary = {}
 var _fan: Node3D
@@ -210,7 +211,7 @@ static func model(id: StringName) -> Node3D:
 
 func _process(delta: float) -> void:
 	if _fan:
-		_fan.rotate_y(delta * 2.6)
+		_fan.rotate_y(delta * 2.6 * fan_speed)
 
 
 # --- geometry -----------------------------------------------------------------------------------

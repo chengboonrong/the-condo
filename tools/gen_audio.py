@@ -19,8 +19,8 @@ def silence(sec):
     return [0.0] * int(sec * SR)
 
 
-def noise(sec):
-    return [rng.uniform(-1, 1) for _ in range(int(sec * SR))]
+def noise(sec, r=rng):
+    return [r.uniform(-1, 1) for _ in range(int(sec * SR))]
 
 
 def lowpass(x, cutoff):
@@ -124,6 +124,15 @@ def tone(freq, sec, decay=None, amp=1.0):
     return [amp * math.sin(2 * math.pi * freq * i / SR) * e[i] for i in range(n)]
 
 
+def loudest_100ms_db(x):
+    """The highest RMS over any 100 ms of x, in dBFS: how docs/architecture.md's audio table measures files."""
+    k = SR // 10
+    acc = [0.0]
+    for s in x:
+        acc.append(acc[-1] + s * s)
+    return 10 * math.log10(max(acc[i + k] - acc[i] for i in range(len(x) - k + 1)) / k)
+
+
 def loopable(x, xfade=0.5):
     """Crossfades the tail into the head so the clip loops without a click."""
     k = int(xfade * SR)
@@ -179,6 +188,42 @@ def main():
     save("lift_ding", fade(ding, 0.002, 0.2), 0.6)
     water = highpass(lowpass(noise(3.0), 2500), 300)
     save("tap_running", loopable(water, 0.4), 0.35)
+    # The home beds (act 1, then they stop one at a time). Each has its own Random, so the files above never
+    # change. Every one is 0.5 s longer than its loop and made seamless by loopable().
+    beds = {}
+    r = random.Random(1209)  # chosen so the loop point falls on a small step (on other seeds, a normal one of up to 0.03)
+    air = lowpass(lowpass(noise(6.5, r), 900), 900)  # two poles: through one, the air steps 0.04 a sample (hiss)
+    beds["fan"] = [  # air with a blade-pass swell, 7 per 6 s loop, and a faint motor
+        a * (1 + 0.25 * math.sin(2 * math.pi * 7 / 6 * i / SR)) + 0.025 * math.sin(2 * math.pi * 100 * i / SR)
+        for i, a in enumerate(air)
+    ]
+    r = random.Random(1202)
+    rumble = lowpass(lowpass(noise(4.5, r), 300), 300)
+    beds["fridge"] = [  # compressor hum, wobbling once per 4 s loop
+        (math.sin(2 * math.pi * 50 * i / SR) + 0.5 * math.sin(2 * math.pi * 100 * i / SR) + 0.25 * math.sin(2 * math.pi * 150 * i / SR))
+        * (0.85 + 0.15 * math.sin(2 * math.pi * 0.25 * i / SR)) + rumble[i]
+        for i in range(len(rumble))
+    ]
+    r = random.Random(1203)
+    n = int(12.5 * SR)
+    envs, who, t = ([0.0] * n, [0.0] * n), 0, 0.0
+    while t < 12.5:  # two voices taking turns: a phrase of syllables, softer towards its end, then a pause
+        start, phrase = t, r.uniform(1.0, 3.0)
+        while t < start + phrase:
+            d, a = 1 / r.uniform(3.0, 5.0), r.uniform(0.5, 1.0) * (1 - 0.3 * (t - start) / phrase)
+            for i in range(int(t * SR), min(int((t + d) * SR), n)):
+                envs[who][i] = a * max(0.0, math.sin(math.pi * (i / SR - t) / d))
+            t += d
+        t += r.uniform(0.3, 0.8)
+        who = 1 - who if r.random() < 0.7 else who
+    deep, light = lowpass(highpass(noise(12.5, r), 200), 500), lowpass(highpass(noise(12.5, r), 300), 700)
+    talk = [deep[i] * envs[0][i] + light[i] * envs[1][i] for i in range(n)]
+    beds["tv_murmur"] = lowpass(talk, 450)  # through the wall
+    for name, x in beds.items():
+        x = loopable(x, 0.5)
+        save(name, x, 0.5)
+        x = normalize(x, 0.5)
+        print(f"{name}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS, loop seam {abs(x[-1] - x[0]):.4f}")
 
 
 if __name__ == "__main__":

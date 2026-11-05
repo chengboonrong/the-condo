@@ -29,6 +29,7 @@ func _ready() -> void:
 		Settings.values["filter"] = false
 	audio = AudioDirector.new()
 	audio.name = "Audio"
+	audio.builder = builder
 	add_child(audio)
 	player.global_position = ApartmentLayout.SPAWN
 	player.set_look(ApartmentLayout.SPAWN_YAW)

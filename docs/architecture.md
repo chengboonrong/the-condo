@@ -217,7 +217,13 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
 | Tap running (loop) | −19.4 | −8 | −27.4 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
+| Ceiling fan (loop) | −17.4 | −18.5 | −35.9 |
+| Fridge (loop) | −11.2 | −27 | −38.2 |
+| Neighbour's TV through the wall (loop) | −17.5 | −22.5 | −40 |
 | Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
+
+The three home beds stop one at a time, the TV when act 2 begins, the fridge 75 s into act 2 (or at act 3) and
+the fan 15 s into act 3, fading over 1.5 s (the fan winds down over 3 s), and no sting marks it.
 
 Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pass, opening a door
 (−6.9 dB) was the loudest sound in the game, louder than the stinger and the slam.
