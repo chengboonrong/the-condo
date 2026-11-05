@@ -33,18 +33,10 @@ SEGMENTS = 16
 
 # --- geometry -------------------------------------------------------------------------------------------
 
-def added(bm: bmesh.types.BMesh, draw) -> list:
-    """Runs draw(bm) and returns the vertices it made (not the last ones in bm.verts: bmesh reuses the slots of deleted
-    ones)."""
-    old = set(bm.verts)
-    draw(bm)
-    return [v for v in bm.verts if v not in old]
-
-
 def mount(bm: bmesh.types.BMesh, part, x: float, z: float, front: bool, surface: float) -> None:
     """Draws part, which stands out of the plane z = 0 along +z, on the door's front (-Y) or back face at (x, z); surface
     is the half thickness there."""
-    verts = added(bm, part)
+    verts = common.added(bm, part)
     bmesh.ops.rotate(bm, verts=verts, cent=(0, 0, 0), matrix=Matrix.Rotation(math.pi / 2 if front else -math.pi / 2, 3, "X"))
     bmesh.ops.translate(bm, verts=verts, vec=(x, -surface if front else surface, z))
 
@@ -58,7 +50,7 @@ def lever(bm: bmesh.types.BMesh) -> None:
 def thumb_turn(bm: bmesh.types.BMesh) -> None:
     """The deadbolt's thumb-turn: a rose with a flat tab on a stem, standing a little off upright."""
     common.revolve(bm, [(0.026, 0.0), (0.026, 0.006), (0.023, 0.009), (0.0105, 0.0095), (0.007, 0.012), (0.007, 0.022), (0.0, 0.022)], (0, 0, 0), SEGMENTS, STEEL)
-    tab = added(bm, lambda b: common.chamfered_box(b, (0.0, 0.0, 0.0265), (0.012, 0.038, 0.009), 0.002, STEEL))
+    tab = common.added(bm, lambda b: common.chamfered_box(b, (0.0, 0.0, 0.0265), (0.012, 0.038, 0.009), 0.002, STEEL))
     bmesh.ops.rotate(bm, verts=tab, cent=(0, 0, 0), matrix=Matrix.Rotation(math.radians(18), 3, "Z"))
 
 
@@ -108,25 +100,18 @@ def timber() -> bpy.types.Material:
     bevelled = node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
 
     def between(v: bpy.types.NodeSocket, lo: float, hi: float) -> bpy.types.NodeSocket:  # 1 inside lo..hi, soft edges
-        return maths(nt, "MULTIPLY", mapped(nt, v, lo - 0.002, lo, 0.0, 1.0), mapped(nt, v, hi, hi + 0.002, 1.0, 0.0))
-
-    def stretched(axis: int, along: float, across: float) -> bpy.types.NodeSocket:  # noise drawn out along the grain
-        scale = tuple(along if i == axis else across for i in range(3))
-        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
+        return common.between(nt, v, lo, hi, 0.002)
 
     def smudged(scale: tuple, offset: tuple = (0.0, 0.0, 0.0)) -> bpy.types.NodeSocket:  # soft noise, drawn out along the axes whose scale is low
         return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale, "Location": offset}).outputs["Vector"], 1.0, 2.0)
-
-    def grain(axis: int) -> bpy.types.NodeSocket:
-        return mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(axis, 3.0, 120.0), 0.6), maths(nt, "MULTIPLY", stretched(axis, 2.0, 22.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
 
     def around(cx: float, cz: float, rx: float, rz: float) -> bpy.types.NodeSocket:  # distance from (cx, cz) in units of the ellipse's radii
         pos = node(nt, "ShaderNodeCombineXYZ", {"X": maths(nt, "DIVIDE", maths(nt, "SUBTRACT", x, cx), rx), "Y": maths(nt, "DIVIDE", maths(nt, "SUBTRACT", z, cz), rz)}).outputs["Vector"]
         return node(nt, "ShaderNodeVectorMath", {0: pos}, operation="LENGTH").outputs["Value"]
 
     rails = maths(nt, "MULTIPLY", between(x, STILE, WIDTH - STILE), maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", between(z, *RAILS[0]), between(z, *RAILS[1])), between(z, *RAILS[2])))
-    vertical = grain(2)
-    lines = maths(nt, "ADD", vertical, maths(nt, "MULTIPLY", maths(nt, "SUBTRACT", grain(0), vertical), rails))
+    vertical = common.grain(nt, coords, 2)
+    lines = maths(nt, "ADD", vertical, maths(nt, "MULTIPLY", maths(nt, "SUBTRACT", common.grain(nt, coords, 0), vertical), rails))
     varnished = lerp(nt, (0.055, 0.022, 0.010), (0.105, 0.045, 0.021), lines)
     bare = lerp(nt, (0.34, 0.29, 0.22), (0.48, 0.42, 0.33), lines)
     outside = mapped(nt, y, 0.01, -0.01, 0.0, 1.0)

@@ -48,18 +48,11 @@ LIGHTS = [  # (x, D, height of centre), size (x, D, z), colour: u on the 2 by 1 
 
 # --- geometry -------------------------------------------------------------------------------------------
 
-def added(bm: bmesh.types.BMesh, draw) -> list:
-    """Runs draw(bm) and returns the vertices it made."""
-    old = set(bm.verts)
-    draw(bm)
-    return [v for v in bm.verts if v not in old]
-
-
 def antenna(bm: bmesh.types.BMesh, x: float, lean: float) -> None:
     """A router antenna: a hinge, a round rod, leaning sideways by lean degrees."""
     base = (x, 0.10, TOP + 0.04)  # on the router's top, towards its back
     profile = [(0.0075, 0.0), (0.0075, 0.016), (0.0055, 0.018), (0.0055, 0.232), (0.0042, 0.24), (0.0, 0.242)]
-    verts = added(bm, lambda b: common.revolve(b, profile, base, 8, TV_PLASTIC))
+    verts = common.added(bm, lambda b: common.revolve(b, profile, base, 8, TV_PLASTIC))
     bmesh.ops.rotate(bm, verts=verts, cent=base, matrix=Matrix.Rotation(math.radians(lean), 3, "Y"))
 
 
@@ -81,7 +74,7 @@ def cabinet() -> bpy.types.Object:
     for s in (-1, 1):
         common.box(bm, (s * (GLASS[0] + side) / 2, -mid, GLASS[2]), (side, TV_D[1] - TV_D[0], BEZEL[1]), TV_PLASTIC)
         common.box(bm, (0.0, -mid, GLASS[2] + s * (GLASS[1] + (BEZEL[1] - GLASS[1]) / 2) / 2), (GLASS[0], TV_D[1] - TV_D[0], (BEZEL[1] - GLASS[1]) / 2), TV_PLASTIC)
-    swell = added(bm, lambda b: common.chamfered_box(b, (0.0, -0.252, 0.93), (0.84, 0.03, 0.66), 0.004, TV_PLASTIC))
+    swell = common.added(bm, lambda b: common.chamfered_box(b, (0.0, -0.252, 0.93), (0.84, 0.03, 0.66), 0.004, TV_PLASTIC))
     bm.normal_update()
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.normal.y < -0.99 and all(v in swell for v in f.verts)], context="FACES")  # its front is behind the glass
     common.post(bm, TOP + 0.012, 0.62, (0.0, -0.19, 0.12, 0.03), (0.0, -0.252, 0.09, 0.03), TV_PLASTIC)
@@ -190,12 +183,8 @@ def laminate(name: str) -> bpy.types.Material:
     normal, flat = geometry(nt)
     bevelled = node(nt, "ShaderNodeBevel", {"Radius": 0.002}, samples=16).outputs["Normal"]
 
-    def stretched(axis: int, along: float, across: float) -> bpy.types.NodeSocket:  # noise drawn out along the grain
-        scale = tuple(along if i == axis else across for i in range(3))
-        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
-
     def streaks(axis: int) -> bpy.types.NodeSocket:
-        return mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(axis, 3.0, 90.0), 0.6), maths(nt, "MULTIPLY", stretched(axis, 2.0, 24.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
+        return common.grain(nt, coords, axis, across=(90.0, 24.0))
 
     sideways = maths(nt, "ABSOLUTE", normal["X"])  # the sides' grain runs along Y, the rest along X
     grain = maths(nt, "ADD", maths(nt, "MULTIPLY", streaks(0), maths(nt, "SUBTRACT", 1.0, sideways)), maths(nt, "MULTIPLY", streaks(1), sideways))

@@ -81,23 +81,12 @@ def iron(bm: bmesh.types.BMesh, turn: float) -> None:
         f.material_index = PAINT  # painted to match the blade it holds
 
 
-def mesh_object(name: str, bm: bmesh.types.BMesh, materials: list) -> bpy.types.Object:
-    me = bpy.data.meshes.new(name)
-    bm.to_mesh(me)
-    bm.free()
-    for m in materials:
-        me.materials.append(m)
-    obj = bpy.data.objects.new(name, me)
-    bpy.context.scene.collection.objects.link(obj)
-    return obj
-
-
 def fixed(materials: list) -> bpy.types.Object:
     """The canopy and the rod."""
     bm = bmesh.new()
     bm.loops.layers.uv.new("UVMap")
     common.revolve(bm, CANOPY, (0.0, 0.0, 0.0), SEGMENTS, ENAMEL)
-    return mesh_object("fixed", bm, materials)
+    return common.mesh_object("fixed", bm, materials)
 
 
 def turning(materials: list) -> bpy.types.Object:
@@ -108,27 +97,9 @@ def turning(materials: list) -> bpy.types.Object:
     for k in range(3):
         blade(bm, math.tau * k / 3, uv)
         iron(bm, math.tau * k / 3)
-    obj = mesh_object("turning", bm, materials)
+    obj = common.mesh_object("turning", bm, materials)
     obj.vertex_groups.new(name="Blades").add(range(len(obj.data.vertices)), 1.0, "REPLACE")
     return obj
-
-
-def split_off(fan: bpy.types.Object) -> bpy.types.Object:
-    """Separates the Blades vertex group from the baked fan, its origin on the rod's axis, unrotated: the game turns it."""
-    common.select([fan])
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="DESELECT")
-    fan.vertex_groups.active = fan.vertex_groups["Blades"]
-    bpy.ops.object.vertex_group_select()
-    bpy.ops.mesh.separate(type="SELECTED")
-    bpy.ops.object.mode_set(mode="OBJECT")
-    part = next(o for o in bpy.context.view_layer.objects if o.select_get() and o != fan)
-    part.name = part.data.name = "Blades"
-    pivot = Vector((0.0, 0.0, -DROP))
-    part.data.transform(Matrix.Translation(-pivot))
-    part.location = pivot
-    part.vertex_groups.clear()
-    return part
 
 
 # --- materials ------------------------------------------------------------------------------------------
@@ -178,6 +149,6 @@ bpy.ops.object.join()
 fan.name = "CeilingFan"
 fan.data.set_sharp_from_angle(angle=math.radians(35))
 common.bake(fan, size=256, pack=True)
-blades = split_off(fan)
+blades = common.split_off(fan, "Blades", Vector((0.0, 0.0, -DROP)))
 fan.vertex_groups.clear()
 common.export("ceiling_fan", [fan, blades])

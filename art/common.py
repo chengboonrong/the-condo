@@ -4,7 +4,6 @@ Conventions: metres; the origin at the centre of the floor footprint (wall items
 touching the wall; hanging items: the hanging point); the front faces Blender -Y, which is Godot +Z.
 """
 import filecmp
-import glob
 import math
 import os
 import shutil
@@ -24,35 +23,6 @@ def reset() -> None:
     units = bpy.context.scene.unit_settings
     units.system = "METRIC"
     units.scale_length = 1.0
-
-
-def pbr(name: str, folder: str, tint: tuple[float, float, float] | None = None) -> bpy.types.Material:
-    """A Principled material from the texture set in folder (relative to art/): *Color*, *Roughness* and
-    *NormalGL* files, read through the object's UV map. tint multiplies the colour."""
-    mat = bpy.data.materials.new(name)
-    nt = mat.node_tree
-    bsdf = nt.nodes["Principled BSDF"]
-
-    def image(pattern: str, data: bool) -> bpy.types.NodeSocket:
-        node = nt.nodes.new("ShaderNodeTexImage")
-        node.image = bpy.data.images.load(sorted(glob.glob(os.path.join(ART, folder, f"*{pattern}*")))[0], check_existing=True)
-        if data:
-            node.image.colorspace_settings.name = "Non-Color"
-        return node.outputs["Color"]
-
-    color = image("Color", False)
-    if tint:
-        mul = nt.nodes.new("ShaderNodeVectorMath")
-        mul.operation = "MULTIPLY"
-        nt.links.new(color, mul.inputs[0])
-        mul.inputs[1].default_value = tint
-        color = mul.outputs["Vector"]
-    nt.links.new(color, bsdf.inputs["Base Color"])
-    nt.links.new(image("Roughness", True), bsdf.inputs["Roughness"])
-    normal = nt.nodes.new("ShaderNodeNormalMap")
-    nt.links.new(image("NormalGL", True), normal.inputs["Color"])
-    nt.links.new(normal.outputs["Normal"], bsdf.inputs["Normal"])
-    return mat
 
 
 def bake(obj: bpy.types.Object, size: int = 512, pack: bool = False, grow: dict | None = None) -> None:
@@ -326,6 +296,21 @@ def noise(nt: bpy.types.NodeTree, coords: bpy.types.NodeSocket, scale: float, de
     return node(nt, "ShaderNodeTexNoise", {"Vector": coords, "Scale": scale, "Detail": detail}).outputs["Factor"]
 
 
+def between(nt: bpy.types.NodeTree, v: bpy.types.NodeSocket, lo: float, hi: float, soft: float) -> bpy.types.NodeSocket:
+    """1 for v in lo..hi, falling to 0 over soft either side."""
+    return maths(nt, "MULTIPLY", mapped(nt, v, lo - soft, lo, 0.0, 1.0), mapped(nt, v, hi, hi + soft, 1.0, 0.0))
+
+
+def grain(nt: bpy.types.NodeTree, coords: bpy.types.NodeSocket, axis: int, across: tuple = (120.0, 22.0)) -> bpy.types.NodeSocket:
+    """Wood grain, 0 to 1: two noises drawn out along axis (0 X, 1 Y, 2 Z), a coarse one and a fine one, mixed 0.6 to 0.4.
+    across: how far each is squeezed across the grain (the higher, the finer the streaks)."""
+    def stretched(along: float, squeeze: float) -> bpy.types.NodeSocket:
+        scale = tuple(along if i == axis else squeeze for i in range(3))
+        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
+
+    return mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(3.0, across[0]), 0.6), maths(nt, "MULTIPLY", stretched(2.0, across[1]), 0.4)), 0.3, 0.7, 0.0, 1.0)
+
+
 def surface(name: str) -> tuple:
     """A new material: (material, its node tree, its Principled BSDF, object coordinates)."""
     mat = bpy.data.materials.new(name)
@@ -340,12 +325,7 @@ def wood(name: str, tint: tuple, axis: int = 0, boards: tuple | None = None, rin
     darker, with a seam between them. rings: [(x, y, radius)] mug rings on up-facing surfaces."""
     mat, nt, bsdf, coords = surface(name)
     xyz = node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords}).outputs
-
-    def stretched(along: float, across: float) -> bpy.types.NodeSocket:  # noise drawn out along the grain
-        scale = tuple(along if i == axis else across for i in range(3))
-        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
-
-    grain = mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(3.0, 120.0), 0.6), maths(nt, "MULTIPLY", stretched(2.0, 22.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
+    lines = grain(nt, coords, axis)
     bevelled = node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
     flat = node(nt, "ShaderNodeNewGeometry").outputs["Normal"]
     normal = node(nt, "ShaderNodeSeparateXYZ", {"Vector": flat}).outputs
@@ -355,8 +335,8 @@ def wood(name: str, tint: tuple, axis: int = 0, boards: tuple | None = None, rin
     patches = mapped(nt, noise(nt, coords, 7.0, 3.0), 0.56, 0.7, 0.0, 1.0)
     floor = maths(nt, "MULTIPLY", mapped(nt, xyz["Z"], 0.07, 0.0, 0.0, 1.0), mapped(nt, noise(nt, coords, 40.0, 3.0), 0.35, 0.6, 0.4, 1.0))  # scuffed by shoes and brooms
     worn = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", edge, floor), maths(nt, "MULTIPLY", patches, 0.85))
-    varnished = lerp(nt, tuple(c * 0.75 for c in tint), tuple(c * 1.1 for c in tint), grain)
-    bare = lerp(nt, tuple(c * 1.5 for c in tint), tuple(c * 1.9 for c in tint), grain)
+    varnished = lerp(nt, tuple(c * 0.75 for c in tint), tuple(c * 1.1 for c in tint), lines)
+    bare = lerp(nt, tuple(c * 1.5 for c in tint), tuple(c * 1.9 for c in tint), lines)
     colour = lerp(nt, varnished, bare, worn)
     seam = 0.0
     if boards:
@@ -394,3 +374,42 @@ def select(objects: list[bpy.types.Object]) -> None:
     for o in objects:
         o.select_set(True)
     bpy.context.view_layer.objects.active = objects[0]
+
+
+def added(bm: bmesh.types.BMesh, draw) -> list:
+    """Runs draw(bm) and returns the vertices it made (not the last ones in bm.verts: bmesh reuses the slots of deleted
+    ones)."""
+    old = set(bm.verts)
+    draw(bm)
+    return [v for v in bm.verts if v not in old]
+
+
+def mesh_object(name: str, bm: bmesh.types.BMesh, materials: list, scene: bpy.types.Scene | None = None) -> bpy.types.Object:
+    """An object called name made of bm (which it frees), with the materials in slot order, linked into scene (default:
+    the current one)."""
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    for m in materials:
+        me.materials.append(m)
+    obj = bpy.data.objects.new(name, me)
+    (bpy.context.scene if scene is None else scene).collection.objects.link(obj)
+    return obj
+
+
+def split_off(obj: bpy.types.Object, group: str, pivot: Vector) -> bpy.types.Object:
+    """Separates the vertex group group from the baked obj into a part of the same name, its origin at pivot,
+    unrotated: the game turns it about that point."""
+    select([obj])
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    obj.vertex_groups.active = obj.vertex_groups[group]
+    bpy.ops.object.vertex_group_select()
+    bpy.ops.mesh.separate(type="SELECTED")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    part = next(o for o in bpy.context.view_layer.objects if o.select_get() and o != obj)
+    part.name = part.data.name = group
+    part.data.transform(Matrix.Translation(-pivot))
+    part.location = pivot
+    part.vertex_groups.clear()
+    return part

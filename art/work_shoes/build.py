@@ -88,7 +88,7 @@ def shoe(bm: bmesh.types.BMesh, side: int, yaw: float, slide: float) -> None:
         f.smooth = True
         return f
 
-    # The sole: an outline of a left chain and a right chain of station points, at four heights.
+    # The sole: an outline of a left chain and a right chain of station points, at one height per RINGS entry.
     rings = []
     for scale, share in RINGS:
         ring = []

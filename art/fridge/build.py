@@ -25,7 +25,7 @@ from mathutils import Matrix, Vector
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import common  # noqa: E402
 
-node, mapped, maths, lerp, noise = common.node, common.mapped, common.maths, common.lerp, common.noise
+node, mapped, maths, lerp, noise, between = common.node, common.mapped, common.maths, common.lerp, common.noise, common.between
 
 HALF = 0.35  # half the cabinet's width
 BACK, SIDE_FRONT = -0.35, 0.30  # the cabinet's back, and where its sides end at the seals
@@ -164,11 +164,6 @@ def build() -> bpy.types.Object:
 # --- materials ------------------------------------------------------------------------------------------
 # The coordinates a material reads are the object's, after the turn to Blender's axes: x across, y backwards (the front
 # at -FACE), z up.
-
-def between(nt: bpy.types.NodeTree, v: bpy.types.NodeSocket, lo: float, hi: float, soft: float) -> bpy.types.NodeSocket:
-    """1 for v in lo..hi, falling to 0 over soft either side."""
-    return maths(nt, "MULTIPLY", mapped(nt, v, lo - soft, lo, 0.0, 1.0), mapped(nt, v, hi, hi + soft, 1.0, 0.0))
-
 
 def letters(nt: bpy.types.NodeTree, u: bpy.types.NodeSocket, v: bpy.types.NodeSocket, span: tuple, cell: float, seed: float, fill: float = 0.75) -> bpy.types.NodeSocket:
     """A line of print too small to read: span = (u0, u1, v0, v1) in the card's own axes, one block per cell wide, some of

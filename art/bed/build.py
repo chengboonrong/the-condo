@@ -317,12 +317,7 @@ def timber(name: str, axis: int) -> bpy.types.Material:
     flat = node(nt, "ShaderNodeNewGeometry").outputs["Normal"]
     bevelled = node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
     normal = node(nt, "ShaderNodeSeparateXYZ", {"Vector": flat}).outputs
-
-    def stretched(along: float, across: float) -> bpy.types.NodeSocket:  # noise drawn out along the grain
-        scale = tuple(along if i == axis else across for i in range(3))
-        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
-
-    grain = mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(3.0, 120.0), 0.6), maths(nt, "MULTIPLY", stretched(2.0, 22.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
+    grain = common.grain(nt, coords, axis)
     varnished = lerp(nt, (0.065, 0.027, 0.012), (0.12, 0.052, 0.024), grain)
     bare = lerp(nt, (0.22, 0.165, 0.115), (0.33, 0.255, 0.18), grain)  # greyish tan, as the front door's
     up = mapped(nt, normal["Z"], 0.5, 0.95, 0.0, 1.0)

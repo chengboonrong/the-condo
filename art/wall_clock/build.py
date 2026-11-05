@@ -49,17 +49,6 @@ def facing_front(bm: bmesh.types.BMesh, verts: list) -> bmesh.types.BMFace:
     return face
 
 
-def mesh_object(name: str, bm: bmesh.types.BMesh, materials: list, scene: bpy.types.Scene) -> bpy.types.Object:
-    me = bpy.data.meshes.new(name)
-    bm.to_mesh(me)
-    bm.free()
-    for m in materials:
-        me.materials.append(m)
-    obj = bpy.data.objects.new(name, me)
-    scene.collection.objects.link(obj)
-    return obj
-
-
 def body(materials: list) -> bpy.types.Object:
     """The case (rim, then the inner wall), the dial with its print mapped across it, the hub and the
     second hand. materials: rim, inner wall, dial, black, red."""
@@ -85,7 +74,7 @@ def body(materials: list) -> bpy.types.Object:
     facing_front(bm, [bm.verts.new((x, SECOND_Y, z)) for x, z in SECOND]).material_index = 4
     weight = facing_front(bm, [bm.verts.new(ring(0.0045, SECOND_Y + 0.0002, i, 10) + Vector((0, 0, -0.022))) for i in range(10)])
     weight.material_index = 4
-    return mesh_object("WallClock", bm, materials, bpy.context.scene)
+    return common.mesh_object("WallClock", bm, materials, bpy.context.scene)
 
 
 def hand(name: str, spec: tuple, black: bpy.types.Material) -> bpy.types.Object:
@@ -98,28 +87,9 @@ def hand(name: str, spec: tuple, black: bpy.types.Material) -> bpy.types.Object:
     back = {v: bm.verts.new(v.co + Vector((0, thickness, 0))) for v in rim}
     for a, b in zip(rim, rim[1:] + rim[:1]):
         bm.faces.new([b, a, back[a], back[b]])  # each edge walked against the face's own direction: outwards
-    obj = mesh_object(name, bm, [black], bpy.context.scene)
+    obj = common.mesh_object(name, bm, [black], bpy.context.scene)
     obj.vertex_groups.new(name=name).add(range(len(obj.data.vertices)), 1.0, "REPLACE")
     return obj
-
-
-def split_off(clock: bpy.types.Object, name: str) -> bpy.types.Object:
-    """Separates the named vertex group from the baked clock, its origin at the dial centre, unrotated: the
-    game turns it about the dial's axis."""
-    common.select([clock])
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="DESELECT")
-    clock.vertex_groups.active = clock.vertex_groups[name]
-    bpy.ops.object.vertex_group_select()
-    bpy.ops.mesh.separate(type="SELECTED")
-    bpy.ops.object.mode_set(mode="OBJECT")
-    part = next(o for o in bpy.context.view_layer.objects if o.select_get() and o != clock)
-    part.name = part.data.name = name
-    centre = Vector((0, DIAL_Y, 0))
-    part.data.transform(Matrix.Translation(-centre))
-    part.location = centre
-    part.vertex_groups.clear()
-    return part
 
 
 # --- materials ------------------------------------------------------------------------------------------
@@ -193,13 +163,13 @@ def render_print(size: int = 1024) -> bpy.types.Image:
     ink = emission("ink", INK)
     bm = bmesh.new()
     bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=DIAL_R * 2, matrix=Matrix.Rotation(math.pi / 2, 4, "X"))
-    mesh_object("paper", bm, [emission("paper", PAPER)], scene)
+    common.mesh_object("paper", bm, [emission("paper", PAPER)], scene)
     bm = bmesh.new()  # the minute track: a tick every minute, a heavier one every five
     for i in range(60):
         w, inner = (0.0026, 0.1145) if i % 5 == 0 else (0.0012, 0.1185)
         turn = Matrix.Rotation(math.tau * i / 60, 4, "Y")
         bm.faces.new([bm.verts.new(turn @ Vector((x, -0.001, z))) for x, z in [(-w / 2, inner), (w / 2, inner), (w / 2, 0.1225), (-w / 2, 0.1225)]])
-    mesh_object("track", bm, [ink], scene)
+    common.mesh_object("track", bm, [ink], scene)
     font = bpy.data.fonts.load(os.path.join(bpy.utils.system_resource("DATAFILES", path="fonts"), "Inter.woff2"))
     texts = [(str(h), 0.1 * math.sin(math.tau * h / 12), 0.1 * math.cos(math.tau * h / 12), 0.03) for h in range(1, 13)]
     for text, x, z, height in texts + [("QUARTZ", 0.0, -0.042, 0.0068)]:
@@ -242,6 +212,6 @@ common.select([clock] + parts)
 bpy.ops.object.join()
 clock.data.set_sharp_from_angle(angle=math.radians(35))
 common.bake(clock)
-hands = [split_off(clock, p) for p in ["HourHand", "MinuteHand"]]
+hands = [common.split_off(clock, p, Vector((0, DIAL_Y, 0))) for p in ["HourHand", "MinuteHand"]]
 clock.vertex_groups.clear()
 common.export("wall_clock", [clock] + hands)

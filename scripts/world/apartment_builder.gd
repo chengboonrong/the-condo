@@ -139,7 +139,7 @@ const LABELS := [
 
 var decor: Decor
 var doors: Dictionary = {}  # door_id -> Door
-var models: Dictionary = {}  # node name -> the placed model, Decor's too (the wall clock)
+var models: Dictionary = {}  # node name -> the placed model, Decor's too (the wall clock and the fan)
 var lights: Dictionary = {}  # room_id -> Array[RoomLight]
 var environment: Environment
 var _gated: Array = []  # [Node3D, requires]
@@ -617,8 +617,6 @@ func _build_object(o: Array) -> void:
 			color = Color(0.7, 0.78, 0.82)
 		&"door_1206", &"door_1208", &"fire_door":
 			color = Color(0.35, 0.25, 0.18) if o[0] != &"fire_door" else Color(0.55, 0.15, 0.12)
-		&"tv":
-			color = Color(0.03, 0.03, 0.04)
 		&"shoe_rack":
 			color = Color(0.4, 0.3, 0.22)
 		&"aircon":
@@ -627,7 +625,7 @@ func _build_object(o: Array) -> void:
 			color = Color(0.7, 0.7, 0.7)
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
-	# the window and the moved things are drawn by their props; only the click box is added
+	# these click boxes are drawn by their props or models; only the click box is added
 	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)

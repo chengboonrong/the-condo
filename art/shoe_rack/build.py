@@ -121,12 +121,7 @@ def wood(name: str, tint: tuple, raw: bool = False) -> bpy.types.Material:
     """Varnished pine: grain along X, the varnish gone from the edges and in patches, dirt where it is dark in the
     corners and on the shelf tops. raw: unvarnished (the battens), not shiny anywhere."""
     mat, nt, bsdf, coords = common.surface(name)
-
-    def stretched(scale: tuple) -> bpy.types.NodeSocket:  # noise drawn out along X: the grain
-        return common.noise(nt, common.node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
-
-    rings = common.maths(nt, "ADD", common.maths(nt, "MULTIPLY", stretched((3.0, 120.0, 120.0)), 0.6), common.maths(nt, "MULTIPLY", stretched((2.0, 22.0, 22.0)), 0.4))
-    grain = common.mapped(nt, rings, 0.3, 0.7, 0.0, 1.0)
+    grain = common.grain(nt, coords, 0)  # along X
     bevelled = common.node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
     flat = common.node(nt, "ShaderNodeNewGeometry").outputs["Normal"]
     worn = 1.0  # the battens are bare wood

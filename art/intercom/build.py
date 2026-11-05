@@ -166,7 +166,7 @@ def key_button(name: str) -> bpy.types.Material:
     here = node(nt, "ShaderNodeCombineXYZ", {"X": dx, "Y": dz}).outputs["Vector"]
 
     def between(v: bpy.types.NodeSocket, lo: float, hi: float) -> bpy.types.NodeSocket:  # 1 inside lo..hi, soft edges
-        return maths(nt, "MULTIPLY", mapped(nt, v, lo - 0.0004, lo, 0.0, 1.0), mapped(nt, v, hi, hi + 0.0004, 1.0, 0.0))
+        return common.between(nt, v, lo, hi, 0.0004)
 
     bow = node(nt, "ShaderNodeVectorMath", {0: here, 1: (-0.0035, 0.0, 0.0)}, operation="DISTANCE").outputs["Value"]
     ring = mapped(nt, maths(nt, "ABSOLUTE", maths(nt, "SUBTRACT", bow, 0.0028)), 0.0011, 0.0006, 0.0, 1.0)
