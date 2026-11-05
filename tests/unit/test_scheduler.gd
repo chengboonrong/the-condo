@@ -167,6 +167,20 @@ func test_silhouette_only_appears_out_of_view() -> bool:
 	return true
 
 
+func test_a_still_figure_needs_its_light_alone() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4), PI)  # facing south, the hallway behind
+	WorldState.set_light(&"hallway", true)
+	eq(sched.check(&"silhouette", {"anchor": &"still_hallway"})["reason"], "no_hidden_anchor", "not while the living room lamp reaches it")
+	WorldState.set_light(&"living", false)
+	var run := sched.check(&"silhouette", {"anchor": &"still_hallway"})
+	eq(run["state"], EventScheduler.State.VALIDATED, "the hallway downlight alone: it can stand there")
+	near(run["wait"], SilhouetteEvent.STILL_WAIT, 0.001, "and waits longer than a glimpse")
+	WorldState.set_light(&"hallway", false)
+	eq(sched.check(&"silhouette", {"anchor": &"still_hallway"})["reason"], "no_hidden_anchor", "never in the dark")
+	_teardown()
+	return true
+
+
 func test_footsteps_stop_at_the_doorway() -> bool:
 	_setup(&"bedroom", Vector3(8.5, 0, 0.0))
 	var run := sched.start(&"footsteps", {"from": &"living"})

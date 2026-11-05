@@ -119,6 +119,10 @@ const ANCHORS := {
 	&"sil_kitchen": {"room": &"kitchen", "pos": Vector3(1.1, 0, 3.0), "kind": "silhouette"},
 	&"sil_living_balcony": {"room": &"living", "pos": Vector3(9.6, 0, 5.0), "kind": "silhouette"},
 	&"sil_gap": {"room": &"gap", "pos": Vector3(7.7, 0, -12.5), "kind": "silhouette"},
+	# A still figure stands in the pool of one light, its back to the player: the gap's caged bulkhead (lit in both
+	# variants, always on), or the hallway downlight when no other lamp that reaches the hallway is on.
+	&"still_gap": {"room": &"gap", "pos": Vector3(7.7, 0, -11.2), "kind": "still", "light": &"gap", "dark": []},
+	&"still_hallway": {"room": &"hallway", "pos": Vector3(6.8, 0, 3.25), "kind": "still", "light": &"hallway", "dark": [&"living", &"kitchen", &"bathroom", &"bedroom"]},
 }
 
 # Areas that can change while unobserved. probes = points that must be unseen for a swap.

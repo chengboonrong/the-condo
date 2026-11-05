@@ -1,6 +1,8 @@
 extends TestCase
 ## Phase 2 in the real scene: debug keys, the silhouette against the real camera, the intercom beat.
 
+var sounds: Array[StringName] = []
+
 
 func _main() -> Node3D:
 	var main: Node3D = load("res://scenes/main.tscn").instantiate()
@@ -14,6 +16,27 @@ func _main() -> Node3D:
 func _frames(n: int) -> void:
 	for i in n:
 		await tree.physics_frame
+
+
+func _on_sound(id: StringName, _pos: Vector3, _db: float) -> void:
+	sounds.append(id)
+
+
+## The still figure in the hallway, under its downlight alone: the player at the spawn faces north, where the
+## partition wall hides it. Collects sound ids in `sounds` until _end_still.
+func _stage_still(main: Node3D) -> Dictionary:
+	WorldState.set_light(&"living", false)
+	WorldState.set_light(&"hallway", true)
+	main.player.global_position = ApartmentLayout.SPAWN
+	main.player.set_look(0.0)
+	await _frames(2)
+	EventBus.sound_requested.connect(_on_sound)
+	return main.runtime.scheduler.start(&"silhouette", {"anchor": &"still_hallway", "ignore_act": true})
+
+
+func _end_still(main: Node3D) -> void:
+	EventBus.sound_requested.disconnect(_on_sound)
+	main.queue_free()
 
 
 func test_debug_keys_fire_events() -> bool:
@@ -93,6 +116,50 @@ func test_silhouette_never_appears_in_view_when_looking_down() -> bool:
 	var run := rt.scheduler.start(&"silhouette", {"anchor": &"sil_living_balcony", "ignore_act": true})
 	eq(run["reason"], "no_hidden_anchor", "it does not appear where its body can be seen")
 	main.queue_free()
+	return true
+
+
+func test_a_still_figure_is_silent_and_stays_while_watched() -> bool:
+	var main := await _main()
+	var run: Dictionary = await _stage_still(main)
+	eq(run["state"], EventScheduler.State.RUNNING, "staged")
+	var fig: Silhouette = main.silhouette
+	var to_player: Vector3 = main.player.global_position - fig.global_position
+	check(Vector3(to_player.x, 0, to_player.z).dot(fig.global_basis.z) < 0.0, "its back to the player")
+	main.player.global_position = Vector3(3.6, 0, 3.25)
+	main.player.set_look(-PI / 2)  # down the hallway, east
+	await _frames(60)
+	check(run.get("seen", false), "a second in view counts as a sighting")
+	check(fig.visible, "it stays while watched")
+	near(fig._material.albedo_color.a, 0.95, 0.001, "and does not fade")
+	check(not sounds.has(&"stinger"), "silent: no stinger")
+	main.player.set_look(PI / 2)  # look away, west
+	await _frames(20)
+	check(not fig.visible, "gone once the player looks away")
+	_end_still(main)
+	return true
+
+
+func test_a_still_figure_walked_up_to_fades_silently() -> bool:
+	var main := await _main()
+	await _stage_still(main)
+	main.player.global_position = Vector3(5.0, 0, 3.25)  # 1.8 m, inside VANISH_DISTANCE
+	main.player.set_look(-PI / 2)
+	await _frames(40)
+	check(not main.silhouette.visible, "it fades instead of standing in the player's face")
+	check(not sounds.has(&"stinger"), "silently")
+	_end_still(main)
+	return true
+
+
+func test_an_unwatched_still_figure_leaves_unseen() -> bool:
+	var main := await _main()
+	var run: Dictionary = await _stage_still(main)  # the player never turns
+	await _frames(int(SilhouetteEvent.STILL_WAIT * 60) + 30)
+	check(not main.silhouette.visible, "gone after its wait")
+	eq(run["state"], EventScheduler.State.COMPLETED, "the run ends")
+	check(not run.get("seen", false), "without a sighting")
+	_end_still(main)
 	return true
 
 

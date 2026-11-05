@@ -13,6 +13,19 @@ func test_anchors_lie_in_their_rooms() -> bool:
 	return true
 
 
+func test_still_figures_stand_under_their_light() -> bool:
+	for id: StringName in ApartmentLayout.ANCHORS:
+		var a: Dictionary = ApartmentLayout.ANCHORS[id]
+		if a["kind"] != "still":
+			continue
+		var p: Vector3 = a["pos"]
+		var near_light: Array = ApartmentLayout.LIGHTS[a["light"]]["pos"].filter(func(l: Vector3) -> bool: return Vector2(l.x - p.x, l.z - p.z).length() < 0.6)
+		check(not near_light.is_empty(), "%s stands under a %s light" % [id, a["light"]])
+		for variants: Dictionary in [{&"bedroom": &"door"}, {&"bedroom": &"door", &"gap": &"long"}]:
+			eq(ApartmentLayout.room_at(p, variants), a["room"], "%s is inside its room (%s)" % [id, variants])
+	return true
+
+
 func test_initial_state() -> bool:
 	ApartmentLayout.apply_initial_state()
 	eq(WorldState.is_light_on(&"living"), true, "living room lit")

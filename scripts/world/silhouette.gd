@@ -2,15 +2,21 @@ class_name Silhouette
 extends Node3D
 ## The figure. Shown at an anchor on request; once the player has it on screen for a moment it plays a
 ## stinger, reports silhouette_seen and fades. It never blocks movement (no collision).
+## At a "still" anchor it stands with its back turned instead: seen, it reports silhouette_seen silently and stays
+## while watched, and is gone the next time the player looks away.
 
 const SEEN_AFTER := 0.3
 const VANISH_DISTANCE := 2.2
+const LOOK_AWAY := 0.2
 
 var stage: GameStage
 var _anchor: StringName = &""
 var _left := 0.0
 var _seen_for := 0.0
 var _fading := false
+var _still := false
+var _watched := false  # a still figure that has been seen
+var _away_for := 0.0
 var _material := StandardMaterial3D.new()
 var _apron := StandardMaterial3D.new()
 
@@ -60,11 +66,14 @@ func _on_requested(anchor: StringName, duration: float) -> void:
 		return
 	_anchor = anchor
 	global_position = ApartmentLayout.ANCHORS[anchor]["pos"]
+	_still = ApartmentLayout.ANCHORS[anchor]["kind"] == "still"
 	var p := stage.player_position()
-	look_at(Vector3(p.x, global_position.y, p.z), Vector3.UP, true)
+	look_at(Vector3(p.x, global_position.y, p.z), Vector3.UP, not _still)  # a still figure turns its back
 	_left = duration
 	_seen_for = 0.0
 	_fading = false
+	_watched = false
+	_away_for = 0.0
 	_set_alpha(0.95)
 	visible = true
 
@@ -92,11 +101,22 @@ func _physics_process(delta: float) -> void:
 	_left -= delta
 	var head := global_position + Vector3.UP * 1.6
 	var close := stage.distance_to(global_position) < VANISH_DISTANCE
-	if stage.any_visible(SilhouetteEvent.body_points(global_position, stage.player_position())) or close:
+	var in_view := stage.any_visible(SilhouetteEvent.body_points(global_position, stage.player_position()))
+	if in_view or close:
 		_seen_for += delta
-	if _seen_for >= SEEN_AFTER or close:
-		_fading = true
-		EventBus.sound_requested.emit(&"stinger", head, 0.0)  # the loudest sound in the game
+	if _watched:
+		_away_for = 0.0 if in_view else _away_for + delta
+		if close:
+			_fading = true  # walked up to, it fades without a sound
+		elif _away_for >= LOOK_AWAY:
+			visible = false  # looked away, or a corner between: gone when the player looks again
+	elif _seen_for >= SEEN_AFTER or close:
 		EventBus.silhouette_seen.emit(_anchor)
+		if _still:
+			_watched = true  # no stinger: it just goes on standing there
+			_fading = close
+		else:
+			_fading = true
+			EventBus.sound_requested.emit(&"stinger", head, 0.0)  # the loudest sound in the game
 	elif _left <= 0.0:
 		visible = false
