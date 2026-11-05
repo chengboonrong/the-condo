@@ -191,6 +191,17 @@ contrast values (shader uniforms), so no frame-cost change is expected; perf was
   2.58; filter off 2.58 and 1.91, 1.91 and 4.54 (`node` processes this run did not start at 78–140.5 % CPU at its end);
   Chromium filter on 8.58 and 9.71, filter off 9.71 and 6.13. Logs: `/tmp/condo-vibe/perf/` (not committed).
 
+### 24-bit shadow depth (2026-11-05)
+
+The shadow atlas went from 16-bit to 24-bit depth to stop the phone light striping walls
+([architecture.md](architecture.md#look)). Same tour, before and after:
+
+* **Frame time** did not change. On the desktop debug build (`godot --path . -- --perf`, two runs each) the average
+  was 2.00 and 2.02 ms before, 2.00 and 1.99 ms after, with p95 2.58 to 2.64 ms and no frame over 25 ms. In WebKit,
+  headless, two runs after, the average was 16.67 ms, p95 18 ms, no frame over 25 ms, the same as after the vibe pass.
+* **Video memory** is not measured. Godot's figure read 71.8 MB both ways, so it does not count the atlas. By
+  arithmetic, the 4096 × 4096 atlas takes about 64 MiB at 4 bytes a texel instead of 32 MiB at 2.
+
 ## What the measurements changed
 
 The first tour found frames of 100 ms and more, the kind of stutter a player notices. It recorded when

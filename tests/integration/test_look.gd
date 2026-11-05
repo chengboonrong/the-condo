@@ -102,3 +102,13 @@ func test_a_new_shift_starts_warm() -> bool:
 	near(main.builder.environment.adjustment_saturation, 1.08, 0.001, "warm at once, no ease from cold")
 	main.queue_free()
 	return true
+
+
+func test_the_phone_light_shadow_has_depth_to_spare() -> bool:
+	# Spot shadows are stored in the positional shadow atlas. At Godot's default 16 bits its depth runs out a few
+	# metres from the phone, and the walls it reaches shadow themselves in stripes ("shadow acne"), more the
+	# farther away; a bigger shadow bias only pushes them out (0.1 still striped a wall 6.5 m away).
+	check(not ProjectSettings.get_setting("rendering/lights_and_shadows/positional_shadow/atlas_16_bits"),
+		"the project's shadow atlas has 24-bit depth")
+	check(not tree.root.positional_shadow_atlas_16_bits, "and so does the window that draws the game")
+	return true

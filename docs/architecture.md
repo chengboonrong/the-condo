@@ -149,7 +149,9 @@ aberration. The fear comes from the place being ordinary.
   longest, the long wall at x = 3 (bathroom, hallway, living room and kitchen) is reached by 10, so the limit is 10
   instead of the default 8 (`test_no_mesh_loses_a_light_with_every_lamp_on` checks before the reveal,
   after it and with the long gap). Only the phone light casts shadows; it draws what
-  it reaches once more.
+  it reaches once more. The window's shadow atlas has 24-bit depth (`positional_shadow/atlas_16_bits` off;
+  a SubViewport drawing the 3D would need the same): at Godot's default 16 bits the walls the phone light reaches
+  shadow themselves in stripes a few metres away.
 * **Contact shadows** without SSAO: soft quads under furniture and along the wall-floor and
   wall-ceiling edges, with a squared falloff texture. Unshaded, so lights don't touch them.
 * **Light fittings** match the room: fluorescent tubes in the kitchen, bathroom and corridor, a light
