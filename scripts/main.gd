@@ -88,10 +88,18 @@ func _compile_shaders() -> void:
 					l.visible = state[0]
 				phone.visible = state[1]
 				await get_tree().process_frame
+	# The figure's materials are its own, and a shadowed light on it is a variant of its own: show it under each
+	# light it can be met with. Drawn only with the phone light on it, its first sight by a ceiling light alone cost
+	# 44–107 ms on an M1 Max.
+	for state: Array in [[true, false], [false, true], [true, true], [false, false]]:
+		for l: Light3D in lights:
+			l.visible = state[0]
+		phone.visible = state[1]
+		silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
+		await get_tree().process_frame
 	for k in lights.size():
 		(lights[k] as Light3D).visible = was_on[k]
 	builder.refresh_variants()
-	silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	player.camera.make_current()

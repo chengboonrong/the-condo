@@ -43,27 +43,27 @@ walls, nine box props); the "before the art pass" rows came before that. Same to
 | Build | Runs | Avg frame | fps | p50 | p95 | p99 | Worst | Frames > 25 ms | Render CPU avg / p95 |
 |---|---|---|---|---|---|---|---|---|---|
 | macOS app (release), 1600×900, vsync off | 3 | 2.93–3.01 ms | 333–342 | 2.96–3.00 ms | 3.72–3.77 ms | 3.96–4.04 ms | 14.2–18.0 ms | 0 | 1.16–1.19 / 1.64–1.65 ms |
-| macOS app (release), after the object rebuild, 1600×900, vsync off | 3 | 2.91–3.11 ms | 322–343 | 2.90–3.06 ms | 3.68–4.08 ms | 3.93–4.53 ms | 44.1, 44.5, 106.6 ms | 3 (one per run) | 1.14–1.32 / 1.64–2.08 ms |
+| macOS app (release), after the object rebuild, 1600×900, vsync off | 3 | 2.56–2.82 ms | 355–391 | 2.48–2.83 ms | 3.71–3.93 ms | 4.83–5.38 ms | 11.6–14.0 ms | 0 | 1.11–1.19 / 1.71–1.81 ms |
 | macOS app (release), before the detail pass | 3 | 2.95–2.98 ms | 335–339 | 2.95–2.98 ms | 3.73 ms | 4.10–4.11 ms | 18.2–20.8 ms | 0 | 1.19–1.20 / 1.58–1.60 ms |
 | macOS app (release), before the art pass | 3 | 2.52–2.73 ms | 367–396 | 2.64–2.71 ms | 3.40–3.53 ms | 3.81–3.90 ms | 12.4–13.6 ms | 0 | 0.98–1.05 / 1.43–1.46 ms |
 | Project in the editor binary (debug), before the art pass, 1600×900, vsync off | 1 | 2.41 ms | 414 | 2.41 ms | 3.50 ms | 4.07 ms | 11.5 ms | 0 | 0.99 / 1.49 ms |
 | Web, Chromium (Playwright 1.63), 1280×720, visible window | 2 | 8.33 ms | 120 | 8.30 ms | 10.9–11.1 ms | 11.8–11.9 ms | 13.4–14.3 ms | 0 | 0.55–0.57 / 0.80–0.90 ms |
-| Web, Chromium, after the object rebuild | 2 | 8.34–8.37 ms | 119–120 | 8.30 ms | 10.7–11.5 ms | 12.0–13.1 ms | 30.8, 190.3 ms | 2 (one per run) | 0.60–0.61 / 1.00–1.10 ms |
+| Web, Chromium, after the object rebuild, visible window | 2 | 8.33 ms | 120 | 8.30 ms | 9.9–10.4 ms | 11.0–11.2 ms | 12.1–13.8 ms | 0 | 0.46–0.48 / 0.80 ms |
 | Web, WebKit (Playwright 1.63), 1280×720, headless | 2 | 16.67 ms | 60 | 17 ms | 18 ms | 18–19 ms | 23 ms | 0 | 2.34–2.37 / 4.00 ms |
-| Web, WebKit, after the object rebuild, headless | 2 | 16.67–16.76 ms | 60 | 17 ms | 18 ms | 18 ms | 33, 239 ms | 2 (one per run) | 2.35–2.44 / 4.00 ms |
+| Web, WebKit, after the object rebuild, headless | 2 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 22, 25 ms | 0 | 1.93–2.49 / 3.00–4.00 ms |
 | Web, Chromium, before the detail pass | 1 | 8.33 ms | 120 | 8.30 ms | 11.1 ms | 12.2 ms | 14.5 ms | 0 | 0.51 / 0.80 ms |
 | Web, WebKit, before the detail pass | 1 | 16.67 ms | 60 | 17 ms | 18 ms | 19 ms | 23 ms | 0 | 2.12 / 3.00 ms |
 
 | Build | Simulation step avg / p95 / max | Director eval avg / max (153 evals) | Draw calls avg / max |
 |---|---|---|---|
 | macOS app (release) | 52–55 / 95–99 / 239–356 µs | 3 / 6–8 µs | 87–89 / 284 |
-| macOS app (release), after the object rebuild | 50–54 / 83–93 / 238–252 µs | 2 / 3–8 µs | 87–88 / 279–280 |
+| macOS app (release), after the object rebuild | 50–52 / 80–83 / 212–224 µs | 2 / 4–7 µs | 84 / 279–280 |
 | macOS app (release), before the detail pass | 59–62 / 105–110 / 325–347 µs | 3–4 / 7–10 µs | 65–66 / 208 |
 | Debug build (before the art pass) | 61 / 127 / 427 µs | 3 / 8 µs | 58 / 191 |
 | Chromium | 148–154 / 300 / 3500–3600 µs | 5–8 / 100 µs | 93 / 283 |
-| Chromium, after the object rebuild | 119–133 / 300 / 2200–4100 µs | 5 / 100 µs | 91 / 276 |
+| Chromium, after the object rebuild, visible window | 86–95 / 200 / 2300–3900 µs | 4–5 / 100 µs | 91 / 276–277 |
 | WebKit | 146–159 / 1000 / 5000 µs | at most 1 ms (the browser's timer only has 1 ms steps) | 93 / 283 |
-| WebKit, after the object rebuild | 113–118 / 1000 / 4000 µs | at most 1 ms | 91 / 275–276 |
+| WebKit, after the object rebuild, headless | 90–99 / 1000 / 3000–5000 µs | at most 1 ms | 91 / 275–276 |
 | Chromium / WebKit, before the detail pass | 166 / 300 / 3800 µs; 118 / 1000 / 4000 µs | 7 / 100 µs; under 1 ms | 68 / 207 |
 
 The detail pass raised draw calls from about 66 to 88 a frame on average (max 208 to 284): each room's
@@ -84,47 +84,53 @@ is a maximum, often the first evaluation, not a typical cost.
 | Build | Memory | Condo built | Shader warm-up done |
 |---|---|---|---|
 | macOS app (release) | 280 MB peak resident; video 82.5 MB | 522–544 ms | 2.39–2.43 s; 3.11 s on the first run after the export |
-| macOS app (release), after the object rebuild | video 114.4 MB (peak resident not re-measured) | 656–691 ms | 3.33–3.46 s (the first run after the export was not separated: the smoke run came first) |
+| macOS app (release), after the object rebuild | video 114.4 MB (peak resident not re-measured) | 651–722 ms | 3.48–3.56 s; 3.82 s on the first run after the export (no smoke run before it) |
 | macOS app (release), before the detail pass | 251–253 MB peak resident; video 81.2 MB | 490–519 ms | 1.91–1.95 s |
 | Debug build (before the art pass) | static 48.6 MB; video 81.2 MB | 586 ms | 2.08 s |
 | Chromium | video 66.9 MB | 836–1071 ms | 2.64 s; 6.61 s on the first run after the shaders changed (before the detail pass: 2.27 s; first ever run on this Mac: 11.8 s) |
-| Chromium, after the object rebuild | video 98.8 MB | 1030–1051 ms | 3.34 s; 7.28 s on the first `--perf` run (a smoke run of the same build had already compiled the shaders once) |
+| Chromium, after the object rebuild, visible window | video 98.8 MB | 1055–1071 ms | 3.55 s; 4.02 s on the first run of this build (no smoke run before it) |
 | WebKit | video 62.8 MB | 508–772 ms | 2.73 s; 6.78 s on the first run after the shaders changed (before the detail pass: 2.52 s) |
-| WebKit, after the object rebuild | video 94.8 MB | 718–721 ms | 3.36–3.42 s |
+| WebKit, after the object rebuild, headless | video 94.8 MB | 719–1010 ms | 3.48 s; 4.78 s on the first run of this build (no smoke run before it) |
 
 The first time Chromium ever ran the game on this Mac, compiling the shaders took 9.7 s; later runs took
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in
 Chrome may wait that long on "Loading…". A change to the shaders starts it over: the first run after the
-light limit changed took 6.6 s in Chromium and 6.8 s in WebKit, the next 2.6–2.7 s. The download is 9.6 MB of gzip-compressed engine (`index.wasm`,
-37.7 MB raw) plus 0.6 MB of game data.
+light limit changed took 6.6 s in Chromium and 6.8 s in WebKit, the next 2.6–2.7 s. The download is the engine, `index.wasm`, 39.5 MB raw
+(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 5.95 MB raw (5.77 MB with `gzip -6`; it was about 720 KiB
+before the object rebuild).
 
 Desktop downloads: macOS zip 61 MB, Windows exe 110 MB, Linux binary 74 MB.
 
 ### After the object rebuild (2026-11-05)
 
 Measured on the build that replaced about a dozen box objects with Blender models (`art/<id>/build.py`; see
-[architecture.md](architecture.md#look)), same machine, same tour, `tools/export.sh` then the commands above. The
-rows marked "after the object rebuild" in the tables above are these runs; the numbers before them are untouched.
+[architecture.md](architecture.md#look)), with the figure's warm-up fixed (below), same machine, same tour,
+`tools/export.sh` then the commands above: Chromium in a visible window, WebKit headless, and no smoke run before
+them. The rows marked "after the object rebuild" in the tables above are these runs; the numbers before them are
+untouched.
 
-* **Download**: `index.pck` 5,950,572 bytes (5812 KiB) against the 8912 KiB cap (`tools/smoke.sh` prints and
+* **Download**: `index.pck` 5,950,668 bytes (5812 KiB) against the 8912 KiB cap (`tools/smoke.sh` prints and
   checks it), up from about 720 KiB; `index.wasm` is unchanged at 39.5 MB raw. Desktop: macOS zip 66 MB, Windows exe
   115 MB, Linux binary 79 MB (were 61, 110, 74).
-* **Draw calls** average 87–91 a frame, the same as before (87–93); the maximum is 275–280 (was 283–284).
-* **WebKit holds 60 fps** (16.67–16.76 ms average, p95 and p99 18 ms) and Chromium 119–120 fps.
-* **Every run had one frame over 25 ms, and it was the same frame**: 16.1–16.2 s into the tour, about 1.1 s after
-  the camera reaches the hallway, with "footsteps" the last event started. It appears on macOS (107, 44, 44 ms),
-  Chromium (190, 31 ms) and WebKit (239, 33 ms), and the first run of each build is the worst one. Before the
-  object rebuild no run had a frame over 25 ms, so this is new. Landing at the same moment on all three
-  builds points to a first-sight cost rather than scheduling noise, but its cause was not investigated and
-  nothing was changed. A candidate (not verified) is a material or variant the warm-up does not draw: the hallway holds the
-  silhouette's spot, and the figure model was rebuilt with its own apron material that fades with the body.
-* **The machine was busy** (other sessions share it). Load averages (1 min) read at the start and end of each batch:
-  before the macOS runs 12.4 (top process 14 % CPU), after each run 7.7, 5.9 and 28.8; before the web runs 34.8,
-  with another session's headless Chromium at 746 % CPU, after each Chromium run 35.7 and 19.3, after each WebKit
-  run 10.6 and 6.0. An earlier check, before the export, read 18.9 and 14.9 with `mds_stores` at 92 % and a node
-  test run on several cores. The 107, 190 and 239 ms frames are each in the first run of their build; whether
-  that is the load or a cache warming up was not separated, and no run was repeated to get a better number.
-  Logs: `/tmp/condo-t12-perf/` (not committed).
+* **Draw calls** average 84–91 a frame, about the same as before (87–93); the maximum is 275–280 (was 283–284).
+* **WebKit holds 60 fps** (16.67 ms average, p95 18 ms, p99 19 ms) and Chromium 120 fps. No frame went over 25 ms in
+  any run. WebKit's worst, 25 ms in its second run, is on the line rather than over it, and its timer only has 1 ms
+  steps.
+* **The hitch found and fixed**: before the fix every run had one frame over 25 ms at 16.1–16.2 s (macOS 107, 44 and
+  44 ms, Chromium 190 and 31, WebKit 239 and 33), the first frame the figure was on screen, at the corridor's west end
+  seen from the hallway under a ceiling light alone; since 52d260b the figure has materials of its own, the warm-up
+  drew it only with the phone light on it, and in this renderer an object under a shadowed light uses another variant
+  of its first pass, so the variant without one compiled on first sight; the warm-up now shows the figure under each
+  light state (ceiling light on or off, phone light on or off).
+* **Load**: other sessions share the machine. Load averages (1 min) before and after each run: macOS 8.3 and 5.8, 5.8
+  and 4.1, 4.1 and 3.4 (before the first, another session's headless Chromium at 70 % CPU); Chromium 3.1 and 3.4, 3.4
+  and 2.6; WebKit 2.6 and 7.9, 7.9 and 24.7 (a `node` process at 97 % CPU at the end). The runs with the hitch, before
+  the fix, were busier: 12.4 before the macOS runs and 7.7, 5.9 and 28.8 after them, 34.8 before the web runs (another
+  session's headless Chromium at 746 % CPU), 35.7 and 19.3 after the Chromium runs, 10.6 and 6.0 after the WebKit
+  ones. The load did not cause it: the debug build hit the same frame (44–49 ms) at loads of 5.1 to 22.5, and with the
+  fix the figure's first frame on screen took 3.4–3.6 ms. Logs: `/tmp/hitch-t12/after/` for these runs (uptime and the
+  top processes beside each), `/tmp/condo-t12-perf/` for the runs before the fix, `/tmp/hitch-t12/` for the
+  diagnosis (not committed).
 
 ## What the measurements changed
 

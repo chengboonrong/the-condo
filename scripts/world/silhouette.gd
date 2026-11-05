@@ -73,6 +73,7 @@ func _on_requested(anchor: StringName, duration: float) -> void:
 ## shader is compiled behind the start card and not on the first scare (a 110 ms hitch on an M1 Max).
 func warm_up(pos: Vector3) -> void:
 	global_position = pos
+	_set_alpha(0.95)  # each call draws it, however far the last one faded
 	_fading = true  # _process fades it out and hides it again
 	visible = true
 
