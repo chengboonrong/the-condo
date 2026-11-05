@@ -23,7 +23,6 @@ const PROPS := [
 	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
 	[Vector3(2.6, 0.015, 9.62), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],
 	# Kitchen
-	[Vector3(0.4, 0.9, 2.95), Vector3(0.7, 1.8, 0.7), Color(0.85, 0.86, 0.86)],
 	[Vector3(0.35, 0.45, 4.9), Vector3(0.6, 0.9, 3.0), Color(0.6, 0.55, 0.48)],
 	[Vector3(0.22, 2.0, 4.9), Vector3(0.35, 0.7, 3.0), Color(0.62, 0.57, 0.5)],
 	[Vector3(0.35, 0.92, 5.6), Vector3(0.5, 0.04, 0.5), Color(0.12, 0.12, 0.12)],
@@ -63,6 +62,8 @@ const MODELS: Array[Array] = [
 	[&"tap_water", &"tap_water", Transform3D(Basis(), Vector3(3.24, 0.964, 1.0)), {&"bathroom_tap": &"running"}],
 	# The bed, with its mattress, pillows, bolster and kicked-down blanket; its headboard is at -Z, towards the wall with the window
 	[&"bed", &"bed", Transform3D(Basis(), Vector3(8.95, 0, 0.2)), {}],
+	# Kitchen: the fridge, its doors facing east (+X): the management notice hangs on the flat of the nearer one
+	[&"fridge", &"fridge", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.4, 0, 2.95)), {}],
 	# B-11-07: the same intercom on the mirror room's west wall (face at x = 5.5 + WALL_T / 2), dusty
 	[&"intercom_mirror", &"intercom", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(5.575, 1.45, -14.6)), {&"bedroom": &"door"}, true],
 	# B-11-07: the same bed, turned half round like the room (headboard at +Z, towards the wall with the door), dusty
@@ -70,10 +71,11 @@ const MODELS: Array[Array] = [
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
 # seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The beds' bases are boxes the
-# size of their frames. The table's and the basin's are Decor's.
+# size of their frames, the fridge's the size of its cabinet. The table's and the basin's are Decor's.
 const COLLIDERS: Array[Array] = [
 	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), {}],
 	[Vector3(6.55, 0.25, -16.3), Vector3(1.8, 0.5, 2.0), {&"bedroom": &"door"}],
+	[Vector3(0.4, 0.9, 2.95), Vector3(0.7, 1.8, 0.7), {}],
 	[Vector3(4.5, 0.6875, 7.05), Vector3(0.42, 0.425, 0.05), {}],
 	[Vector3(4.5, 0.6875, 5.35), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"default"}],
 	[Vector3(3.45, 0.6875, 5.4), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"turned"}],

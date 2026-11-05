@@ -55,11 +55,13 @@ def pbr(name: str, folder: str, tint: tuple[float, float, float] | None = None) 
     return mat
 
 
-def bake(obj: bpy.types.Object, size: int = 512, pack: bool = False) -> None:
+def bake(obj: bpy.types.Object, size: int = 512, pack: bool = False, grow: dict | None = None) -> None:
     """Cycles-bakes every material on obj (base colour, roughness, metallic, normal) into one image set on a
     fresh UV unwrap, and replaces them with one material, <obj.name>_baked. Each material must be a
     Principled BSDF; whatever feeds its inputs (procedural wear, texture sets) ends up in the images. pack: pack
-    the islands tightly, rotated where that helps (the unwrap's own packing leaves a lot of the image empty)."""
+    the islands tightly, rotated where that helps (the unwrap's own packing leaves a lot of the image empty). grow:
+    {material index: factor}: the islands of faces with those materials are drawn that many times larger than their
+    size warrants, for small things with fine print (needs pack, which keeps the sizes relative)."""
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -72,6 +74,8 @@ def bake(obj: bpy.types.Object, size: int = 512, pack: bool = False) -> None:
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(island_margin=0.01)
+    if grow:
+        _grow_islands(me, grow)
     if pack:
         bpy.ops.uv.pack_islands(rotate=True, margin=0.006)
     bpy.ops.object.mode_set(mode="OBJECT")
@@ -102,6 +106,41 @@ def bake(obj: bpy.types.Object, size: int = 512, pack: bool = False) -> None:
     me.polygons.foreach_set("material_index", [0] * len(me.polygons))
     for name in old:
         me.uv_layers.remove(me.uv_layers[name])
+
+
+def _grow_islands(me: bpy.types.Mesh, grow: dict) -> None:
+    """Scales each UV island whose faces have a material in grow about its own centre (the mesh is in edit mode)."""
+    bm = bmesh.from_edit_mesh(me)
+    uv = bm.loops.layers.uv.active
+    parent = list(range(len(bm.faces)))
+
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def uv_at(f: bmesh.types.BMFace, v: bmesh.types.BMVert) -> Vector:
+        return next(l for l in f.loops if l.vert is v)[uv].uv
+
+    bm.faces.ensure_lookup_table()
+    for e in bm.edges:  # faces are one island when they share an edge and its UVs
+        if len(e.link_faces) == 2:
+            a, b = e.link_faces
+            if all((uv_at(a, v) - uv_at(b, v)).length < 1e-5 for v in e.verts):
+                parent[root(a.index)] = root(b.index)
+    islands = {}
+    for f in bm.faces:
+        islands.setdefault(root(f.index), []).append(f)
+    for faces in islands.values():
+        factor = grow.get(faces[0].material_index)
+        if factor:
+            loops = [l for f in faces for l in f.loops]
+            lo = Vector((min(l[uv].uv.x for l in loops), min(l[uv].uv.y for l in loops)))
+            hi = Vector((max(l[uv].uv.x for l in loops), max(l[uv].uv.y for l in loops)))
+            for l in loops:
+                l[uv].uv = (lo + hi) / 2 + (l[uv].uv - (lo + hi) / 2) * factor
+    bmesh.update_edit_mesh(me)
 
 
 def _bake_pass(obj: bpy.types.Object, mats: list, kind: str, img: bpy.types.Image) -> None:

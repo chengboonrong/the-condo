@@ -3,7 +3,7 @@ extends TestCase
 
 # Triangles each model may have. Each object task adds its ids.
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
-	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000}
+	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000, &"fridge": 4000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
@@ -13,6 +13,7 @@ const FOOTPRINTS := {
 	&"basin": [3.3, 1.0, 0.38, 0.48],
 	&"bed": [8.95, 0.2, 1.8, 2.0],  # its headboard stands a little past the base
 	&"bed_b1107": [6.55, -16.3, 1.8, 2.0],
+	&"fridge": [0.4, 2.95, 0.7, 0.7],
 }
 
 
@@ -250,6 +251,33 @@ func test_the_beds_mattress_clears_its_collider() -> bool:
 						lowest = minf(lowest, at.y)
 		check(lowest < INF, "%s has a mattress over its interior" % name)
 		check(lowest >= top, "%s: the lowest vertex over the mattress is %.4f m, under its collider's top (%.4f m)" % [name, lowest, top])
+	main.queue_free()
+	return true
+
+
+func test_the_notice_hangs_on_the_fridge_door() -> bool:
+	var main := await _main()
+	# The management notice is a thin box on the fridge's door (the click box is drawn as one). Rays through its area, from the
+	# front, must meet the door's flat face a few mm behind the notice's back: not inside it, not floating off it, and not a
+	# magnet or a handle's recess in the way.
+	var notice: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"notice_fridge")[0]
+	var back_x: float = notice[1].x - notice[2].x / 2.0
+	var hits: Array[float] = []
+	for m: MeshInstance3D in main.builder.models[&"fridge"].find_children("*", "MeshInstance3D", true, false):
+		var triangles := m.mesh.generate_triangle_mesh()
+		var inverse := m.global_transform.affine_inverse()
+		for i in 5:
+			for j in 5:
+				var at := Vector3(back_x + 0.3, notice[1].y + (i / 4.0 - 0.5) * notice[2].y, notice[1].z + (j / 4.0 - 0.5) * notice[2].z)
+				var hit := triangles.intersect_ray(inverse * at, inverse.basis * Vector3.LEFT)
+				if not hit.is_empty():
+					hits.append((m.global_transform * (hit["position"] as Vector3)).x)
+	eq(hits.size(), 25, "rays through the notice that meet the fridge")
+	if hits.size() == 25:
+		var door_x: float = hits.max()
+		check(door_x <= back_x + 0.0005, "the door's face (x %.4f) pokes through the notice's back (x %.4f)" % [door_x, back_x])
+		check(door_x >= back_x - 0.005, "the door's face (x %.4f) is %.1f mm behind the notice's back (x %.4f): it floats" % [door_x, (back_x - door_x) * 1000.0, back_x])
+		near(hits.min(), door_x, 0.0005, "the door is flat under the notice")
 	main.queue_free()
 	return true
 

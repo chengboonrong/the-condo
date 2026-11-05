@@ -458,9 +458,7 @@ func _kitchen() -> void:
 		box(Vector3(0.665, 0.8, z), Vector3(0.02, 0.012, 0.12), STEEL, Look.GLOSS)
 	box(Vector3(0.081, 1.29, 4.9), Vector3(0.012, 0.72, 3.0), Color.WHITE, Look.TILE)  # backsplash
 	_socket(Vector3(0.087, 1.1, 5.1), Vector3.RIGHT)
-	# Fridge handle and freezer line; rice cooker, kettle on the hob, oil and kicap by the stove.
-	box(Vector3(0.765, 1.3, 3.22), Vector3(0.03, 0.55, 0.03), Color(0.7, 0.7, 0.7), Look.GLOSS)
-	box(Vector3(0.752, 1.62, 2.95), Vector3(0.004, 0.008, 0.68), Color(0.4, 0.4, 0.4))
+	# Rice cooker, kettle on the hob, oil and kicap by the stove.
 	cylinder(Vector3(0.35, 0.93, 3.7), 0.14, 0.2, Color(0.92, 0.9, 0.85))
 	cylinder(Vector3(0.35, 1.13, 3.7), 0.13, 0.05, Color(0.85, 0.83, 0.78), Look.GLOSS, {}, 0.07)
 	box(Vector3(0.47, 1.04, 3.7), Vector3(0.04, 0.03, 0.03), Color(0.2, 0.55, 0.3), Look.UNLIT)  # "warm"
