@@ -123,20 +123,46 @@ func test_pacing_respects_gaps_and_one_beat_at_a_time() -> bool:
 	return true
 
 
-## An idle player in the lit living room, in act 2, far from the front door: the visitor is one of the candidates.
-## (Whether the director ever picks it is open: see final-fix-report.md, Fix 1.)
+## An idle player in the lit living room, in act 2, far from the front door: the visitor is a candidate and,
+## because its intensity fits act 2's 0.3 headroom, it reaches the director's top three and gets picked.
 func test_the_visitor_is_a_candidate_for_an_idle_player() -> bool:
 	var rt := _runtime(1, 2, Vector3(6.5, 0, 8.4))
 	rt.director.paused = true
 	_run(rt, 60.0)  # a minute of standing in the lit room reads as idle
+	var scored := rt.director.score_all().filter(func(s: Dictionary) -> bool: return s.has("total"))
+	scored.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["total"] > b["total"])
 	var visitor := {}
-	for s: Dictionary in rt.director.score_all():
-		if s["id"] == &"visitor":
-			visitor = s
+	var rank := 0
+	for i in scored.size():
+		if scored[i]["id"] == &"visitor":
+			visitor = scored[i]
+			rank = i + 1
 	check(visitor.has("total"), "the visitor is valid in the living room, door shut, act 2 (%s)" % [visitor])
 	if visitor.has("total"):
 		check(visitor["parts"]["behavior"] > 0.5, "standing still in the light drives it (%.2f)" % visitor["parts"]["behavior"])
+		check(rank <= HorrorDirector.TOP_K, "it ranks in the director's top %d (rank %d, total %.2f, %s)" % [HorrorDirector.TOP_K, rank, visitor["total"], visitor["parts"]])
 	rt.free()
+	# 20 seeded first decisions from that same state: the visitor is among the three drawn from each, and wins some
+	var picked := 0
+	for seed_value in range(1, 21):
+		var r := _runtime(seed_value, 2, Vector3(6.5, 0, 8.4))
+		r.director.paused = true
+		_run(r, 60.0)
+		r.director.paused = false
+		var t := 0.0
+		while r.director.decisions.is_empty() and t < 60.0:
+			r.step(0.1)
+			t += 0.1
+		if r.director.decisions.is_empty():
+			failures.append("seed %d: the director made no decision in a minute" % seed_value)
+		else:
+			var d: Dictionary = r.director.decisions[0]
+			check((d["scores"] as Array).any(func(s: Dictionary) -> bool: return s["id"] == &"visitor"), "seed %d: the visitor is among the top three (%s)" % [seed_value, d["scores"].map(func(s: Dictionary) -> StringName: return s["id"])])
+			if d["chosen"] == &"visitor":
+				picked += 1
+		r.free()
+	print("    visitor: rank %d (total %.2f); picked in %d of 20 seeded decisions" % [rank, visitor.get("total", 0.0), picked])
+	check(picked >= 1, "the director picks the visitor at least once in 20 decisions (picked %d)" % picked)
 	return true
 
 

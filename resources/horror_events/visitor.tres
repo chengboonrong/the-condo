@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 id = &"visitor"
-intensity = 0.6
+intensity = 0.3
 base_weight = 0.6
 cooldown = 900.0
 duration = 27.0
@@ -16,4 +16,7 @@ behavior_weights = {
 "idle": 0.6,
 "light_dependence": 0.5,
 "curiosity": 0.3
+}
+act_bonus = {
+2: 0.5
 }
