@@ -11,6 +11,7 @@ const DEFAULTS := {
 	"reduced_flashing": false,
 	"subtitles": true,
 	"master_volume": 0.8,
+	"filter": true,
 }
 
 var values: Dictionary = DEFAULTS.duplicate()

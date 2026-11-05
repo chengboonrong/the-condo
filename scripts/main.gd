@@ -11,6 +11,7 @@ var builder: ApartmentBuilder
 var audio: AudioDirector
 var runtime: HorrorRuntime
 var pause: PauseMenu
+var look: Look
 var silhouette: Silhouette
 var ready_msec := 0  # engine start to the condo built, for the perf report
 var loaded := false  # the shader warm-up is done and the player's camera is back (tools wait for this)
@@ -24,6 +25,8 @@ func _ready() -> void:
 	builder = ApartmentBuilder.new()
 	builder.name = "Apartment"
 	add_child(builder)
+	if has_flag("nofilter"):  # perf runs measure the sharp picture without touching the saved settings
+		Settings.values["filter"] = false
 	audio = AudioDirector.new()
 	audio.name = "Audio"
 	add_child(audio)
@@ -44,6 +47,11 @@ func _ready() -> void:
 	pause.name = "PauseMenu"
 	add_child(pause)
 	hud.bind(player)
+	look = Look.new()
+	look.name = "Look"
+	look.environment = builder.environment
+	look.film = hud.film_material
+	add_child(look)
 	hud.started.connect(_on_started)
 	EventBus.ending_reached.connect(_on_ending)
 	ready_msec = Time.get_ticks_msec()
@@ -106,7 +114,7 @@ func _compile_shaders() -> void:
 	cam.queue_free()
 
 
-## Release checks: `-- --smoke` / `-- --perf` on desktop, `?smoke` / `?perf` on the web.
+## Release checks: `-- --smoke` / `-- --perf` / `-- --nofilter` on desktop, `?smoke` / `?perf` / `?nofilter` on the web.
 static func has_flag(flag: String) -> bool:
 	if OS.has_feature("web"):
 		# A string, not a JS boolean: in Godot 4.7.2 web builds a boolean result never compared equal to true.

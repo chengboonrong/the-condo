@@ -6,7 +6,7 @@ extends Node3D
 ## hundred boxes cost a handful of draw calls; anything the player could walk into gets an invisible
 ## solid(). ApartmentBuilder adds the trim of each wall as it builds it, then calls dress() and finish().
 
-enum Look { MATTE, GLOSS, TILE, UNLIT, SHADE }
+enum Finish { MATTE, GLOSS, TILE, UNLIT, SHADE }
 
 const WOOD := Color(0.4, 0.28, 0.19)
 const WOOD_DARK := Color(0.24, 0.16, 0.11)
@@ -20,7 +20,7 @@ const SKIRTING := Color(0.74, 0.69, 0.6)
 const PLASTIC_WHITE := Color(0.88, 0.87, 0.83)
 
 var builder: ApartmentBuilder
-var _batches := {}  # key -> [SurfaceTool, Look, requires]
+var _batches := {}  # key -> [SurfaceTool, Finish, requires]
 var _looks := {}
 var _led: MeshInstance3D  # standby light on the bedroom aircon, blinking although it is switched off
 var _hands: Array[Node3D] = []  # living room clock: hour, minute; it follows the game clock, shifts and all
@@ -44,11 +44,11 @@ func _process(_delta: float) -> void:
 
 # --- building blocks ----------------------------------------------------------------------------
 
-func box(center: Vector3, size: Vector3, color: Color, look := Look.MATTE, requires := {}, yaw := 0.0) -> void:
+func box(center: Vector3, size: Vector3, color: Color, look := Finish.MATTE, requires := {}, yaw := 0.0) -> void:
 	box_xf(Transform3D(Basis(Vector3.UP, yaw), center), size, color, look, requires)
 
 
-func box_xf(xf: Transform3D, size: Vector3, color: Color, look := Look.MATTE, requires := {}, into: SurfaceTool = null) -> void:
+func box_xf(xf: Transform3D, size: Vector3, color: Color, look := Finish.MATTE, requires := {}, into: SurfaceTool = null) -> void:
 	var st := into if into else _st(xf.origin, look, requires)
 	var h := size * 0.5
 	var axes := [Vector3.RIGHT, Vector3.UP, Vector3.BACK]
@@ -65,7 +65,7 @@ func box_xf(xf: Transform3D, size: Vector3, color: Color, look := Look.MATTE, re
 ## Cylinder along the local y axis of xf, from its origin up `height`. A smaller top_radius makes a cone
 ## (shades, food covers); squash stretches it along local x (oval basins, the toilet bowl). cap colours the
 ## top (water in a pail).
-func cylinder_xf(xf: Transform3D, radius: float, height: float, color: Color, look := Look.GLOSS, requires := {}, top_radius := -1.0, cap := Color(0, 0, 0, 0), squash := 1.0) -> void:
+func cylinder_xf(xf: Transform3D, radius: float, height: float, color: Color, look := Finish.GLOSS, requires := {}, top_radius := -1.0, cap := Color(0, 0, 0, 0), squash := 1.0) -> void:
 	var st := _st(xf.origin, look, requires)
 	var r2 := radius if top_radius < 0.0 else top_radius
 	var sides := 14
@@ -86,7 +86,7 @@ func cylinder_xf(xf: Transform3D, radius: float, height: float, color: Color, lo
 	_poly(st, bottom, -up, color)
 
 
-func cylinder(base: Vector3, radius: float, height: float, color: Color, look := Look.GLOSS, requires := {}, top_radius := -1.0, cap := Color(0, 0, 0, 0), squash := 1.0) -> void:
+func cylinder(base: Vector3, radius: float, height: float, color: Color, look := Finish.GLOSS, requires := {}, top_radius := -1.0, cap := Color(0, 0, 0, 0), squash := 1.0) -> void:
 	cylinder_xf(Transform3D(Basis(), base), radius, height, color, look, requires, top_radius, cap, squash)
 
 
@@ -96,7 +96,7 @@ func cylinder(base: Vector3, radius: float, height: float, color: Color, look :=
 func shade(center: Vector3, n: Vector3, half: Vector2, margin: float, color: Color, requires := {}, into: SurfaceTool = null, edges := Vector4(-1, -1, -1, -1)) -> void:
 	var u := Vector3.RIGHT if absf(n.y) > 0.5 else n.cross(Vector3.UP).normalized()
 	var v := Vector3.BACK if absf(n.y) > 0.5 else Vector3.UP
-	var st := into if into else _st(center, Look.SHADE, requires)
+	var st := into if into else _st(center, Finish.SHADE, requires)
 	var e := edges if edges.x >= 0.0 else Vector4(margin, margin, margin, margin)
 	var us := [-half.x - e.x, -half.x, half.x, half.x + e.y]
 	var vs := [-half.y - e.z, -half.y, half.y, half.y + e.w]
@@ -141,7 +141,7 @@ func finish() -> void:
 		mesh.name = key.validate_node_name()  # room|look|variant: readable in the remote scene tree
 		mesh.mesh = (b[0] as SurfaceTool).commit()
 		mesh.material_override = _look(b[1])
-		if b[1] == Look.SHADE or b[1] == Look.UNLIT:
+		if b[1] == Finish.SHADE or b[1] == Finish.UNLIT:
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mesh)
 		builder.gate(mesh, b[2])
@@ -162,7 +162,7 @@ func _poly(st: SurfaceTool, p: Array, n: Vector3, color: Color, uv: Array = [], 
 			st.add_vertex(p[k])
 
 
-func _st(at: Vector3, look: Look, requires: Dictionary) -> SurfaceTool:
+func _st(at: Vector3, look: Finish, requires: Dictionary) -> SurfaceTool:
 	# One batch per room keeps each mesh's bounds small. The Compatibility renderer gives a mesh only the
 	# first max_lights_per_object lights that reach it (in pairing order, not the nearest; project.godot),
 	# and the phone light, which casts shadows, draws every mesh it reaches once more.
@@ -174,20 +174,20 @@ func _st(at: Vector3, look: Look, requires: Dictionary) -> SurfaceTool:
 	return _batches[key][0]
 
 
-func _look(look: Look) -> Material:
+func _look(look: Finish) -> Material:
 	if _looks.has(look):
 		return _looks[look]
 	var m: StandardMaterial3D
-	if look == Look.TILE:  # wall tiles, 60 x 30 cm laid landscape
+	if look == Finish.TILE:  # wall tiles, 60 x 30 cm laid landscape
 		m = builder.tile_material(Color(0.86, 0.87, 0.86), Color(0.6, 0.61, 0.59), Vector2(0.6, 0.3))
 	else:
 		m = StandardMaterial3D.new()
 		m.vertex_color_use_as_albedo = true
 		m.vertex_color_is_srgb = true  # colours here are picked like albedo colours
-		m.roughness = 0.3 if look == Look.GLOSS else 0.85
-	if look == Look.UNLIT:
+		m.roughness = 0.3 if look == Finish.GLOSS else 0.85
+	if look == Finish.UNLIT:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	if look == Look.SHADE:
+	if look == Finish.SHADE:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.albedo_texture = _falloff()
@@ -275,7 +275,7 @@ func wall_piece(center: Vector3, size: Vector3, along: Vector3, requires: Dictio
 			var at := face + along * (a2 + b2) * 0.5
 			if center.y - size.y * 0.5 < 0.01:
 				if skirting and part[2] != &"gap":
-					box(Vector3(face.x, 0.05, face.z) + along * (a + b) * 0.5 + n * 0.01, _sz(along, b - a, 0.1, 0.02), SKIRTING, Look.GLOSS, o)
+					box(Vector3(face.x, 0.05, face.z) + along * (a + b) * 0.5 + n * 0.01, _sz(along, b - a, 0.1, 0.02), SKIRTING, Finish.GLOSS, o)
 				_wall_shade(Vector3(at.x, 0.004, at.z), Vector3.UP, along, n, (b2 - a2) * 0.5 - fade, fade, 0.32, 0.5, o)
 			if center.y + size.y * 0.5 > ApartmentLayout.CEILING - 0.01:
 				_wall_shade(Vector3(at.x, ApartmentLayout.CEILING - 0.004, at.z), Vector3.DOWN, along, n, (b2 - a2) * 0.5 - fade, fade, 0.28, 0.35, o)
@@ -302,10 +302,10 @@ func door_frame(c: Vector3, along: Vector3, width: float, color: Color, requires
 	var across := Vector3(along.z, 0.0, along.x)
 	_anchor = c + across * 0.3 if ApartmentLayout.room_at(c + across * 0.3, requires) != &"" else c - across * 0.3
 	for s: float in [-1.0, 1.0]:
-		box(c + along * s * (width * 0.5 + 0.035) + Vector3.UP * (h + 0.07) * 0.5, _sz(along, 0.07, h + 0.07, t + 0.03), color, Look.MATTE, requires)
-		box(c + along * s * (width * 0.5 - 0.01) + Vector3.UP * h * 0.5, _sz(along, 0.02, h, t + 0.006), color, Look.MATTE, requires)
-	box(c + Vector3.UP * (h + 0.035), _sz(along, width + 0.14, 0.07, t + 0.03), color, Look.MATTE, requires)
-	box(c + Vector3.UP * (h - 0.006), _sz(along, width, 0.012, t + 0.006), color, Look.MATTE, requires)
+		box(c + along * s * (width * 0.5 + 0.035) + Vector3.UP * (h + 0.07) * 0.5, _sz(along, 0.07, h + 0.07, t + 0.03), color, Finish.MATTE, requires)
+		box(c + along * s * (width * 0.5 - 0.01) + Vector3.UP * h * 0.5, _sz(along, 0.02, h, t + 0.006), color, Finish.MATTE, requires)
+	box(c + Vector3.UP * (h + 0.035), _sz(along, width + 0.14, 0.07, t + 0.03), color, Finish.MATTE, requires)
+	box(c + Vector3.UP * (h - 0.006), _sz(along, width, 0.012, t + 0.006), color, Finish.MATTE, requires)
 	_anchor = null
 
 
@@ -314,18 +314,18 @@ func window(c: Vector3, along: Vector3, inward: Vector3, width: float, height: f
 	var t := ApartmentLayout.WALL_T
 	_anchor = c + inward * 0.3
 	for s: float in [-1.0, 1.0]:
-		box(c + along * s * (width * 0.5 - 0.025), _sz(along, 0.05, height, 0.09), BRONZE, Look.GLOSS, requires)
-		box(c + Vector3.UP * s * (height * 0.5 - 0.025), _sz(along, width, 0.05, 0.09), BRONZE, Look.GLOSS, requires)
+		box(c + along * s * (width * 0.5 - 0.025), _sz(along, 0.05, height, 0.09), BRONZE, Finish.GLOSS, requires)
+		box(c + Vector3.UP * s * (height * 0.5 - 0.025), _sz(along, width, 0.05, 0.09), BRONZE, Finish.GLOSS, requires)
 	var panes := 3 if width > 2.0 else 2
 	for i in range(1, panes):
-		box(c + along * (width * (float(i) / panes - 0.5)), _sz(along, 0.04, height, 0.07), BRONZE, Look.GLOSS, requires)
-	box(c + inward * (t * 0.5 + 0.07) + Vector3.DOWN * (height * 0.5 + 0.015), _sz(along, width + 0.1, 0.03, 0.17), SKIRTING, Look.GLOSS, requires)
+		box(c + along * (width * (float(i) / panes - 0.5)), _sz(along, 0.04, height, 0.07), BRONZE, Finish.GLOSS, requires)
+	box(c + inward * (t * 0.5 + 0.07) + Vector3.DOWN * (height * 0.5 + 0.015), _sz(along, width + 0.1, 0.03, 0.17), SKIRTING, Finish.GLOSS, requires)
 	var g := c + inward * (t * 0.5 + 0.045)
 	var bars := int(width / 0.12)
 	for i in range(1, bars):
-		box(g + along * (width * (float(i) / bars - 0.5)), _sz(along, 0.014, height - 0.02, 0.014), GRILLE, Look.GLOSS, requires)
+		box(g + along * (width * (float(i) / bars - 0.5)), _sz(along, 0.014, height - 0.02, 0.014), GRILLE, Finish.GLOSS, requires)
 	for y: float in [-0.48, 0.0, 0.48]:
-		box(g + Vector3.UP * y * (height - 0.06), _sz(along, width - 0.02, 0.02, 0.02), GRILLE, Look.GLOSS, requires)
+		box(g + Vector3.UP * y * (height - 0.06), _sz(along, width - 0.02, 0.02, 0.02), GRILLE, Finish.GLOSS, requires)
 	_anchor = null
 
 
@@ -333,15 +333,15 @@ func window(c: Vector3, along: Vector3, inward: Vector3, width: float, height: f
 func grille_gate(x0: float, x1: float, z: float, open: bool) -> void:
 	if open:
 		for i in 14:
-			box(Vector3(x1 + 0.06 + i * 0.026, 1.06, z + 0.03 + (i % 2) * 0.012), Vector3(0.016, 2.06, 0.016), GATE, Look.GLOSS)
+			box(Vector3(x1 + 0.06 + i * 0.026, 1.06, z + 0.03 + (i % 2) * 0.012), Vector3(0.016, 2.06, 0.016), GATE, Finish.GLOSS)
 		return
 	for y: float in [0.05, 1.05, 2.07]:
-		box(Vector3((x0 + x1) * 0.5, y, z), Vector3(x1 - x0 + 0.06, 0.03, 0.022), GATE, Look.GLOSS)
+		box(Vector3((x0 + x1) * 0.5, y, z), Vector3(x1 - x0 + 0.06, 0.03, 0.022), GATE, Finish.GLOSS)
 	var n := int((x1 - x0) / 0.1)
 	for i in n + 1:
-		box(Vector3(x0 + (x1 - x0) * i / n, 1.06, z), Vector3(0.016, 2.06, 0.016), GATE, Look.GLOSS)
-	box(Vector3(x1 - 0.1, 1.05, z + 0.03), Vector3(0.08, 0.14, 0.04), GATE, Look.GLOSS)  # lock box
-	box(Vector3(x1 - 0.1, 0.96, z + 0.06), Vector3(0.045, 0.055, 0.02), Color(0.6, 0.5, 0.25), Look.GLOSS)  # padlock
+		box(Vector3(x0 + (x1 - x0) * i / n, 1.06, z), Vector3(0.016, 2.06, 0.016), GATE, Finish.GLOSS)
+	box(Vector3(x1 - 0.1, 1.05, z + 0.03), Vector3(0.08, 0.14, 0.04), GATE, Finish.GLOSS)  # lock box
+	box(Vector3(x1 - 0.1, 0.96, z + 0.06), Vector3(0.045, 0.055, 0.02), Color(0.6, 0.5, 0.25), Finish.GLOSS)  # padlock
 
 
 # --- the condo, room by room ----------------------------------------------------------------------
@@ -366,7 +366,7 @@ func _socket(pos: Vector3, n: Vector3) -> void:
 
 ## Snake plant in a clay pot: the plant every corridor and living room here has.
 func _snake_plant(base: Vector3) -> void:
-	cylinder(base, 0.15, 0.3, Color(0.46, 0.27, 0.18), Look.MATTE, {}, 0.18)
+	cylinder(base, 0.15, 0.3, Color(0.46, 0.27, 0.18), Finish.MATTE, {}, 0.18)
 	for i in 8:
 		var yaw := _rng.randf() * TAU
 		var lean := _rng.randf_range(0.05, 0.28)
@@ -385,7 +385,7 @@ func _garment(x: float, z: float, top: float, w: float, h: float, color: Color, 
 		for s: float in [-1.0, 1.0]:
 			box_xf(Transform3D(Basis(Vector3.RIGHT, s * 0.5), Vector3(x, top - 0.12, z + s * (w * 0.5 + 0.06))), Vector3(0.01, 0.2, 0.16), color)
 	for s: float in [-1.0, 1.0]:
-		box(Vector3(x, top + 0.01, z + s * w * 0.35), Vector3(0.025, 0.05, 0.012), Color(0.3, 0.55, 0.75), Look.GLOSS)
+		box(Vector3(x, top + 0.01, z + s * w * 0.35), Vector3(0.025, 0.05, 0.012), Color(0.3, 0.55, 0.75), Finish.GLOSS)
 
 
 func _living() -> void:
@@ -409,11 +409,11 @@ func _living() -> void:
 		foot(c[0], Vector2(0.18, 0.18), 0.35, c[1])
 	# Laundry by the window: a T-shirt, the mamak apron (a model, the figure's own), a towel. In the dark they are the
 	# right height.
-	box(Vector3(9.3, 0.85, 6.0), Vector3(0.025, 1.7, 0.025), STEEL, Look.GLOSS)
-	box(Vector3(9.3, 0.85, 7.6), Vector3(0.025, 1.7, 0.025), STEEL, Look.GLOSS)
-	box(Vector3(9.3, 1.7, 6.8), Vector3(0.025, 0.025, 1.64), STEEL, Look.GLOSS)
+	box(Vector3(9.3, 0.85, 6.0), Vector3(0.025, 1.7, 0.025), STEEL, Finish.GLOSS)
+	box(Vector3(9.3, 0.85, 7.6), Vector3(0.025, 1.7, 0.025), STEEL, Finish.GLOSS)
+	box(Vector3(9.3, 1.7, 6.8), Vector3(0.025, 0.025, 1.64), STEEL, Finish.GLOSS)
 	for z: float in [6.0, 7.6]:
-		box(Vector3(9.3, 0.012, z), Vector3(0.5, 0.024, 0.03), STEEL, Look.GLOSS)
+		box(Vector3(9.3, 0.012, z), Vector3(0.5, 0.024, 0.03), STEEL, Finish.GLOSS)
 	_garment(9.3, 6.27, 1.69, 0.48, 0.62, Color(0.16, 0.2, 0.3), true)
 	_garment(9.3, 7.35, 1.69, 0.38, 0.68, Color(0.33, 0.45, 0.39))
 	solid(Vector3(9.3, 0.85, 6.8), Vector3(0.3, 1.7, 1.64))
@@ -432,28 +432,28 @@ func _clock(at: Vector3) -> void:
 
 func _kitchen() -> void:
 	# Black granite top, with the sink set into it, and cabinet doors.
-	box(Vector3(0.37, 0.915, 4.9), Vector3(0.66, 0.03, 3.02), Color(0.13, 0.13, 0.13), Look.GLOSS)
-	box(Vector3(0.35, 0.932, 4.2), Vector3(0.45, 0.006, 0.5), STEEL, Look.GLOSS)
-	box(Vector3(0.35, 0.936, 4.2), Vector3(0.37, 0.004, 0.41), Color(0.26, 0.27, 0.28), Look.GLOSS)
+	box(Vector3(0.37, 0.915, 4.9), Vector3(0.66, 0.03, 3.02), Color(0.13, 0.13, 0.13), Finish.GLOSS)
+	box(Vector3(0.35, 0.932, 4.2), Vector3(0.45, 0.006, 0.5), STEEL, Finish.GLOSS)
+	box(Vector3(0.35, 0.936, 4.2), Vector3(0.37, 0.004, 0.41), Color(0.26, 0.27, 0.28), Finish.GLOSS)
 	cylinder(Vector3(0.12, 0.93, 4.2), 0.016, 0.3, CHROME)
-	box(Vector3(0.21, 1.22, 4.2), Vector3(0.19, 0.02, 0.02), CHROME, Look.GLOSS)
+	box(Vector3(0.21, 1.22, 4.2), Vector3(0.19, 0.02, 0.02), CHROME, Finish.GLOSS)
 	for z: float in [3.9, 4.4, 4.9, 5.4, 5.9]:
 		box(Vector3(0.652, 0.45, z), Vector3(0.004, 0.86, 0.006), WOOD_DARK)
 		box(Vector3(0.397, 2.0, z), Vector3(0.004, 0.66, 0.006), Color(0.4, 0.36, 0.31))
 	for z: float in [3.65, 4.15, 4.65, 5.15, 5.65, 6.15]:
-		box(Vector3(0.665, 0.8, z), Vector3(0.02, 0.012, 0.12), STEEL, Look.GLOSS)
-	box(Vector3(0.081, 1.29, 4.9), Vector3(0.012, 0.72, 3.0), Color.WHITE, Look.TILE)  # backsplash
+		box(Vector3(0.665, 0.8, z), Vector3(0.02, 0.012, 0.12), STEEL, Finish.GLOSS)
+	box(Vector3(0.081, 1.29, 4.9), Vector3(0.012, 0.72, 3.0), Color.WHITE, Finish.TILE)  # backsplash
 	_socket(Vector3(0.087, 1.1, 5.1), Vector3.RIGHT)
 	# Rice cooker, kettle on the hob, oil and kicap by the stove.
 	cylinder(Vector3(0.35, 0.93, 3.7), 0.14, 0.2, Color(0.92, 0.9, 0.85))
-	cylinder(Vector3(0.35, 1.13, 3.7), 0.13, 0.05, Color(0.85, 0.83, 0.78), Look.GLOSS, {}, 0.07)
-	box(Vector3(0.47, 1.04, 3.7), Vector3(0.04, 0.03, 0.03), Color(0.2, 0.55, 0.3), Look.UNLIT)  # "warm"
-	cylinder(Vector3(0.35, 0.94, 5.6), 0.1, 0.17, STEEL, Look.GLOSS, {}, 0.07)
-	box_xf(Transform3D(Basis(Vector3.BACK, -0.6), Vector3(0.48, 1.0, 5.6)), Vector3(0.12, 0.025, 0.025), STEEL, Look.GLOSS)
-	cylinder(Vector3(0.2, 0.93, 6.12), 0.04, 0.26, Color(0.8, 0.62, 0.15), Look.GLOSS)
-	cylinder(Vector3(0.28, 0.93, 6.22), 0.03, 0.22, Color(0.1, 0.06, 0.04), Look.GLOSS)
+	cylinder(Vector3(0.35, 1.13, 3.7), 0.13, 0.05, Color(0.85, 0.83, 0.78), Finish.GLOSS, {}, 0.07)
+	box(Vector3(0.47, 1.04, 3.7), Vector3(0.04, 0.03, 0.03), Color(0.2, 0.55, 0.3), Finish.UNLIT)  # "warm"
+	cylinder(Vector3(0.35, 0.94, 5.6), 0.1, 0.17, STEEL, Finish.GLOSS, {}, 0.07)
+	box_xf(Transform3D(Basis(Vector3.BACK, -0.6), Vector3(0.48, 1.0, 5.6)), Vector3(0.12, 0.025, 0.025), STEEL, Finish.GLOSS)
+	cylinder(Vector3(0.2, 0.93, 6.12), 0.04, 0.26, Color(0.8, 0.62, 0.15), Finish.GLOSS)
+	cylinder(Vector3(0.28, 0.93, 6.22), 0.03, 0.22, Color(0.1, 0.06, 0.04), Finish.GLOSS)
 	# Gas cylinder at the end of the counter; the hose goes into the cabinet, to the hob.
-	cylinder(Vector3(0.3, 0, 6.66), 0.16, 0.5, Color(0.6, 0.3, 0.18), Look.GLOSS, {}, 0.14)
+	cylinder(Vector3(0.3, 0, 6.66), 0.16, 0.5, Color(0.6, 0.3, 0.18), Finish.GLOSS, {}, 0.14)
 	cylinder(Vector3(0.3, 0.5, 6.66), 0.06, 0.06, Color(0.5, 0.5, 0.5))
 	box(Vector3(0.3, 0.58, 6.66), Vector3(0.08, 0.06, 0.08), Color(0.15, 0.15, 0.15))
 	box(Vector3(0.3, 0.62, 6.53), Vector3(0.02, 0.02, 0.22), Color(0.2, 0.2, 0.2))
@@ -467,7 +467,7 @@ func _entrance() -> void:
 	solid(Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0))  # the rack's Interactable only collides while the shoes are on it
 	foot(Vector3(0.25, 0, 8.0), Vector2(0.19, 0.5), 0.45)
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat
-	box(Vector3(0.105, 2.05, 9.3), Vector3(0.06, 0.36, 0.3), Color(0.68, 0.68, 0.66), Look.GLOSS)  # DB box
+	box(Vector3(0.105, 2.05, 9.3), Vector3(0.06, 0.36, 0.3), Color(0.68, 0.68, 0.66), Finish.GLOSS)  # DB box
 	_socket(Vector3(0.075, 0.3, 7.4), Vector3.RIGHT)
 	# Light from the corridor under the front door.
 	var leak := MeshInstance3D.new()
@@ -475,7 +475,7 @@ func _entrance() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	shade(Vector3(1.5, 0.014, 9.925), Vector3.UP, Vector2(0.46, 0.0), 0.12, Color(0.75, 0.85, 0.95, 0.4), {}, st)
 	leak.mesh = st.commit()
-	var lm := (_look(Look.SHADE) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	var lm := (_look(Finish.SHADE) as StandardMaterial3D).duplicate() as StandardMaterial3D
 	lm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	leak.material_override = lm
 	leak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -489,34 +489,34 @@ func _bathroom() -> void:
 	for p: Array in [[Vector3(3.081, 0.9, 0.25), Vector3(0.012, 1.8, 4.35)], [Vector3(5.419, 0.9, 0.25), Vector3(0.012, 1.8, 4.35)],
 			[Vector3(4.25, 0.9, -1.919), Vector3(2.35, 1.8, 0.012)], [Vector3(3.5, 0.9, 2.419), Vector3(0.82, 1.8, 0.012)],
 			[Vector3(5.06, 0.9, 2.419), Vector3(0.73, 1.8, 0.012)]]:
-		box(p[0], p[1], Color.WHITE, Look.TILE)
+		box(p[0], p[1], Color.WHITE, Finish.TILE)
 	# Toilet with the bidet spray, against the east wall.
-	cylinder(Vector3(5.12, 0, 0.4), 0.15, 0.38, PORCELAIN, Look.GLOSS, {}, 0.2, Color(0, 0, 0, 0), 1.3)
-	cylinder(Vector3(5.12, 0.38, 0.4), 0.2, 0.025, Color(0.95, 0.95, 0.93), Look.GLOSS, {}, -1.0, Color(0.55, 0.6, 0.6), 1.25)
-	box(Vector3(5.37, 0.62, 0.4), Vector3(0.18, 0.36, 0.44), PORCELAIN, Look.GLOSS)
-	box(Vector3(5.29, 0.63, 0.4), Vector3(0.025, 0.42, 0.38), Color(0.95, 0.95, 0.93), Look.GLOSS)  # lid, up
-	box(Vector3(5.37, 0.805, 0.4), Vector3(0.06, 0.012, 0.06), CHROME, Look.GLOSS)
-	box(Vector3(5.4, 0.62, 0.74), Vector3(0.03, 0.06, 0.05), CHROME, Look.GLOSS)
-	box(Vector3(5.39, 0.6, 0.79), Vector3(0.03, 0.12, 0.035), PLASTIC_WHITE, Look.GLOSS)
-	box(Vector3(5.38, 0.33, 0.78), Vector3(0.012, 0.5, 0.012), Color(0.75, 0.75, 0.75), Look.GLOSS)
+	cylinder(Vector3(5.12, 0, 0.4), 0.15, 0.38, PORCELAIN, Finish.GLOSS, {}, 0.2, Color(0, 0, 0, 0), 1.3)
+	cylinder(Vector3(5.12, 0.38, 0.4), 0.2, 0.025, Color(0.95, 0.95, 0.93), Finish.GLOSS, {}, -1.0, Color(0.55, 0.6, 0.6), 1.25)
+	box(Vector3(5.37, 0.62, 0.4), Vector3(0.18, 0.36, 0.44), PORCELAIN, Finish.GLOSS)
+	box(Vector3(5.29, 0.63, 0.4), Vector3(0.025, 0.42, 0.38), Color(0.95, 0.95, 0.93), Finish.GLOSS)  # lid, up
+	box(Vector3(5.37, 0.805, 0.4), Vector3(0.06, 0.012, 0.06), CHROME, Finish.GLOSS)
+	box(Vector3(5.4, 0.62, 0.74), Vector3(0.03, 0.06, 0.05), CHROME, Finish.GLOSS)
+	box(Vector3(5.39, 0.6, 0.79), Vector3(0.03, 0.12, 0.035), PLASTIC_WHITE, Finish.GLOSS)
+	box(Vector3(5.38, 0.33, 0.78), Vector3(0.012, 0.5, 0.012), Color(0.75, 0.75, 0.75), Finish.GLOSS)
 	solid(Vector3(5.145, 0.4, 0.4), Vector3(0.55, 0.8, 0.46))  # seat rim to the tiles
 	foot(Vector3(5.15, 0, 0.4), Vector2(0.24, 0.2), 0.45)
 	# The basin (a model, with its tap, shelf, cup and toothbrush) keeps its collision and shade here.
 	solid(Vector3(3.3, 0.46, 1.0), Vector3(0.38, 0.92, 0.48))
 	foot(Vector3(3.3, 0, 1.0), Vector2(0.08, 0.08), 0.4)
 	# Water heater (its light says it is on), the shower rail, the floor trap.
-	box(Vector3(3.312, 1.86, -1.5), Vector3(0.004, 0.014, 0.014), Color(1.0, 0.15, 0.08), Look.UNLIT)
+	box(Vector3(3.312, 1.86, -1.5), Vector3(0.004, 0.014, 0.014), Color(1.0, 0.15, 0.08), Finish.UNLIT)
 	for z: float in [-1.44, -1.56]:
-		box(Vector3(3.14, 1.58, z), Vector3(0.016, 0.4, 0.016), CHROME, Look.GLOSS)
-	box(Vector3(3.11, 1.3, -1.05), Vector3(0.02, 0.85, 0.02), CHROME, Look.GLOSS)
-	box_xf(Transform3D(Basis(Vector3.BACK, -0.3), Vector3(3.15, 1.72, -1.05)), Vector3(0.05, 0.15, 0.06), CHROME, Look.GLOSS)
-	box(Vector3(3.12, 1.15, -1.12), Vector3(0.012, 0.6, 0.012), Color(0.7, 0.7, 0.7), Look.GLOSS)
-	box(Vector3(4.2, 0.003, -1.4), Vector3(0.11, 0.005, 0.11), STEEL, Look.GLOSS)
+		box(Vector3(3.14, 1.58, z), Vector3(0.016, 0.4, 0.016), CHROME, Finish.GLOSS)
+	box(Vector3(3.11, 1.3, -1.05), Vector3(0.02, 0.85, 0.02), CHROME, Finish.GLOSS)
+	box_xf(Transform3D(Basis(Vector3.BACK, -0.3), Vector3(3.15, 1.72, -1.05)), Vector3(0.05, 0.15, 0.06), CHROME, Finish.GLOSS)
+	box(Vector3(3.12, 1.15, -1.12), Vector3(0.012, 0.6, 0.012), Color(0.7, 0.7, 0.7), Finish.GLOSS)
+	box(Vector3(4.2, 0.003, -1.4), Vector3(0.11, 0.005, 0.11), STEEL, Finish.GLOSS)
 	shade(Vector3(4.2, 0.005, -1.4), Vector3.UP, Vector2(0.2, 0.15), 0.3, Color(0.1, 0.12, 0.12, 0.3))
 	# The pail, full, with the gayung floating in it.
-	cylinder(Vector3(5.2, 0, 1.25), 0.14, 0.34, Color(0.66, 0.13, 0.11), Look.GLOSS, {}, 0.165, Color(0.2, 0.27, 0.3))
+	cylinder(Vector3(5.2, 0, 1.25), 0.14, 0.34, Color(0.66, 0.13, 0.11), Finish.GLOSS, {}, 0.165, Color(0.2, 0.27, 0.3))
 	cylinder(Vector3(5.2, 0.31, 1.22), 0.07, 0.06, Color(0.2, 0.42, 0.7))
-	box(Vector3(5.2, 0.37, 1.34), Vector3(0.025, 0.02, 0.16), Color(0.2, 0.42, 0.7), Look.GLOSS)
+	box(Vector3(5.2, 0.37, 1.34), Vector3(0.025, 0.02, 0.16), Color(0.2, 0.42, 0.7), Finish.GLOSS)
 	foot(Vector3(5.2, 0, 1.25), Vector2(0.13, 0.13), 0.45)
 	solid(Vector3(5.2, 0.17, 1.25), Vector3(0.28, 0.34, 0.28))
 	shade(Vector3(4.25, ApartmentLayout.CEILING - 0.005, -1.3), Vector3.DOWN, Vector2(0.3, 0.2), 0.45, Color(0.4, 0.3, 0.12, 0.35))  # damp
@@ -526,27 +526,27 @@ func _bedroom() -> void:
 	# Wardrobe doors with a cardboard box on top; dresser drawers.
 	box(Vector3(6.153, 1.0, 1.4), Vector3(0.004, 1.96, 0.006), Color(0.2, 0.14, 0.1))
 	for z: float in [1.34, 1.46]:
-		box(Vector3(6.165, 1.0, z), Vector3(0.025, 0.18, 0.02), STEEL, Look.GLOSS)
-	box(Vector3(5.85, 2.12, 1.3), Vector3(0.45, 0.24, 0.5), Color(0.55, 0.42, 0.28), Look.MATTE, {}, 0.1)
+		box(Vector3(6.165, 1.0, z), Vector3(0.025, 0.18, 0.02), STEEL, Finish.GLOSS)
+	box(Vector3(5.85, 2.12, 1.3), Vector3(0.45, 0.24, 0.5), Color(0.55, 0.42, 0.28), Finish.MATTE, {}, 0.1)
 	for y: float in [0.27, 0.52]:
 		box(Vector3(6.1, y, -0.973), Vector3(0.96, 0.006, 0.004), Color(0.2, 0.14, 0.1))
 	for y: float in [0.4, 0.64]:
-		box(Vector3(6.1, y, -0.965), Vector3(0.12, 0.015, 0.02), STEEL, Look.GLOSS)
+		box(Vector3(6.1, y, -0.965), Vector3(0.12, 0.015, 0.02), STEEL, Finish.GLOSS)
 	box(Vector3(9.777, 2.165, 0.2), Vector3(0.006, 0.03, 0.8), Color(0.2, 0.2, 0.2))  # aircon vent
 	# Same material as the other indicator lights: the warm-up may run while it is dark, and a material of
 	# its own would then compile on its first blink, mid-game.
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	box_xf(Transform3D(), Vector3(0.004, 0.012, 0.012), Color(0.3, 1.0, 0.4), Look.UNLIT, {}, st)
+	box_xf(Transform3D(), Vector3(0.004, 0.012, 0.012), Color(0.3, 1.0, 0.4), Finish.UNLIT, {}, st)
 	_led = MeshInstance3D.new()
 	_led.mesh = st.commit()
-	_led.material_override = _look(Look.UNLIT)
+	_led.material_override = _look(Finish.UNLIT)
 	_led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_led.position = Vector3(9.776, 2.2, -0.15)
 	add_child(_led)
 	_socket(Vector3(6.2, 0.3, -1.925), Vector3.BACK)
 	# Curtains, pushed to the sides, hanging clear of the sill. They stay when the window is a door.
-	box(Vector3(7.8, 2.25, -1.74), Vector3(2.3, 0.025, 0.025), STEEL, Look.GLOSS)
+	box(Vector3(7.8, 2.25, -1.74), Vector3(2.3, 0.025, 0.025), STEEL, Finish.GLOSS)
 	for x0: float in [6.9, 8.35]:
 		for i in 4:
 			box(Vector3(x0 + 0.035 + i * 0.07, 1.47, -1.72 + (i % 2) * 0.03), Vector3(0.075, 1.54, 0.03), Color(0.36, 0.2, 0.19))
@@ -558,7 +558,7 @@ func _corridor() -> void:
 	grille_gate(11.5, 12.5, 10.2, false)
 	# B-12-06's red lantern from last Chinese New Year; B-12-08's delivery slip.
 	box(Vector3(-2.68, (1.98 + ApartmentLayout.CEILING) * 0.5, 10.24), Vector3(0.006, ApartmentLayout.CEILING - 1.98, 0.006), Color(0.1, 0.1, 0.1))  # string from the ceiling
-	cylinder(Vector3(-2.68, 1.76, 10.24), 0.09, 0.22, Color(0.62, 0.08, 0.06), Look.MATTE, {}, 0.09)
+	cylinder(Vector3(-2.68, 1.76, 10.24), 0.09, 0.22, Color(0.62, 0.08, 0.06), Finish.MATTE, {}, 0.09)
 	box(Vector3(-2.68, 1.66, 10.24), Vector3(0.012, 0.16, 0.012), Color(0.75, 0.6, 0.2))
 	box(Vector3(12.2, 1.32, 10.215), Vector3(0.1, 0.14, 0.004), Color(0.92, 0.9, 0.84))
 	# Shoes on the neighbours' racks, the fire extinguisher by the exit, a snake plant at the parapet.
@@ -582,12 +582,12 @@ func _beyond() -> void:
 			var c := r.get_center()
 			var along_x := r.size.x > r.size.y
 			var off := Vector3(0, 0, r.size.y * 0.5 - 0.12) if along_x else Vector3(r.size.x * 0.5 - 0.12, 0, 0)
-			box(Vector3(c.x, ApartmentLayout.CEILING - 0.018, c.y) + off, Vector3(r.size.x, 0.035, 0.035) if along_x else Vector3(0.035, 0.035, r.size.y), Color(0.45, 0.45, 0.43), Look.MATTE, variant[1])
+			box(Vector3(c.x, ApartmentLayout.CEILING - 0.018, c.y) + off, Vector3(r.size.x, 0.035, 0.035) if along_x else Vector3(0.035, 0.035, r.size.y), Color(0.45, 0.45, 0.43), Finish.MATTE, variant[1])
 	for z: float in [-4.0, -7.5, -11.0]:
 		shade(Vector3(7.0 + 0.08, 1.9, z), Vector3.RIGHT, Vector2(0.15, 0.6), 0.3, Color(0.25, 0.2, 0.1, 0.35), gap.merged({&"gap": &"default"}))
 	# B-11-07: vacant since March. Newspapers on the floor, water stains, dust.
 	for p: Array in [[Vector3(6.6, 0.004, -15.0), 0.3], [Vector3(7.1, 0.006, -14.8), -0.5], [Vector3(8.9, 0.004, -17.6), 1.2]]:
-		box(p[0], Vector3(0.58, 0.004, 0.4), Color(0.78, 0.74, 0.62), Look.MATTE, gap, p[1])
+		box(p[0], Vector3(0.58, 0.004, 0.4), Color(0.78, 0.74, 0.62), Finish.MATTE, gap, p[1])
 	shade(Vector3(8.2, ApartmentLayout.CEILING - 0.005, -15.4), Vector3.DOWN, Vector2(0.5, 0.35), 0.5, Color(0.35, 0.26, 0.1, 0.45), gap)
 	shade(Vector3(10.0 - 0.08, 1.7, -16.8), Vector3.LEFT, Vector2(0.25, 0.9), 0.35, Color(0.3, 0.22, 0.1, 0.4), gap)
 	shade(Vector3(7.75, 0.013, -16.2), Vector3.UP, Vector2(1.6, 1.6), 0.6, Color(0.18, 0.15, 0.1, 0.25), gap)

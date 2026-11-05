@@ -159,6 +159,14 @@ aberration. The fear comes from the place being ordinary.
 * **Grain and vignette** are one full-screen `canvas_item` shader under the HUD text (`Hud.FILM_SHADER`).
   The vignette darkens grain and picture alike, so the corners don't fizz. The grain changes 24 times a
   second; its frame number wraps at 256, or float rounding turns it into a fixed tile after half an hour.
+* **Soft filter** (`Look`, `scripts/world/look.gd`): the 3D view is drawn at about 450 lines (`Look.TARGET_LINES`)
+  and scaled up with bilinear filtering, which softens it; the HUD is 2D, so it stays at full resolution. The
+  scale is `1 / d` for a whole number `d`, the divisor of the window height that leaves the nearest to 450
+  lines, and follows the window (900 px: 2, 1440 px: 3, 2160 px: 5), so the look is the same at any size.
+  The Filter setting turns it off (`d = 1`), and so does `-- --nofilter` / `?nofilter` for one run without
+  touching the saved settings. While it is on, the grain is snapped to 3D pixels (`pixel_size` in
+  `Hud.FILM_SHADER`); off, it is per window pixel, as before. `TARGET_LINES` is the knob: up to 540 if thin
+  things shimmer or a moved object gets hard to see.
 * **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
   Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are

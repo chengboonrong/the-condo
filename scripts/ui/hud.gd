@@ -8,6 +8,7 @@ const FILM_SHADER := """
 shader_type canvas_item;
 uniform float grain = 0.035;
 uniform float vignette = 0.55;
+uniform float pixel_size = 1.0;  // window pixels per 3D pixel, set by Look
 
 float hash(vec2 p) {  // Dave Hoskins' hash12 (MIT): no sin(), so no patterns on mobile GPUs
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -18,9 +19,10 @@ float hash(vec2 p) {  // Dave Hoskins' hash12 (MIT): no sin(), so no patterns on
 void fragment() {
 	vec2 d = (SCREEN_UV - 0.5) * vec2(1.0, 0.82);
 	float v = smoothstep(0.3, 0.75, length(d)) * vignette;
-	// New grain 24 times a second, like film. The frame number wraps at 256: unbounded, the offset grows
-	// so large that float32 rounding turns the grain into a tile repeating every 97 px after ~30 minutes.
-	float n = hash(FRAGCOORD.xy + mod(floor(TIME * 24.0), 256.0) * 61.7);
+	// New grain 24 times a second, like film, one value per 3D pixel: pixel_size window pixels share a hash
+	// input. The frame number wraps at 256: unbounded, the offset grows so large that float32 rounding turns
+	// the grain into a tile repeating every 97 px after ~30 minutes.
+	float n = hash(floor(FRAGCOORD.xy / pixel_size) + mod(floor(TIME * 24.0), 256.0) * 61.7);
 	// Grain over the picture, then the vignette darkens both: (1 - v) * mix(picture, n, grain). The grain
 	// fades into the dark corners with everything else instead of standing out there.
 	float a = max(v + grain * (1.0 - v), 0.0001);
@@ -29,6 +31,7 @@ void fragment() {
 """
 
 var player: PlayerController
+var film_material := ShaderMaterial.new()  # Look sets its pixel_size
 var _prompt: Label
 var _objective: Label
 var _clock: Label
@@ -59,8 +62,8 @@ func _ready() -> void:
 	film.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var shader := Shader.new()
 	shader.code = FILM_SHADER
-	film.material = ShaderMaterial.new()
-	(film.material as ShaderMaterial).shader = shader
+	film_material.shader = shader
+	film.material = film_material
 	root.add_child(film)
 
 	_crosshair = ColorRect.new()
