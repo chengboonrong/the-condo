@@ -7,3 +7,5 @@
 .DS_Store
 # Local reports from benchmark runs are copied into docs/ when worth keeping
 /tests/reports/
+# Python bytecode from the Blender build scripts
+__pycache__/

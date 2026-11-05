@@ -56,6 +56,12 @@ const PROPS := [
 	[Vector3(9.4, 0.38, -17.75), Vector3(1.0, 0.76, 0.55), Color(0.35, 0.28, 0.22), {&"bedroom": &"door"}],
 ]
 
+# Blender models (art/<id>/build.py): [node name, model id, transform, requires, dusty (optional, default
+# false)]. A model draws what PROPS boxes drew; COLLIDERS keeps their collision.
+const MODELS: Array[Array] = []
+# Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh.
+const COLLIDERS: Array[Array] = []
+
 # Interactables: id, pos, size, prompt, title, text, requires. Story-driven objects have no text.
 const OBJECTS := [
 	[&"intercom", Vector3(0.1, 1.45, 8.6), Vector3(0.08, 0.26, 0.14), "Use intercom", "", ""],
@@ -109,6 +115,7 @@ const LABELS := [
 
 var decor: Decor
 var doors: Dictionary = {}  # door_id -> Door
+var models: Dictionary = {}  # node name -> the placed model, Decor's too (the wall clock)
 var lights: Dictionary = {}  # room_id -> Array[RoomLight]
 var environment: Environment
 var _gated: Array = []  # [Node3D, requires]
@@ -143,6 +150,9 @@ func build() -> void:
 		gate(node, requires)
 		if p[1].y > 0.15 and p[0].y - p[1].y * 0.5 < 0.02:
 			decor.foot(p[0], Vector2(p[1].x, p[1].z) * 0.5, 0.5, requires)
+	for c: Array in COLLIDERS:
+		_collider(c[0], c[1], c[2])
+	_build_models()
 	for o: Array in OBJECTS:
 		_build_object(o)
 	for l: Array in LABELS:
@@ -160,6 +170,18 @@ func refresh_variants() -> void:
 		var on := ApartmentLayout.requires_met(entry[1], WorldState.variants)
 		node.visible = on
 		_set_collision(node, on)
+
+
+## Shows every model whatever its variant, so the shader warm-up sees every material; refresh_variants() puts
+## them back.
+func warm_up_models() -> void:
+	for node: Node3D in models.values():
+		node.visible = true
+
+
+## A model from assets/models, as art/<id>/build.py exported it.
+static func model(id: StringName) -> Node3D:
+	return (load("res://assets/models/%s.glb" % id) as PackedScene).instantiate()
 
 
 func _process(delta: float) -> void:
@@ -235,6 +257,39 @@ func _box(parent: Node3D, center: Vector3, size: Vector3, color: Color, collide 
 	body.add_child(mesh)
 	parent.add_child(body)
 	return body
+
+
+## Collision for furniture a model draws, with its contact shadow when it stands on the floor.
+func _collider(center: Vector3, size: Vector3, requires: Dictionary) -> void:
+	var body := StaticBody3D.new()
+	body.position = center
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	add_child(body)
+	gate(body, requires)
+	if center.y - size.y * 0.5 < 0.02:
+		decor.foot(center, Vector2(size.x, size.z) * 0.5, 0.5, requires)
+
+
+## Places MODELS. B-11-07's dusty copies get their own greyed, matte materials.
+func _build_models() -> void:
+	for m: Array in MODELS:
+		var node := model(m[1])
+		node.name = m[0]
+		node.transform = m[2]
+		add_child(node)
+		models[m[0]] = node
+		gate(node, m[3])
+		if m.size() > 4 and m[4]:
+			for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+				for s in mesh.mesh.get_surface_count():
+					var mat := mesh.get_active_material(s).duplicate() as BaseMaterial3D
+					mat.albedo_color *= Color(0.75, 0.73, 0.7)
+					mat.roughness = 1.0
+					mesh.set_surface_override_material(s, mat)
 
 
 func gate(node: Node3D, requires: Dictionary) -> void:

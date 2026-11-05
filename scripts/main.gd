@@ -78,6 +78,7 @@ func _compile_shaders() -> void:
 	cam.make_current()
 	var lights := builder.find_children("*", "OmniLight3D", true, false)
 	var was_on := lights.map(func(l: Light3D) -> bool: return l.visible)
+	builder.warm_up_models()  # every model, whatever its variant
 	for room: StringName in ApartmentLayout.APARTMENT_ROOMS + [&"corridor"]:
 		for i in 4:
 			cam.global_position = ApartmentLayout.room_center(room) + Vector3(0, 1.6, 0)
@@ -89,6 +90,7 @@ func _compile_shaders() -> void:
 				await get_tree().process_frame
 	for k in lights.size():
 		(lights[k] as Light3D).visible = was_on[k]
+	builder.refresh_variants()
 	silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
 	await get_tree().process_frame
 	await get_tree().process_frame

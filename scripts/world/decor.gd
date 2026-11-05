@@ -445,40 +445,14 @@ func _living() -> void:
 	_snake_plant(Vector3(9.55, 0, 9.5))
 
 
+## The wall clock (art/wall_clock), its back on the wall at `at`. Its hands follow the game clock (_process).
 func _clock(at: Vector3) -> void:
-	var clock := Node3D.new()
+	var clock := ApartmentBuilder.model(&"wall_clock")
 	clock.position = at
 	add_child(clock)
-	var face := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.15
-	disc.bottom_radius = 0.15
-	disc.height = 0.03
-	disc.radial_segments = 24
-	face.mesh = disc
-	face.rotation.x = PI / 2
-	face.position.z = 0.015
-	var fm := StandardMaterial3D.new()
-	fm.albedo_color = Color(0.86, 0.84, 0.78)
-	face.material_override = fm
-	clock.add_child(face)
-	for i in 12:
-		var a := TAU * i / 12.0
-		box_xf(Transform3D(Basis(Vector3.BACK, -a), at + Vector3(sin(a) * 0.125, cos(a) * 0.125, 0.032)), Vector3(0.008, 0.022 if i % 3 == 0 else 0.012, 0.004), Color(0.1, 0.1, 0.1))
-	for spec: Array in [[0.075, 0.012, 0.036], [0.115, 0.007, 0.04]]:  # hour, minute
-		var pivot := Node3D.new()
-		pivot.position.z = spec[2]
-		clock.add_child(pivot)
-		var hand := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(spec[1], spec[0], 0.003)
-		hand.mesh = bm
-		hand.position.y = spec[0] * 0.4
-		var hm := StandardMaterial3D.new()
-		hm.albedo_color = Color(0.08, 0.08, 0.08)
-		hand.material_override = hm
-		pivot.add_child(hand)
-		_hands.append(pivot)
+	builder.models[&"wall_clock"] = clock
+	_hands.append(clock.get_node(^"HourHand") as Node3D)
+	_hands.append(clock.get_node(^"MinuteHand") as Node3D)
 
 
 func _kitchen() -> void:
