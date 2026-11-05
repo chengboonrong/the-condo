@@ -72,6 +72,7 @@ var _ending_text: Label
 var _ending_in := -1.0  # seconds until the ending card fades in
 var _lens: ColorRect
 var _lens_material := ShaderMaterial.new()
+var _lens_hint: Label
 var _peeping := false
 
 
@@ -80,6 +81,16 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+
+	# The peephole's lens: over the 3D view and under the film, so the grain stays screen-fine on top of it.
+	_lens = ColorRect.new()
+	_lens.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var lens_shader := Shader.new()
+	lens_shader.code = LENS_SHADER
+	_lens_material.shader = lens_shader
+	_lens.material = _lens_material
+	_lens.visible = false
+	root.add_child(_lens)
 
 	# Film grain and a vignette over the 3D view, under the text. The grain also hides the banding that
 	# 8-bit dark gradients show on most screens.
@@ -91,19 +102,11 @@ func _ready() -> void:
 	film.material = film_material
 	root.add_child(film)
 
-	# The peephole's lens: over the film, which it bends with the picture, and under the text.
-	_lens = ColorRect.new()
-	_lens.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var lens_shader := Shader.new()
-	lens_shader.code = LENS_SHADER
-	_lens_material.shader = lens_shader
-	_lens.material = _lens_material
-	_lens.visible = false
-	root.add_child(_lens)
-	var back := _label(_lens, 16, HORIZONTAL_ALIGNMENT_RIGHT)
-	back.text = "[E] step back"
-	back.modulate = Color(1, 1, 1, 0.5)
-	_anchor(back, Control.PRESET_BOTTOM_RIGHT, Rect2(-232, -60, 200, 30))
+	_lens_hint = _label(root, 16, HORIZONTAL_ALIGNMENT_RIGHT)
+	_lens_hint.text = "[E] step back"
+	_lens_hint.modulate = Color(1, 1, 1, 0.5)
+	_lens_hint.visible = false
+	_anchor(_lens_hint, Control.PRESET_BOTTOM_RIGHT, Rect2(-232, -60, 200, 30))
 
 	_crosshair = ColorRect.new()
 	_crosshair.color = Color(1, 1, 1, 0.55)
@@ -331,9 +334,10 @@ func is_peeping() -> bool:
 	return _peeping
 
 
-## Shows the lens alone; Main's shader warm-up draws it once.
+## Shows the lens and its hint alone; Main's shader warm-up draws them once.
 func set_lens(on: bool) -> void:
 	_lens.visible = on
+	_lens_hint.visible = on
 
 
 ## The player's own view back, without letting the player go (the ending card keeps them held).
