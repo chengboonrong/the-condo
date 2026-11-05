@@ -30,34 +30,13 @@ TOP_BOARD, LEG_WOOD, RAIL_X, RAIL_Y, SAJI, TEA, RAFFIA = range(7)  # material in
 
 # --- geometry -------------------------------------------------------------------------------------------
 
-def revolve(bm: bmesh.types.BMesh, profile: list, centre: tuple, segments: int, material: int) -> None:
-    """Spins the (radius, height) profile, bottom to top, about the vertical axis at centre = (x, y, z). A radius
-    of 0 ends it in a point. Open at the bottom."""
-    rings = []
-    for r, z in profile:
-        if r == 0:
-            rings.append([bm.verts.new((centre[0], centre[1], centre[2] + z))])
-        else:
-            rings.append([bm.verts.new((centre[0] + r * math.cos(a), centre[1] + r * math.sin(a), centre[2] + z))
-                          for a in (math.tau * i / segments for i in range(segments))])
-    faces = []
-    for a, b in zip(rings, rings[1:]):
-        for i in range(segments):
-            j = (i + 1) % segments
-            faces.append(bm.faces.new([a[i], a[j], b[0]] if len(b) == 1 else [a[i], a[j], b[j], b[i]]))
-    bmesh.ops.recalc_face_normals(bm, faces=faces)
-    for f in faces:
-        f.material_index = material
-        f.smooth = True
-
-
 def saji(bm: bmesh.types.BMesh) -> None:
     """The food cover: a low dome with a bead round its rim and a mushroom handle on top."""
     profile = [(0.270, 0.0), (0.270, 0.012), (0.2655, 0.018)]
     for t in (0.0, 0.15, 0.3, 0.45, 0.58, 0.7, 0.8, 0.88, 0.94, 0.98):  # a superellipse: round shoulders, a flat top
         profile.append((0.262 * (1 - t ** 2.4) ** (1 / 2.4), 0.018 + 0.14 * t))
     profile += [(0.04, 0.162), (0.013, 0.162), (0.013, 0.184), (0.027, 0.19), (0.027, 0.197), (0.0, 0.197)]
-    revolve(bm, profile, (DOME[0], DOME[1], TOP[1]), 48, SAJI)
+    common.revolve(bm, profile, (DOME[0], DOME[1], TOP[1]), 48, SAJI)
 
 
 # The bag, from its flat base up: (height, half-width along X, half-depth along Y). It slumps: wide where the tea sits,

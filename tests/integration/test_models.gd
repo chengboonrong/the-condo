@@ -2,13 +2,15 @@ extends TestCase
 ## The Blender models: their budgets, where they stand, their variants, the shader warm-up and the clock.
 
 # Triangles each model may have. Each object task adds its ids.
-const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500}
+const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
+	&"basin": 4000, &"tap_water": 300}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
 	&"shoes_moved": [2.3, 8.5, 0.28, 0.32],
 	&"dining_table": [4.5, 6.2, 1.1, 0.75],
 	&"chair_turned": [3.45, 5.2, 0.42, 0.42],
+	&"basin": [3.3, 1.0, 0.38, 0.48],
 }
 
 
@@ -119,6 +121,24 @@ func test_colliders_do_not_outgrow_their_models() -> bool:
 				model_top = maxf(model_top, a.end.y)
 		check(model_top > 0.0, "a model stands at the collider at %s" % c[0])
 		check(c[0].y + c[1].y / 2.0 <= model_top + 0.01, "the collider at %s ends at %.3f m, above its model (%.3f m)" % [c[0], c[0].y + c[1].y / 2.0, model_top])
+	main.queue_free()
+	return true
+
+
+func test_the_stream_is_clear_water_that_starts_at_the_tap() -> bool:
+	var water := ApartmentBuilder.model(&"tap_water")
+	var meshes := water.find_children("*", "MeshInstance3D", true, false)
+	eq(meshes.size(), 1, "the stream is one mesh")
+	var mat := (meshes[0] as MeshInstance3D).get_active_material(0) as BaseMaterial3D
+	check([BaseMaterial3D.TRANSPARENCY_ALPHA, BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS].has(mat.transparency), "the stream blends by alpha (glTF BLEND imports with a depth pre-pass)")
+	near(mat.albedo_color.a, 0.6, 0.01, "its alpha")
+	check(mat.albedo_texture == null, "its colour is plain, not baked")
+	water.free()
+	var main := await _main()
+	var tap: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"tap")[0]
+	var spout: Vector3 = main.builder.models[&"tap_water"].position
+	check(AABB(tap[1] - tap[2] / 2.0, tap[2]).has_point(spout), "the spout at %s is inside the tap's click box" % spout)
+	check(not main.builder.models[&"tap_water"].visible, "the water is off until the tap is left running")
 	main.queue_free()
 	return true
 

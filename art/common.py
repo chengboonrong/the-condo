@@ -216,6 +216,27 @@ def slab(bm: bmesh.types.BMesh, centre: tuple, size: tuple, z0: float, z1: float
         f.material_index = material
 
 
+def revolve(bm: bmesh.types.BMesh, profile: list, centre: tuple, segments: int, material: int) -> None:
+    """Spins the (radius, height) profile, bottom to top, about the vertical axis at centre = (x, y, z). A radius
+    of 0 ends it in a point. Open at the bottom."""
+    rings = []
+    for r, z in profile:
+        if r == 0:
+            rings.append([bm.verts.new((centre[0], centre[1], centre[2] + z))])
+        else:
+            rings.append([bm.verts.new((centre[0] + r * math.cos(a), centre[1] + r * math.sin(a), centre[2] + z))
+                          for a in (math.tau * i / segments for i in range(segments))])
+    faces = []
+    for a, b in zip(rings, rings[1:]):
+        for i in range(segments):
+            j = (i + 1) % segments
+            faces.append(bm.faces.new([a[i], a[j], b[0]] if len(b) == 1 else [a[i], a[j], b[j], b[i]]))
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    for f in faces:
+        f.material_index = material
+        f.smooth = True
+
+
 # --- shader nodes ---------------------------------------------------------------------------------------
 # Small helpers for the procedural materials a build.py bakes. Colours are linear RGB.
 

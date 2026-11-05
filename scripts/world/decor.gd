@@ -518,14 +518,7 @@ func _bathroom() -> void:
 	box(Vector3(5.38, 0.33, 0.78), Vector3(0.012, 0.5, 0.012), Color(0.75, 0.75, 0.75), Look.GLOSS)
 	solid(Vector3(5.145, 0.4, 0.4), Vector3(0.55, 0.8, 0.46))  # seat rim to the tiles
 	foot(Vector3(5.15, 0, 0.4), Vector2(0.24, 0.2), 0.45)
-	# Basin on its pedestal, a glass shelf, one toothbrush.
-	cylinder(Vector3(3.3, 0, 1.0), 0.08, 0.8, PORCELAIN, Look.GLOSS, {}, 0.06)
-	cylinder(Vector3(3.3, 0.8, 1.0), 0.2, 0.13, PORCELAIN, Look.GLOSS, {}, 0.24, Color(0.75, 0.76, 0.75), 0.8)
-	cylinder(Vector3(3.15, 0.93, 1.0), 0.015, 0.11, CHROME)
-	box(Vector3(3.2, 1.035, 1.0), Vector3(0.11, 0.016, 0.016), CHROME, Look.GLOSS)
-	box(Vector3(3.15, 1.165, 1.0), Vector3(0.12, 0.01, 0.48), Color(0.75, 0.82, 0.82), Look.GLOSS)
-	cylinder(Vector3(3.14, 1.17, 0.83), 0.035, 0.1, Color(0.45, 0.65, 0.7))
-	box_xf(Transform3D(Basis(Vector3.BACK, 0.15), Vector3(3.14, 1.29, 0.83)), Vector3(0.012, 0.17, 0.012), Color(0.85, 0.3, 0.25))
+	# The basin (a model, with its tap, shelf, cup and toothbrush) keeps its collision and shade here.
 	solid(Vector3(3.3, 0.46, 1.0), Vector3(0.38, 0.92, 0.48))
 	foot(Vector3(3.3, 0, 1.0), Vector2(0.08, 0.08), 0.4)
 	# Water heater (its light says it is on), the shower rail, the floor trap.

@@ -30,7 +30,6 @@ const PROPS := [
 	# Bathroom
 	[Vector3(3.6, 1.0, -0.6), Vector3(1.0, 2.0, 0.02), Color(0.7, 0.85, 0.9, 0.25)],
 	[Vector3(3.2, 2.0, -1.5), Vector3(0.22, 0.45, 0.3), Color(0.95, 0.95, 0.95)],
-	[Vector3(3.22, 0.96, 1.0), Vector3(0.02, 0.1, 0.02), Color(0.6, 0.8, 1.0, 0.6), {&"bathroom_tap": &"running"}],
 	# Bedroom
 	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), Color(0.3, 0.21, 0.15)],
 	[Vector3(5.85, 1.0, 1.4), Vector3(0.6, 2.0, 1.4), Color(0.5, 0.38, 0.28)],
@@ -58,9 +57,13 @@ const MODELS: Array[Array] = [
 	[&"chair_north", &"dining_chair", Transform3D(Basis(Vector3.UP, PI), Vector3(4.5, 0, 6.85)), {}],
 	[&"chair_south", &"dining_chair", Transform3D(Basis(), Vector3(4.5, 0, 5.55)), {&"living_chair": &"default"}],
 	[&"chair_turned", &"dining_chair", Transform3D(Basis(Vector3.UP, PI), Vector3(3.45, 0, 5.2)), {&"living_chair": &"turned"}],
+	# Bathroom: the basin with its tap, shelf, cup and toothbrush, and the water while the tap is left running. The stream
+	# starts at the spout (basin/build.py's SPOUT, turned with the basin), which is inside the tap's click box.
+	[&"basin", &"basin", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(3.3, 0, 1.0)), {}],
+	[&"tap_water", &"tap_water", Transform3D(Basis(), Vector3(3.24, 0.964, 1.0)), {&"bathroom_tap": &"running"}],
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
-# seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The table's is Decor's.
+# seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The table's and the basin's are Decor's.
 const COLLIDERS: Array[Array] = [
 	[Vector3(4.5, 0.6875, 7.05), Vector3(0.42, 0.425, 0.05), {}],
 	[Vector3(4.5, 0.6875, 5.35), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"default"}],
