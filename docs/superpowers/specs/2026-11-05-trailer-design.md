@@ -1,7 +1,7 @@
 # THE CONDO: 11:47 PM — trailer
 
-Status: written 2026-11-05 from the brainstorm and a builder check; awaiting the owner's approval. Branch: `feat/trailer`, from the
-end of `feat/vibe-pass`.
+Status: written and approved by the owner 2026-11-05 ("Approve, write the plan"). Branch: `feat/trailer`, from the end of
+`feat/vibe-pass`.
 
 ## Intent
 
