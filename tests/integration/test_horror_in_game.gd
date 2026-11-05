@@ -219,3 +219,21 @@ func test_director_runs_in_game_within_budget() -> bool:
 		rt.director.decisions.size(), rt.director.last_eval_usec, rt.director.max_eval_usec])
 	main.queue_free()
 	return true
+
+
+func test_feet_break_the_light_under_the_front_door() -> bool:
+	var main := await _main()
+	var decor: Decor = main.builder.decor
+	var whole: Node3D = decor.get_node("door_leak")
+	var feet: Node3D = decor.get_node("door_leak_feet")
+	check(whole.visible and not feet.visible, "door shut: the whole strip of light")
+	EventBus.door_feet_requested.emit(true)
+	check(feet.visible and not whole.visible, "someone outside: two gaps in it")
+	WorldState.set_door(&"main_door", true, &"player")
+	check(not feet.visible and not whole.visible, "door open: no strip at all")
+	WorldState.set_door(&"main_door", false, &"player")
+	check(feet.visible and not whole.visible, "shut again while they are there: the gaps")
+	EventBus.door_feet_requested.emit(false)
+	check(whole.visible and not feet.visible, "gone: the whole strip again")
+	main.queue_free()
+	return true

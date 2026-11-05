@@ -25,14 +25,25 @@ var _looks := {}
 var _led: MeshInstance3D  # standby light on the bedroom aircon, blinking although it is switched off
 var _hands: Array[Node3D] = []  # living room clock: hour, minute; it follows the game clock, shifts and all
 var _leak: Node3D  # corridor light under the front door, while the door is shut
+var _leak_feet: Node3D  # the same strip with two gaps in it, while someone stands outside the door
+var _feet := false
 var _anchor: Variant = null  # while set, pieces join the batch of the room at this point, not at their own centre
 var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
-	EventBus.door_changed.connect(func(id: StringName, open: bool, _source: StringName) -> void:
+	EventBus.door_changed.connect(func(id: StringName, _open: bool, _source: StringName) -> void:
 		if id == &"main_door":
-			_leak.visible = not open)
+			_show_leak())
+	EventBus.door_feet_requested.connect(func(shown: bool) -> void:
+		_feet = shown
+		_show_leak())
+
+
+func _show_leak() -> void:
+	var shut := not WorldState.is_door_open(&"main_door")
+	_leak.visible = shut and not _feet
+	_leak_feet.visible = shut and _feet
 
 
 func _process(_delta: float) -> void:
@@ -469,19 +480,29 @@ func _entrance() -> void:
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat
 	box(Vector3(0.105, 2.05, 9.3), Vector3(0.06, 0.36, 0.3), Color(0.68, 0.68, 0.66), Finish.GLOSS)  # DB box
 	_socket(Vector3(0.075, 0.3, 7.4), Vector3.RIGHT)
-	# Light from the corridor under the front door.
-	var leak := MeshInstance3D.new()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	shade(Vector3(1.5, 0.014, 9.925), Vector3.UP, Vector2(0.46, 0.0), 0.12, Color(0.75, 0.85, 0.95, 0.4), {}, st)
-	leak.mesh = st.commit()
+	# Light from the corridor under the front door; with someone standing outside it, two feet break it.
 	var lm := (_look(Finish.SHADE) as StandardMaterial3D).duplicate() as StandardMaterial3D
 	lm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	leak.material_override = lm
-	leak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	leak.visible = not WorldState.is_door_open(&"main_door")
-	add_child(leak)
-	_leak = leak
+	_leak = _leak_strip("door_leak", lm, [[1.04, 1.96, 0.12, 0.12]])
+	# Gaps 0.1 m wide at x = 1.37 and 1.63, soft over 0.04 m: the strip is what is left between them.
+	_leak_feet = _leak_strip("door_leak_feet", lm, [[1.04, 1.3, 0.12, 0.04], [1.44, 1.56, 0.04, 0.04], [1.7, 1.96, 0.04, 0.12]])
+	_show_leak()
+
+
+## The strip of corridor light on the floor inside the front door, as segments of [from x, to x, margin left,
+## margin right] (full strength between from and to; shade() fades each side over its margin).
+func _leak_strip(strip_name: String, material: Material, segments: Array) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for s: Array in segments:
+		shade(Vector3((s[0] + s[1]) * 0.5, 0.014, 9.925), Vector3.UP, Vector2((s[1] - s[0]) * 0.5, 0.0), 0.12, Color(0.75, 0.85, 0.95, 0.4), {}, st, Vector4(s[2], s[3], 0.12, 0.12))
+	var strip := MeshInstance3D.new()
+	strip.name = strip_name
+	strip.mesh = st.commit()
+	strip.material_override = material
+	strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(strip)
+	return strip
 
 
 func _bathroom() -> void:
