@@ -1,0 +1,67 @@
+class_name VisitorEvent
+extends HorrorEvent
+## Someone comes to the front door. The lift chimes, footsteps come up the corridor to the door and stop,
+## the presentation shows feet under it, and then they vanish without a sound. Opening the door or looking
+## through the peephole (the run is marked "peeked") ends it: nobody is there.
+
+const DOOR := Vector3(1.5, 0, 10.0)  # the front door on the floor (the doorway in ApartmentLayout.CONNECTIONS)
+const MIN_DISTANCE := 2.5
+const STEP_LENGTH := 0.7
+const STEP_TIME := 0.55
+const FIRST_STEP := 1.5  # after the chime
+const WALK_Z := 10.6
+const LAST_STEP := Vector3(1.5, 0, 10.35)
+
+@export var steps := 16
+@export var hold := 15.0  # seconds the feet stay under the door
+
+
+func prepare(ctx: EventContext, run: Dictionary) -> String:
+	if WorldState.is_door_open(&"main_door"):
+		return "door_open"
+	if not [&"entrance", &"living", &"kitchen"].has(ctx.player_room()):
+		return "player_not_inside"
+	if ctx.stage.distance_to(DOOR) < MIN_DISTANCE:
+		return "player_at_door"
+	var path: Array[Vector3] = []
+	for i in steps - 1:
+		path.append(Vector3(DOOR.x + (steps - 1 - i) * STEP_LENGTH, 0, WALK_Z))
+	path.append(LAST_STEP)
+	run["steps"] = path
+	run["room"] = &"corridor"
+	run["position"] = DOOR
+	return ""
+
+
+func start(_ctx: EventContext, run: Dictionary) -> void:
+	EventBus.sound_requested.emit(&"lift_ding", ApartmentLayout.LIFT_POS + Vector3.UP * 1.5, -8.0)
+	EventBus.subtitle_requested.emit("[A lift chimes down the corridor]", 3.0)
+	run["next_step"] = FIRST_STEP
+
+
+func update(_ctx: EventContext, run: Dictionary, _delta: float) -> bool:
+	if run.get("peeked", false) or WorldState.is_door_open(&"main_door"):
+		return true
+	var path: Array = run["steps"]
+	var i := int(run.get("step_index", 0))
+	if run.get("feet", false):
+		return run["elapsed"] >= run["feet_at"] + hold
+	if run["elapsed"] < run["next_step"]:
+		return false
+	if i < path.size():
+		EventBus.sound_requested.emit(&"footstep", path[i], lerpf(-16.0, -5.0, i / (path.size() - 1.0)))
+		if i == 0:
+			EventBus.subtitle_requested.emit("[Footsteps in the corridor, coming closer]", 3.0)
+		run["step_index"] = i + 1
+		run["next_step"] = run["elapsed"] + STEP_TIME
+	else:
+		run["feet"] = true
+		run["feet_at"] = run["elapsed"]
+		EventBus.door_feet_requested.emit(true)
+		EventBus.subtitle_requested.emit("[The footsteps stop outside your door]", 4.0)
+	return false
+
+
+func finish(_ctx: EventContext, run: Dictionary, _result: StringName) -> void:
+	if run.get("feet", false):
+		EventBus.door_feet_requested.emit(false)

@@ -19,6 +19,7 @@ signal sound_requested(sound_id: StringName, position: Vector3, volume_db: float
 signal light_flicker_requested(room_id: StringName, duration: float)
 signal silhouette_requested(anchor_id: StringName, duration: float)
 signal silhouette_seen(anchor_id: StringName)
+signal door_feet_requested(shown: bool)
 signal subtitle_requested(text: String, duration: float)
 signal inspect_requested(title: String, text: String)
 
