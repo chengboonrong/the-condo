@@ -1,6 +1,6 @@
 # THE CONDO: 11:47 PM — trailer
 
-Status: written 2026-11-05 from the brainstorm; awaiting the owner's approval. Branch: `feat/trailer`, from the
+Status: written 2026-11-05 from the brainstorm and a builder check; awaiting the owner's approval. Branch: `feat/trailer`, from the
 end of `feat/vibe-pass`.
 
 ## Intent
@@ -14,7 +14,9 @@ shifting: the home sounds stop one at a time, the colour drains, and things move
 ## Goals
 
 * About 60 s (55–65 s), 16:9, 1920×1080, made from the real game. Everything on screen is the game as players
-  get it, with the shipped defaults (filter on, field of view 72, head bob 100%).
+  get it, with the shipped defaults (filter on, field of view 72, head bob 100%). Two exceptions, both marked
+  below as my calls: the clock close-up keeps the approved still's narrow view, and the captions are drawn
+  larger.
 * It reads with the sound off for its first seconds, because embeds often start muted. The first beats are text
   cards and pictures, and every spoken line and key sound has the game's own caption on screen.
 * With the sound on, it sounds like the game. Its sound is the game's own: the home sounds, the knocks, the
@@ -43,7 +45,10 @@ shifting: the home sounds stop one at a time, the colour drains, and things move
 * Made for the itch.io page: 16:9, 1080p, about 60 s, readable with the sound off at first.
 * The storyboard below, approved 2026-11-05 ("All good"). Its stills are in `/tmp/condo-trailer2/` (throwaway,
   shot from `feat/vibe-pass`).
-* Filmed after the vibe pass, with the rebuilt objects.
+* Filmed after the vibe pass, with the rebuilt objects. The vibe pass is still unmerged and waiting for the
+  owner's listen. The trailer doesn't wait for it (my call): it is filmed from the vibe pass as it stands. If
+  the listen changes the sound or look, the script re-shoots it and the Drive file is replaced with the new
+  version.
 * The finished trailer goes to Drive, privately, with no rough cut.
 
 ## The storyboard
@@ -77,11 +82,23 @@ greyer.
   matter and every take is the same. Any shot can be re-shot by changing the script.
   * The state is the act, lights, variants and doors. The signals are sound, subtitle and figure requests.
 * **One run, already cut.** The script makes the cuts and the black, and draws the text cards in the game's own
-  UI font on black. The recording is then the whole trailer. Cards are not added afterwards. (This Mac's
-  ffmpeg has no text filter, and keeping the cards in Godot keeps one font.)
-* **ffmpeg only encodes.** It turns the recording into H.264 (yuv420p) with AAC 48 kHz in an MP4. It sets the
-  loudness to about −14 LUFS integrated with a true peak at or under −1 dBTP, where YouTube normalises. A
-  `tools/` shell script runs both steps.
+  UI font. The recording is then the whole trailer. Cards are not added afterwards. (This Mac's ffmpeg has no
+  text filter, and keeping the cards in Godot keeps one font.)
+  * The 0:00 card and the title are on black.
+  * The cards at 0:04, 0:20 and 0:53 sit over the picture, clear of the caption line, so the 0:20 shot stays
+    one held shot.
+* **Captions drawn larger.** The game's subtitle is 24 px on its 900 px base. In a YouTube embed on itch.io
+  (about 360–500 px tall) that is about 12 px over grain, too small for Rosnah's line with the sound off. The
+  trailer script enlarges the subtitle label for the recording only (a font size override from the script, no
+  game code), keeping the game's text, font and position.
+* **The clock close-up** at 0:53 keeps the approved still's narrow view (field of view 28), so 11:47 reads in
+  the embed. Every other shot is at 72.
+* **ffmpeg only encodes.** It turns the recording into H.264 (yuv420p) with AAC 48 kHz in an MP4. A `tools/`
+  shell script runs both steps.
+* **Loudness: in between** (owner, 2026-11-05). The whole trailer is turned up a lot, to about −18 LUFS
+  integrated. Only the loudest hits (the stinger, the knocks, the door slam) are lightly held back, so the true
+  peak stays at or under −1 dBTP. It plays a little quieter than most YouTube videos, which sit at −14, but the
+  scares still jump. The gain is one fixed amount for the whole trailer, so quiet and loud keep their order.
 * **Camera.** Walking shots use the player's own movement, so the head bob and footsteps are the game's.
   * "Looks away… and back" shots turn the player's view.
   * Held shots stay still or creep forward slowly.
@@ -112,8 +129,8 @@ greyer.
 ## How we know it's done
 
 * The MP4 is 1920×1080, 55–65 s long, H.264 with AAC. ffprobe prints these.
-* Loudness is measured with ffmpeg's EBU R128 scanner and written down: integrated about −14 LUFS, true peak at
-  or under −1 dBTP.
+* Loudness is measured with ffmpeg's EBU R128 scanner and written down: integrated about −18 LUFS (−19 to −17),
+  true peak at or under −1 dBTP. The limiter's largest gain reduction is written down too.
 * A contact sheet of one frame per beat is checked against the storyboard by eye, by the controller and by a
   separate reviewer.
   * The spoiler check is on the frames: no window-door, gap, B-11-07 or ending in any frame.
