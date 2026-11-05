@@ -32,7 +32,7 @@ bot's event sequence, director scores, progression, completion, errors and warni
 
 `tools/smoke.sh` (after `tools/export.sh`) first checks `index.pck` against the 8912 KiB cap (exit 1 above it),
 then starts the exported macOS app with `-- --smoke` and the web build with `?smoke` in Chromium and WebKit. The game starts itself, plays 3 s and prints `SMOKE ok` only if all
-7 event definitions loaded from the exported pack, time is running, the story is at its first beat, and
+8 event definitions loaded from the exported pack, time is running, the story is at its first beat, and
 the shader warm-up gave back the player's camera and the real light states. It also saves a screenshot.
 Windows and Linux builds are not checked (no machine). `-- --perf` / `?perf` is the performance tour,
 see [performance.md](performance.md).

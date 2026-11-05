@@ -136,7 +136,7 @@ func _smoke() -> void:
 	var events := runtime.scheduler.events.size()
 	var lights := builder.find_children("*", "OmniLight3D", true, false).filter(func(l: Node) -> bool: return l is RoomLight)
 	var restored := get_viewport().get_camera_3d() == player.camera and lights.all(func(l: RoomLight) -> bool: return l.visible == WorldState.is_light_on(l.room_id))
-	var ok := events == 7 and WorldState.time > 2.0 and runtime.story.beat == &"home" and restored  # 7 event definitions
+	var ok := events == 8 and WorldState.time > 2.0 and runtime.story.beat == &"home" and restored  # 8 event definitions
 	var shot := ""
 	if not OS.has_feature("web"):
 		shot = ProjectSettings.globalize_path("user://smoke.png")
