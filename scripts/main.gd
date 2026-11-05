@@ -108,6 +108,9 @@ func _compile_shaders() -> void:
 		phone.visible = state[1]
 		silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
 		await get_tree().process_frame
+	hud.set_lens(true)  # the peephole's lens, behind the start card, so its first look does not compile it
+	await get_tree().process_frame
+	hud.set_lens(false)
 	for k in lights.size():
 		(lights[k] as Light3D).visible = was_on[k]
 	builder.refresh_variants()

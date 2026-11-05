@@ -22,6 +22,7 @@ signal silhouette_seen(anchor_id: StringName)
 signal door_feet_requested(shown: bool)
 signal subtitle_requested(text: String, duration: float)
 signal inspect_requested(title: String, text: String)
+signal peephole_requested(view: Camera3D)
 
 # Story
 signal act_changed(act: int)

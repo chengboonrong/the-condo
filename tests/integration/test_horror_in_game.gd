@@ -237,3 +237,70 @@ func test_feet_break_the_light_under_the_front_door() -> bool:
 	check(whole.visible and not feet.visible, "gone: the whole strip again")
 	main.queue_free()
 	return true
+
+
+## Puts the player at stand, looking from its eyes at point (as test_interaction_reach does).
+func _look_at(player: PlayerController, stand: Vector3, point: Vector3) -> void:
+	player.global_position = stand
+	var to := point - (stand + Vector3.UP * 1.62)
+	player.set_look(atan2(-to.x, -to.z), atan2(to.y, Vector2(to.x, to.z).length()))
+
+
+func _press(main: Node3D, action: StringName) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = true
+	main.get_viewport().push_input(ev)
+
+
+func test_the_peephole_shows_the_corridor() -> bool:
+	var main := await _main()
+	var player: PlayerController = main.player
+	var hole: Peephole = main.builder.doors[&"main_door"].get_node("peephole")
+	check(absf(hole.global_position.x - 1.5) < 0.03 and absf(hole.global_position.y - 1.565) < 0.03 and hole.global_position.z < 9.93,
+		"on the door's inside face, at 1.55 m")
+	_look_at(player, Vector3(1.5, 0, 9.0), hole.global_position)
+	await _frames(3)
+	eq(player.interaction.target, hole, "the peephole is what the player looks at")
+	eq(hole.get_prompt(), "Look through the peephole", "its prompt")
+	player.interaction.try_interact()
+	await _frames(2)
+	var view := main.get_viewport().get_camera_3d()
+	check(view == hole.view and view.global_position.z > 9.96, "the view is from the outside of the door")
+	check((-view.global_basis.z).dot(Vector3.BACK) > 0.95, "looking into the corridor")
+	check(main.hud.is_peeping() and not player.input_enabled, "the player is held at the door")
+	var t := WorldState.time
+	await _frames(30)
+	check(WorldState.time > t, "time keeps running")
+	_press(main, &"interact")
+	await _frames(3)
+	eq(main.get_viewport().get_camera_3d(), player.camera, "E steps back")
+	check(player.input_enabled and not main.hud.is_peeping(), "and does not look again on the same press")
+	player.interaction.try_interact()
+	await _frames(2)
+	_press(main, &"pause")
+	await _frames(2)
+	check(not main.hud.is_peeping() and not main.pause.is_open(), "Esc steps back too, without the menu")
+	player.interaction.try_interact()
+	await _frames(2)
+	WorldState.set_door(&"main_door", true, &"event")
+	await _frames(2)
+	check(not main.hud.is_peeping(), "the door opening ends the look")
+	eq(hole.get_prompt(), "", "nothing to look through while the door is open")
+	main.queue_free()
+	return true
+
+
+func test_peeking_during_a_visit_ends_it() -> bool:
+	var main := await _main()
+	main.player.global_position = Vector3(6.5, 0, 8.4)
+	await _frames(2)
+	var run: Dictionary = main.runtime.scheduler.start(&"visitor", {"ignore_act": true})
+	eq(run["state"], EventScheduler.State.RUNNING, "a visit is on")
+	var hole: Peephole = main.builder.doors[&"main_door"].get_node("peephole")
+	hole.interact(main.player)
+	await _frames(3)
+	eq(run["state"], EventScheduler.State.COMPLETED, "looking through the peephole ends it")
+	main.hud.close_peephole()
+	main.queue_free()
+	return true

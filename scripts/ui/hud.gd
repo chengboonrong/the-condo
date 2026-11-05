@@ -1,6 +1,6 @@
 class_name Hud
 extends CanvasLayer
-## Crosshair, interaction prompt, objective, clock, subtitles, inspection panel and the start card.
+## Crosshair, interaction prompt, objective, clock, subtitles, inspection panel, the peephole's lens and the start card.
 
 signal started
 
@@ -29,6 +29,28 @@ void fragment() {
 	COLOR = vec4(vec3(n * grain * (1.0 - v) / a), a);
 }
 """
+## The peephole's fisheye over its camera's flat picture, inside a round black mask.
+const LENS_SHADER := """
+shader_type canvas_item;
+uniform sampler2D screen : hint_screen_texture, filter_linear;
+uniform float half_fov = 1.0472;  // the view camera's, vertically, in radians: what the rim shows
+uniform float radius = 0.45;  // of the round glass, in screen heights
+uniform float rim = 0.8;  // how much the glass darkens at its edge
+
+void fragment() {
+	float aspect = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
+	vec2 p = (SCREEN_UV - 0.5) * vec2(aspect, 1.0);  // from the centre, in screen heights
+	float r = length(p) / radius;  // 1 at the rim
+	// An even fisheye: the angle off the axis grows with r, up to half_fov at the rim. The flat picture puts
+	// that angle at tan(angle) from its centre, so the middle is magnified, the edges squeezed and straight
+	// lines bow; the rim lands on the picture's top and bottom edges.
+	vec2 src = p / max(length(p), 1e-5) * 0.5 * tan(r * half_fov) / tan(half_fov);
+	vec3 c = texture(screen, src / vec2(aspect, 1.0) + 0.5).rgb;
+	c *= 1.0 - rim * smoothstep(0.45, 1.0, r);
+	c *= 1.0 - smoothstep(1.0 - 2.0 * SCREEN_PIXEL_SIZE.y / radius, 1.0, r);  // a 2 px soft edge
+	COLOR = vec4(c, 1.0);
+}
+"""
 
 var player: PlayerController
 var film_material := ShaderMaterial.new()  # Look sets its pixel_size
@@ -48,6 +70,9 @@ var _ending: ColorRect
 var _ending_title: Label
 var _ending_text: Label
 var _ending_in := -1.0  # seconds until the ending card fades in
+var _lens: ColorRect
+var _lens_material := ShaderMaterial.new()
+var _peeping := false
 
 
 func _ready() -> void:
@@ -65,6 +90,20 @@ func _ready() -> void:
 	film_material.shader = shader
 	film.material = film_material
 	root.add_child(film)
+
+	# The peephole's lens: over the film, which it bends with the picture, and under the text.
+	_lens = ColorRect.new()
+	_lens.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var lens_shader := Shader.new()
+	lens_shader.code = LENS_SHADER
+	_lens_material.shader = lens_shader
+	_lens.material = _lens_material
+	_lens.visible = false
+	root.add_child(_lens)
+	var back := _label(_lens, 16, HORIZONTAL_ALIGNMENT_RIGHT)
+	back.text = "[E] step back"
+	back.modulate = Color(1, 1, 1, 0.5)
+	_anchor(back, Control.PRESET_BOTTOM_RIGHT, Rect2(-232, -60, 200, 30))
 
 	_crosshair = ColorRect.new()
 	_crosshair.color = Color(1, 1, 1, 0.55)
@@ -100,6 +139,10 @@ func _ready() -> void:
 	EventBus.objective_changed.connect(func(t: String) -> void: _objective.text = t)
 	EventBus.subtitle_requested.connect(show_subtitle)
 	EventBus.inspect_requested.connect(show_inspect)
+	EventBus.peephole_requested.connect(show_peephole)
+	EventBus.door_changed.connect(func(id: StringName, open: bool, _source: StringName) -> void:
+		if _peeping and open and id == &"main_door":  # the view is on the door: it would swing into the flat
+			close_peephole())
 	EventBus.ending_reached.connect(func(_id: StringName) -> void: _ending_in = 3.0)
 
 
@@ -204,18 +247,21 @@ func is_ending_shown() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# E or Esc steps back from a note or the peephole first, whatever card is up (tests look behind the start card).
+	if is_inspecting() and (event.is_action_pressed("interact") or event.is_action_pressed("pause")):
+		if _peeping:
+			close_peephole()
+		else:
+			close_inspect()
+		get_viewport().set_input_as_handled()
+		return
 	if _ending.visible:
 		if event is InputEventMouseButton and event.pressed:
 			get_viewport().set_input_as_handled()
 			get_tree().reload_current_scene()
 		return
-	if _start.visible:
-		if _can_start and event is InputEventMouseButton and event.pressed:
-			start()
-			get_viewport().set_input_as_handled()
-		return
-	if _inspect.visible and (event.is_action_pressed("interact") or event.is_action_pressed("pause")):
-		close_inspect()
+	if _start.visible and _can_start and event is InputEventMouseButton and event.pressed:
+		start()
 		get_viewport().set_input_as_handled()
 
 
@@ -259,8 +305,42 @@ func close_inspect() -> void:
 	player.interaction.set_deferred(&"enabled_input", true)
 
 
+## True while reading a note or looking through the peephole: time runs, the player is held.
 func is_inspecting() -> bool:
-	return _inspect.visible
+	return _inspect.visible or _peeping
+
+
+## Looks through the peephole: the view is its camera, bent by the lens, and the player is held as for a note.
+func show_peephole(view: Camera3D) -> void:
+	_lens_material.set_shader_parameter("half_fov", deg_to_rad(view.fov) * 0.5)
+	view.make_current()
+	set_lens(true)
+	_peeping = true
+	_crosshair.visible = false
+	_prompt.visible = false
+	player.input_enabled = false
+	player.interaction.enabled_input = false
+
+
+func close_peephole() -> void:
+	_leave_peephole()
+	close_inspect()
+
+
+func is_peeping() -> bool:
+	return _peeping
+
+
+## Shows the lens alone; Main's shader warm-up draws it once.
+func set_lens(on: bool) -> void:
+	_lens.visible = on
+
+
+## The player's own view back, without letting the player go (the ending card keeps them held).
+func _leave_peephole() -> void:
+	_peeping = false
+	set_lens(false)
+	player.camera.make_current()
 
 
 func is_on_start_card() -> bool:
@@ -275,6 +355,8 @@ func _process(delta: float) -> void:
 			_ending_title.text = e[0]
 			_ending_text.text = e[1]
 			_inspect.visible = false
+			if _peeping:
+				_leave_peephole()
 			_ending.visible = true
 	if _subtitle_left > 0.0:
 		_subtitle_left -= delta

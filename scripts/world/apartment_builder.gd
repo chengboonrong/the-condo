@@ -481,6 +481,25 @@ func _build_door(door_id: StringName, data: Dictionary) -> void:
 		panel.name = &"front_door"
 		panel.position = Vector3(shape.position.x - box.size.x * 0.5, shape.position.y - box.size.y * 0.5, back)  # its hinge-side bottom edge, mid-thickness
 		door.add_child(panel)
+		# The peephole (art/front_door/build.py PEEPHOLE): a 2 cm box on the panel's inside face, and its view just
+		# outside the outside face, facing the corridor.
+		var hole := Peephole.new()
+		hole.name = &"peephole"
+		hole.object_id = &"peephole"
+		hole.prompt = "Look through the peephole"
+		hole.position = panel.position + Vector3(0.477, 1.55, -box.size.z * 0.5 - 0.01)
+		var knob := CollisionShape3D.new()
+		knob.shape = BoxShape3D.new()
+		(knob.shape as BoxShape3D).size = Vector3(0.12, 0.12, 0.02)
+		hole.add_child(knob)
+		hole.view = Camera3D.new()
+		hole.view.position.z = box.size.z + 0.02  # 1 cm out of the outside face, clear of the lens
+		hole.view.rotation.y = PI
+		hole.view.fov = 140.0  # wide enough to see down the corridor both ways once the lens bends it
+		hole.view.near = 0.02
+		hole.view.far = 120.0  # as the player's camera
+		hole.add_child(hole.view)
+		door.add_child(hole)
 	else:
 		_box(door, shape.position, box.size, data["color"], false)
 		for s: float in [-1.0, 1.0]:  # lever handles on both sides
