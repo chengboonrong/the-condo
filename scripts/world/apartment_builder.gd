@@ -645,17 +645,15 @@ func _build_label(l: Array) -> void:
 		gate(label, l[5])
 
 
+## The living room's ceiling fan, hanging from the ceiling above the lamp. Its Blades (housing and blades, pivoting on the
+## downrod) are what _process turns.
 func _build_fan() -> void:
-	_fan = Node3D.new()
-	_fan.position = Vector3(6.5, 2.5, 7.0)
-	add_child(_fan)
-	_box(self, Vector3(6.5, 2.6, 7.0), Vector3(0.03, 0.2, 0.03), Color(0.85, 0.85, 0.82), false)  # downrod
-	_box(_fan, Vector3.ZERO, Vector3(0.18, 0.12, 0.18), Color(0.85, 0.85, 0.82), false)
-	for i in 3:
-		var blade := Node3D.new()
-		blade.rotation.y = TAU * i / 3.0
-		_fan.add_child(blade)
-		_box(blade, Vector3(0.45, 0, 0), Vector3(0.7, 0.015, 0.12), Color(0.55, 0.42, 0.3), false)
+	var fan := model(&"ceiling_fan")
+	fan.name = &"ceiling_fan"
+	fan.position = Vector3(6.5, ApartmentLayout.CEILING, 7.0)
+	add_child(fan)
+	models[&"ceiling_fan"] = fan
+	_fan = fan.get_node("Blades")
 
 
 # --- outside ------------------------------------------------------------------------------------

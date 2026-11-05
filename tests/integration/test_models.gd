@@ -3,7 +3,8 @@ extends TestCase
 
 # Triangles each model may have. Each object task adds its ids.
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
-	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000, &"fridge": 4000}
+	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000, &"fridge": 4000,
+	&"ceiling_fan": 3000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
@@ -335,5 +336,19 @@ func test_clock_hands_read_the_game_clock() -> bool:
 		check(hand.position.distance_to(Vector3(0.0, 0.0, 0.024)) < 0.001, "%s pivots on the dial centre" % hand.name)
 		var box: AABB = (hand as MeshInstance3D).get_aabb()
 		check(box.end.y > 0.05 and box.end.y > -2.0 * box.position.y, "%s points up from its pivot" % hand.name)
+	main.queue_free()
+	return true
+
+
+func test_fan_turns_under_the_ceiling() -> bool:
+	var main := await _main()
+	var fan: Node3D = main.builder.models[&"ceiling_fan"]
+	var blades := fan.get_node("Blades") as Node3D
+	near(_aabb(fan).end.y, ApartmentLayout.CEILING, 0.02, "hangs from the ceiling")
+	near(blades.global_position.y, ApartmentLayout.CEILING - 0.2, 0.001, "the blades turn on the downrod, 0.2 m under the canopy")
+	var r := blades.rotation.y
+	for i in 10:
+		await tree.process_frame
+	check(not is_equal_approx(blades.rotation.y, r), "turns")
 	main.queue_free()
 	return true
