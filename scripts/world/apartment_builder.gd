@@ -63,6 +63,8 @@ const MODELS: Array[Array] = [
 	# starts at the spout (basin/build.py's SPOUT, turned with the basin), which is inside the tap's click box.
 	[&"basin", &"basin", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(3.3, 0, 1.0)), {}],
 	[&"tap_water", &"tap_water", Transform3D(Basis(), Vector3(3.24, 0.964, 1.0)), {&"bathroom_tap": &"running"}],
+	# B-11-07: the same intercom on the mirror room's west wall (face at x = 5.5 + WALL_T / 2), dusty
+	[&"intercom_mirror", &"intercom", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(5.575, 1.45, -14.6)), {&"bedroom": &"door"}, true],
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
 # seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The table's and the basin's are Decor's.
@@ -461,12 +463,11 @@ func _build_door(door_id: StringName, data: Dictionary) -> void:
 	door.add_child(shape)
 	if door_id == &"main_door":
 		# The front door is a model: panel, lever handles, deadbolt and peephole. It fills the collision box, its outside
-		# (the model's front) towards the corridor at +z. A model, so the shader warm-up shows its material too.
+		# (the model's front) towards the corridor at +z.
 		var panel := model(&"front_door")
 		panel.name = &"front_door"
 		panel.position = Vector3(shape.position.x - box.size.x * 0.5, shape.position.y - box.size.y * 0.5, back)  # its hinge-side bottom edge, mid-thickness
 		door.add_child(panel)
-		models[&"front_door"] = panel
 	else:
 		_box(door, shape.position, box.size, data["color"], false)
 		for s: float in [-1.0, 1.0]:  # lever handles on both sides
@@ -615,7 +616,7 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# the window and the moved things are drawn by their props; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)
 	if o.size() > 6:

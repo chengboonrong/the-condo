@@ -157,7 +157,6 @@ func test_front_door_model_fills_its_panel() -> bool:
 	if shape == null or panel == null:
 		main.queue_free()
 		return true
-	check(main.builder.models.get(&"front_door") == panel, "it is one of the builder's models, so the shader warm-up shows it")
 	var a := AABB()
 	var first := true
 	for m: MeshInstance3D in panel.find_children("*", "MeshInstance3D", true, false):
@@ -168,23 +167,36 @@ func test_front_door_model_fills_its_panel() -> bool:
 	for axis in 2:  # width and height are the panel's alone: the hardware lies inside them
 		near(a.get_center()[axis], shape.position[axis], 0.005, "model centre, axis %d" % axis)
 		near(a.size[axis], size[axis], 0.005, "model size, axis %d" % axis)
-	# The levers, the deadbolt and the peephole stand out of both faces, so the depth is the panel's and then some.
+	# The levers, the deadbolt and the peephole stand out of both faces, the same 4.5 cm each way: the depth is the panel's and
+	# then some, about the same plane.
+	near(a.get_center().z, shape.position.z, 0.005, "model centre, depth")
 	check(a.position.z <= shape.position.z - size.z / 2.0 + 0.005 and a.end.z >= shape.position.z + size.z / 2.0 - 0.005, "the panel is as thick as its collider")
-	check(a.size.z < size.z + 0.2, "the hardware stands out %.3f m in all, not more than 0.2 m" % (a.size.z - size.z))
+	check(a.size.z < size.z + 0.16, "the hardware stands out %.3f m in all, not more than 0.16 m" % (a.size.z - size.z))
 	main.queue_free()
 	return true
 
 
-func test_intercom_sits_on_the_wall_inside_its_click_box() -> bool:
+func test_intercoms_sit_on_their_walls_inside_their_click_boxes() -> bool:
 	var main := await _main()
-	check(main.builder.models.has(&"intercom"), "the intercom is a placed model")
-	if main.builder.models.has(&"intercom"):
-		var a := _aabb(main.builder.models[&"intercom"])
-		var click: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == &"intercom")[0]
-		check(AABB(click[1] - click[2] / 2.0, click[2]).has_point(a.get_center()), "its centre %s is inside the click box" % a.get_center())
-		near(a.position.x, ApartmentLayout.WALL_T / 2.0, 0.005, "its back is on the wall, not floating off it")
-		near(a.size.z, 0.09, 0.01, "it is 9 cm wide, along the wall")
-		check(a.size.y > 0.22 and a.size.y < 0.3, "it is 22 cm tall and its cord hangs a little lower (%.3f m in all)" % a.size.y)
+	# node name -> the x of the wall's middle; both walls face east
+	for entry: Array in [[&"intercom", 0.0], [&"intercom_mirror", 5.5]]:
+		var name: StringName = entry[0]
+		check(main.builder.models.has(name), "%s is a placed model" % name)
+		if not main.builder.models.has(name):
+			continue
+		var a := _aabb(main.builder.models[name])
+		var click: Array = ApartmentBuilder.OBJECTS.filter(func(o: Array) -> bool: return o[0] == name)[0]
+		check(AABB(click[1] - click[2] / 2.0, click[2]).has_point(a.get_center()), "%s: its centre %s is inside the click box" % [name, a.get_center()])
+		near(a.position.x, entry[1] + ApartmentLayout.WALL_T / 2.0, 0.005, "%s: its back is on the wall, not floating off it" % name)
+		near(a.size.z, 0.09, 0.01, "%s: it is 9 cm wide, along the wall" % name)
+		check(a.size.y > 0.22 and a.size.y < 0.3, "%s: it is 22 cm tall and its cord hangs a little lower (%.3f m in all)" % [name, a.size.y])
+	var mirror: Node3D = main.builder.models.get(&"intercom_mirror")
+	if mirror:
+		check(not mirror.visible, "B-11-07's intercom is hidden until the reveal")
+		WorldState.set_variant(&"bedroom", &"door")
+		await tree.process_frame
+		check(mirror.visible, "and shown once the window is a door")
+		WorldState.set_variant(&"bedroom", &"default")
 	main.queue_free()
 	return true
 

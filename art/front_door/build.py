@@ -1,6 +1,6 @@
 """The front door of the flat: a solid timber door, 0.954 m wide, 2.07 m tall and 5 cm thick, two panels recessed 5 mm
-between a stile on each side and three rails, dark varnish rubbed to bare wood round the handle and chipped along the
-edges, scuffed and kicked at the bottom, dirtier outside than in. A lever handle stands out of each face, a deadbolt's
+between a stile on each side and three rails, dark varnish rubbed through to pale wood round the handle and the key plate
+and chipped along the edges, scuffed and kicked at the bottom, dirtier outside than in. A lever handle stands out of each face, a deadbolt's
 key plate outside and its thumb-turn inside, a peephole at 1.55 m. Run by tools/models.sh.
 
 The origin is the hinge-side bottom edge, in the middle of the thickness; the panel runs along +X. The front faces -Y
@@ -24,10 +24,9 @@ FACE, FIELD = 0.025, 0.020  # half the thickness at the stiles and rails; at the
 STILE = 0.14
 RAILS = [(0.0, 0.18), (0.95, 1.10), (1.93, HEIGHT)]  # bottom, middle, top: from, to
 LEVER = (0.877, 0.985)  # the handle's rose, across and up the door
-GRIP = (0.85, 0.985)  # where the hand takes it: the centre of the worn patch
+GRIP = (0.86, 1.07)  # the centre of the rubbed patch, between the lever and the key plate
 BOLT = (0.877, 1.15)  # the deadbolt's key plate and thumb-turn
 PEEPHOLE = (0.477, 1.55)
-KICKS = [(0.62, 0.21, 0.11, 0.05), (0.33, 0.12, 0.08, 0.04), (0.78, 0.35, 0.07, 0.035), (0.47, 0.06, 0.09, 0.035)]  # boot marks: x, z, half width, half height
 TIMBER, STEEL, BRASS, LENS = range(4)  # material indices
 SEGMENTS = 16
 
@@ -98,10 +97,10 @@ def build() -> bpy.types.Object:
 # --- materials ------------------------------------------------------------------------------------------
 
 def timber() -> bpy.types.Material:
-    """Dark varnished timber: the grain up the stiles and panels, across the rails. The varnish is rubbed through to pale
-    bare wood at the edges and in patches, round the handle and the deadbolt, and kicked off in scuffs and boot marks
-    near the floor; it is greasy round the handle, grimy at the foot, and dusty where the panels are recessed. The outside
-    gets more of the kicks."""
+    """Dark varnished timber: the grain up the stiles and panels, across the rails. The varnish is worn through to pale,
+    greyish bare wood only where hands and feet touch: softly round the handle and the key plate, along the lock stile's
+    edge, along the foot, and chipped at the edges; the bottom is kicked in long low scuffs, rubber-streaked, and grimy.
+    The outside gets more of the kicks."""
     mat, nt, bsdf, coords = common.surface("timber")
     xyz = node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords}).outputs
     x, y, z = xyz["X"], xyz["Y"], xyz["Z"]
@@ -115,6 +114,9 @@ def timber() -> bpy.types.Material:
         scale = tuple(along if i == axis else across for i in range(3))
         return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
 
+    def smudged(scale: tuple, offset: tuple = (0.0, 0.0, 0.0)) -> bpy.types.NodeSocket:  # soft noise, drawn out along the axes whose scale is low
+        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale, "Location": offset}).outputs["Vector"], 1.0, 2.0)
+
     def grain(axis: int) -> bpy.types.NodeSocket:
         return mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(axis, 3.0, 120.0), 0.6), maths(nt, "MULTIPLY", stretched(axis, 2.0, 22.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
 
@@ -126,22 +128,25 @@ def timber() -> bpy.types.Material:
     vertical = grain(2)
     lines = maths(nt, "ADD", vertical, maths(nt, "MULTIPLY", maths(nt, "SUBTRACT", grain(0), vertical), rails))
     varnished = lerp(nt, (0.055, 0.022, 0.010), (0.105, 0.045, 0.021), lines)
-    bare = lerp(nt, (0.3, 0.2, 0.11), (0.44, 0.31, 0.19), lines)
+    bare = lerp(nt, (0.34, 0.29, 0.22), (0.48, 0.42, 0.33), lines)
     outside = mapped(nt, y, 0.01, -0.01, 0.0, 1.0)
 
     edge = mapped(nt, node(nt, "ShaderNodeVectorMath", {0: bevelled, 1: flat}, operation="DOT_PRODUCT").outputs["Value"], 1.0, 0.8, 0.0, 1.0)
-    patches = maths(nt, "MULTIPLY", mapped(nt, noise(nt, coords, 5.0, 3.0), 0.6, 0.74, 0.0, 0.35), mapped(nt, z, 1.5, 0.3, 0.3, 1.0))
-    hand = maths(nt, "MULTIPLY", mapped(nt, around(GRIP[0], GRIP[1], 0.1, 0.12), 1.0, 0.45, 0.0, 1.0), mapped(nt, noise(nt, coords, 30.0, 5.0), 0.38, 0.52, 0.0, 1.0))
-    key = maths(nt, "MULTIPLY", mapped(nt, around(*BOLT, 0.04, 0.05), 1.0, 0.4, 0.0, 0.7), mapped(nt, noise(nt, coords, 42.0, 4.0), 0.3, 0.65, 0.4, 1.0))
-    grease = maths(nt, "MULTIPLY", mapped(nt, around(GRIP[0], GRIP[1], 0.1, 0.12), 2.0, 1.0, 0.0, 0.4), mapped(nt, noise(nt, coords, 20.0, 4.0), 0.4, 0.6, 0.0, 1.0))
-    scrapes = maths(nt, "MULTIPLY", mapped(nt, z, 0.34, 0.04, 0.0, 1.0), mapped(nt, noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": (4.0, 4.0, 150.0)}).outputs["Vector"], 1.0, 2.0), 0.52, 0.64, 0.0, 1.0))
-    smear = 0.0
-    boots = 0.0
-    for cx, cz, rx, rz in KICKS:
-        boots = maths(nt, "MAXIMUM", boots, maths(nt, "MULTIPLY", mapped(nt, around(cx, cz, rx, rz), 1.0, 0.7, 0.0, 1.0), mapped(nt, noise(nt, coords, 60.0, 4.0), 0.42, 0.55, 0.0, 1.0)))
-        smear = maths(nt, "MAXIMUM", smear, maths(nt, "MULTIPLY", mapped(nt, around(cx, cz + 0.012, rx * 0.7, rz * 0.5), 1.0, 0.5, 0.0, 1.0), mapped(nt, noise(nt, coords, 45.0, 3.0), 0.4, 0.55, 0.0, 1.0)))
-    kicked = maths(nt, "MULTIPLY", maths(nt, "MAXIMUM", scrapes, boots), mapped(nt, outside, 0.0, 1.0, 0.45, 1.0))
-    worn = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", edge, patches), maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", hand, key), kicked))
+    # Where hands and feet touch: the lock stile's edge about the handle, and the foot of the door.
+    stile = maths(nt, "MULTIPLY", mapped(nt, x, WIDTH - 0.06, WIDTH, 0.0, 1.0), mapped(nt, maths(nt, "ABSOLUTE", maths(nt, "SUBTRACT", z, GRIP[1])), 0.4, 0.1, 0.0, 1.0))
+    foot_rub = mapped(nt, z, 0.16, 0.03, 0.0, 1.0)
+    touched = maths(nt, "MULTIPLY", maths(nt, "MAXIMUM", maths(nt, "MULTIPLY", stile, 0.7), maths(nt, "MULTIPLY", foot_rub, 0.55)), mapped(nt, smudged((6.0, 6.0, 6.0)), 0.3, 0.65, 0.35, 1.0))
+    # The rub-through round the lever and the key plate: soft, roughly elliptical, streaked up the grain; a faint dark ring at its edge.
+    rub = around(GRIP[0], GRIP[1], 0.1, 0.2)
+    rubbed = maths(nt, "MULTIPLY", mapped(nt, rub, 1.0, 0.15, 0.0, 0.85), mapped(nt, smudged((22.0, 22.0, 5.0)), 0.3, 0.7, 0.5, 1.0))
+    grease = maths(nt, "MULTIPLY", mapped(nt, maths(nt, "ABSOLUTE", maths(nt, "SUBTRACT", rub, 1.25)), 0.4, 0.0, 0.0, 0.3), mapped(nt, smudged((5.0, 5.0, 5.0)), 0.3, 0.7, 0.3, 1.0))
+    # Kicks: long, low scuffs along the foot, with the odd finer scratch and a streak of rubber.
+    low = mapped(nt, z, 0.3, 0.04, 0.0, 1.0)
+    scuffs = maths(nt, "MULTIPLY", low, mapped(nt, smudged((5.0, 5.0, 26.0)), 0.55, 0.7, 0.0, 0.85))
+    scratches = maths(nt, "MULTIPLY", low, mapped(nt, smudged((9.0, 9.0, 140.0), (3.0, 7.0, 0.0)), 0.55, 0.68, 0.0, 0.5))
+    smear = maths(nt, "MULTIPLY", low, mapped(nt, smudged((6.0, 6.0, 30.0), (11.0, 3.0, 5.0)), 0.52, 0.68, 0.0, 1.0))
+    kicked = maths(nt, "MULTIPLY", maths(nt, "MAXIMUM", scuffs, scratches), mapped(nt, outside, 0.0, 1.0, 0.45, 1.0))
+    worn = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", edge, touched), maths(nt, "MAXIMUM", rubbed, kicked))
     colour = lerp(nt, varnished, bare, worn)
     colour = lerp(nt, colour, (0.025, 0.02, 0.014), maths(nt, "MULTIPLY", smear, mapped(nt, outside, 0.0, 1.0, 0.4, 0.8)))
     colour = lerp(nt, colour, (0.02, 0.012, 0.008), grease)

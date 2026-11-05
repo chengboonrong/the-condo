@@ -136,7 +136,7 @@ def plastic(name: str, tint: tuple, handset: bool) -> bpy.types.Material:
         reach = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", maths(nt, "SUBTRACT", xyz["Z"], 0.1), maths(nt, "SUBTRACT", -0.03, xyz["Z"])), 0.0)
         away = node(nt, "ShaderNodeVectorMath", {0: node(nt, "ShaderNodeCombineXYZ", {"X": xyz["X"], "Y": reach}).outputs["Vector"]}, operation="LENGTH").outputs["Value"]
         halo = maths(nt, "MULTIPLY", mapped(nt, away, 0.05, 0.022, 0.0, 0.9), mapped(nt, noise(nt, coords, 55.0, 4.0), 0.3, 0.6, 0.2, 1.0))
-    colour = lerp(nt, colour, (0.2, 0.13, 0.065), maths(nt, "MULTIPLY", halo, 0.85))
+    colour = lerp(nt, colour, (0.38, 0.26, 0.12), maths(nt, "MULTIPLY", halo, 0.6))
     dust = maths(nt, "MULTIPLY", mapped(nt, normal["Z"], 0.3, 0.95, 0.0, 1.0), mapped(nt, noise(nt, coords, 40.0, 3.0), 0.4, 0.7, 0.1, 0.55))
     colour = lerp(nt, colour, (0.3, 0.28, 0.25), dust)
     holes = 0.0
@@ -195,8 +195,8 @@ def cord_material(name: str, tint: tuple) -> bpy.types.Material:
 
 common.reset()
 intercom = build()
-tint = (0.78, 0.67, 0.43)
-for m in (plastic("shell", tint, False), plastic("handset", (0.74, 0.63, 0.39), True), key_button("key"), cord_material("cord", tint)):
+tint = (0.88, 0.76, 0.48)
+for m in (plastic("shell", tint, False), plastic("handset", (0.84, 0.72, 0.45), True), key_button("key"), cord_material("cord", tint)):
     intercom.data.materials.append(m)
 me = intercom.data
 me.set_sharp_from_angle(angle=math.radians(50))
