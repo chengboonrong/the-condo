@@ -228,6 +228,32 @@ func test_each_bed_has_its_headboard_towards_the_wall_with_its_room_door() -> bo
 	return true
 
 
+func test_the_beds_mattress_clears_its_collider() -> bool:
+	var main := await _main()
+	# The collider's top (0.5 m) must lie under the sheet, or the game's visibility test (GameStage.can_see) would hide what
+	# stands on the bed's far side: the lowest vertex over the mattress's interior (the rails are lower, the pillows and the
+	# blanket higher) has to be at least as high.
+	for name: StringName in [&"bed", &"bed_b1107"]:
+		var node: Node3D = main.builder.models[name]
+		var rows := ApartmentBuilder.COLLIDERS.filter(func(c: Array) -> bool: return Vector2(c[0].x, c[0].z).distance_to(Vector2(node.global_position.x, node.global_position.z)) < 0.01)
+		eq(rows.size(), 1, "one collider under %s" % name)
+		if rows.size() != 1:
+			continue
+		var top: float = rows[0][0].y + rows[0][1].y / 2.0
+		var lowest := INF
+		for m: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			for s in m.mesh.get_surface_count():
+				for v: Vector3 in m.mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]:
+					var at: Vector3 = m.global_transform * v
+					var off := at - node.global_position
+					if absf(off.x) < 0.78 and absf(off.z) < 0.9 and at.y > 0.36:
+						lowest = minf(lowest, at.y)
+		check(lowest < INF, "%s has a mattress over its interior" % name)
+		check(lowest >= top, "%s: the lowest vertex over the mattress is %.4f m, under its collider's top (%.4f m)" % [name, lowest, top])
+	main.queue_free()
+	return true
+
+
 func test_models_follow_their_variants() -> bool:
 	var main := await _main()
 	for m: Array in ApartmentBuilder.MODELS:

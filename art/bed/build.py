@@ -308,10 +308,6 @@ def finish(nt, bsdf, colour, rough, height=None, strength=0.3, distance=0.004, a
         nt.links.new(node(nt, "ShaderNodeBump", {"Strength": strength, "Distance": distance, "Height": height}).outputs["Normal"], bsdf.inputs["Normal"])
 
 
-def node_scale(nt: bpy.types.NodeTree, coords: bpy.types.NodeSocket, scale: tuple) -> bpy.types.NodeSocket:
-    return node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"]
-
-
 def timber(name: str, axis: int) -> bpy.types.Material:
     """Dark stained wood, the grain along axis (0 X, 1 Y, 2 Z). Worn through the varnish only where use would wear it:
     pale along the edges, scuffed near the floor, rubbed along the headboard's top rail where hands rest; greasy where
@@ -320,7 +316,7 @@ def timber(name: str, axis: int) -> bpy.types.Material:
     xyz = node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords}).outputs
     flat = node(nt, "ShaderNodeNewGeometry").outputs["Normal"]
     bevelled = node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
-    facing = node(nt, "ShaderNodeSeparateXYZ", {"Vector": flat}).outputs
+    normal = node(nt, "ShaderNodeSeparateXYZ", {"Vector": flat}).outputs
 
     def stretched(along: float, across: float) -> bpy.types.NodeSocket:  # noise drawn out along the grain
         scale = tuple(along if i == axis else across for i in range(3))
@@ -329,11 +325,11 @@ def timber(name: str, axis: int) -> bpy.types.Material:
     grain = mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(3.0, 120.0), 0.6), maths(nt, "MULTIPLY", stretched(2.0, 22.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
     varnished = lerp(nt, (0.065, 0.027, 0.012), (0.12, 0.052, 0.024), grain)
     bare = lerp(nt, (0.22, 0.165, 0.115), (0.33, 0.255, 0.18), grain)  # greyish tan, as the front door's
-    up = mapped(nt, facing["Z"], 0.5, 0.95, 0.0, 1.0)
+    up = mapped(nt, normal["Z"], 0.5, 0.95, 0.0, 1.0)
     breakup = mapped(nt, noise(nt, coords, 12.0, 3.0), 0.3, 0.7, 0.35, 1.0)
     edge = maths(nt, "MULTIPLY", mapped(nt, node(nt, "ShaderNodeVectorMath", {0: bevelled, 1: flat}, operation="DOT_PRODUCT").outputs["Value"], 1.0, 0.8, 0.0, 1.0), breakup)
     scuff = maths(nt, "MULTIPLY", mapped(nt, xyz["Z"], 0.1, 0.0, 0.0, 1.0), mapped(nt, noise(nt, coords, 35.0, 3.0), 0.35, 0.6, 0.3, 1.0))
-    hands = maths(nt, "MULTIPLY", maths(nt, "MULTIPLY", mapped(nt, xyz["Z"], 0.935, 0.955, 0.0, 1.0), up), mapped(nt, noise(nt, node_scale(nt, coords, (3.0, 30.0, 30.0)), 1.0, 3.0), 0.35, 0.65, 0.2, 1.0))
+    hands = maths(nt, "MULTIPLY", maths(nt, "MULTIPLY", mapped(nt, xyz["Z"], 0.935, 0.955, 0.0, 1.0), up), mapped(nt, noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": (3.0, 30.0, 30.0)}).outputs["Vector"], 1.0, 3.0), 0.35, 0.65, 0.2, 1.0))
     worn = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", maths(nt, "MULTIPLY", edge, 0.85), maths(nt, "MULTIPLY", scuff, 0.8)), maths(nt, "MULTIPLY", hands, 0.7))
     colour = lerp(nt, varnished, bare, worn)
     # Hair oil on the headboard's face where the pillows lean: darker, glossier.
