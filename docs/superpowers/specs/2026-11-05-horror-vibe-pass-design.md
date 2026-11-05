@@ -1,7 +1,7 @@
 # The horror vibe pass: design
 
-2026-11-05. Status: draft for the owner's approval. Nothing is built yet. A builder has read it. Its four open
-questions are settled below and marked "My call", for the owner to check.
+2026-11-05. Status: approved by the owner on 2026-11-05, including the four answers marked "My call". Built on
+feat/vibe-pass, from the end of feat/trailer-objects.
 
 ## Why
 
