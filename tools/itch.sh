@@ -26,7 +26,7 @@ mkdir -p "$out/screenshots"
 # Tease only, as the trailer: nothing from the reveal (stills.gd's b1107 and still_gap are never used).
 # Strongest first: itch.io shows the first screenshot largest.
 cp "$tmp/act2/hallway_figure.png" "$out/screenshots/1-hallway.png"
-cp "$tmp/act2/bedroom_wall.png" "$out/screenshots/2-bedroom.png"
+cp "$tmp/act1/bedroom_lit.png" "$out/screenshots/2-bedroom.png"
 cp "$tmp/act2/tap.png" "$out/screenshots/3-tap.png"
 cp "$tmp/act1/entrance.png" "$out/screenshots/4-front-door.png"
 cp "$tmp/act2/clock.png" "$out/screenshots/5-clock.png"

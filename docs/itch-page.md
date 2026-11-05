@@ -12,7 +12,7 @@ Run it again whenever the game's look changes.
 | Field on *Edit game* | File |
 |---|---|
 | Cover image (630×500) | `builds/itch/cover.png`: the figure in the kitchen, in the phone light |
-| Screenshots | `builds/itch/screenshots/1-hallway.png` … `5-clock.png` (1920×1080), in that order: the figure in the hallway, the bedroom and the tap in the phone light, the front door, the clock at 11:47 |
+| Screenshots | `builds/itch/screenshots/1-hallway.png` … `5-clock.png` (1920×1080), in that order: the figure in the hallway, the bedroom, the tap in the phone light, the front door, the clock at 11:47 |
 | Gameplay video or trailer | The YouTube link, once the trailer is uploaded there (the file is in Drive, "The Condo trailer") |
 
 ## Title and tagline
