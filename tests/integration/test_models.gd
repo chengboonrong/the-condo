@@ -2,11 +2,13 @@ extends TestCase
 ## The Blender models: their budgets, where they stand, their variants, the shader warm-up and the clock.
 
 # Triangles each model may have. Each object task adds its ids.
-const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000}
+const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
 	&"shoes_moved": [2.3, 8.5, 0.28, 0.32],
+	&"dining_table": [4.5, 6.2, 1.1, 0.75],
+	&"chair_turned": [3.45, 5.2, 0.42, 0.42],
 }
 
 
@@ -66,6 +68,21 @@ func test_models_stand_where_they_collide() -> bool:
 		near(a.size.x, f[2], 0.08, "%s size x" % name)
 		near(a.size.z, f[3], 0.08, "%s size z" % name)
 		near(a.position.y, 0.0, 0.02, "%s stands on the floor" % name)
+	main.queue_free()
+	return true
+
+
+func test_turned_chair_faces_the_hallway() -> bool:
+	var main := await _main()
+	WorldState.set_variant(&"living_chair", &"turned")
+	await tree.process_frame
+	var chair: Node3D = main.builder.models[&"chair_turned"]
+	check(chair.global_basis.z.dot(Vector3.FORWARD) > 0.95, "its front points north, through the hallway opening")
+	var backs := ApartmentBuilder.COLLIDERS.filter(func(c: Array) -> bool: return c[2] == {&"living_chair": &"turned"})
+	eq(backs.size(), 1, "one collider for the turned chair's back")
+	for back: Array in backs:
+		check(back[0].z > 5.3, "its back is on the south side")
+	WorldState.set_variant(&"living_chair", &"default")
 	main.queue_free()
 	return true
 

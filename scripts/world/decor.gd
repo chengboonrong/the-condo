@@ -413,22 +413,11 @@ func _living() -> void:
 	_socket(Vector3(7.9, 0.3, 4.075), Vector3.BACK)
 	_socket(Vector3(9.0, 0.3, 9.925), Vector3.FORWARD)
 	_clock(Vector3(5.3, 2.05, 4.075))
-	# Dining table, with tonight's teh tarik still in its bag and the food cover over something.
-	box(Vector3(4.5, 0.74, 6.2), Vector3(1.1, 0.04, 0.75), WOOD)
-	for x: float in [4.0, 5.0]:
-		for z: float in [5.88, 6.52]:
-			box(Vector3(x, 0.36, z), Vector3(0.05, 0.72, 0.05), WOOD)
+	# Dining table (a model, with tonight's teh tarik still in its bag and the food cover over something): its collision
+	# and shadow. The chairs are models too; they get their shadows here (the turned chair is a variant, so is its shadow).
 	solid(Vector3(4.5, 0.38, 6.2), Vector3(1.1, 0.76, 0.75))
 	foot(Vector3(4.5, 0, 6.2), Vector2(0.5, 0.33), 0.4)
-	cylinder(Vector3(4.25, 0.76, 6.25), 0.27, 0.17, Color(0.72, 0.36, 0.42), Look.GLOSS, {}, 0.07)
-	box(Vector3(4.82, 0.83, 6.05), Vector3(0.1, 0.14, 0.07), Color(0.52, 0.33, 0.18), Look.GLOSS)
-	box(Vector3(4.82, 0.92, 6.05), Vector3(0.025, 0.04, 0.02), Color(0.7, 0.62, 0.5), Look.GLOSS)
-	box(Vector3(4.82, 0.97, 6.05), Vector3(0.004, 0.07, 0.05), Color(0.9, 0.35, 0.5))  # raffia loop
-	# Chairs: legs, and their own shadows (the turned chair is a variant, so are its legs).
 	for c: Array in [[Vector3(4.5, 0, 6.85), {}], [Vector3(4.5, 0, 5.55), {&"living_chair": &"default"}], [Vector3(3.45, 0, 5.2), {&"living_chair": &"turned"}]]:
-		for dx: float in [-0.18, 0.18]:
-			for dz: float in [-0.18, 0.18]:
-				box(c[0] + Vector3(dx, 0.21, dz), Vector3(0.035, 0.42, 0.035), Color(0.4, 0.28, 0.2), Look.MATTE, c[1])
 		foot(c[0], Vector2(0.18, 0.18), 0.35, c[1])
 	# Laundry by the window: a T-shirt, the mamak apron, a towel. In the dark they are the right height.
 	box(Vector3(9.3, 0.85, 6.0), Vector3(0.025, 1.7, 0.025), STEEL, Look.GLOSS)

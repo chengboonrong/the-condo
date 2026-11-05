@@ -5,11 +5,14 @@ touching the wall; hanging items: the hanging point); the front faces Blender -Y
 """
 import filecmp
 import glob
+import math
 import os
 import shutil
 import tempfile
 
+import bmesh
 import bpy
+from mathutils import Matrix, Vector
 
 ART = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ART)
@@ -52,10 +55,11 @@ def pbr(name: str, folder: str, tint: tuple[float, float, float] | None = None) 
     return mat
 
 
-def bake(obj: bpy.types.Object, size: int = 512) -> None:
+def bake(obj: bpy.types.Object, size: int = 512, pack: bool = False) -> None:
     """Cycles-bakes every material on obj (base colour, roughness, metallic, normal) into one image set on a
     fresh UV unwrap, and replaces them with one material, <obj.name>_baked. Each material must be a
-    Principled BSDF; whatever feeds its inputs (procedural wear, texture sets) ends up in the images."""
+    Principled BSDF; whatever feeds its inputs (procedural wear, texture sets) ends up in the images. pack: pack
+    the islands tightly, rotated where that helps (the unwrap's own packing leaves a lot of the image empty)."""
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
@@ -68,6 +72,8 @@ def bake(obj: bpy.types.Object, size: int = 512) -> None:
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(island_margin=0.01)
+    if pack:
+        bpy.ops.uv.pack_islands(rotate=True, margin=0.006)
     bpy.ops.object.mode_set(mode="OBJECT")
     images = {}
     for kind in ["color", "roughness_metallic", "normal"]:
@@ -167,6 +173,49 @@ def export(model_id: str, objects: list[bpy.types.Object]) -> None:
         shutil.move(new, glb)
 
 
+# --- geometry -------------------------------------------------------------------------------------------
+# Furniture parts for a build.py's bmesh: each takes the mesh and the index of the material its faces use.
+
+def box(bm: bmesh.types.BMesh, centre: tuple, size: tuple, material: int) -> None:
+    geom = bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.LocRotScale(Vector(centre), None, Vector(size)))
+    for f in {f for v in geom["verts"] for f in v.link_faces}:
+        f.material_index = material
+
+
+def post(bm: bmesh.types.BMesh, z0: float, z1: float, bottom: tuple, top: tuple, material: int) -> None:
+    """A four-sided post from z0 to z1, slanted or tapered: bottom and top are (centre x, centre y, width, depth)."""
+    def ring(z: float, r: tuple) -> list:
+        return [bm.verts.new((r[0] + sx * r[2] / 2, r[1] + sy * r[3] / 2, z)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    lo, hi = ring(z0, bottom), ring(z1, top)
+    faces = [bm.faces.new(lo[::-1]), bm.faces.new(hi)]
+    faces += [bm.faces.new([lo[i], lo[(i + 1) % 4], hi[(i + 1) % 4], hi[i]]) for i in range(4)]
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    for f in faces:
+        f.material_index = material
+
+
+def slab(bm: bmesh.types.BMesh, centre: tuple, size: tuple, z0: float, z1: float, radius: float, chamfer: float, material: int) -> None:
+    """A board from z0 to z1 with rounded corners (radius), its top and bottom edges chamfered."""
+    def outline(inset: float) -> list:
+        half = (size[0] / 2 - inset, size[1] / 2 - inset)
+        r = radius - inset
+        points = []
+        for sx, sy, start in ((1, 1, 0), (-1, 1, 90), (-1, -1, 180), (1, -1, 270)):
+            for k in range(5):
+                a = math.radians(start + 90 * k / 4)
+                points.append((centre[0] + sx * (half[0] - r) + r * math.cos(a), centre[1] + sy * (half[1] - r) + r * math.sin(a)))
+        return points
+    levels = [(z0, chamfer), (z0 + chamfer, 0.0), (z1 - chamfer, 0.0), (z1, chamfer)]
+    rings = [[bm.verts.new((x, y, z)) for x, y in outline(inset)] for z, inset in levels]
+    n = len(rings[0])
+    faces = [bm.faces.new(rings[0][::-1]), bm.faces.new(rings[-1])]
+    for a, b in zip(rings, rings[1:]):
+        faces += [bm.faces.new([a[i], a[(i + 1) % n], b[(i + 1) % n], b[i]]) for i in range(n)]
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    for f in faces:
+        f.material_index = material
+
+
 # --- shader nodes ---------------------------------------------------------------------------------------
 # Small helpers for the procedural materials a build.py bakes. Colours are linear RGB.
 
@@ -212,6 +261,62 @@ def surface(name: str) -> tuple:
     mat = bpy.data.materials.new(name)
     nt = mat.node_tree
     return mat, nt, nt.nodes["Principled BSDF"], node(nt, "ShaderNodeTexCoord").outputs["Object"]
+
+
+def wood(name: str, tint: tuple, axis: int = 0, boards: tuple | None = None, rings: list = ()) -> bpy.types.Material:
+    """Stained, varnished rubberwood with its grain along axis (0 X, 1 Y, 2 Z). The varnish is worn off the edges
+    and chamfers, near the floor and in patches; the dirt is on up-facing surfaces and in the corners. tint is the
+    stain, linear RGB. boards: (start, width) in metres, glued boards side by side along Y, each a little lighter or
+    darker, with a seam between them. rings: [(x, y, radius)] mug rings on up-facing surfaces."""
+    mat, nt, bsdf, coords = surface(name)
+    xyz = node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords}).outputs
+
+    def stretched(along: float, across: float) -> bpy.types.NodeSocket:  # noise drawn out along the grain
+        scale = tuple(along if i == axis else across for i in range(3))
+        return noise(nt, node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
+
+    grain = mapped(nt, maths(nt, "ADD", maths(nt, "MULTIPLY", stretched(3.0, 120.0), 0.6), maths(nt, "MULTIPLY", stretched(2.0, 22.0), 0.4)), 0.3, 0.7, 0.0, 1.0)
+    bevelled = node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
+    flat = node(nt, "ShaderNodeNewGeometry").outputs["Normal"]
+    normal = node(nt, "ShaderNodeSeparateXYZ", {"Vector": flat}).outputs
+    square = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", maths(nt, "ABSOLUTE", normal["X"]), maths(nt, "ABSOLUTE", normal["Y"])), maths(nt, "ABSOLUTE", normal["Z"]))
+    edge = maths(nt, "MAXIMUM", mapped(nt, node(nt, "ShaderNodeVectorMath", {0: bevelled, 1: flat}, operation="DOT_PRODUCT").outputs["Value"], 1.0, 0.8, 0.0, 1.0),
+                 mapped(nt, square, 0.97, 0.85, 0.0, 1.0))  # the bevel's edge, and every face not square to an axis: chamfers, rounded corners
+    patches = mapped(nt, noise(nt, coords, 7.0, 3.0), 0.56, 0.7, 0.0, 1.0)
+    floor = maths(nt, "MULTIPLY", mapped(nt, xyz["Z"], 0.07, 0.0, 0.0, 1.0), mapped(nt, noise(nt, coords, 40.0, 3.0), 0.35, 0.6, 0.4, 1.0))  # scuffed by shoes and brooms
+    worn = maths(nt, "MAXIMUM", maths(nt, "MAXIMUM", edge, floor), maths(nt, "MULTIPLY", patches, 0.85))
+    varnished = lerp(nt, tuple(c * 0.75 for c in tint), tuple(c * 1.1 for c in tint), grain)
+    bare = lerp(nt, tuple(c * 1.5 for c in tint), tuple(c * 1.9 for c in tint), grain)
+    colour = lerp(nt, varnished, bare, worn)
+    seam = 0.0
+    if boards:
+        u = maths(nt, "DIVIDE", maths(nt, "SUBTRACT", xyz["Y"], boards[0]), boards[1])
+        tone = mapped(nt, node(nt, "ShaderNodeTexWhiteNoise", {"W": maths(nt, "FLOOR", u)}, noise_dimensions="1D").outputs["Value"], 0.0, 1.0, 0.85, 1.15)
+        colour = node(nt, "ShaderNodeVectorMath", {0: colour, "Scale": tone}, operation="SCALE").outputs["Vector"]
+        across = maths(nt, "FRACT", u)
+        seam = mapped(nt, maths(nt, "MULTIPLY", maths(nt, "MINIMUM", across, maths(nt, "SUBTRACT", 1.0, across)), boards[1]), 0.0015, 0.0003, 0.0, 1.0)
+        colour = lerp(nt, colour, tuple(c * 0.3 for c in tint), maths(nt, "MULTIPLY", seam, 0.7))
+    up = mapped(nt, normal["Z"], 0.5, 0.95, 0.0, 1.0)
+    marks = 0.0  # mug rings: a dark line, a pale cloud inside it
+    for x, y, radius in rings:
+        flat_xy = node(nt, "ShaderNodeCombineXYZ", {"X": xyz["X"], "Y": xyz["Y"]}).outputs["Vector"]
+        d = node(nt, "ShaderNodeVectorMath", {0: flat_xy, 1: (x, y, 0.0)}, operation="DISTANCE").outputs["Value"]
+        broken = mapped(nt, noise(nt, coords, 45.0, 3.0), 0.35, 0.6, 0.3, 1.0)
+        line = maths(nt, "MULTIPLY", mapped(nt, maths(nt, "ABSOLUTE", maths(nt, "SUBTRACT", d, radius)), 0.005, 0.0008, 0.0, 1.0), broken)
+        cloud = maths(nt, "MULTIPLY", mapped(nt, maths(nt, "ABSOLUTE", maths(nt, "SUBTRACT", d, radius - 0.007)), 0.009, 0.0, 0.0, 0.5), mapped(nt, noise(nt, coords, 12.0, 3.0), 0.3, 0.6, 0.3, 1.0))
+        colour = lerp(nt, colour, tuple(c * 2.4 for c in tint), maths(nt, "MULTIPLY", cloud, up))
+        colour = lerp(nt, colour, tuple(c * 0.4 for c in tint), maths(nt, "MULTIPLY", line, up))
+        marks = maths(nt, "MAXIMUM", marks, maths(nt, "MULTIPLY", maths(nt, "MAXIMUM", line, cloud), up))
+    grime = maths(nt, "MULTIPLY", up, mapped(nt, noise(nt, coords, 3.5, 3.0), 0.45, 0.75, 0.0, 0.5))
+    colour = lerp(nt, colour, (0.02, 0.016, 0.012), grime)
+    dark = node(nt, "ShaderNodeAmbientOcclusion", {"Distance": 0.05}, samples=32, only_local=True).outputs["AO"]
+    colour = lerp(nt, tuple(c * 0.4 for c in tint), colour, mapped(nt, dark, 0.0, 0.8, 0.0, 1.0))
+    rough = maths(nt, "MAXIMUM", mapped(nt, worn, 0.0, 1.0, 0.3, 0.85), mapped(nt, grime, 0.0, 0.5, 0.0, 0.8))
+    rough = maths(nt, "MAXIMUM", rough, maths(nt, "MULTIPLY", maths(nt, "MAXIMUM", marks, seam), 0.75))
+    nt.links.new(colour, bsdf.inputs["Base Color"])
+    nt.links.new(rough, bsdf.inputs["Roughness"])
+    nt.links.new(bevelled, bsdf.inputs["Normal"])
+    return mat
 
 
 def select(objects: list[bpy.types.Object]) -> None:

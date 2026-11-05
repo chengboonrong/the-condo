@@ -18,12 +18,6 @@ const PROPS := [
 	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
 	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), Color(0.45, 0.32, 0.22)],
 	[Vector3(6.5, 0.25, 4.3), Vector3(2.0, 0.5, 0.45), Color(0.4, 0.29, 0.2)],
-	[Vector3(4.5, 0.45, 6.85), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22)],
-	[Vector3(4.5, 0.75, 7.05), Vector3(0.42, 0.55, 0.05), Color(0.45, 0.32, 0.22)],
-	[Vector3(4.5, 0.45, 5.55), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"default"}],
-	[Vector3(4.5, 0.75, 5.35), Vector3(0.42, 0.55, 0.05), Color(0.45, 0.32, 0.22), {&"living_chair": &"default"}],
-	[Vector3(3.45, 0.45, 5.2), Vector3(0.42, 0.06, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"turned"}],
-	[Vector3(3.65, 0.75, 5.2), Vector3(0.05, 0.55, 0.42), Color(0.45, 0.32, 0.22), {&"living_chair": &"turned"}],
 	[Vector3(6.5, 2.3, 4.14), Vector3(0.95, 0.3, 0.2), Color(0.9, 0.9, 0.88)],  # aircon above the TV
 	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
 	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
@@ -58,9 +52,20 @@ const MODELS: Array[Array] = [
 	[&"shoe_rack", &"shoe_rack", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.25, 0, 8.0)), {}],
 	[&"shoes_on_rack", &"work_shoes", Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(0.29, 0.6, 7.8)), {&"entrance_shoes": &"default"}],
 	[&"shoes_moved", &"work_shoes", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(2.3, 0, 8.5)), {&"entrance_shoes": &"moved"}],
+	# Living room: the dining table, with the tudung saji and the teh tarik on it, and its three chairs. The turned
+	# one stands at the south edge facing north, through the hallway opening, away from the table.
+	[&"dining_table", &"dining_table", Transform3D(Basis(), Vector3(4.5, 0, 6.2)), {}],
+	[&"chair_north", &"dining_chair", Transform3D(Basis(Vector3.UP, PI), Vector3(4.5, 0, 6.85)), {}],
+	[&"chair_south", &"dining_chair", Transform3D(Basis(), Vector3(4.5, 0, 5.55)), {&"living_chair": &"default"}],
+	[&"chair_turned", &"dining_chair", Transform3D(Basis(Vector3.UP, PI), Vector3(3.45, 0, 5.2)), {&"living_chair": &"turned"}],
 ]
-# Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh.
-const COLLIDERS: Array[Array] = []
+# Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
+# seats are too thin to collide; their backs do. The table's is Decor's.
+const COLLIDERS: Array[Array] = [
+	[Vector3(4.5, 0.75, 7.05), Vector3(0.42, 0.55, 0.05), {}],
+	[Vector3(4.5, 0.75, 5.35), Vector3(0.42, 0.55, 0.05), {&"living_chair": &"default"}],
+	[Vector3(3.45, 0.75, 5.4), Vector3(0.42, 0.55, 0.05), {&"living_chair": &"turned"}],
+]
 
 # Interactables: id, pos, size, prompt, title, text, requires. Story-driven objects have no text.
 const OBJECTS := [
