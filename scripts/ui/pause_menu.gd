@@ -16,8 +16,10 @@ func _ready() -> void:
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_panel)
 	var frame := PanelContainer.new()  # same look as the note panel
+	frame.name = "Frame"
 	frame.set_anchors_preset(Control.PRESET_CENTER)
-	frame.position = Vector2(-300, -330)
+	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH  # centred on its own size, whatever the rows add up to
+	frame.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.09, 0.09, 0.1, 0.97)
 	style.set_content_margin_all(36)
@@ -37,8 +39,11 @@ func _ready() -> void:
 	box.add_child(title)
 	_button(box, "Resume", close)
 	_slider(box, "Brightness", "brightness", 0.5, 1.8, 0.05)
+	_slider(box, "Field of view", "fov", 60.0, 80.0, 1.0)
+	_slider(box, "Head bob", "head_bob", 0.0, 1.0, 0.05)
 	_slider(box, "Mouse sensitivity", "mouse_sensitivity", 0.0008, 0.006, 0.0001)  # 0.0001 steps reach the 0.0025 default
 	_slider(box, "Volume", "master_volume", 0.0, 1.0, 0.05)
+	_check(box, "Filter", "filter")
 	_check(box, "Invert mouse Y", "invert_y")
 	_check(box, "Captions for sounds (dialogue always shows)", "subtitles")
 	_check(box, "Reduced flashing", "reduced_flashing")

@@ -12,6 +12,8 @@ const DEFAULTS := {
 	"subtitles": true,
 	"master_volume": 0.8,
 	"filter": true,
+	"fov": 72.0,
+	"head_bob": 1.0,
 }
 
 var values: Dictionary = DEFAULTS.duplicate()

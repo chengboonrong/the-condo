@@ -99,3 +99,65 @@ func test_losing_focus_while_reading_pauses() -> bool:
 	main.pause.close()
 	main.queue_free()
 	return true
+
+
+func test_new_settings_change_the_game_at_once_and_persist() -> bool:
+	var main := await _main()
+	var player: PlayerController = main.player
+	var menu: PauseMenu = main.pause
+	menu.open()
+	(menu.find_child("fov", true, false) as HSlider).value = 64.0
+	near(player.camera.fov, 64.0, 0.001, "field of view changes at once")
+	var filter: Button = menu.find_child("filter", true, false)
+	filter.button_pressed = false
+	near(tree.root.scaling_3d_scale, 1.0, 0.001, "the filter turns off at once")
+	eq(filter.text, "Filter: Off", "and the menu says so")
+	menu.close()
+	player.use_scripted_move = true
+	player.set_look(-PI / 2)  # east from the spawn: 2 m of clear floor in a second (north is blocked at 0.5 m)
+	player.scripted_move = Vector2(0, 1)
+	var most := 0.0
+	for i in 60:
+		await tree.physics_frame
+		most = maxf(most, absf(player.camera.position.y))
+	check(player.horizontal_speed() > 1.5, "(walking, not stopped by a wall)")
+	check(most > 0.005, "the head bobs at 100%")
+	Settings.set_value("head_bob", 0.0)
+	player.global_position = ApartmentLayout.SPAWN  # the same clear walk again
+	await _frames(2)
+	most = 0.0
+	for i in 60:
+		await tree.physics_frame
+		most = maxf(most, absf(player.camera.position.y))
+	check(player.horizontal_speed() > 1.5, "(walking)")
+	near(most, 0.0, 0.0001, "and not at all at 0%")
+	var cfg := ConfigFile.new()
+	eq(cfg.load(Settings.path), OK, "saved")
+	eq(cfg.get_value("settings", "fov"), 64.0, "with the field of view")
+	eq(cfg.get_value("settings", "filter"), false, "the filter")
+	eq(cfg.get_value("settings", "head_bob"), 0.0, "and the head bob")
+	main.queue_free()
+	return true
+
+
+func test_old_settings_files_still_load() -> bool:
+	var cfg := ConfigFile.new()  # saved before this pass: none of the new keys
+	cfg.set_value("settings", "brightness", 1.3)
+	cfg.save(Settings.path)
+	Settings._ready()
+	near(float(Settings.get_value("brightness")), 1.3, 0.001, "the player's old value is kept")
+	eq(Settings.get_value("filter"), true, "new keys get their defaults: filter on")
+	near(float(Settings.get_value("fov")), 72.0, 0.001, "field of view 72")
+	near(float(Settings.get_value("head_bob")), 1.0, 0.001, "head bob 100%")
+	return true
+
+
+func test_the_menu_fits_the_window() -> bool:
+	var main := await _main()
+	main.pause.open()
+	await tree.process_frame  # one layout pass
+	var frame: Control = main.pause.find_child("Frame", true, false)
+	check(tree.root.get_visible_rect().encloses(frame.get_global_rect()), "every row is on screen at 1600x900")
+	main.pause.close()
+	main.queue_free()
+	return true

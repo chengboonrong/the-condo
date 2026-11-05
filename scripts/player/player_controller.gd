@@ -33,6 +33,13 @@ var _bob := 0.0
 func _ready() -> void:
 	_apply_height(STAND_HEIGHT)
 	phone_light.visible = false
+	Settings.changed.connect(_apply_settings)
+	_apply_settings()
+
+
+## Only on a change, never every frame: tools/stills.gd sets its own field of view per shot.
+func _apply_settings() -> void:
+	camera.fov = float(Settings.get_value("fov"))
 
 
 func set_look(new_yaw: float, new_pitch: float = 0.0) -> void:
@@ -115,7 +122,7 @@ func _update_steps(delta: float) -> void:
 		camera.position.y = _bob
 		return
 	_stride += speed * delta
-	_bob = sin(_stride / STEP_LENGTH * PI) * 0.025 * (speed / WALK_SPEED)
+	_bob = sin(_stride / STEP_LENGTH * PI) * 0.025 * (speed / WALK_SPEED) * float(Settings.get_value("head_bob"))
 	camera.position.y = _bob
 	if _stride >= STEP_LENGTH * 2.0:
 		_stride = 0.0
