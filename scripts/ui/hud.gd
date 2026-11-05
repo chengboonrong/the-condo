@@ -43,8 +43,9 @@ void fragment() {
 	float r = length(p) / radius;  // 1 at the rim
 	// An even fisheye: the angle off the axis grows with r, up to half_fov at the rim. The flat picture puts
 	// that angle at tan(angle) from its centre, so the middle is magnified, the edges squeezed and straight
-	// lines bow; the rim lands on the picture's top and bottom edges.
-	vec2 src = p / max(length(p), 1e-5) * 0.5 * tan(r * half_fov) / tan(half_fov);
+	// lines bow; the rim lands on the picture's top and bottom edges. Outside the glass r is clamped to the rim:
+	// tan has its pole past r = 1.29 at 140 degrees, and texture() on inf or NaN is undefined (the mask hides it).
+	vec2 src = p / max(length(p), 1e-5) * 0.5 * tan(min(r, 1.0) * half_fov) / tan(half_fov);
 	vec3 c = texture(screen, src / vec2(aspect, 1.0) + 0.5).rgb;
 	c *= 1.0 - rim * smoothstep(0.45, 1.0, r);
 	c *= 1.0 - smoothstep(1.0 - 2.0 * SCREEN_PIXEL_SIZE.y / radius, 1.0, r);  // a 2 px soft edge

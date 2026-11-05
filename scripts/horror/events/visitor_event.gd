@@ -8,7 +8,7 @@ const DOOR := Vector3(1.5, 0, 10.0)  # the front door on the floor (the doorway 
 const MIN_DISTANCE := 2.5
 const STEP_LENGTH := 0.7
 const STEP_TIME := 0.55
-const FIRST_STEP := 1.5  # after the chime
+const FIRST_STEP := 2.5  # after the chime: long enough to read its caption before the steps' caption replaces it
 const WALK_Z := 10.6
 const LAST_STEP := Vector3(1.5, 0, 10.35)
 

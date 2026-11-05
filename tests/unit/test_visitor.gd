@@ -80,6 +80,19 @@ func test_the_visitor_comes_to_the_door_and_waits() -> bool:
 	return true
 
 
+func test_the_visitors_door_is_the_layouts_front_door() -> bool:
+	var doorway := Vector3.ZERO
+	for c: Dictionary in ApartmentLayout.CONNECTIONS:
+		if c["door"] == &"main_door":
+			doorway = c["pos"]
+	near(VisitorEvent.DOOR.x, doorway.x, 0.0001, "the visitor's door x is main_door's doorway")
+	near(VisitorEvent.DOOR.z, doorway.z, 0.0001, "the visitor's door z is main_door's doorway")
+	near(VisitorEvent.LAST_STEP.x, doorway.x, 0.0001, "the last step is in line with the door")
+	check(VisitorEvent.LAST_STEP.z > VisitorEvent.DOOR.z and VisitorEvent.LAST_STEP.z < VisitorEvent.WALK_Z,
+		"the last step is between the door and the corridor's walking line (%.2f)" % VisitorEvent.LAST_STEP.z)
+	return true
+
+
 func test_the_visitor_needs_the_door_shut_and_the_player_inside() -> bool:
 	_setup(&"living", Vector3(6.5, 0, 8.4))
 	WorldState.set_door(&"main_door", true, &"player")

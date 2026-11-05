@@ -123,6 +123,23 @@ func test_pacing_respects_gaps_and_one_beat_at_a_time() -> bool:
 	return true
 
 
+## An idle player in the lit living room, in act 2, far from the front door: the visitor is one of the candidates.
+## (Whether the director ever picks it is open: see final-fix-report.md, Fix 1.)
+func test_the_visitor_is_a_candidate_for_an_idle_player() -> bool:
+	var rt := _runtime(1, 2, Vector3(6.5, 0, 8.4))
+	rt.director.paused = true
+	_run(rt, 60.0)  # a minute of standing in the lit room reads as idle
+	var visitor := {}
+	for s: Dictionary in rt.director.score_all():
+		if s["id"] == &"visitor":
+			visitor = s
+	check(visitor.has("total"), "the visitor is valid in the living room, door shut, act 2 (%s)" % [visitor])
+	if visitor.has("total"):
+		check(visitor["parts"]["behavior"] > 0.5, "standing still in the light drives it (%.2f)" % visitor["parts"]["behavior"])
+	rt.free()
+	return true
+
+
 func test_entity_never_enters_the_player_room() -> bool:
 	var rt := _runtime(4, 2, Vector3(6.5, 0, 7.0))
 	_run(rt, 0.2)

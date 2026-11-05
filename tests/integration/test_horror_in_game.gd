@@ -291,6 +291,67 @@ func test_the_peephole_shows_the_corridor() -> bool:
 	return true
 
 
+func test_the_peephole_waits_for_the_door_to_stop_swinging() -> bool:
+	var main := await _main()
+	var player: PlayerController = main.player
+	var door: Door = main.builder.doors[&"main_door"]
+	var hole: Peephole = door.get_node("peephole")
+	check(hole.get_parent() == door, "the peephole hangs on the front door")
+	var shut_at := hole.global_position
+	WorldState.set_door(&"main_door", true, &"player")
+	for i in 120:
+		if not door.is_moving():
+			break
+		await tree.physics_frame
+	check(not door.is_moving(), "the door has finished opening")
+	_look_at(player, Vector3(1.5, 0, 8.4), shut_at)  # clear of the swing, at where the peephole is once the door is shut
+	WorldState.set_door(&"main_door", false, &"player")
+	check(door.is_moving(), "the door swings shut")
+	eq(hole.get_prompt(), "", "right after closing, there is nothing to look through")
+	var swinging := 0
+	for i in 120:
+		await tree.physics_frame
+		if door.is_moving():
+			swinging += 1
+			eq(hole.get_prompt(), "", "frame %d: still swinging" % i)
+			check(player.interaction.target != hole, "frame %d: the player cannot target the peephole" % i)
+		else:
+			break
+	check(swinging > 10, "the swing takes a while (%d frames)" % swinging)
+	await _frames(2)
+	eq(hole.get_prompt(), "Look through the peephole", "once the door is still it can be used")
+	eq(player.interaction.target, hole, "and the player is looking at it")
+	main.queue_free()
+	return true
+
+
+## The silhouette is a corridor event, and the peephole looks down the corridor: no part of the figure may stand
+## inside the lens (the circle is fov / 2 off the axis), or the director could put a figure in a visitor's view.
+func test_no_corridor_figure_stands_in_the_peepholes_lens() -> bool:
+	var main := await _main()
+	var view: Camera3D = main.builder.doors[&"main_door"].get_node("peephole").view
+	var forward := -view.global_basis.z
+	var limit := view.fov * 0.5 + 1.0
+	var anchors := 0
+	for id: StringName in ApartmentLayout.ANCHORS:
+		var anchor: Dictionary = ApartmentLayout.ANCHORS[id]
+		if anchor["room"] != &"corridor" or anchor["kind"] != "silhouette":
+			continue
+		anchors += 1
+		var nearest := 180.0  # degrees off the axis, over the figure's whole body: 0.3 m around the anchor, 0.1 to 1.7 m up
+		for step in 17:
+			var height := 0.1 + 0.1 * step
+			for k in 33:
+				var around := Vector3.ZERO if k == 32 else Vector3(cos(TAU * k / 32.0), 0.0, sin(TAU * k / 32.0)) * 0.3
+				var point: Vector3 = anchor["pos"] + around + Vector3.UP * height
+				nearest = minf(nearest, rad_to_deg(forward.angle_to(point - view.global_position)))
+		check(nearest > limit, "%s: the figure's nearest point is %.1f degrees off the peephole's axis, and the lens ends at %.1f" % [id, nearest, limit - 1.0])
+		print("    %s: nearest point %.1f degrees off the peephole's axis (lens rim %.1f)" % [id, nearest, limit - 1.0])
+	check(anchors > 0, "the corridor has a silhouette anchor")
+	main.queue_free()
+	return true
+
+
 func test_peeking_during_a_visit_ends_it() -> bool:
 	var main := await _main()
 	main.player.global_position = Vector3(6.5, 0, 8.4)

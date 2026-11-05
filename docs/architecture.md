@@ -197,7 +197,8 @@ aberration. The fear comes from the place being ordinary.
   inline `canvas_item` shader (`Hud.LENS_SHADER`) that reads the screen, bends it like a fisheye (it follows
   `view.fov`) and cuts it to a round black mask. The lens is drawn under the film, so the grain stays fine; "[E] step back"
   is drawn over it. The player is held and time keeps running, as for a note; E or Esc steps back, and so
-  does the front door opening. The lens is drawn once behind the start card (`Hud.set_lens`), so it never compiles
+  does the front door opening. It offers nothing while the door is open or still swinging shut (its prompt is empty,
+  which is how `InteractionSystem` skips an object). The lens is drawn once behind the start card (`Hud.set_lens`), so it never compiles
   mid-game.
 * **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
