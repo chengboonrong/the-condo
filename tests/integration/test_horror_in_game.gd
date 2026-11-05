@@ -142,12 +142,13 @@ func test_a_still_figure_is_silent_and_stays_while_watched() -> bool:
 
 func test_a_still_figure_walked_up_to_fades_silently() -> bool:
 	var main := await _main()
-	await _stage_still(main)
+	var run: Dictionary = await _stage_still(main)
 	main.player.global_position = Vector3(5.0, 0, 3.25)  # 1.8 m, inside VANISH_DISTANCE
 	main.player.set_look(-PI / 2)
 	await _frames(40)
 	check(not main.silhouette.visible, "it fades instead of standing in the player's face")
 	check(not sounds.has(&"stinger"), "silently")
+	check(run.get("seen", false), "walking up to it counts as a sighting")
 	_end_still(main)
 	return true
 
@@ -155,7 +156,10 @@ func test_a_still_figure_walked_up_to_fades_silently() -> bool:
 func test_an_unwatched_still_figure_leaves_unseen() -> bool:
 	var main := await _main()
 	var run: Dictionary = await _stage_still(main)  # the player never turns
-	await _frames(int(SilhouetteEvent.STILL_WAIT * 60) + 30)
+	await _frames(int(5.0 * 60))  # 5 s into the 8 s wait (a 4 s wait would be over by now)
+	check(main.silhouette.visible, "still there after 5 s")
+	eq(run["state"], EventScheduler.State.RUNNING, "and the run goes on")
+	await _frames(int(SilhouetteEvent.STILL_WAIT * 60) + 30 - int(5.0 * 60))
 	check(not main.silhouette.visible, "gone after its wait")
 	eq(run["state"], EventScheduler.State.COMPLETED, "the run ends")
 	check(not run.get("seen", false), "without a sighting")

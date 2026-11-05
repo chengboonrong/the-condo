@@ -78,7 +78,7 @@ func _ready() -> void:
 		p.stream = BEDS[id]["stream"]
 		p.position = BEDS[id]["pos"]
 		p.volume_db = BEDS[id]["db"]
-		p.unit_size = 6.0
+		p.unit_size = 3.0  # as the event pool's, so the beds' levels compare with the events' at any distance
 		p.max_distance = 18.0
 		add_child(p)
 		p.play()

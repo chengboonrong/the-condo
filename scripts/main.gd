@@ -25,7 +25,9 @@ func _ready() -> void:
 	builder = ApartmentBuilder.new()
 	builder.name = "Apartment"
 	add_child(builder)
-	if has_flag("nofilter"):  # perf runs measure the sharp picture without touching the saved settings
+	# Developer flag for perf runs. It writes Settings.values, so if any setting is saved during the run,
+	# filter=false is saved with it.
+	if has_flag("nofilter"):
 		Settings.values["filter"] = false
 	audio = AudioDirector.new()
 	audio.name = "Audio"

@@ -117,10 +117,11 @@ The first time Chromium ever ran the game on this Mac, compiling the shaders too
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in
 Chrome may wait that long on "Loading…". A change to the shaders starts it over: the first run after the
 light limit changed took 6.6 s in Chromium and 6.8 s in WebKit, the next 2.6–2.7 s. The download is the engine, `index.wasm`, 39.5 MB raw
-(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 5.95 MB raw (5.77 MB with `gzip -6`; it was about 0.74 MB
-before the object rebuild).
+(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 6.35 MB raw (6,351,932 bytes after the vibe pass; it was
+5.95 MB after the object rebuild and about 0.74 MB before it).
 
-Desktop downloads: macOS zip 61 MB, Windows exe 110 MB, Linux binary 74 MB.
+Desktop downloads after the vibe pass: macOS zip 66,606,827 bytes, Windows exe 115,620,424, Linux binary 79,871,352
+(see [the vibe-pass numbers](#after-the-vibe-pass-2026-11-05); they were 61, 110 and 74 MB after the detail pass).
 
 ### After the object rebuild (2026-11-05)
 
@@ -158,13 +159,14 @@ untouched.
 
 ### After the vibe pass (2026-11-05)
 
-Measured on the vibe-pass build (feat/vibe-pass): the soft filter (the 3D view at about 450 lines, scaled up
-bilinear, MSAA 4x on as before), the colour grade per act, the still figure, and the fan, fridge and neighbour's TV
+Measured on the vibe-pass build (feat/vibe-pass): the soft filter (the 3D view at half the window's lines, 450 at
+1600×900 on macOS and 360 at 1280×720 in the browsers, scaled up bilinear, MSAA 4x on as before), the colour grade per act, the still figure, and the fan, fridge and neighbour's TV
 in act 1. Same machine, same tour. `tools/export.sh`, then `tools/smoke.sh` (SMOKE ok on macOS, Chromium and WebKit),
 then the perf runs: the macOS app `-- --perf` 3 times and `-- --perf --nofilter` 3 times, WebKit headless 2 runs each
 way, Chromium in a visible window 1 run each way, filter on first. The first PERF line now prints the 3D scale: 0.50
 with the filter on (1600×900 on macOS, 1280×720 in the browsers), 1.00 with it off. The rows marked "after the vibe
-pass" in the tables above are these runs.
+pass" in the tables above are these runs. They were made before commit 9f64481, which changed only the grade's
+contrast values (shader uniforms), so no frame-cost change is expected; perf was not re-run after it.
 
 * **The budget holds both ways**: WebKit 16.67 ms average (60 fps), p99 18–19 ms, worst 20–23 ms; Chromium 120 fps;
   no frame over 25 ms in any of the 12 runs.
@@ -173,7 +175,8 @@ pass" in the tables above are these runs.
   (macOS 71.8 against 114.4 MB, WebKit 67.5 against 94.8, Chromium 71.6 against 98.8): the 3D buffers are a quarter
   the size. The browsers wait for the display either way.
 * **Against the object rebuild**: with the filter off the macOS frame is 2.99–3.01 ms, against 2.56–2.82 ms before
-  this pass, and its video memory, draw calls and simulation cost are about the same. Whatever else the pass added
+  this pass, and its video memory and draw calls are about the same. The simulation step is slightly higher at p95 with
+  the filter off (86–102 µs against 80–83 on macOS; averages 51–55 µs against 50–52). Whatever else the pass added
   (the grade's adjustment, the home sounds, the still figure), and run-to-run noise, is in that difference; this tour
   does not split it.
 * **Memory**: the macOS app peaked at 349–351 MB resident, filter on or off. The last measurement was 280 MB after

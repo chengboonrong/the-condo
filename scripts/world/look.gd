@@ -2,11 +2,14 @@ class_name Look
 extends Node
 ## The picture's look. The 3D view is drawn at about TARGET_LINES lines and scaled up with bilinear filtering,
 ## which softens it; the HUD is 2D and stays sharp. The film grain is snapped to the same 3D pixels.
-## The scale is a whole divisor of the window height and follows the window, so the look is the same at any size.
+## The scale is 1 over a whole number and follows the window height, so the look is the same at any size.
 ## The colour grade is the Environment's own adjustment: warm and full at home, a step colder and greyer each act,
 ## and B-11-07 the greyest place in the game. It eases between grades and never cuts.
 
-const TARGET_LINES := 450.0  # up to 540 if thin things shimmer or a moved object gets hard to see
+## The scale is the window height divided by this, rounded to a whole number (at least 1). So this only moves the
+## edges between the bands: it is not a sharpness knob. At 450 the filter is off under 675 px, then 450 lines at
+## 900 px, 360 at 720 px and 540 at 1080 px.
+const TARGET_LINES := 450.0
 const EASE_SECONDS := 4.0
 ## saturation and contrast are the adjustment's; black and white are the two ends of its colour-correction ramp,
 ## so a bluer white tints the lights and a lifted black tints the shadows. Keys 1-4 are the acts.
@@ -30,7 +33,9 @@ var _target: Dictionary  # where it is going
 var _progress := 1.0  # 0 to 1 through the ease; 1 is a still grade
 
 
-## Window pixels per 3D pixel for a window this tall: the whole number that leaves the nearest to TARGET_LINES lines.
+## Window pixels per 3D pixel for a window this tall: the height divided by TARGET_LINES, rounded, at least 1.
+## It steps in whole numbers, so the 3D view has height / divisor lines: 900 px gives 450, 720 px gives 360, 1080 px
+## gives 540, and under 675 px the divisor is 1 and the filter does nothing. TARGET_LINES only moves those band edges.
 static func divisor_for(height: int) -> int:
 	return maxi(1, roundi(height / TARGET_LINES))
 

@@ -159,16 +159,21 @@ aberration. The fear comes from the place being ordinary.
 * **Grain and vignette** are one full-screen `canvas_item` shader under the HUD text (`Hud.FILM_SHADER`).
   The vignette darkens grain and picture alike, so the corners don't fizz. The grain changes 24 times a
   second; its frame number wraps at 256, or float rounding turns it into a fixed tile after half an hour.
-* **Soft filter** (`Look`, `scripts/world/look.gd`): the 3D view is drawn at about 450 lines (`Look.TARGET_LINES`)
-  and scaled up with bilinear filtering, which softens it; the HUD is 2D, so it stays at full resolution. The
-  scale is `1 / d` for a whole number `d`, the divisor of the window height that leaves the nearest to 450
-  lines, and follows the window (900 px: 2, 1440 px: 3, 2160 px: 5), so the look is the same at any size.
-  The Filter setting turns it off (`d = 1`), and so does `-- --nofilter` / `?nofilter` for one run without
-  touching the saved settings. While it is on, the grain is snapped to 3D pixels (`pixel_size` in
-  `Hud.FILM_SHADER`); off, it is per window pixel, as before. `TARGET_LINES` is the knob: up to 540 if thin
-  things shimmer or a moved object gets hard to see.
+* **Soft filter** (`Look`, `scripts/world/look.gd`): the 3D view is drawn at a fraction of the window and
+  scaled up with bilinear filtering, which softens it; the HUD is 2D, so it stays at full resolution. The
+  scale is `1 / d`, where `d` is the window height divided by `Look.TARGET_LINES` (450), rounded, at least 1,
+  and it follows the window (900 px: 2, 1440 px: 3, 2160 px: 5). So `d` is a whole number and the 3D view
+  has `height / d` lines: 450 at 900 px, 360 at 720 px (the browser), 540 at 1080 px, and under 675 px `d`
+  is 1 and the filter does nothing. `TARGET_LINES` only moves where those bands start and end (at 540,
+  nothing changes at 900 or 1080 px, and the filter turns off between 675 and 809 px, which includes
+  1280×720); it is not a sharpness knob. If legibility ever fails, the real options are full resolution
+  below some minimum line count, or a fractional scale (0.6 at 900 px is 540 lines, with slightly uneven
+  grain cells). The choice is the owner's. The Filter setting turns it off (`d = 1`). `-- --nofilter` /
+  `?nofilter` does the same for one run; it is a developer flag, and if any setting is saved during that run,
+  `filter = false` is saved with it. While the filter is on, the grain is snapped to 3D pixels (`pixel_size`
+  in `Hud.FILM_SHADER`); off, it is per window pixel, as before.
 * **Colour grade** (`Look`, `Look.GRADES`): the Environment's own adjustment (saturation, contrast and a
-  two-point colour-correction ramp), no extra pass. Act 1, at home after the shift, is a little warm and full
+  two-point colour-correction ramp), no pass of the game's own. Act 1, at home after the shift, is a little warm and full
   (saturation 1.08, a creamy white); each later act is a step colder and greyer (0.62, 0.54, 0.46, with the
   white going bluer and the black lifted a touch); B-11-07 (`mirror_room`) is the greyest place in the game
   (0.34). The ending keeps act 4's grade. The grade follows `WorldState.act` and `WorldState.player_room`,
@@ -224,6 +229,10 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 
 The three home beds stop one at a time, the TV when act 2 begins, the fridge 75 s into act 2 (or at act 3) and
 the fan 15 s into act 3, fading over 1.5 s (the fan winds down over 3 s), and no sting marks it.
+
+The "Heard at" levels compare like for like between the event sounds and the home beds: both use unit size 3,
+so any distance moves them by the same amount. The corridor hum uses 2, the tap keeps Godot's default, and the
+drone is not positional.
 
 Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pass, opening a door
 (−6.9 dB) was the loudest sound in the game, louder than the stinger and the slam.
