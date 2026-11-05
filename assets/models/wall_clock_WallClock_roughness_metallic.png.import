@@ -3,11 +3,9 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cco25qj7c3mbu"
-path.s3tc="res://.godot/imported/wall_clock_WallClock_roughness_metallic.png-df3a930eab5888a04a220d79aaf8098a.s3tc.ctex"
-path.etc2="res://.godot/imported/wall_clock_WallClock_roughness_metallic.png-df3a930eab5888a04a220d79aaf8098a.etc2.ctex"
+path="res://.godot/imported/wall_clock_WallClock_roughness_metallic.png-df3a930eab5888a04a220d79aaf8098a.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
 "md5": "49c5fb0f08681dff6dea8134c547b345"
@@ -16,11 +14,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/wall_clock_WallClock_roughness_metallic.png"
-dest_files=["res://.godot/imported/wall_clock_WallClock_roughness_metallic.png-df3a930eab5888a04a220d79aaf8098a.s3tc.ctex", "res://.godot/imported/wall_clock_WallClock_roughness_metallic.png-df3a930eab5888a04a220d79aaf8098a.etc2.ctex"]
+dest_files=["res://.godot/imported/wall_clock_WallClock_roughness_metallic.png-df3a930eab5888a04a220d79aaf8098a.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

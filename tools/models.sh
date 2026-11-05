@@ -15,15 +15,14 @@ for id in "$@"; do
 done
 marker="$(mktemp)"
 "$GODOT" --headless --path . --import
-# The textures that import just extracted from the .glb files: VRAM compressed with mipmaps, as the editor's
-# 3D detection would make them, pinned so the result never depends on whether the editor was opened.
+# The textures that import just extracted from the .glb files: lossless with mipmaps, pinned (3D detection off)
+# so the editor never switches them to VRAM compression, which costs nearly four times the download.
 extracted="$(find assets/models -name '*.png' -newer "$marker")"
 rm -f "$marker"
 if [ -n "$extracted" ]; then
   for png in $extracted; do
-    sed -i.bak -e 's|^compress/mode=.*|compress/mode=2|' -e 's|^mipmaps/generate=.*|mipmaps/generate=true|' \
+    sed -i.bak -e 's|^compress/mode=.*|compress/mode=0|' -e 's|^mipmaps/generate=.*|mipmaps/generate=true|' \
       -e 's|^detect_3d/compress_to=.*|detect_3d/compress_to=0|' "$png.import"
-    case "$png" in *_normal.png) sed -i.bak 's|^compress/normal_map=.*|compress/normal_map=1|' "$png.import" ;; esac
     rm -f "$png.import.bak"
   done
   "$GODOT" --headless --path . --import
