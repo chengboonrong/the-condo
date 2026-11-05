@@ -10,12 +10,14 @@ const TARGET_LINES := 450.0  # up to 540 if thin things shimmer or a moved objec
 const EASE_SECONDS := 4.0
 ## saturation and contrast are the adjustment's; black and white are the two ends of its colour-correction ramp,
 ## so a bluer white tints the lights and a lifted black tints the shadows. Keys 1-4 are the acts.
+## Contrast stays at 1.08 or under: it pivots on mid-grey, so more of it pushes a dim room into black (1.14 lost
+## B-11-07's wall marks and nightstand, 1.12 merged the still figure into the gap's floor). Drained is saturation.
 const GRADES := {
 	1: {"saturation": 1.08, "contrast": 1.02, "black": Color(0.0, 0.0, 0.0), "white": Color(1.0, 0.96, 0.88)},
 	2: {"saturation": 0.62, "contrast": 1.08, "black": Color(0.0, 0.015, 0.03), "white": Color(0.88, 0.95, 1.0)},
-	3: {"saturation": 0.54, "contrast": 1.10, "black": Color(0.0, 0.018, 0.035), "white": Color(0.86, 0.94, 1.0)},
-	4: {"saturation": 0.46, "contrast": 1.12, "black": Color(0.0, 0.02, 0.04), "white": Color(0.84, 0.93, 1.0)},
-	&"mirror_room": {"saturation": 0.34, "contrast": 1.14, "black": Color(0.0, 0.02, 0.04), "white": Color(0.82, 0.92, 1.0)},
+	3: {"saturation": 0.54, "contrast": 1.08, "black": Color(0.0, 0.018, 0.035), "white": Color(0.86, 0.94, 1.0)},
+	4: {"saturation": 0.46, "contrast": 1.08, "black": Color(0.0, 0.02, 0.04), "white": Color(0.84, 0.93, 1.0)},
+	&"mirror_room": {"saturation": 0.34, "contrast": 1.02, "black": Color(0.0, 0.02, 0.04), "white": Color(0.82, 0.92, 1.0)},
 }
 
 var environment: Environment  # the world's; Main sets it before add_child
