@@ -63,7 +63,7 @@ greyer.
 | 0:10 | Home, act 1. The living room, ceiling fan turning. | The fan; a neighbour's TV murmurs through the wall. |
 | 0:15 | The entrance, the intercom. Rosnah's line as the game's subtitle: *"Every night also the same. Knock, knock, knock. From your bedroom."* | The intercom; the home sounds under it. |
 | 0:20 | The living room, held. It drains from the act 1 grade to act 2's, the game's own 4 s ease. Card: **You haven't made a sound.** | The TV stops, then the fan winds down. Then only the corridor hum. |
-| 0:26 | The bedroom wall in the phone light. Caption: *[Three knocks from the bedroom wall]* | Three knocks. |
+| 0:26 | The bedroom wall in the phone light. Caption: *[Three knocks from the bedroom]* (the game's own caption; the storyboard still said "bedroom wall") | Three knocks. |
 | 0:30 | Your work shoes on the rack. The camera looks away… | Quiet. |
 | 0:33 | …and back. The shoes are in the middle of the floor, with the game's caption. Quick cuts from here. | |
 | 0:36 | The chair, turned to face the bedroom, with the game's caption. | |
