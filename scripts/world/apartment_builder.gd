@@ -69,6 +69,9 @@ const MODELS: Array[Array] = [
 	[&"intercom_mirror", &"intercom", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(5.575, 1.45, -14.6)), {&"bedroom": &"door"}, true],
 	# B-11-07: the same bed, turned half round like the room (headboard at +Z, towards the wall with the door), dusty
 	[&"bed_b1107", &"bed", Transform3D(Basis(Vector3.UP, PI), Vector3(6.55, 0, -16.3)), {&"bedroom": &"door"}, true],
+	# The mamak apron drying on the laundry rack by the window, folded over its rail, its front to the room: the one the
+	# figure wears (art/shared/apron)
+	[&"apron_hung", &"apron_hung", Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(9.3, 1.69, 6.82)), {}],
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
 # seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The beds' bases are boxes the

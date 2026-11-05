@@ -407,16 +407,14 @@ func _living() -> void:
 	foot(Vector3(4.5, 0, 6.2), Vector2(0.5, 0.33), 0.4)
 	for c: Array in [[Vector3(4.5, 0, 6.85), {}], [Vector3(4.5, 0, 5.55), {&"living_chair": &"default"}], [Vector3(3.45, 0, 5.2), {&"living_chair": &"turned"}]]:
 		foot(c[0], Vector2(0.18, 0.18), 0.35, c[1])
-	# Laundry by the window: a T-shirt, the mamak apron, a towel. In the dark they are the right height.
+	# Laundry by the window: a T-shirt, the mamak apron (a model, the figure's own), a towel. In the dark they are the
+	# right height.
 	box(Vector3(9.3, 0.85, 6.0), Vector3(0.025, 1.7, 0.025), STEEL, Look.GLOSS)
 	box(Vector3(9.3, 0.85, 7.6), Vector3(0.025, 1.7, 0.025), STEEL, Look.GLOSS)
 	box(Vector3(9.3, 1.7, 6.8), Vector3(0.025, 0.025, 1.64), STEEL, Look.GLOSS)
 	for z: float in [6.0, 7.6]:
 		box(Vector3(9.3, 0.012, z), Vector3(0.5, 0.024, 0.03), STEEL, Look.GLOSS)
 	_garment(9.3, 6.27, 1.69, 0.48, 0.62, Color(0.16, 0.2, 0.3), true)
-	_garment(9.3, 6.82, 1.69, 0.46, 0.78, Color(0.8, 0.78, 0.71))
-	box(Vector3(9.29, 1.15, 6.75), Vector3(0.006, 0.12, 0.09), Color(0.5, 0.38, 0.24))  # tea stains
-	box(Vector3(9.29, 1.31, 6.9), Vector3(0.006, 0.07, 0.06), Color(0.55, 0.44, 0.3))
 	_garment(9.3, 7.35, 1.69, 0.38, 0.68, Color(0.33, 0.45, 0.39))
 	solid(Vector3(9.3, 0.85, 6.8), Vector3(0.3, 1.7, 1.64))
 	_snake_plant(Vector3(9.55, 0, 9.5))

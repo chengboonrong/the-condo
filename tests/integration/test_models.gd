@@ -4,7 +4,8 @@ extends TestCase
 # Triangles each model may have. Each object task adds its ids.
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
 	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000, &"fridge": 4000,
-	&"ceiling_fan": 3000, &"tv_cabinet": 6000}
+	&"ceiling_fan": 3000, &"tv_cabinet": 6000,
+	&"figure": 12000, &"apron_hung": 1500}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
@@ -375,5 +376,52 @@ func test_the_tv_screen_lies_on_its_click_box() -> bool:
 	var mat := screen.get_active_material(0) as BaseMaterial3D
 	check(mat.albedo_texture == null, "the glass has no texture")
 	near(mat.roughness, 0.1, 0.02, "the glass is glossy")
+	main.queue_free()
+	return true
+
+
+func test_figure_is_a_person_in_an_apron() -> bool:
+	var main := await _main()
+	var sil: Silhouette = main.silhouette
+	sil.global_transform = Transform3D()
+	var a := _aabb(sil)
+	check(a.size.y >= 1.65 and a.size.y <= 1.75, "about 1.7 m tall, %.3f m (body_points check 0.1, 1.0 and 1.6 m)" % a.size.y)
+	near(a.position.y, 0.0, 0.02, "it stands on the floor")
+	near(a.get_center().x, 0.0, 0.05, "its origin is between its feet")
+	var aprons := 0
+	for m: MeshInstance3D in sil.find_children("*", "MeshInstance3D", true, false):
+		eq(m.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "%s casts no shadow" % m.name)
+		for s in m.mesh.get_surface_count():
+			var own := m.mesh.surface_get_material(s)
+			var name := own.resource_name if own else ""
+			check(name == "body" or name == "apron", "%s surface %d is the body or the apron, not %s" % [m.name, s, name])
+			var drawn := m.get_surface_override_material(s)
+			check(drawn == (sil._apron if name == "apron" else sil._material), "%s surface %d (%s) is drawn with the figure's own fading material" % [m.name, s, name])
+			if drawn == sil._apron:
+				aprons += 1
+	check(aprons >= 1, "it wears the apron")
+	check(sil._apron.albedo_texture != null, "the apron keeps its stains (the model's texture)")
+	for mat: BaseMaterial3D in [sil._material, sil._apron]:
+		eq(mat.depth_draw_mode, BaseMaterial3D.DEPTH_DRAW_ALWAYS, "seen from behind, the apron never shows through the body")
+	main.queue_free()
+	return true
+
+
+func test_the_rack_apron_is_the_figures_apron() -> bool:
+	var main := await _main()
+	var hung: Node3D = main.builder.models[&"apron_hung"]
+	var textures: Array[Texture2D] = []
+	for m: MeshInstance3D in hung.find_children("*", "MeshInstance3D", true, false):
+		for s in m.mesh.get_surface_count():
+			var mat := m.get_active_material(s) as BaseMaterial3D
+			eq(mat.transparency, BaseMaterial3D.TRANSPARENCY_DISABLED, "the rack apron is opaque")
+			textures.append(mat.albedo_texture)
+	var worn: Texture2D = main.silhouette._apron.albedo_texture
+	check(not textures.is_empty() and textures.all(func(t: Texture2D) -> bool: return t != null and worn != null and t.get_image().get_data() == worn.get_image().get_data()),
+		"one apron: the rack's and the figure's have the same stains")
+	var a := _aabb(hung)
+	near(a.end.y, 1.7 + 0.0125, 0.01, "it hangs over the rack's rail, not above or through it")
+	check(a.position.z > 6.0 and a.end.z < 7.6, "between the rack's posts (z %.2f to %.2f)" % [a.position.z, a.end.z])
+	check(a.position.y > 0.3, "its ends hang clear of the floor")
 	main.queue_free()
 	return true
