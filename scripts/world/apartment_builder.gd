@@ -28,11 +28,6 @@ const PROPS := [
 	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
 	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
 	[Vector3(2.6, 0.015, 9.62), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],
-	# Entrance: shoes on the rack, or lined up facing the hallway
-	[Vector3(0.22, 0.64, 7.8), Vector3(0.12, 0.08, 0.28), Color(0.1, 0.1, 0.1), {&"entrance_shoes": &"default"}],
-	[Vector3(0.36, 0.64, 7.8), Vector3(0.12, 0.08, 0.28), Color(0.1, 0.1, 0.1), {&"entrance_shoes": &"default"}],
-	[Vector3(2.3, 0.04, 8.4), Vector3(0.28, 0.08, 0.12), Color(0.1, 0.1, 0.1), {&"entrance_shoes": &"moved"}],
-	[Vector3(2.3, 0.04, 8.6), Vector3(0.28, 0.08, 0.12), Color(0.1, 0.1, 0.1), {&"entrance_shoes": &"moved"}],
 	# Kitchen
 	[Vector3(0.4, 0.9, 2.95), Vector3(0.7, 1.8, 0.7), Color(0.85, 0.86, 0.86)],
 	[Vector3(0.35, 0.45, 4.9), Vector3(0.6, 0.9, 3.0), Color(0.6, 0.55, 0.48)],
@@ -58,7 +53,12 @@ const PROPS := [
 
 # Blender models (art/<id>/build.py): [node name, model id, transform, requires, dusty (optional, default
 # false)]. A model draws what PROPS boxes drew; COLLIDERS keeps their collision.
-const MODELS: Array[Array] = []
+const MODELS: Array[Array] = [
+	# Entrance: the shoe rack, and the work shoes on it or, when they have moved, lined up facing the living room
+	[&"shoe_rack", &"shoe_rack", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(0.25, 0, 8.0)), {}],
+	[&"shoes_on_rack", &"work_shoes", Transform3D(Basis(Vector3.UP, -PI / 2), Vector3(0.29, 0.6, 7.8)), {&"entrance_shoes": &"default"}],
+	[&"shoes_moved", &"work_shoes", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(2.3, 0, 8.5)), {&"entrance_shoes": &"moved"}],
+]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh.
 const COLLIDERS: Array[Array] = []
 

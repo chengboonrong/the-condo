@@ -2,9 +2,12 @@ extends TestCase
 ## The Blender models: their budgets, where they stand, their variants, the shader warm-up and the clock.
 
 # Triangles each model may have. Each object task adds its ids.
-const TRIS := {&"wall_clock": 1500}
+const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
-const FOOTPRINTS := {}
+const FOOTPRINTS := {
+	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
+	&"shoes_moved": [2.3, 8.5, 0.28, 0.32],
+}
 
 
 func _main() -> Node3D:

@@ -490,13 +490,7 @@ func _kitchen() -> void:
 
 
 func _entrance() -> void:
-	# The shoe rack itself (the shoes on it are a variant): two shelves, a pair of slippers below.
-	for z: float in [7.51, 8.49]:
-		box(Vector3(0.25, 0.3, z), Vector3(0.38, 0.6, 0.02), WOOD)
-	for y: float in [0.03, 0.3, 0.59]:
-		box(Vector3(0.25, y, 8.0), Vector3(0.38, 0.02, 1.0), WOOD)
-	for z: float in [7.75, 7.88]:
-		box(Vector3(0.25, 0.33, z), Vector3(0.26, 0.025, 0.09), Color(0.55, 0.22, 0.2))
+	# The shoe rack (a model; the shoes on it are a variant) keeps its collision and shade here.
 	solid(Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0))  # the rack's Interactable only collides while the shoes are on it
 	foot(Vector3(0.25, 0, 8.0), Vector2(0.19, 0.5), 0.45)
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat

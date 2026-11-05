@@ -167,6 +167,52 @@ def export(model_id: str, objects: list[bpy.types.Object]) -> None:
         shutil.move(new, glb)
 
 
+# --- shader nodes ---------------------------------------------------------------------------------------
+# Small helpers for the procedural materials a build.py bakes. Colours are linear RGB.
+
+def node(nt: bpy.types.NodeTree, kind: str, inputs: dict | None = None, **props) -> bpy.types.Node:
+    """A node with its properties set; inputs: socket name or index -> a value, or an output socket to link."""
+    n = nt.nodes.new(kind)
+    for k, v in props.items():
+        setattr(n, k, v)
+    for k, v in (inputs or {}).items():
+        if isinstance(v, bpy.types.NodeSocket):
+            nt.links.new(v, n.inputs[k])
+        else:
+            n.inputs[k].default_value = v
+    return n
+
+
+def mapped(nt: bpy.types.NodeTree, value: bpy.types.NodeSocket, lo: float, hi: float, a: float, b: float) -> bpy.types.NodeSocket:
+    """value from lo..hi mapped to a..b, clamped (lo may be above hi)."""
+    return node(nt, "ShaderNodeMapRange", {"Value": value, "From Min": lo, "From Max": hi, "To Min": a, "To Max": b}).outputs["Result"]
+
+
+def maths(nt: bpy.types.NodeTree, op: str, a, b=0.0) -> bpy.types.NodeSocket:
+    """Math node: a and b are values or sockets."""
+    return node(nt, "ShaderNodeMath", {0: a, 1: b}, operation=op).outputs["Value"]
+
+
+def lerp(nt: bpy.types.NodeTree, a, b, fac: bpy.types.NodeSocket) -> bpy.types.NodeSocket:
+    """A colour mixed from a to b by fac; a and b are RGB tuples or sockets."""
+    inputs = {0: fac}
+    for i, c in ((6, a), (7, b)):
+        inputs[i] = c if isinstance(c, bpy.types.NodeSocket) else (*c, 1.0)
+    return node(nt, "ShaderNodeMix", inputs, data_type="RGBA").outputs[2]
+
+
+def noise(nt: bpy.types.NodeTree, coords: bpy.types.NodeSocket, scale: float, detail: float = 6.0) -> bpy.types.NodeSocket:
+    return node(nt, "ShaderNodeTexNoise", {"Vector": coords, "Scale": scale, "Detail": detail}).outputs["Factor"]
+
+
+def surface(name: str) -> tuple:
+    """A new material: (material, its node tree, its Principled BSDF, object coordinates, those split into X, Y, Z)."""
+    mat = bpy.data.materials.new(name)
+    nt = mat.node_tree
+    coords = node(nt, "ShaderNodeTexCoord").outputs["Object"]
+    return mat, nt, nt.nodes["Principled BSDF"], coords, node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords})
+
+
 def select(objects: list[bpy.types.Object]) -> None:
     bpy.ops.object.select_all(action="DESELECT")
     for o in objects:
