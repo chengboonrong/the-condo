@@ -9,7 +9,7 @@ from the bedroom wall, and the condo starts to shift whenever you aren't looking
 An adaptive Horror Director watches how you play (which rooms you avoid, how often you look behind
 you, whether you chase sounds or hide in the light) and picks what happens next.
 
-> Status: early prototype. See [docs/roadmap.md](docs/roadmap.md).
+> Status: playable from the start to either ending, being polished for the jam. See [docs/roadmap.md](docs/roadmap.md).
 
 ## Run it
 
@@ -78,6 +78,8 @@ See [docs/test-plan.md](docs/test-plan.md).
 * `tools/playthroughs.gd` rewrites [docs/playthroughs.md](docs/playthroughs.md), the record of three
   simulated players (bots, not people): `godot --headless --path . --script res://tools/playthroughs.gd`
 * `tools/setup_input_map.gd` rewrites the input actions in `project.godot`.
+* `tools/itch.sh` renders the itch.io page's cover and screenshots into `builds/itch/` (needs a window);
+  the page text is in [docs/itch-page.md](docs/itch-page.md).
 * `tools/gen_audio.py` regenerates every sound (Python 3, standard library only).
 * `tools/models.sh [id ...]` builds the models in Blender (every `art/<id>/build.py` when no id is given; they
   were built with 5.2.3) and imports them into the project. `BLENDER` (default: the macOS app's binary) and `GODOT`
