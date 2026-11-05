@@ -403,6 +403,8 @@ func test_figure_is_a_person_in_an_apron() -> bool:
 	check(sil._apron.albedo_texture != null, "the apron keeps its stains (the model's texture)")
 	for mat: BaseMaterial3D in [sil._material, sil._apron]:
 		eq(mat.depth_draw_mode, BaseMaterial3D.DEPTH_DRAW_ALWAYS, "seen from behind, the apron never shows through the body")
+	check(sil._apron.render_priority > sil._material.render_priority,
+		"the body draws (and writes its depth) before the apron, so while it fades the apron neither ghosts through nor cuts the shirt out")
 	main.queue_free()
 	return true
 

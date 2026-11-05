@@ -28,10 +28,12 @@ func _ready() -> void:
 	_apron.cull_mode = BaseMaterial3D.CULL_DISABLED  # the straps and ties are one layer of cloth, seen from both sides
 	for m: StandardMaterial3D in [_material, _apron]:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		# Drawn after the shades, which are see-through too, so a stain on the wall behind never paints over it;
-		# depth-tested against itself, so from behind the apron never shows through the body.
+		# Drawn after the shades, which are see-through too, so a stain on the wall behind never paints over it.
 		m.render_priority = 1
 		m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	# The body draws first and writes its depth, then the apron: from the front it lies on the shirt, from behind it
+	# fails the depth test, so while the figure fades the apron never ghosts through it nor cuts the shirt out.
+	_apron.render_priority = 2
 	var figure := ApartmentBuilder.model(&"figure")
 	add_child(figure)
 	for m: MeshInstance3D in figure.find_children("*", "MeshInstance3D", true, false):
