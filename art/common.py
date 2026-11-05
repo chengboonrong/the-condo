@@ -3,8 +3,11 @@
 Conventions: metres; the origin at the centre of the floor footprint (wall items: the centre of the face
 touching the wall; hanging items: the hanging point); the front faces Blender -Y, which is Godot +Z.
 """
+import filecmp
 import glob
 import os
+import shutil
+import tempfile
 
 import bpy
 
@@ -57,7 +60,7 @@ def bake(obj: bpy.types.Object, size: int = 512) -> None:
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
     scene.cycles.samples = 16
-    mats = list({s.material for s in obj.material_slots if s.material})
+    mats = list(dict.fromkeys(s.material for s in obj.material_slots if s.material))  # once each, in slot order
     me = obj.data
     old = [uv.name for uv in me.uv_layers]
     me.uv_layers.active = me.uv_layers.new(name="baked")  # the bake target; textures still read the old map
@@ -138,21 +141,29 @@ def _feed(nt: bpy.types.NodeTree, src: bpy.types.NodeSocket, dst: bpy.types.Node
 
 
 def export(model_id: str, objects: list[bpy.types.Object]) -> None:
-    """Saves art/<id>/<id>.blend, with its generated images as PNGs beside it (not packed), and writes
-    assets/models/<id>.glb: these objects only, modifiers applied, +Y up, textures embedded."""
+    """Writes assets/models/<id>.glb (these objects only, modifiers applied, +Y up, textures embedded) and
+    saves art/<id>/<id>.blend: the scene and what it uses, its generated images as PNGs beside it (not
+    packed). Both are left alone when the .glb comes out the same: Blender seeds a few ids in a .blend at
+    random, so an unchanged model would still change it."""
+    folder = os.path.join(ART, model_id)
+    glb = os.path.join(ROOT, "assets", "models", f"{model_id}.glb")
+    blend = os.path.join(folder, f"{model_id}.blend")
     bpy.data.orphans_purge(do_recursive=True)  # what the bake replaced, and anything built only to be baked
-    bpy.context.preferences.filepaths.save_version = 0  # no .blend1 backups
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ART, model_id, f"{model_id}.blend"))
     for img in bpy.data.images:
         if img.source == "GENERATED" and img.users:
-            img.filepath_raw = f"//{img.name}.png"
+            img.filepath_raw = os.path.join(folder, f"{img.name}.png")
             img.file_format = "PNG"
             img.save()
-    bpy.ops.wm.save_mainfile()
     select(objects)
-    os.makedirs(os.path.join(ROOT, "assets", "models"), exist_ok=True)
-    bpy.ops.export_scene.gltf(filepath=os.path.join(ROOT, "assets", "models", f"{model_id}.glb"), export_format="GLB",
-        use_selection=True, export_apply=True, export_yup=True, export_animations=False)
+    with tempfile.TemporaryDirectory() as tmp:
+        new = os.path.join(tmp, f"{model_id}.glb")
+        bpy.ops.export_scene.gltf(filepath=new, export_format="GLB", use_selection=True, export_apply=True,
+            export_yup=True, export_animations=False)
+        if os.path.exists(blend) and os.path.exists(glb) and filecmp.cmp(new, glb, shallow=False):
+            return
+        os.makedirs(os.path.dirname(glb), exist_ok=True)
+        shutil.move(new, glb)
+    bpy.data.libraries.write(blend, {bpy.context.scene}, path_remap="RELATIVE", compress=True)
 
 
 def select(objects: list[bpy.types.Object]) -> None:
