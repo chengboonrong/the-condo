@@ -161,9 +161,10 @@ def export(model_id: str, objects: list[bpy.types.Object]) -> None:
             export_yup=True, export_animations=False)
         if os.path.exists(blend) and os.path.exists(glb) and filecmp.cmp(new, glb, shallow=False):
             return
+        # The .blend first: a run stopped between the two writes leaves an old .glb, so the next run writes both.
+        bpy.data.libraries.write(blend, {bpy.context.scene}, path_remap="RELATIVE_ALL", compress=True)
         os.makedirs(os.path.dirname(glb), exist_ok=True)
         shutil.move(new, glb)
-    bpy.data.libraries.write(blend, {bpy.context.scene}, path_remap="RELATIVE", compress=True)
 
 
 def select(objects: list[bpy.types.Object]) -> None:

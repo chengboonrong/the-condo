@@ -289,6 +289,7 @@ func _build_models() -> void:
 					var mat := mesh.get_active_material(s).duplicate() as BaseMaterial3D
 					mat.albedo_color *= Color(0.75, 0.73, 0.7)
 					mat.roughness = 1.0
+					mat.roughness_texture = null  # the baked texture would keep its shine
 					mesh.set_surface_override_material(s, mat)
 
 

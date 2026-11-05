@@ -235,11 +235,13 @@ def render_print(size: int = 1024) -> bpy.types.Image:
     cam.rotation_euler = (math.pi / 2, 0, 0)
     scene.collection.objects.link(cam)
     scene.camera = cam
-    path = os.path.join(tempfile.mkdtemp(), "print.png")
-    scene.render.filepath = path
-    bpy.ops.render.render(write_still=True, scene=scene.name)
-    bpy.data.scenes.remove(scene)
-    return bpy.data.images.load(path)
+    with tempfile.TemporaryDirectory() as tmp:
+        scene.render.filepath = os.path.join(tmp, "print.png")
+        bpy.ops.render.render(write_still=True, scene=scene.name)
+        bpy.data.scenes.remove(scene)
+        image = bpy.data.images.load(os.path.join(tmp, "print.png"))
+        image.pack()  # read now: the directory goes away
+    return image
 
 
 # --- build ----------------------------------------------------------------------------------------------

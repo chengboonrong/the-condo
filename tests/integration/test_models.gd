@@ -116,5 +116,9 @@ func test_clock_hands_read_the_game_clock() -> bool:
 	var minute: Node3D = clock.get_node("MinuteHand")
 	near(hour.rotation.z, -TAU * (11.0 + 47.0 / 60.0) / 12.0, 0.01, "hour hand at 11:47")
 	near(minute.rotation.z, -TAU * 47.0 / 60.0, 0.01, "minute hand at 11:47")
+	for hand: Node3D in [hour, minute]:
+		check(hand.position.distance_to(Vector3(0.0, 0.0, 0.024)) < 0.001, "%s pivots on the dial centre" % hand.name)
+		var box: AABB = (hand as MeshInstance3D).get_aabb()
+		check(box.end.y > 0.05 and box.end.y > -2.0 * box.position.y, "%s points up from its pivot" % hand.name)
 	main.queue_free()
 	return true
