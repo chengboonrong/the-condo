@@ -160,6 +160,11 @@ aberration. The fear comes from the place being ordinary.
   The vignette darkens grain and picture alike, so the corners don't fizz. The grain changes 24 times a
   second; its frame number wraps at 256, or float rounding turns it into a fixed tile after half an hour.
 * **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
+* **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
+  Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are
+  `apron_hung`, `basin`, `bed`, `ceiling_fan`, `dining_chair`, `dining_table`, `figure`, `fridge`, `front_door`,
+  `intercom`, `shoe_rack`, `tap_water`, `tv_cabinet`, `wall_clock` and `work_shoes`. No model borrows a file (there
+  is no `art/*/vendor/`, so no credits list); the one outside source is the Inter font, see References consulted.
 
 Two rules keep the decor from breaking the game:
 
@@ -220,7 +225,8 @@ active variant's rects), not from Area3D triggers, so it is exact and identical 
 
 ## References consulted
 
-No third-party code or assets are used. Reviewed for approach only:
+No third-party code or asset files are used; the wall clock's numerals are rendered from Inter (SIL OFL 1.1), the
+font bundled with Blender. Reviewed for approach only:
 
 * Godot 4 docs: CharacterBody3D, AnimatableBody3D, RayCast3D, AudioStreamPlayer3D, `--headless`.
 * MIT first-person controllers ([epergo/character-controller](https://github.com/epergo/character-controller),
