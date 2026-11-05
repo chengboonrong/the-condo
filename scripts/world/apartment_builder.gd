@@ -60,11 +60,11 @@ const MODELS: Array[Array] = [
 	[&"chair_turned", &"dining_chair", Transform3D(Basis(Vector3.UP, PI), Vector3(3.45, 0, 5.2)), {&"living_chair": &"turned"}],
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
-# seats are too thin to collide; their backs do. The table's is Decor's.
+# seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The table's is Decor's.
 const COLLIDERS: Array[Array] = [
-	[Vector3(4.5, 0.75, 7.05), Vector3(0.42, 0.55, 0.05), {}],
-	[Vector3(4.5, 0.75, 5.35), Vector3(0.42, 0.55, 0.05), {&"living_chair": &"default"}],
-	[Vector3(3.45, 0.75, 5.4), Vector3(0.42, 0.55, 0.05), {&"living_chair": &"turned"}],
+	[Vector3(4.5, 0.6875, 7.05), Vector3(0.42, 0.425, 0.05), {}],
+	[Vector3(4.5, 0.6875, 5.35), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"default"}],
+	[Vector3(3.45, 0.6875, 5.4), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"turned"}],
 ]
 
 # Interactables: id, pos, size, prompt, title, text, requires. Story-driven objects have no text.

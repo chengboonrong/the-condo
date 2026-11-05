@@ -12,7 +12,6 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import common  # noqa: E402
@@ -34,12 +33,6 @@ SOLE, STRAP = 4, 5
 
 # --- geometry -------------------------------------------------------------------------------------------
 
-def box(bm: bmesh.types.BMesh, centre: tuple, size: tuple, material: int) -> None:
-    geom = bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.LocRotScale(Vector(centre), None, Vector(size)))
-    for f in {f for v in geom["verts"] for f in v.link_faces}:
-        f.material_index = material
-
-
 def panel(bm: bmesh.types.BMesh, x: float, material: int) -> None:
     """A side panel: PANEL_OUTLINE extruded along X, centred on x."""
     x0, x1 = x - PANEL / 2, x + PANEL / 2
@@ -59,9 +52,9 @@ def shelf(bm: bmesh.types.BMesh, z: float, tier: int) -> None:
     gap = (DEPTH - SLATS * SLAT[0]) / (SLATS - 1)
     for i in range(SLATS):
         y = -DEPTH / 2 + SLAT[0] / 2 + i * (SLAT[0] + gap)
-        box(bm, (0.0, y, z), (span, SLAT[0], SLAT[1]), WOOD + (tier + 2 * i) % 3)
+        common.box(bm, (0.0, y, z), (span, SLAT[0], SLAT[1]), WOOD + (tier + 2 * i) % 3)
     for x in (-0.22, 0.22):
-        box(bm, (x, 0.0, z - SLAT[1] / 2 - BATTEN[1] / 2), (BATTEN[0], DEPTH - 0.04, BATTEN[1]), PINE)
+        common.box(bm, (x, 0.0, z - SLAT[1] / 2 - BATTEN[1] / 2), (BATTEN[0], DEPTH - 0.04, BATTEN[1]), PINE)
 
 
 def hidden(f: bmesh.types.BMFace) -> bool:

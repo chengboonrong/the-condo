@@ -77,12 +77,48 @@ func test_turned_chair_faces_the_hallway() -> bool:
 	WorldState.set_variant(&"living_chair", &"turned")
 	await tree.process_frame
 	var chair: Node3D = main.builder.models[&"chair_turned"]
+	check(chair.visible, "the turned chair shows while the chair is turned")
 	check(chair.global_basis.z.dot(Vector3.FORWARD) > 0.95, "its front points north, through the hallway opening")
 	var backs := ApartmentBuilder.COLLIDERS.filter(func(c: Array) -> bool: return c[2] == {&"living_chair": &"turned"})
 	eq(backs.size(), 1, "one collider for the turned chair's back")
 	for back: Array in backs:
 		check(back[0].z > 5.3, "its back is on the south side")
 	WorldState.set_variant(&"living_chair", &"default")
+	main.queue_free()
+	return true
+
+
+func test_the_chair_model_has_its_back_behind_its_front() -> bool:
+	var chair := ApartmentBuilder.model(&"dining_chair")
+	var z_sum := 0.0
+	var count := 0
+	for m: MeshInstance3D in chair.find_children("*", "MeshInstance3D", true, false):
+		var xf := Transform3D()
+		var n: Node = m
+		while n != chair:
+			xf = (n as Node3D).transform * xf
+			n = n.get_parent()
+		for v: Vector3 in m.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			var p := xf * v
+			if p.y > 0.6:
+				z_sum += p.z
+				count += 1
+	check(count > 0, "the chair has a back above 0.6 m")
+	check(count > 0 and z_sum / count < 0.0, "the back sits behind the +Z front, as every model's front does")
+	chair.free()
+	return true
+
+
+func test_colliders_do_not_outgrow_their_models() -> bool:
+	var main := await _main()
+	for c: Array in ApartmentBuilder.COLLIDERS:
+		var model_top := -INF
+		for node: Node3D in main.builder.models.values():
+			var a := _aabb(node)
+			if absf(c[0].x - a.get_center().x) <= a.size.x / 2.0 + 0.05 and absf(c[0].z - a.get_center().z) <= a.size.z / 2.0 + 0.05:
+				model_top = maxf(model_top, a.end.y)
+		check(model_top > 0.0, "a model stands at the collider at %s" % c[0])
+		check(c[0].y + c[1].y / 2.0 <= model_top + 0.01, "the collider at %s ends at %.3f m, above its model (%.3f m)" % [c[0], c[0].y + c[1].y / 2.0, model_top])
 	main.queue_free()
 	return true
 

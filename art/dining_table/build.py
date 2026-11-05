@@ -24,7 +24,7 @@ LEG = (0.5, 0.32)  # the legs' centres
 RINGS = [(0.12, -0.2, 0.042), (-0.28, 0.285, 0.03)]  # mug rings: x, y, radius
 DOME = (-0.25, -0.05)  # the tudung saji's centre
 BAG = (0.32, 0.15)  # the teh tarik's
-LEVEL = TOP[1] + 0.074  # the tea in the bag, as high as the table's z
+LEVEL = TOP[1] + 0.062  # the tea fills the bag 0.062 m above the table top
 TOP_BOARD, LEG_WOOD, RAIL_X, RAIL_Y, SAJI, TEA, RAFFIA = range(7)  # material indices
 
 
@@ -60,11 +60,11 @@ def saji(bm: bmesh.types.BMesh) -> None:
     revolve(bm, profile, (DOME[0], DOME[1], TOP[1]), 48, SAJI)
 
 
-# The bag, from its flat base up: (height, half-width along X, half-depth along Y). It bulges where the tea is, gathers
-# in to a neck, and ends in the flat ears of the knot.
-BAG_STATIONS = [(0.0, 0.04, 0.028), (0.006, 0.05, 0.035), (0.022, 0.056, 0.04), (0.045, 0.055, 0.038), (0.068, 0.046, 0.032),
-                (0.088, 0.034, 0.024), (0.102, 0.019, 0.0145), (0.109, 0.0125, 0.0105), (0.116, 0.0135, 0.01), (0.124, 0.024, 0.0065),
-                (0.133, 0.03, 0.004), (0.141, 0.022, 0.0025)]
+# The bag, from its flat base up: (height, half-width along X, half-depth along Y). It slumps: wide where the tea sits,
+# a cone of limp film above it, a short pinch, then the knot.
+BAG_STATIONS = [(0.0, 0.045, 0.033), (0.005, 0.056, 0.042), (0.02, 0.062, 0.046), (0.04, 0.061, 0.045), (0.06, 0.054, 0.039),
+                (0.078, 0.042, 0.031), (0.092, 0.028, 0.021), (0.102, 0.016, 0.0125), (0.108, 0.011, 0.009), (0.114, 0.0125, 0.0095),
+                (0.119, 0.008, 0.006)]
 SEGMENTS = 20
 
 
@@ -77,21 +77,45 @@ def neck(z: float) -> tuple:
     raise ValueError(z)
 
 
+def sway(z: float) -> float:
+    """How far the bag's limp upper part has slumped to one side at height z."""
+    return 0.014 * min(1.0, max(0.0, (z - 0.05) / 0.07)) ** 1.5
+
+
+def sweep(bm: bmesh.types.BMesh, stations: list, material: int, closed: bool = False) -> None:
+    """A thin strip: each station is (centre, wide direction, thin direction, half width, half thickness), all Vectors but
+    the sizes. A closed strip joins its last station to its first; an open one is capped."""
+    sections = [[bm.verts.new(c + wide * (sw * hw) + thin * (st * ht)) for sw, st in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+                for c, wide, thin, hw, ht in stations]
+    n = len(sections)
+    faces = []
+    for k in range(n if closed else n - 1):
+        a, b = sections[k], sections[(k + 1) % n]
+        faces += [bm.faces.new([a[i], a[(i + 1) % 4], b[(i + 1) % 4], b[i]]) for i in range(4)]
+    if not closed:
+        faces += [bm.faces.new(sections[0]), bm.faces.new(sections[-1])]
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    for f in faces:
+        f.material_index = material
+        f.smooth = True
+
+
 def bag(bm: bmesh.types.BMesh) -> None:
-    """A plastic bag of teh tarik, sagging a little to one side, tied at the neck with a band of raffia and a loop
-    of it to carry the bag by."""
+    """A plastic bag of teh tarik, slumped on the table, its neck gathered and tied with a band of raffia, the film
+    flaring from the knot in two limp ears, and a loop of raffia hanging off the knot."""
     start = len(bm.verts)
     ox, oy, oz = BAG[0], BAG[1], TOP[1]
     rings = []
     for z, a, b in BAG_STATIONS:
-        pleats = 0.18 * min(1.0, max(0.0, (z - 0.055) / 0.04))  # the gathered plastic puckers towards the neck
+        pleats = 0.3 * min(1.0, max(0.0, (z - 0.03) / 0.045))  # the film puckers above the tea
         ring = []
         for i in range(SEGMENTS):
             th = math.tau * i / SEGMENTS
-            k = 1 + pleats * math.cos(5 * th + 9 * z)
-            ring.append(bm.verts.new((ox + a * k * math.cos(th), oy + b * k * math.sin(th), oz + z)))
+            k = 1 + pleats * (math.cos(5 * th + 9 * z) + 0.5 * math.cos(8 * th - 14 * z))
+            ring.append(bm.verts.new((ox + sway(z) + a * k * math.cos(th), oy + b * k * math.sin(th), oz + z)))
         rings.append(ring)
-    apex = bm.verts.new((ox, oy, oz + BAG_STATIONS[-1][0] + 0.003))
+    top = BAG_STATIONS[-1][0]
+    apex = bm.verts.new((ox + sway(top), oy, oz + top + 0.003))
     faces = []
     for a, b in zip(rings, rings[1:]):
         faces += [bm.faces.new([a[i], a[(i + 1) % SEGMENTS], b[(i + 1) % SEGMENTS], b[i]]) for i in range(SEGMENTS)]
@@ -99,41 +123,48 @@ def bag(bm: bmesh.types.BMesh) -> None:
     for f in faces:
         f.material_index = TEA
         f.smooth = True
-    # The raffia: a band round the neck, and the loop standing up out of the knot, leaning over.
+    knot = Vector((ox + sway(0.114), oy, oz + 0.114))
+    for angle, reach in ((0.0, 0.05), (math.pi, 0.05), (math.pi / 2, 0.03)):  # the ears: strips of film out from the knot
+        out = Vector((math.cos(angle), math.sin(angle), 0.0))
+        across = Vector((-out.y, out.x, 0.0))
+        stations = []
+        for k in range(9):
+            t = k / 8
+            dr, dz = reach, 0.045 - 0.1 * t  # rising from the knot, drooping at the tip
+            length = math.hypot(dr, dz)
+            centre = knot + out * (0.006 + reach * t) + across * (0.006 * math.sin(7 * t + angle)) + Vector((0, 0, 0.002 + 0.045 * t - 0.05 * t * t))
+            stations.append((centre, across, Vector((0, 0, dr / length)) - out * (dz / length), 0.005 + 0.014 * t, 0.0012))
+        sweep(bm, stations, TEA)
+    # The raffia: a band round the neck, and a loop of it hanging off the knot.
     band = []
-    for z, grow in [(0.099, 0.0015), (0.105, 0.0025), (0.111, 0.0015)]:
+    for z, grow in [(0.1, 0.0015), (0.106, 0.0025), (0.112, 0.0015)]:
         a, b = neck(z)
-        band.append([bm.verts.new((ox + (a + grow) * math.cos(th), oy + (b + grow) * math.sin(th), oz + z))
+        band.append([bm.verts.new((ox + sway(z) + (a + grow) * math.cos(th), oy + (b + grow) * math.sin(th), oz + z))
                      for th in (math.tau * i / SEGMENTS for i in range(SEGMENTS))])
     ribbon = []
     for lo, hi in zip(band, band[1:]):
         ribbon += [bm.faces.new([lo[i], lo[(i + 1) % SEGMENTS], hi[(i + 1) % SEGMENTS], hi[i]]) for i in range(SEGMENTS)]
-    loop = []
-    n, wide, tall = 28, 0.03, 0.05
-    for k in range(n):  # a teardrop in the XZ plane, pointed at the knot
-        th = -math.pi / 2 + math.tau * k / n
-        s = math.sin(th)
-        loop.append((wide * ((1 + s) / 2) ** 0.4 * math.cos(th), tall * (1 + s)))
-    lean = Matrix.Rotation(math.radians(35), 3, "Y")
-    sections = []
-    for k, (x, z) in enumerate(loop):
-        ahead, behind = loop[(k + 1) % n], loop[k - 1]
-        dx, dz = ahead[0] - behind[0], ahead[1] - behind[1]
-        nx, nz = -dz / math.hypot(dx, dz), dx / math.hypot(dx, dz)  # across the strip, in its plane
-        section = []
-        for sw, sy in [(-1, -1), (1, -1), (1, 1), (-1, 1)]:
-            p = lean @ Vector((x + sw * nx * 0.006, sy * 0.0015, z + sw * nz * 0.006))
-            section.append(bm.verts.new((ox + p.x, oy + p.y, oz + 0.11 + p.z)))
-        sections.append(section)
-    for k, section in enumerate(sections):
-        nxt = sections[(k + 1) % n]
-        ribbon += [bm.faces.new([section[i], section[(i + 1) % 4], nxt[(i + 1) % 4], nxt[i]]) for i in range(4)]
-    bmesh.ops.recalc_face_normals(bm, faces=ribbon)
     for f in ribbon:
         f.material_index = RAFFIA
         f.smooth = True
+    loop = []
+    n, wide, tall = 28, 0.02, 0.04
+    for k in range(n):  # a teardrop standing in the YZ plane, pointed at the knot
+        th = -math.pi / 2 + math.tau * k / n
+        s = math.sin(th)
+        loop.append((wide * ((1 + s) / 2) ** 0.4 * math.cos(th), tall * (1 + s)))
+    lean = Matrix.Rotation(math.radians(75), 3, "X")  # towards -Y, the table's front
+    stations = []
+    for k, (u, z) in enumerate(loop):
+        ahead, behind = loop[(k + 1) % n], loop[k - 1]
+        du, dz = ahead[0] - behind[0], ahead[1] - behind[1]
+        length = math.hypot(du, dz)
+        p = lean @ Vector((0.0, u, z))
+        p.z -= 9.0 * p.y * p.y  # it hangs over to one side
+        stations.append((knot + Vector((0, 0, 0.002)) + p, lean @ Vector((0, -dz / length, du / length)), Vector((1, 0, 0)), 0.006, 0.0015))
+    sweep(bm, stations, RAFFIA, closed=True)
     bm.verts.ensure_lookup_table()
-    bmesh.ops.rotate(bm, verts=bm.verts[start:], cent=(ox, oy, oz), matrix=Matrix.Rotation(math.radians(7), 3, "Y"))
+    bmesh.ops.rotate(bm, verts=bm.verts[start:], cent=(ox, oy, oz), matrix=Matrix.Rotation(math.radians(5), 3, "Y"))
 
 
 # --- materials ------------------------------------------------------------------------------------------
@@ -163,17 +194,21 @@ def saji_material(name: str) -> bpy.types.Material:
 
 
 def tea_material(name: str) -> bpy.types.Material:
-    """Milky tea below its level, grubby clear plastic above; wrinkled all over."""
+    """Milky tea below its level, above it film greyed amber from the tea behind it, pale along its creases; crinkled
+    all over."""
     mat, nt, bsdf, coords = common.surface(name)
     z = common.node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords}).outputs["Z"]
     liquid = common.mapped(nt, z, LEVEL + 0.003, LEVEL - 0.003, 0.0, 1.0)
     tea = common.lerp(nt, (0.3, 0.115, 0.03), (0.4, 0.17, 0.05), common.noise(nt, coords, 18.0, 3.0))
     foam = common.mapped(nt, common.maths(nt, "ABSOLUTE", common.maths(nt, "SUBTRACT", z, LEVEL - 0.006)), 0.008, 0.0, 0.0, 0.6)
-    film = common.lerp(nt, (0.5, 0.5, 0.47), (0.33, 0.34, 0.32), common.noise(nt, coords, 25.0, 3.0))
+    film = common.lerp(nt, (0.4, 0.27, 0.14), (0.29, 0.19, 0.09), common.noise(nt, coords, 25.0, 3.0))
+    crinkles = common.noise(nt, coords, 55.0, 6.0)
+    film = common.lerp(nt, film, (0.5, 0.38, 0.24), common.mapped(nt, crinkles, 0.55, 0.72, 0.0, 0.35))
     colour = common.lerp(nt, common.lerp(nt, film, tea, liquid), (0.55, 0.36, 0.2), common.maths(nt, "MULTIPLY", foam, liquid))
-    bump = common.node(nt, "ShaderNodeBump", {"Strength": 0.5, "Distance": 0.004, "Height": common.noise(nt, coords, 90.0, 4.0)}).outputs["Normal"]
+    height = common.maths(nt, "MULTIPLY", crinkles, common.mapped(nt, liquid, 0.0, 1.0, 1.0, 0.4))
+    bump = common.node(nt, "ShaderNodeBump", {"Strength": 0.9, "Distance": 0.004, "Height": height}).outputs["Normal"]
     nt.links.new(colour, bsdf.inputs["Base Color"])
-    nt.links.new(common.mapped(nt, liquid, 0.0, 1.0, 0.12, 0.25), bsdf.inputs["Roughness"])
+    nt.links.new(common.mapped(nt, liquid, 0.0, 1.0, 0.35, 0.2), bsdf.inputs["Roughness"])
     nt.links.new(bump, bsdf.inputs["Normal"])
     return mat
 
