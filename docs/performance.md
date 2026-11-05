@@ -96,7 +96,7 @@ The first time Chromium ever ran the game on this Mac, compiling the shaders too
 about 1.5 s, most likely because the GPU driver kept the compiled shaders. A player's first visit in
 Chrome may wait that long on "Loading…". A change to the shaders starts it over: the first run after the
 light limit changed took 6.6 s in Chromium and 6.8 s in WebKit, the next 2.6–2.7 s. The download is the engine, `index.wasm`, 39.5 MB raw
-(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 5.95 MB raw (5.77 MB with `gzip -6`; it was about 720 KiB
+(10.1 MB with `gzip -6`), plus the game data, `index.pck`, 5.95 MB raw (5.77 MB with `gzip -6`; it was about 0.74 MB
 before the object rebuild).
 
 Desktop downloads: macOS zip 61 MB, Windows exe 110 MB, Linux binary 74 MB.
@@ -109,9 +109,12 @@ Measured on the build that replaced about a dozen box objects with Blender model
 them. The rows marked "after the object rebuild" in the tables above are these runs; the numbers before them are
 untouched.
 
-* **Download**: `index.pck` 5,950,668 bytes (5812 KiB) against the 8912 KiB cap (`tools/smoke.sh` prints and
-  checks it), up from about 720 KiB; `index.wasm` is unchanged at 39.5 MB raw. Desktop: macOS zip 66 MB, Windows exe
+* **Download**: `index.pck` 5.95 MB (5,950,668 bytes; `tools/smoke.sh` prints and checks it in KiB: 5812 against the
+  8912 KiB cap), up from about 0.74 MB; `index.wasm` is unchanged at 39.5 MB raw. Desktop: macOS zip 66 MB, Windows exe
   115 MB, Linux binary 79 MB (were 61, 110, 74).
+* **Load time** (the table above): the shader warm-up behind the start card is done 0.75–1.2 s later, about 3.5 s
+  instead of 2.4–2.7 s (macOS +1.05–1.17 s, Chromium +0.9 s, WebKit +0.75 s), and the condo is built 0.1–0.25 s
+  later on macOS and in WebKit (Chromium: inside its earlier range). The pck is 5.2 MB larger, still inside the 8912 KiB cap.
 * **Draw calls** average 84–91 a frame, about the same as before (87–93); the maximum is 275–280 (was 283–284).
 * **WebKit holds 60 fps** (16.67 ms average, p95 18 ms, p99 19 ms) and Chromium 120 fps. No frame went over 25 ms in
   any run. WebKit's worst, 25 ms in its second run, is on the line rather than over it, and its timer only has 1 ms
@@ -122,7 +125,7 @@ untouched.
   drew it only with the phone light on it, and in this renderer an object under a shadowed light uses another variant
   of its first pass, so the variant without one compiled on first sight; the warm-up now shows the figure under each
   light state (ceiling light on or off, phone light on or off).
-* **Load**: other sessions share the machine. Load averages (1 min) before and after each run: macOS 8.3 and 5.8, 5.8
+* **Machine load**: other sessions share the machine. Load averages (1 min) before and after each run: macOS 8.3 and 5.8, 5.8
   and 4.1, 4.1 and 3.4 (before the first, another session's headless Chromium at 70 % CPU); Chromium 3.1 and 3.4, 3.4
   and 2.6; WebKit 2.6 and 7.9, 7.9 and 24.7 (a `node` process at 97 % CPU at the end). The runs with the hitch, before
   the fix, were busier: 12.4 before the macOS runs and 7.7, 5.9 and 28.8 after them, 34.8 before the web runs (another

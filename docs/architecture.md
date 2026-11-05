@@ -173,7 +173,9 @@ Two rules keep the decor from breaking the game:
   tall table collider let the chair turn while the player watched it over the table).
   `test_furniture_never_hides_a_shift_probe` checks every probe from standing and crouching eye height.
 * Nothing may show a material for the first time mid-game: the shader warm-up only compiles what it
-  sees. The blinking aircon LED therefore shares the material of the other indicator lights.
+  sees, under the lights it sees it under. No light, the ceiling lights, the phone light (shadowed) and both are
+  four variants of every material, so a material that only a few objects use must be drawn under each
+  (`Main._compile_shaders`). The blinking aircon LED therefore shares the material of the other indicator lights.
 
 ## Audio levels
 

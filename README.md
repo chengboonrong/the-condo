@@ -38,7 +38,7 @@ godot --path . --editor        # open in the editor
 
 ```sh
 GODOT=/path/to/Godot tools/export.sh   # web, macOS, Windows, Linux into builds/ (git-ignored)
-tools/smoke.sh                         # runs the macOS app and the web build (Chromium, WebKit) for 3 s each
+tools/smoke.sh                         # checks index.pck against the 8912 KiB cap (exit 1 above it), then runs the macOS app and the web build (Chromium, WebKit) for 3 s each
 ```
 
 The web build has no threads, so it runs on itch.io without special headers. The macOS app is signed
@@ -79,10 +79,13 @@ See [docs/test-plan.md](docs/test-plan.md).
   simulated players (bots, not people): `godot --headless --path . --script res://tools/playthroughs.gd`
 * `tools/setup_input_map.gd` rewrites the input actions in `project.godot`.
 * `tools/gen_audio.py` regenerates every sound (Python 3, standard library only).
-* `tools/models.sh [id ...]` builds the models in Blender 5.2.3 (every `art/<id>/build.py` when no id is given)
-  and imports them into the project.
-* `tools/stills.gd` renders the trailer-object stills and, with `--before`, a before/after sheet (needs a window):
-  `godot --path . --script res://tools/stills.gd -- --out=<dir> [--before=<dir>]`
+* `tools/models.sh [id ...]` builds the models in Blender (every `art/<id>/build.py` when no id is given; they
+  were built with 5.2.3) and imports them into the project. `BLENDER` (default: the macOS app's binary) and `GODOT`
+  (default: `godot` on the PATH) come from the environment.
+* `tools/stills.gd` renders the trailer-object stills and a contact sheet, `sheet.png`, beside them (needs a window):
+  `godot --path . --script res://tools/stills.gd -- [--out=<dir>] [--before=<dir>]`. `--out` defaults to
+  `/tmp/condo-stills/after`; with `--before`, each cell of the sheet pairs the still of that name from `<dir>` (left)
+  with the new one.
 * `tools/export.sh`, `tools/smoke.sh`, `tools/web_smoke.mjs`: builds and their checks (see Builds).
 
 ## Licence
