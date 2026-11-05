@@ -132,29 +132,16 @@ def material(name: str, color: tuple, roughness: float) -> bpy.types.Material:
     return mat
 
 
-def node(nt: bpy.types.NodeTree, kind: str, inputs: dict | None = None, **props) -> bpy.types.Node:
-    """A node with its properties set; inputs: socket name or index -> a value, or an output socket to link."""
-    n = nt.nodes.new(kind)
-    for k, v in props.items():
-        setattr(n, k, v)
-    for k, v in (inputs or {}).items():
-        if isinstance(v, bpy.types.NodeSocket):
-            nt.links.new(v, n.inputs[k])
-        else:
-            n.inputs[k].default_value = v
-    return n
-
-
-def noise(nt: bpy.types.NodeTree, scale: float, lo: float, hi: float, a: float, b: float) -> bpy.types.NodeSocket:
+def mapped_noise(nt: bpy.types.NodeTree, scale: float, lo: float, hi: float, a: float, b: float) -> bpy.types.NodeSocket:
     """Noise in object space, its values from lo to hi mapped to a..b (clamped)."""
-    coords = node(nt, "ShaderNodeTexCoord").outputs["Object"]
-    tex = node(nt, "ShaderNodeTexNoise", {"Vector": coords, "Scale": scale, "Detail": 6.0}).outputs["Fac"]
-    return node(nt, "ShaderNodeMapRange", {"Value": tex, "From Min": lo, "From Max": hi, "To Min": a, "To Max": b}).outputs["Result"]
+    coords = common.node(nt, "ShaderNodeTexCoord").outputs["Object"]
+    tex = common.node(nt, "ShaderNodeTexNoise", {"Vector": coords, "Scale": scale, "Detail": 6.0}).outputs["Fac"]
+    return common.node(nt, "ShaderNodeMapRange", {"Value": tex, "From Min": lo, "From Max": hi, "To Min": a, "To Max": b}).outputs["Result"]
 
 
 def scaled(nt: bpy.types.NodeTree, color, factor: bpy.types.NodeSocket) -> bpy.types.NodeSocket:
     """A colour (a value or a socket) times a factor."""
-    return node(nt, "ShaderNodeVectorMath", {0: color, "Scale": factor}, operation="SCALE").outputs["Vector"]
+    return common.node(nt, "ShaderNodeVectorMath", {0: color, "Scale": factor}, operation="SCALE").outputs["Vector"]
 
 
 def plastic(name: str, color: tuple) -> bpy.types.Material:
@@ -162,8 +149,8 @@ def plastic(name: str, color: tuple) -> bpy.types.Material:
     mat = material(name, color, 0.5)
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
-    nt.links.new(scaled(nt, color, noise(nt, 18.0, 0.3, 0.7, 0.84, 1.0)), bsdf.inputs["Base Color"])
-    nt.links.new(noise(nt, 40.0, 0.3, 0.7, 0.42, 0.62), bsdf.inputs["Roughness"])
+    nt.links.new(scaled(nt, color, mapped_noise(nt, 18.0, 0.3, 0.7, 0.84, 1.0)), bsdf.inputs["Base Color"])
+    nt.links.new(mapped_noise(nt, 40.0, 0.3, 0.7, 0.42, 0.62), bsdf.inputs["Roughness"])
     return mat
 
 
@@ -173,15 +160,15 @@ def dial(print_image: bpy.types.Image) -> bpy.types.Material:
     mat = material("dial", PAPER, 0.1)
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
-    printed = node(nt, "ShaderNodeTexImage", image=print_image).outputs["Color"]
-    flat = node(nt, "ShaderNodeMapping", {"Vector": node(nt, "ShaderNodeTexCoord").outputs["Object"], "Scale": (1.0, 0.0, 1.0)})
-    r = node(nt, "ShaderNodeVectorMath", {0: flat.outputs["Vector"]}, operation="LENGTH").outputs["Value"]
-    rim_shadow = node(nt, "ShaderNodeMapRange", {"Value": r, "From Min": 0.108, "From Max": DIAL_R, "To Min": 1.0, "To Max": 0.6}).outputs["Result"]
-    aged = node(nt, "ShaderNodeMath", {0: rim_shadow, 1: noise(nt, 6.0, 0.35, 0.65, 0.94, 1.0)}, operation="MULTIPLY").outputs["Value"]
+    printed = common.node(nt, "ShaderNodeTexImage", image=print_image).outputs["Color"]
+    flat = common.node(nt, "ShaderNodeMapping", {"Vector": common.node(nt, "ShaderNodeTexCoord").outputs["Object"], "Scale": (1.0, 0.0, 1.0)})
+    r = common.node(nt, "ShaderNodeVectorMath", {0: flat.outputs["Vector"]}, operation="LENGTH").outputs["Value"]
+    rim_shadow = common.node(nt, "ShaderNodeMapRange", {"Value": r, "From Min": 0.108, "From Max": DIAL_R, "To Min": 1.0, "To Max": 0.6}).outputs["Result"]
+    aged = common.node(nt, "ShaderNodeMath", {0: rim_shadow, 1: mapped_noise(nt, 6.0, 0.35, 0.65, 0.94, 1.0)}, operation="MULTIPLY").outputs["Value"]
     nt.links.new(scaled(nt, printed, aged), bsdf.inputs["Base Color"])
-    scratches = noise(nt, 70.0, 0.5, 0.515, 0.38, 0.08)  # thin contour lines of a fine noise
-    smudges = noise(nt, 7.0, 0.4, 0.7, 0.1, 0.2)
-    rough = node(nt, "ShaderNodeMath", {0: scratches, 1: smudges}, operation="MAXIMUM").outputs["Value"]
+    scratches = mapped_noise(nt, 70.0, 0.5, 0.515, 0.38, 0.08)  # thin contour lines of a fine noise
+    smudges = mapped_noise(nt, 7.0, 0.4, 0.7, 0.1, 0.2)
+    rough = common.node(nt, "ShaderNodeMath", {0: scratches, 1: smudges}, operation="MAXIMUM").outputs["Value"]
     nt.links.new(rough, bsdf.inputs["Roughness"])
     return mat
 
@@ -189,7 +176,7 @@ def dial(print_image: bpy.types.Image) -> bpy.types.Material:
 def emission(name: str, color: tuple) -> bpy.types.Material:
     mat = bpy.data.materials.new(name)
     nt = mat.node_tree
-    shader = node(nt, "ShaderNodeEmission", {"Color": (*color, 1.0)}).outputs["Emission"]
+    shader = common.node(nt, "ShaderNodeEmission", {"Color": (*color, 1.0)}).outputs["Emission"]
     nt.links.new(shader, nt.nodes["Material Output"].inputs["Surface"])
     return mat
 

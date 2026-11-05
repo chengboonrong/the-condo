@@ -2,7 +2,7 @@
 leather is creased across the toe flex, scuffed grey at the toes and shiny with grease in patches; the heels are
 worn down on their outer edges; the rubber has side ribbing. Run by tools/models.sh.
 
-Each shoe is lofted from stations along its length: a four-ring sole (bevel, ribbed wall, top bevel) with the upper
+Each shoe is lofted from stations along its length: a five-ring sole (bevel, ribbed wall, a ledge the upper stands in from) with the upper
 rising from its top ring as a half-superellipse arch, dipped into an oval opening from the back of the heel to the
 throat. The soles are open underneath: nothing ever sees them. The pair stands on the origin, toes towards -Y.
 """
@@ -20,14 +20,14 @@ LENGTH = 0.285
 APART = 0.2  # between the shoes' centres
 STATIONS = 20  # along the length, closer together at the ends
 ARCH = 12  # segments over the upper's cross-section: the collar's rim is at 3 and 9, what it dips into is 4 to 8
-ROUND = (3.4, 2.2)  # superellipse exponents of the heel and toe ends
+ROUND = (3.4, 3.0)  # superellipse exponents of the heel and toe ends: a blunt, chunky toe
 SQUARE = 2.6  # ... and of the upper's cross-section
 # Profiles along the length (0 at the heel, 1 at the toe): half-width of the sole, sole thickness, height of the
 # upper above the sole.
-WIDTH = [(0.0, 0.039), (0.15, 0.0385), (0.4, 0.035), (0.55, 0.0445), (0.7, 0.0525), (0.88, 0.051), (1.0, 0.046)]
-SOLE = [(0.0, 0.037), (0.5, 0.033), (1.0, 0.027)]
-UPPER = [(0.0, 0.066), (0.08, 0.07), (0.25, 0.064), (0.45, 0.06), (0.6, 0.074), (0.75, 0.066), (0.9, 0.05), (0.97, 0.036), (1.0, 0.028)]
-RINGS = [(0.93, 0.0), (1.0, 0.21), (1.0, 0.79), (0.97, 1.0)]  # sole: scale of the outline, share of the thickness
+WIDTH = [(0.0, 0.039), (0.15, 0.0385), (0.4, 0.035), (0.55, 0.0445), (0.7, 0.0525), (0.88, 0.0525), (1.0, 0.052)]
+SOLE = [(0.0, 0.042), (0.5, 0.038), (1.0, 0.032)]
+UPPER = [(0.0, 0.066), (0.08, 0.07), (0.25, 0.064), (0.45, 0.06), (0.6, 0.074), (0.75, 0.07), (0.9, 0.062), (0.97, 0.05), (1.0, 0.038)]
+RINGS = [(0.93, 0.0), (1.0, 0.2), (1.0, 0.8), (0.99, 0.95), (0.93, 1.0)]  # sole: scale of the outline, share of the thickness; the last two are the ledge the upper stands in from
 LEATHER, LINING, RUBBER = 0, 1, 2
 
 
@@ -96,7 +96,7 @@ def shoe(bm: bmesh.types.BMesh, side: int, yaw: float, slide: float) -> None:
             for i in (range(STATIONS) if sign < 0 else reversed(range(STATIONS))):
                 s = stations[i]
                 y = (0.5 - s) * LENGTH * scale
-                z = curve(SOLE, s) * share + 0.013 * (max(s - 0.78, 0.0) / 0.22) ** 2  # the toe springs up
+                z = curve(SOLE, s) * share + 0.009 * (max(s - 0.78, 0.0) / 0.22) ** 2  # the toe springs up
                 if share < 0.5 and sign > 0:  # worn down on the outer heel
                     z += 0.005 * (1 - smooth(s / 0.3)) * (1 - 2 * share)
                 ring.append(vert(sign * half_width(s) * scale, y, z))
@@ -140,13 +140,19 @@ def shoe(bm: bmesh.types.BMesh, side: int, yaw: float, slide: float) -> None:
 # --- materials ------------------------------------------------------------------------------------------
 
 def leather() -> bpy.types.Material:
-    """Black leather: scuffed grey towards the toes, greasy-bright in patches, creased across the toe flex."""
-    mat, nt, bsdf, coords, xyz = common.surface("leather")
+    """Black work-shoe leather, matte and dirty: floor dust splashed up from the sole, scuffed grey at the toes,
+    creased across the toe flex, and a few small slick patches of grease."""
+    mat, nt, bsdf, coords = common.surface("leather")
+    xyz = common.node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords})
     toe = common.mapped(nt, xyz.outputs["Y"], 0.0, -0.13, 0.0, 1.0)  # 0 at the middle of the shoe, 1 at the toe
     scuff = common.maths(nt, "MULTIPLY", common.mapped(nt, common.noise(nt, coords, 18.0, 8.0), 0.5, 0.7, 0.0, 1.0), common.mapped(nt, toe, 0.0, 1.0, 0.25, 1.0))
-    nt.links.new(common.lerp(nt, (0.018, 0.017, 0.017), (0.11, 0.105, 0.1), scuff), bsdf.inputs["Base Color"])
-    grease = common.mapped(nt, common.noise(nt, coords, 6.0, 4.0), 0.45, 0.6, 0.58, 0.2)
-    nt.links.new(common.maths(nt, "ADD", grease, common.maths(nt, "MULTIPLY", scuff, 0.3)), bsdf.inputs["Roughness"])
+    splash = common.maths(nt, "MULTIPLY", common.mapped(nt, xyz.outputs["Z"], 0.075, 0.04, 0.0, 1.0), common.mapped(nt, common.noise(nt, coords, 10.0, 5.0), 0.4, 0.65, 0.3, 1.0))
+    dust = common.maths(nt, "MAXIMUM", common.maths(nt, "MULTIPLY", splash, 0.8), common.mapped(nt, common.noise(nt, coords, 5.0, 4.0), 0.55, 0.7, 0.0, 0.5))
+    colour = common.lerp(nt, (0.008, 0.008, 0.008), (0.1, 0.09, 0.08), dust)  # black, dusty grey-brown
+    nt.links.new(common.lerp(nt, colour, (0.12, 0.115, 0.11), scuff), bsdf.inputs["Base Color"])
+    slick = common.mapped(nt, common.noise(nt, coords, 30.0, 3.0), 0.6, 0.68, 0.0, 1.0)  # small wet patches
+    dull = common.maths(nt, "ADD", 0.7, common.maths(nt, "MULTIPLY", dust, 0.15))
+    nt.links.new(common.maths(nt, "MAXIMUM", common.maths(nt, "SUBTRACT", dull, common.maths(nt, "MULTIPLY", slick, 0.6)), 0.1), bsdf.inputs["Roughness"])
     flex = common.mapped(nt, xyz.outputs["Y"], -0.045, -0.1, 0.0, 1.0)  # creases between the ball and the toe
     wave = common.node(nt, "ShaderNodeTexWave", {"Vector": coords, "Scale": 13.0, "Distortion": 6.0, "Detail": 1.0}, bands_direction="Y").outputs["Factor"]
     height = common.maths(nt, "MULTIPLY", wave, flex)
@@ -163,12 +169,14 @@ def lining() -> bpy.types.Material:
 
 
 def rubber() -> bpy.types.Material:
-    """Dark rubber, ribbed round the side; the ridges are worn paler, the grooves black with grease."""
-    mat, nt, bsdf, coords, xyz = common.surface("rubber")
+    """Dull worn grey-brown rubber, ribbed round the side, the grooves black with grime: paler than the leather."""
+    mat, nt, bsdf, coords = common.surface("rubber")
     ribs = common.node(nt, "ShaderNodeTexWave", {"Vector": coords, "Scale": 60.0, "Distortion": 1.5, "Detail": 1.0}, bands_direction="Z", wave_profile="SAW").outputs["Factor"]
-    worn = common.maths(nt, "MULTIPLY", ribs, common.mapped(nt, common.noise(nt, coords, 25.0), 0.4, 0.7, 0.4, 1.0))
-    nt.links.new(common.lerp(nt, (0.045, 0.046, 0.05), (0.15, 0.145, 0.14), worn), bsdf.inputs["Base Color"])
-    nt.links.new(common.mapped(nt, common.noise(nt, coords, 9.0, 4.0), 0.4, 0.65, 0.55, 0.85), bsdf.inputs["Roughness"])
+    ridge = common.mapped(nt, ribs, 0.25, 0.55, 0.0, 1.0)  # 0 in a groove, 1 on a ridge
+    paler = common.mapped(nt, common.noise(nt, coords, 25.0), 0.4, 0.7, 0.0, 1.0)  # worn unevenly
+    top = common.lerp(nt, (0.25, 0.22, 0.185), (0.38, 0.34, 0.285), paler)
+    nt.links.new(common.lerp(nt, (0.05, 0.046, 0.04), top, ridge), bsdf.inputs["Base Color"])
+    nt.links.new(common.mapped(nt, common.noise(nt, coords, 9.0, 4.0), 0.4, 0.65, 0.7, 0.92), bsdf.inputs["Roughness"])
     nt.links.new(common.node(nt, "ShaderNodeBump", {"Strength": 1.0, "Distance": 0.0015, "Height": ribs}).outputs["Normal"], bsdf.inputs["Normal"])
     return mat
 

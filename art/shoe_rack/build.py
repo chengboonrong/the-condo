@@ -127,7 +127,8 @@ def selipar(bm: bmesh.types.BMesh, centre: tuple, yaw: float) -> None:
 def wood(name: str, tint: tuple, raw: bool = False) -> bpy.types.Material:
     """Varnished pine: grain along X, the varnish gone from the edges and in patches, dirt where it is dark in the
     corners and on the shelf tops. raw: unvarnished (the battens), not shiny anywhere."""
-    mat, nt, bsdf, coords, xyz = common.surface(name)
+    mat, nt, bsdf, coords = common.surface(name)
+
     def stretched(scale: tuple) -> bpy.types.NodeSocket:  # noise drawn out along X: the grain
         return common.noise(nt, common.node(nt, "ShaderNodeMapping", {"Vector": coords, "Scale": scale}).outputs["Vector"], 1.0, 3.0)
 
@@ -135,14 +136,14 @@ def wood(name: str, tint: tuple, raw: bool = False) -> bpy.types.Material:
     grain = common.mapped(nt, rings, 0.3, 0.7, 0.0, 1.0)
     bevelled = common.node(nt, "ShaderNodeBevel", {"Radius": 0.003}, samples=16).outputs["Normal"]
     flat = common.node(nt, "ShaderNodeNewGeometry").outputs["Normal"]
-    edge = common.mapped(nt, common.node(nt, "ShaderNodeVectorMath", {0: bevelled, 1: flat}, operation="DOT_PRODUCT").outputs["Value"], 1.0, 0.8, 0.0, 1.0)
-    patches = common.mapped(nt, common.noise(nt, coords, 7.0, 3.0), 0.56, 0.7, 0.0, 1.0)
-    worn = common.maths(nt, "MAXIMUM", edge, common.maths(nt, "MULTIPLY", patches, 0.85))
-    if raw:
-        worn = common.maths(nt, "ADD", worn, 1.0)
+    worn = 1.0  # the battens are bare wood
+    if not raw:
+        edge = common.mapped(nt, common.node(nt, "ShaderNodeVectorMath", {0: bevelled, 1: flat}, operation="DOT_PRODUCT").outputs["Value"], 1.0, 0.8, 0.0, 1.0)
+        patches = common.mapped(nt, common.noise(nt, coords, 7.0, 3.0), 0.56, 0.7, 0.0, 1.0)
+        worn = common.maths(nt, "MAXIMUM", edge, common.maths(nt, "MULTIPLY", patches, 0.85))
     varnished = common.lerp(nt, tuple(c * 0.75 for c in tint), tuple(c * 1.1 for c in tint), grain)
     bare = common.lerp(nt, tuple(c * 1.5 for c in tint), tuple(c * 1.9 for c in tint), grain)
-    colour = common.lerp(nt, varnished, bare, common.maths(nt, "MINIMUM", worn, 1.0))
+    colour = common.lerp(nt, varnished, bare, worn)
     up = common.mapped(nt, common.node(nt, "ShaderNodeSeparateXYZ", {"Vector": flat}).outputs["Z"], 0.5, 0.95, 0.0, 1.0)
     grime = common.maths(nt, "MULTIPLY", up, common.mapped(nt, common.noise(nt, coords, 3.5, 3.0), 0.45, 0.75, 0.0, 0.5))
     colour = common.lerp(nt, colour, (0.02, 0.016, 0.012), grime)
@@ -156,7 +157,7 @@ def wood(name: str, tint: tuple, raw: bool = False) -> bpy.types.Material:
 
 def rubber(name: str, colour: tuple) -> bpy.types.Material:
     """Blue rubber: faded and dirty from a kitchen floor, a little glossy."""
-    mat, nt, bsdf, coords, xyz = common.surface(name)
+    mat, nt, bsdf, coords = common.surface(name)
     dirt = common.mapped(nt, common.noise(nt, coords, 22.0, 6.0), 0.4, 0.7, 0.0, 0.6)
     nt.links.new(common.lerp(nt, colour, tuple(c * 0.25 + 0.01 for c in colour), dirt), bsdf.inputs["Base Color"])
     nt.links.new(common.mapped(nt, common.noise(nt, coords, 14.0, 4.0), 0.4, 0.65, 0.4, 0.75), bsdf.inputs["Roughness"])

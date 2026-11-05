@@ -193,8 +193,10 @@ def maths(nt: bpy.types.NodeTree, op: str, a, b=0.0) -> bpy.types.NodeSocket:
     return node(nt, "ShaderNodeMath", {0: a, 1: b}, operation=op).outputs["Value"]
 
 
-def lerp(nt: bpy.types.NodeTree, a, b, fac: bpy.types.NodeSocket) -> bpy.types.NodeSocket:
-    """A colour mixed from a to b by fac; a and b are RGB tuples or sockets."""
+def lerp(nt: bpy.types.NodeTree, a, b, fac) -> bpy.types.NodeSocket:
+    """A colour mixed from a to b by fac; a and b are RGB tuples or sockets, fac a value or a socket."""
+    # The Mix node has a float, a vector and a colour version of each socket, all named alike: take the colour
+    # ones (inputs 6 and 7, output 2) by index.
     inputs = {0: fac}
     for i, c in ((6, a), (7, b)):
         inputs[i] = c if isinstance(c, bpy.types.NodeSocket) else (*c, 1.0)
@@ -206,11 +208,10 @@ def noise(nt: bpy.types.NodeTree, coords: bpy.types.NodeSocket, scale: float, de
 
 
 def surface(name: str) -> tuple:
-    """A new material: (material, its node tree, its Principled BSDF, object coordinates, those split into X, Y, Z)."""
+    """A new material: (material, its node tree, its Principled BSDF, object coordinates)."""
     mat = bpy.data.materials.new(name)
     nt = mat.node_tree
-    coords = node(nt, "ShaderNodeTexCoord").outputs["Object"]
-    return mat, nt, nt.nodes["Principled BSDF"], coords, node(nt, "ShaderNodeSeparateXYZ", {"Vector": coords})
+    return mat, nt, nt.nodes["Principled BSDF"], node(nt, "ShaderNodeTexCoord").outputs["Object"]
 
 
 def select(objects: list[bpy.types.Object]) -> None:
