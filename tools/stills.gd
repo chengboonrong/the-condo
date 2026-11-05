@@ -45,6 +45,7 @@ func _initialize() -> void:
 		for area: StringName in s[6]:
 			areas[area] = true
 	player.set_physics_process(false)
+	sil.set_physics_process(false)  # no sighting and no stinger while the figure is on show
 	hud._start.visible = false
 	hud._objective.text = ""
 	hud._crosshair.visible = false
@@ -70,6 +71,7 @@ func _initialize() -> void:
 			sil.look_at(Vector3(s[1], 0, s[2]), Vector3.UP, true)
 			sil._left = 10.0
 			sil._set_alpha(0.95)
+			sil._fading = false  # warm_up() left it fading: shoot it solid, as it is first seen
 			sil.visible = true
 		else:
 			sil.visible = false

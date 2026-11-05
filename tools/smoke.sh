@@ -7,10 +7,15 @@ set -uo pipefail
 cd "$(dirname "$(realpath "$0")")/.."
 status=0
 cap=8912
-bytes=$(stat -f%z builds/web/index.pck) || exit 1
-kib=$(( (bytes + 1023) / 1024 ))  # rounded up, so a miss never rounds into a pass
-echo "web: index.pck $kib KiB (cap $cap)"
-[ "$bytes" -le $((cap * 1024)) ] || { echo "web: index.pck is over the cap"; status=1; }
+pck=builds/web/index.pck
+if bytes=$(stat -f%z "$pck" 2>/dev/null); then
+  kib=$(( (bytes + 1023) / 1024 ))  # rounded up, so a miss never rounds into a pass
+  echo "web: index.pck $kib KiB (cap $cap)"
+  [ "$bytes" -le $((cap * 1024)) ] || { echo "web: index.pck is over the cap"; status=1; }
+else
+  echo "web: $pck missing (run tools/export.sh)"  # the other runs still go on, as they do when the pck is over the cap
+  status=1
+fi
 tmp=$(mktemp -d)
 unzip -q builds/macos/TheCondo.zip -d "$tmp" || exit 1
 bin=$(ls -d "$tmp"/*.app/Contents/MacOS/*)
