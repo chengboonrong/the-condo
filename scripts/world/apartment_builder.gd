@@ -31,7 +31,6 @@ const PROPS := [
 	[Vector3(3.6, 1.0, -0.6), Vector3(1.0, 2.0, 0.02), Color(0.7, 0.85, 0.9, 0.25)],
 	[Vector3(3.2, 2.0, -1.5), Vector3(0.22, 0.45, 0.3), Color(0.95, 0.95, 0.95)],
 	# Bedroom
-	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), Color(0.3, 0.21, 0.15)],
 	[Vector3(5.85, 1.0, 1.4), Vector3(0.6, 2.0, 1.4), Color(0.5, 0.38, 0.28)],
 	[Vector3(6.1, 0.38, -1.25), Vector3(1.0, 0.76, 0.55), Color(0.5, 0.38, 0.28)],
 	# Corridor
@@ -39,7 +38,6 @@ const PROPS := [
 	[Vector3(13.05, 0.25, 10.35), Vector3(0.8, 0.5, 0.3), Color(0.35, 0.25, 0.2)],
 	[Vector3(18.96, 1.05, 11.25), Vector3(0.04, 2.1, 1.3), Color(0.6, 0.62, 0.64)],
 	# B-11-07: the bedroom, mirrored, dusty
-	[Vector3(6.55, 0.25, -16.3), Vector3(1.8, 0.5, 2.0), Color(0.4, 0.38, 0.35), {&"bedroom": &"door"}],
 	[Vector3(9.65, 1.0, -15.1), Vector3(0.6, 2.0, 1.4), Color(0.35, 0.28, 0.22), {&"bedroom": &"door"}],
 	[Vector3(9.4, 0.38, -17.75), Vector3(1.0, 0.76, 0.55), Color(0.35, 0.28, 0.22), {&"bedroom": &"door"}],
 ]
@@ -63,12 +61,19 @@ const MODELS: Array[Array] = [
 	# starts at the spout (basin/build.py's SPOUT, turned with the basin), which is inside the tap's click box.
 	[&"basin", &"basin", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(3.3, 0, 1.0)), {}],
 	[&"tap_water", &"tap_water", Transform3D(Basis(), Vector3(3.24, 0.964, 1.0)), {&"bathroom_tap": &"running"}],
+	# The bed, with its mattress, pillows, bolster and kicked-down blanket; its headboard is at -Z, towards the wall with the window
+	[&"bed", &"bed", Transform3D(Basis(), Vector3(8.95, 0, 0.2)), {}],
 	# B-11-07: the same intercom on the mirror room's west wall (face at x = 5.5 + WALL_T / 2), dusty
 	[&"intercom_mirror", &"intercom", Transform3D(Basis(Vector3.UP, PI / 2), Vector3(5.575, 1.45, -14.6)), {&"bedroom": &"door"}, true],
+	# B-11-07: the same bed, turned half round like the room (headboard at +Z, towards the wall with the door), dusty
+	[&"bed_b1107", &"bed", Transform3D(Basis(Vector3.UP, PI), Vector3(6.55, 0, -16.3)), {&"bedroom": &"door"}, true],
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
-# seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The table's and the basin's are Decor's.
+# seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The beds' bases are boxes the
+# size of their frames. The table's and the basin's are Decor's.
 const COLLIDERS: Array[Array] = [
+	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), {}],
+	[Vector3(6.55, 0.25, -16.3), Vector3(1.8, 0.5, 2.0), {&"bedroom": &"door"}],
 	[Vector3(4.5, 0.6875, 7.05), Vector3(0.42, 0.425, 0.05), {}],
 	[Vector3(4.5, 0.6875, 5.35), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"default"}],
 	[Vector3(3.45, 0.6875, 5.4), Vector3(0.42, 0.425, 0.05), {&"living_chair": &"turned"}],

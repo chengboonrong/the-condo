@@ -3,7 +3,7 @@ extends TestCase
 
 # Triangles each model may have. Each object task adds its ids.
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
-	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000}
+	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
@@ -11,6 +11,8 @@ const FOOTPRINTS := {
 	&"dining_table": [4.5, 6.2, 1.1, 0.75],
 	&"chair_turned": [3.45, 5.2, 0.42, 0.42],
 	&"basin": [3.3, 1.0, 0.38, 0.48],
+	&"bed": [8.95, 0.2, 1.8, 2.0],  # its headboard stands a little past the base
+	&"bed_b1107": [6.55, -16.3, 1.8, 2.0],
 }
 
 
@@ -197,6 +199,31 @@ func test_intercoms_sit_on_their_walls_inside_their_click_boxes() -> bool:
 		await tree.process_frame
 		check(mirror.visible, "and shown once the window is a door")
 		WorldState.set_variant(&"bedroom", &"default")
+	main.queue_free()
+	return true
+
+
+func test_each_bed_has_its_headboard_towards_the_wall_with_its_room_door() -> bool:
+	var main := await _main()
+	# The mirror room is the bedroom turned half round: its bed's headboard stands as far from its wall with the door
+	# in it (gap_door and mirror_door sit in them) as the bedroom's does, and on the side of the bed that faces it.
+	var wall := {&"bed": ApartmentLayout.DOORS[&"gap_door"]["hinge"].z, &"bed_b1107": ApartmentLayout.DOORS[&"mirror_door"]["hinge"].z}
+	var gap := {}
+	for name: StringName in wall:
+		var node: Node3D = main.builder.models[name]
+		var z_sum := 0.0
+		var count := 0
+		for m: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			for v: Vector3 in m.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+				var p := m.global_transform * v
+				if p.y > 0.8:  # only the headboard stands this high
+					z_sum += p.z
+					count += 1
+		check(count > 0, "%s has a headboard above 0.8 m" % name)
+		var head_z := z_sum / maxf(count, 1.0)
+		gap[name] = absf(head_z - wall[name])
+		check(absf(head_z - wall[name]) < absf(node.global_position.z - wall[name]), "%s: the headboard is the end nearer its wall with the door" % name)
+	near(gap[&"bed"], gap[&"bed_b1107"], 0.15, "the headboards' distance from their walls")
 	main.queue_free()
 	return true
 

@@ -539,14 +539,6 @@ func _bathroom() -> void:
 
 
 func _bedroom() -> void:
-	# Bed: mattress and sheet, two pillows, the bolster, the blanket kicked down. A headboard.
-	box(Vector3(8.95, 0.45, 0.2), Vector3(1.78, 0.2, 1.98), Color(0.8, 0.79, 0.75))  # inside the frame: no shared faces
-	box(Vector3(8.95, 0.48, -0.84), Vector3(1.86, 0.96, 0.06), WOOD_DARK)
-	box(Vector3(8.6, 0.6, -0.56), Vector3(0.58, 0.12, 0.36), Color(0.87, 0.86, 0.82), Look.MATTE, {}, 0.06)
-	box(Vector3(9.3, 0.6, -0.54), Vector3(0.58, 0.12, 0.36), Color(0.87, 0.86, 0.82), Look.MATTE, {}, -0.04)
-	cylinder_xf(Transform3D(Basis(Vector3.RIGHT, PI / 2), Vector3(9.6, 0.64, -0.3)), 0.1, 0.9, Color(0.8, 0.74, 0.62), Look.MATTE)
-	box_xf(Transform3D(Basis.from_euler(Vector3(0.0, 0.05, 0.03)), Vector3(8.95, 0.58, 0.68)), Vector3(1.78, 0.06, 1.02), Color(0.27, 0.32, 0.45))
-	box_xf(Transform3D(Basis.from_euler(Vector3(0.08, -0.04, 0.0)), Vector3(8.9, 0.62, 0.12)), Vector3(1.7, 0.08, 0.26), Color(0.3, 0.35, 0.48))
 	# Wardrobe doors with a cardboard box on top; dresser drawers.
 	box(Vector3(6.153, 1.0, 1.4), Vector3(0.004, 1.96, 0.006), Color(0.2, 0.14, 0.1))
 	for z: float in [1.34, 1.46]:
