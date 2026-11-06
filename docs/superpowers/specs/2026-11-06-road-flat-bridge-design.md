@@ -1,7 +1,7 @@
 # 11:47PM — the bridge from the road to the flat
 
-Status: each part played back to the owner and answered "All good" (2026-11-06); the whole document awaits the
-owner's approval. Branch `feat/road-flat-bridge`, from local main at f1e1177. Everything not marked "owner" is my
+Status: owner-approved, 2026-11-06 (each part played back and answered "All good", then the whole document
+approved). Branch `feat/road-flat-bridge`, from local main at f1e1177. Everything not marked "owner" is my
 call; the calls made after the builder check are listed at the end.
 
 ## Intent
