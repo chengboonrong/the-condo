@@ -300,13 +300,13 @@ def rev():
 
 
 def indicator():
-    """One flash of a dashboard indicator: the relay's tick at 0 and tock at 0.333 s, 0.667 s long, so playing it
-    back to back gives 90 flashes a minute."""
+    """A dashboard indicator as a loop of one flash: the relay's tick at 0 and tock at 0.333 s, 0.667 s long (29400
+    samples), so it flashes 90 times a minute. Both clicks have died away by the end, so the join is silence into a tick."""
     r = random.Random(1304)
-    out = [0.0] * int(2 / 3 * SR)
+    out = [0.0] * int(round(2 / 3 * SR))
     for t, f, g in ((0.0, 1.0, 1.0), (1 / 3, 0.78, 0.8)):
-        put(out, mix(tick(r, 0.012, 1800, 5000, 0.0025), tone(950 * f, 0.03, 0.008, 0.6), tone(2300 * f, 0.02, 0.004, 0.3)),
-            t, g)
+        click = mix(tick(r, 0.012, 1800, 5000, 0.0025), tone(950 * f, 0.03, 0.008, 0.6), tone(2300 * f, 0.02, 0.004, 0.3))
+        put(out, fade(click, 0.0005, 0.0), t, g, wrap=True)  # 0.5 ms attack: the tick at the join starts from silence
     return out
 
 
@@ -378,8 +378,9 @@ def lorry_pass():
 
 
 def insects_loop():
-    """A night jungle: two cicadas droning in different bands, swelling and fading, with four crickets chirping at
-    their own rates on top. 6 s; every rate is a whole number of cycles per loop and chirps wrap round the end."""
+    """A night jungle: three cicada bands droning, swelling and fading, with four crickets chirping at their own
+    rates on top. 6 s. The cicadas' buzz and swell rates are whole cycles per loop. The crickets' chirp periods do not
+    divide the loop, so each chirp sits at a jittered time and wraps round the end."""
     r = random.Random(1312)
     L = 6.0
     n = int(L * SR)
@@ -533,8 +534,9 @@ def rattle():
 
 
 def phone_ring_mobile():
-    """An ordinary mobile ringing, on a table: two runs of four soft digital beeps and a buzz from the vibration
-    motor under them, then a pause. 2.1 s, so playing it back to back keeps the rhythm. No real phone's tune."""
+    """An ordinary mobile ringing, on a table, as a loop of one ring: two runs of four soft digital beeps and a buzz
+    from the vibration motor under them, then a pause. 2.1 s; it ends in silence, so the join is silence into a beep.
+    No real phone's tune."""
     out = [0.0] * int(2.1 * SR)
     beep = [(math.sin(2 * math.pi * 1480 * i / SR) + math.sin(2 * math.pi * 4440 * i / SR) / 3
              + math.sin(2 * math.pi * 7400 * i / SR) / 5) * math.sin(math.pi * i / (0.085 * SR)) ** 0.5
@@ -546,22 +548,22 @@ def phone_ring_mobile():
         for j in range(4):
             put(out, beep, start + j * 0.145)
         put(out, buzz, max(start - 0.01, 0.0), 0.4)
-    return fade(lowpass(out, 5000), 0.002, 0.05)
+    return circ(lambda x: lowpass(x, 5000), out)
 
 
 def road_sounds():
-    """Every sound the road's tasks name. Loops (the three _loop files) are imported with edit/loop_mode=2; the
-    rest play once."""
+    """Every sound the road's tasks name. Five are loops, imported with edit/loop_mode=2 and only ever started with
+    RoadAudio.set_loop: the three _loop files, the indicator (one flash) and the phone (one ring). The rest play once."""
     save_db("engine_loop", engine_loop(), -16.0, loop=True, half=True)
     save_db("old_engine_loop", old_engine_loop(), -20.0, loop=True, half=True)
-    save_db("insects_loop", insects_loop(), -27.0, loop=True, half=True)
+    save_db("insects_loop", insects_loop(), -27.0, loop=True)  # full rate: 13% of its power is above 11 kHz
     save_db("rev", rev(), -16.0, half=True)
-    save_db("indicator", indicator(), -24.0)
+    save_db("indicator", indicator(), -24.0, loop=True)
     save_db("car_door_close", car_door_close(), -17.0)
     save_db("car_door_open", car_door_open(), -23.0)
     save_db("lorry_pass", lorry_pass(), -17.0, half=True)
     for i in range(4):  # peak-normalised like the flat's footsteps, so they sit at the same level
-        x = normalize(road_step(i + 20), 0.7)
+        x = normalize(fade(road_step(i + 20), 0.0015, 0.01), 0.7)  # a 1.5 ms fade-in: no step at the first sample
         save(f"road_step_{i + 1}", x, 0.7)
         print(f"road_step_{i + 1}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS")
     save_db("engine_sputter", engine_sputter(), -19.0, half=True)
@@ -571,7 +573,7 @@ def road_sounds():
     save_db("wet_flap", wet_flap(), -27.0)
     save_db("drip", drip(), -28.0)
     save_db("rattle", rattle(), -27.0, half=True)
-    save_db("phone_ring_mobile", phone_ring_mobile(), -19.0, half=True)
+    save_db("phone_ring_mobile", phone_ring_mobile(), -19.0, loop=True, half=True)
 
 
 def main():
