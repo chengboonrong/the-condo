@@ -11,19 +11,25 @@ signal reached
 
 const SMELL := "[A sour smell, like vinegar.]"  # after her first glimpse: the folklore's vinegar, unexplained
 const GLIMPSE := 1.2  # seconds she is seen at the roadside, at the most
-## Metres along the road ahead of the car she shows at, from no rule broken to her nearest (RoadDirector.her_near
-## NEAREST and over): each overtake brings her closer, so the car passes her in the glimpse.
+## Metres along the road ahead of the car she keeps pace at, from no rule broken to her nearest (RoadDirector.her_near
+## NEAREST and over): each overtake brings her closer.
 const GLIMPSE_AHEAD := Vector2(28.0, 10.0)
 const NEAREST := 0.4
-const GLIMPSE_OUT := Vector2(5.3, 5.6)  # across, on the valley side: past the rail and its posts, drifting out
-## Her skull above the road there, rising 0.15 m: her face in the dipped beam's top, her insides hanging into the drop.
+## Metres across she may hang at, always on the left verge (his side, the side the dipped beam reaches furthest): past
+## the guard rail and its posts, over the drop, where the valley is on the left...
+const VALLEY_OUT := Vector2(5.3, 8.0)
+## ...and where the hill is, off the asphalt to the foot of the cut slope, short of the bushes on it.
+const HILL_OUT := Vector2(4.4, 6.0)
+## Her skull above the road: her face in the dipped beam's top, her insides hanging into the drop or onto the verge.
 const GLIMPSE_UP := 1.8
 const SEAT := Vector3(0.37, 1.15, -0.78)  # his eyes in the car's space (+X its left, +Z its forward)
+const PACE_AT := 10.0  # her bearing from his seat as she keeps pace, in degrees left: between Mei's head and the pillar
+const GONE_AT := 21.0  # and as she goes: in the front door's window
 ## Bearings from his seat at her height, in degrees (+ left), where nothing in the car hides her: the windscreen
 ## between its left pillar and Mei's head, the front door's window past that pillar, and the windscreen between Mei's
 ## head and its right pillar, short of Hafiz. She may pass behind the pillar or a head, but not as she goes.
 const CLEAR := [Vector2(8.0, 12.0), Vector2(16.5, 25.5), Vector2(-35.0, -7.5)]
-const FADE := 0.25  # seconds she takes to come out of the fog, and to go back into it
+const FADE := 0.1  # seconds she takes to come out of the fog, and to go back into it
 const ABOVE_ROAD := 2.45  # her skull above the road behind a walker: the ends of her insides just clear it
 const BEHIND := Vector2(18.0, 4.0)  # metres behind a walker along the road, from no rule broken to her nearest
 const FOLLOW := 6.0  # m/s at most, keeping behind a walker
@@ -162,8 +168,11 @@ var _mode := &""  # where she is: &"glimpse", &"behind", &"catch", &"come_for", 
 var _t := 0.0  # seconds there
 var _target: Node3D  # the walker, the victim, the camera or the car
 var _drop := DROP  # catch: seconds she takes to drop onto him
-var _from := Vector3.ZERO
-var _to := Vector3.ZERO
+var _from := Vector3.ZERO  # catch: where she drops from
+var _ahead := 0.0  # glimpse: metres ahead of the car she keeps pace at
+var _out := 0.0  # glimpse: metres across
+var _pace := 0.0  # glimpse: seconds she keeps pace for, before she stops dead
+var _stop_s := 0.0  # glimpse: where along the road she is
 var _until := GLIMPSE  # glimpse: seconds she is seen for
 var _fall := Vector3.ZERO  # the way the victim falls
 var _victim_at := Transform3D.IDENTITY  # where he stood
@@ -217,21 +226,40 @@ func _ready() -> void:
 	hide_her()
 
 
-## Ahead of the car, past the guard rail on the valley side, half in the fog: her face at the top of the dipped beam
-## and her insides hanging into the drop. She drifts out over it, and the car closing on her carries her across the
-## beam's edge and, nearer, past the windscreen's pillar into the door's window; she is gone in GLIMPSE seconds or
-## less, where he can still see her. Her first glimpse leaves a smell behind.
+## Ahead of the car on the left verge, half in the fog: past the guard rail over the drop, or at the foot of the cut
+## slope among its bushes. She keeps pace with the car at glimpse_distance, her face lit by the near headlight between
+## the windscreen's pillar and Mei's head; then she stops dead and hangs there as the car passes her, out of the
+## windscreen, behind the pillar, into the front door's window, where she is gone: GLIMPSE seconds or less, ending where
+## he can see her. Her first glimpse leaves a smell behind.
 ## ponytail: never in the tunnel's 80 m (Mission 2 shows her from s 387 on), where she would stand in its wall.
 func show_glimpse() -> void:
-	var path := _glimpse_path(_glimpse_s())
-	_from = path[0]
-	_to = path[1]
+	_ahead = glimpse_distance(director.her_near)
+	var span := VALLEY_OUT
+	if builder != null and builder.ground_at(director.car_s + _ahead, 7.0) >= 0.0:
+		span = HILL_OUT
+	while _bearing(0.0, _ahead, span.x, 0.0) > CLEAR[0].y and _ahead < GLIMPSE_AHEAD.x:
+		_ahead += 0.5  # past the rail, this near, the pillar would hide her: as near as he can see her from
+	var sign := _sign_from(director.car_s + _ahead)
+	if sign < director.car_s + _ahead + 3.0:
+		_ahead = sign + 3.0 - director.car_s  # past its board
+		sign = _sign_from(sign + 3.0)
+	_out = span.x
+	for k in int((span.y - span.x) * 10.0) + 1:
+		var out := span.x + k * 0.1
+		if absf(_bearing(0.0, _ahead, out, 0.0) - PACE_AT) < absf(_bearing(0.0, _ahead, _out, 0.0) - PACE_AT):
+			_out = out
+	_pace = GLIMPSE
+	while _pace > 0.0 and _bearing(GLIMPSE, _ahead, _out, _pace) < GONE_AT:
+		_pace -= 0.05
+	while _pace > 0.0 and director.car_s + _travel(_pace) + _ahead > sign - 3.0:
+		_pace -= 0.05  # she stops short of a sign's board
 	_until = GLIMPSE
-	while _until > 0.0 and not _clear(_until):
+	while _until > 0.0 and not _clear(_bearing(_until, _ahead, _out, _pace)):
 		_until -= 0.05
-	if _until <= 0.0:  # ponytail: never clear, at a few spots by switchback 2 (s 856-870); a place search would fix it
+	if _until <= 0.0:  # ponytail: never clear (none on Mission 2's spots, sampled); a place search would fix one
 		_until = GLIMPSE
-	_begin(&"glimpse", _from)
+	_stop_s = director.car_s + _ahead
+	_begin(&"glimpse", RoadLayout.point(_stop_s, _out) + Vector3.UP * GLIMPSE_UP)
 	_set_fade(0.0)
 
 
@@ -318,7 +346,9 @@ func _process(delta: float) -> void:
 	var bob := 0.04
 	match _mode:
 		&"glimpse":
-			_base = _from.lerp(_to, smoothstep(0.0, GLIMPSE, _t))
+			if _t < _pace:
+				_stop_s = director.car_s + _ahead  # keeping pace with the car
+			_base = RoadLayout.point(_stop_s, _out) + Vector3.UP * GLIMPSE_UP
 			_face(RoadLayout.point(director.car_s, director.lane))
 			_set_fade(clampf(minf(_t, _until - _t) / minf(FADE, _until / 3.0), 0.0, 1.0))
 			if _t >= _until:
@@ -389,39 +419,34 @@ static func glimpse_distance(her_near: float) -> float:
 	return lerpf(GLIMPSE_AHEAD.x, GLIMPSE_AHEAD.y, clampf(her_near / NEAREST, 0.0, 1.0))
 
 
-## Where along the road the glimpse is: glimpse_distance ahead of the car, or the nearest place to it clear of a sign.
-func _glimpse_s() -> float:
-	var s := director.car_s + glimpse_distance(director.her_near)
-	for k: float in [0.0, -1.0, 1.0, -2.0, 2.0, -3.0, 3.0]:
-		if not _by_a_sign(s + k):
-			return s + k
-	return s
+## His bearing to her from his seat, in degrees (+ left), `t` seconds into a glimpse `ahead` of the car and `out`
+## across, keeping pace for `pace` seconds.
+func _bearing(t: float, ahead: float, out: float, pace: float) -> float:
+	var her := RoadLayout.point(director.car_s + _travel(minf(t, pace)) + ahead, out)
+	var car := CarRig.on_road(director.car_s + _travel(t), director.lane)
+	var at := car.affine_inverse() * (her + Vector3.UP * GLIMPSE_UP) - SEAT
+	return rad_to_deg(atan2(at.x, at.z))
 
 
-## Whether, `t` seconds into the glimpse, he sees her from his seat through the glass (CLEAR). ponytail: the car is
-## taken to keep its speed; it slows after the pass, so a glimpse cut short ends a little early.
-func _clear(t: float) -> bool:
-	var car := CarRig.on_road(director.car_s + director.car_speed * t, director.lane)
-	var at := car.affine_inverse() * _from.lerp(_to, smoothstep(0.0, GLIMPSE, t)) - SEAT
-	var bearing := rad_to_deg(atan2(at.x, at.z))
+## Metres the car goes in `t` seconds of a glimpse. ponytail: it is taken to slow at RoadDirector.ACCEL, as Mission 2's
+## does after the pass; at a steady speed she would go past the door's window early, and be cut short in view.
+func _travel(t: float) -> float:
+	var t_stop := minf(t, director.car_speed / RoadDirector.ACCEL)
+	return director.car_speed * t_stop - 0.5 * RoadDirector.ACCEL * t_stop * t_stop
+
+
+## Whether nothing in the car hides her at `bearing` from his seat (CLEAR).
+static func _clear(bearing: float) -> bool:
 	return CLEAR.any(func(band: Vector2) -> bool: return bearing >= band.x and bearing <= band.y)
 
 
-## Whether a roadside sign stands within 3 m of s: its board would hide her face.
-static func _by_a_sign(s: float) -> bool:
+## Where the first roadside sign is from 3 m short of s on, or INF: her face keeps 3 m clear of a board.
+static func _sign_from(s: float) -> float:
+	var first := INF
 	for at: float in RoadBuilder.WINDING + RoadBuilder.SIGNS.map(func(sign: Array) -> float: return sign[0]):
-		if absf(at - s) < 3.0:
-			return true
-	return false
-
-
-## [from, to]: her glimpse at s, on the side where the ground falls away (the left without the builder).
-func _glimpse_path(s: float) -> Array[Vector3]:
-	var side := 1.0
-	if builder != null and builder.ground_at(s, -GLIMPSE_OUT.y) < builder.ground_at(s, GLIMPSE_OUT.y):
-		side = -1.0
-	return [RoadLayout.point(s, side * GLIMPSE_OUT.x) + Vector3.UP * GLIMPSE_UP,
-		RoadLayout.point(s, side * GLIMPSE_OUT.y) + Vector3.UP * (GLIMPSE_UP + 0.15)]
+		if at > s - 3.0:
+			first = minf(first, at)
+	return first
 
 
 ## Shows her at `at`, starting over in a new place. Moving on from where she is, what hangs from her keeps swinging.

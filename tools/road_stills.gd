@@ -10,8 +10,8 @@ extends SceneTree
 #  forward instead. "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has
 #  stopped; optional: who is saying a line, so the couple turn (&"": no one); optional: road cues to send after the
 #  ride's fields, as the mission's begin() would;
-#  optional: where she is, held still: seconds into a glimpse shown from where the car was then (at the car's speed),
-#  or [metres ahead of the camera, metres up]]
+#  optional: where she is, held still: seconds into a glimpse cued where the car is, played on as Mission 2 drives
+#  (slowing from the car's speed), or [metres ahead of the camera, metres up]]
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -30,11 +30,14 @@ const SHOTS := [
 	["mei_turns", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}, &"mei"],  # Mei turns to him
 	["mirror_fourth", "CountMission", 0.0, 0.0, -0.33, 0.07, 0.0, false, {"seated": true, "car_s": 900.0, "car_speed": 9.0},
 		&"", [&"mirror_on"]],  # from his seat, the rear-view mirror and who sits beside him in it
-	# her glimpses after overtakes 1, 2 and 3, shown at 523 (where Mission 2's first is, on one run), each where her
-	# face is nearest the beam
-	["her_glimpse_1", 1, 0.0, 0.0, 0.0, 0.03, 0.12, false, {"seated": true, "car_s": 528.6, "car_speed": 14.0, "her_near": 0.12}, &"", [], 0.4],
-	["her_glimpse_2", 1, 0.0, 0.0, 0.0, 0.03, 0.24, false, {"seated": true, "car_s": 525.8, "car_speed": 14.0, "her_near": 0.24}, &"", [], 0.2],
-	["her_glimpse_3", 1, 0.0, 0.0, 0.0, 0.03, 0.36, false, {"seated": true, "car_s": 525.8, "car_speed": 14.0, "her_near": 0.36}, &"", [], 0.2],
+	# her glimpses after overtakes 1, 2 and 3, cued where Mission 2 cued them on runs (the valley on the left at 523, on
+	# the right at 740), each at her best contrast against what is behind her
+	["her_glimpse_1", 1, 0.0, 0.0, 0.0, 0.03, 0.12, false, {"seated": true, "car_s": 523.0, "car_speed": 14.0, "her_near": 0.12}, &"", [], 1.1],
+	["her_glimpse_2", 1, 0.0, 0.0, 0.0, 0.03, 0.24, false, {"seated": true, "car_s": 523.0, "car_speed": 14.0, "her_near": 0.24}, &"", [], 1.1],
+	["her_glimpse_3", 1, 0.0, 0.0, 0.0, 0.03, 0.36, false, {"seated": true, "car_s": 523.0, "car_speed": 14.0, "her_near": 0.36}, &"", [], 1.1],
+	["her_glimpse_1_hill", 1, 0.0, 0.0, 0.0, 0.03, 0.12, false, {"seated": true, "car_s": 740.0, "car_speed": 14.0, "her_near": 0.12}, &"", [], 1.0],
+	["her_glimpse_2_hill", 1, 0.0, 0.0, 0.0, 0.03, 0.24, false, {"seated": true, "car_s": 740.0, "car_speed": 14.0, "her_near": 0.24}, &"", [], 1.1],
+	["her_glimpse_3_hill", 1, 0.0, 0.0, 0.0, 0.03, 0.36, false, {"seated": true, "car_s": 740.0, "car_speed": 14.0, "her_near": 0.36}, &"", [], 1.1],
 	["her_full", 0, 796.0, 1.8, 0.0, 0.0, 0.12, false, {"car_s": 793.0}, &"", [], [6.0, 0.0]],  # checking only, never published: in the parked car's lights
 	["her_close", 0, 800.0, 1.0, 0.0, 0.0, 0.6, true, {}, &"", [], [0.6, 0.0]],  # where she stops, by his phone's light
 ]
@@ -117,11 +120,19 @@ func _initialize() -> void:
 		her.set_process(true)
 		if s.size() > 11:
 			if s[11] is float:
-				var car_s: float = road.director.car_s
-				road.director.car_s -= road.director.car_speed * s[11]  # where the car was when she showed
 				her.show_glimpse()
-				road.director.car_s = car_s
-				her._t = s[11]
+				her.set_process(false)  # played on by hand, as the car drives
+				var cue: float = road.director.car_s
+				var speed: float = road.director.car_speed
+				var accel: float = load("res://scripts/road/road_director.gd").ACCEL
+				for k in int(s[11] * 60.0) + 1:  # she keeps pace with the car, then stops dead
+					var t := minf(k / 60.0, s[11])
+					road.director.car_s = cue + speed * t - 0.5 * accel * t * t
+					road.director.car_speed = speed - accel * t
+					her._t = t
+					her._process(0.0)
+				await process_frame  # the car and his seat follow the core
+				await process_frame
 			else:
 				var cam: Camera3D = player.camera
 				her.come_for(cam)
