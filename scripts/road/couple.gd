@@ -23,8 +23,8 @@ shader_type spatial;
 render_mode diffuse_lambert;
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap;
 uniform float roughness = 0.8;
-uniform float halo = 2.0;
-uniform vec3 tint : source_color = vec3(1.0, 0.6, 0.44);  // her brown, which the light takes on coming through
+uniform float halo = 0.5;  // a dim outline: more, and the edges clip to white
+uniform vec3 tint : source_color = vec3(0.65, 0.4, 0.25);  // her dark brown, which the light takes on coming through
 
 void fragment() {
 	ALBEDO = texture(albedo_texture, UV).rgb;
