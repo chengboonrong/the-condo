@@ -329,6 +329,8 @@ func _on_interacted(object_id: StringName) -> void:
 				_go(&"in_bed")
 			elif WorldState.act < WorldState.Act.ENDED:
 				say("[You can't sleep. Not now.]", 2.5)
+		&"footprints":
+			_end_question()
 		&"intercom":
 			if beat == &"ringing" and scheduler.is_running(&"phone_ring"):
 				_answer_rosnah()

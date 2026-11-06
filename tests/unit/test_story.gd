@@ -159,6 +159,18 @@ func test_washing_during_the_question_leaves_get_some_sleep() -> bool:
 	return _done()
 
 
+func test_inspecting_the_footprints_ends_the_question() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"caught"
+	_wait(5.0)
+	EventBus.object_interacted.emit(&"footprints")
+	eq(WorldState.objective, "Wash up, then get some sleep.", "the question gives way")
+	_wait(1.0)
+	EventBus.object_interacted.emit(&"bed")  # lie down at 6 s
+	check(not _until(func() -> bool: return story.beat == &"ringing", 13.8), "the quiet still holds the ring")
+	return _done()
+
+
 func test_opened_directly_the_flat_opens_as_today() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
 	story.road = &""

@@ -45,6 +45,78 @@ func _walk_to(player: PlayerController, target: Vector2) -> bool:
 	return false
 
 
+## A flat built as the road's `ending` leaves it (&"" = opened directly), and put back as it was.
+func _flat_after(ending: StringName) -> ApartmentBuilder:
+	var was := Journey.road_ending
+	Journey.road_ending = ending
+	var builder := ApartmentBuilder.new()
+	tree.root.add_child(builder)  # _ready builds
+	Journey.road_ending = was
+	return builder
+
+
+func _footprint_box(builder: ApartmentBuilder) -> Interactable:
+	for child in builder.get_children():
+		if child is Interactable and child.object_id == &"footprints":
+			return child
+	return null
+
+
+func test_footprints_only_come_down_from_the_road() -> bool:
+	var plain := _flat_after(&"")
+	check(plain.get_node_or_null("Footprints") == null, "no red earth when the flat is opened directly")
+	check(_footprint_box(plain) == null, "and nothing to inspect")
+	plain.free()
+	var builder := _flat_after(&"caught")
+	var prints := builder.get_node_or_null("Footprints") as MeshInstance3D
+	check(prints != null, "red earth after the road")
+	var it := _footprint_box(builder)
+	check(it != null, "and something to inspect")
+	if prints == null or it == null:
+		builder.free()
+		return true
+	eq(it.prompt, "Look at the footprints", "prompt")
+	eq(it.title, "Footprints", "title")
+	eq(it.text, "Red earth, from the mountain road. You don't remember walking in.", "text")
+	var trail := ApartmentBuilder.footprint_trail()
+	check(trail.size() >= 10, "a trail, not a smudge")
+	check(trail[0].distance_to(Vector3(1.5, trail[0].y, 10.0)) <= 0.6 and trail[0].z < 10.0, "from just inside the front door")
+	check(trail[-1].distance_to(Vector3(ApartmentLayout.SPAWN.x, trail[-1].y, ApartmentLayout.SPAWN.z)) <= 0.8, "to where he stands")
+	check(trail.all(func(p: Vector3) -> bool: return p.y >= 0.004 and p.y <= 0.012), "on the floor")
+	for i in range(1, trail.size()):
+		var stride := trail[i].distance_to(trail[i - 1])
+		check(stride >= 0.55 and stride <= 0.75, "stride %d is %.2f m" % [i, stride])
+	var material := prints.material_override as StandardMaterial3D
+	check(material != null and material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "opaque")
+	check(material != null and material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED, "and lit by the lamps and the phone")
+	eq(prints.mesh.get_surface_count(), 1, "one mesh, one draw")
+	check(prints.get_aabb().size.y < 0.001, "flat on the floor")
+	var shape := it.get_child(0) as CollisionShape3D
+	var size := (shape.shape as BoxShape3D).size
+	check(size.y <= 0.02, "the box is low enough to walk over")
+	var box := AABB(it.position - size * 0.5, size).grow(0.05)
+	for o: Array in ApartmentBuilder.OBJECTS:
+		check(not box.intersects(AABB(o[1] - o[2] * 0.5, o[2])), "the inspect box is clear of %s" % o[0])
+	builder.free()
+	return true
+
+
+func test_the_footprints_are_walked_over() -> bool:
+	var was := Journey.road_ending
+	Journey.road_ending = &"caught"
+	var main := await _main()
+	var player: PlayerController = main.player
+	check(_footprint_box(main.builder) != null, "there is a box over the trail to walk over")
+	player.use_scripted_move = true
+	for x: float in [5.9, 3.4]:
+		var ok: bool = await _walk_to(player, Vector2(x, 8.45))
+		check(ok, "stuck before x=%.1f over the footprints at %s" % [x, player.global_position])
+	check(absf(player.global_position.y) < 0.05, "and on the floor, not on the box")
+	Journey.road_ending = was
+	main.queue_free()
+	return true
+
+
 func test_walk_reaches_every_room_without_getting_stuck() -> bool:
 	var main := await _main()
 	var player: PlayerController = main.player

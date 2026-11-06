@@ -114,7 +114,7 @@ const OBJECTS := [
 	[&"aircon", Vector3(9.88, 2.3, 0.2), Vector3(0.2, 0.3, 0.9), "Look at the aircon", "Aircon",
 		"Switched off at the wall. The little green light is blinking anyway."],
 	[&"bedroom_window", Vector3(7.8, 1.5, -1.9), Vector3(1.5, 1.1, 0.04), "Look outside", "Window",
-		"Twelve floors down, the mamak where you work is still open. Someone in your apron is pulling teh tarik. They stop, and look up.", {&"bedroom": &"default"}],
+		"Twelve floors down, the mamak where you used to work is still open. Someone in your apron is pulling teh tarik. They stop, and look up.", {&"bedroom": &"default"}],
 	[&"door_1206", Vector3(-2.0, 1.05, 10.1), Vector3(1.0, 2.1, 0.06), "Knock", "B-12-06",
 		"You knock. Nobody answers. A red lantern from last Chinese New Year still hangs by the grille."],
 	[&"door_1208", Vector3(12.0, 1.05, 10.1), Vector3(1.0, 2.1, 0.06), "Knock", "B-12-08",
@@ -124,6 +124,18 @@ const OBJECTS := [
 	[&"lift_button", Vector3(18.9, 1.2, 12.1), Vector3(0.05, 0.15, 0.1), "Call the lift", "", ""],
 	[&"intercom_mirror", Vector3(5.6, 1.45, -14.6), Vector3(0.08, 0.26, 0.14), "Use intercom", "", "", {&"bedroom": &"door"}],
 	[&"mirror_wall", Vector3(7.75, 1.3, -18.41), Vector3(1.8, 1.2, 0.03), "Touch the wall", "", "", {&"bedroom": &"door"}],
+]
+
+# The red earth of the mountain road, tracked in after it: the line he walked from just inside the front door,
+# through the entrance's opening (3, 8.5), to where he stands (SPAWN), and the shoe print he left along it.
+const TRAIL_PATH: Array[Vector3] = [Vector3(1.1, 0.006, 9.5), Vector3(3.0, 0.006, 8.5), Vector3(ApartmentLayout.SPAWN.x, 0.006, 8.45)]
+const TRAIL_PRINTS := 10
+const TRAIL_SWAY := 0.07  # each print lies this far to its side of the line, left and right in turn
+const RED_EARTH := Color(0.42, 0.17, 0.09)
+# One print in (sideways, forward) metres from the foot's middle: the sole, and the heel behind it.
+const SHOE := [
+	[Vector2(-0.04, -0.02), Vector2(0.04, -0.02), Vector2(0.05, 0.05), Vector2(0.04, 0.11), Vector2(0.0, 0.135), Vector2(-0.04, 0.11), Vector2(-0.05, 0.05)],
+	[Vector2(-0.032, -0.135), Vector2(0.032, -0.135), Vector2(0.036, -0.045), Vector2(-0.036, -0.045)],
 ]
 
 # Label3D: text, pos, yaw (0 faces +z), pixel size, color, requires
@@ -180,6 +192,8 @@ func build() -> void:
 	_build_models()
 	for o: Array in OBJECTS:
 		_build_object(o)
+	if Journey.road_ending != &"":
+		_build_footprints()
 	for l: Array in LABELS:
 		_build_label(l)
 	_build_fan()
@@ -646,11 +660,49 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# these click boxes are drawn by their props or models; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv", &"footprints"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
 	add_child(it)
 	if o.size() > 6:
 		gate(it, o[6])
+
+
+## Each print's centre, the door's first, evenly along TRAIL_PATH.
+static func footprint_trail() -> Array[Vector3]:
+	var total := 0.0
+	for i in range(1, TRAIL_PATH.size()):
+		total += TRAIL_PATH[i].distance_to(TRAIL_PATH[i - 1])
+	var trail: Array[Vector3] = []
+	for k in TRAIL_PRINTS:
+		var left := total * k / (TRAIL_PRINTS - 1.0)
+		var i := 1
+		while i < TRAIL_PATH.size() - 1 and left > TRAIL_PATH[i].distance_to(TRAIL_PATH[i - 1]):
+			left -= TRAIL_PATH[i].distance_to(TRAIL_PATH[i - 1])
+			i += 1
+		var dir := (TRAIL_PATH[i] - TRAIL_PATH[i - 1]).normalized()
+		trail.append(TRAIL_PATH[i - 1] + dir * left + Vector3(-dir.z, 0.0, dir.x) * (TRAIL_SWAY if k % 2 == 0 else -TRAIL_SWAY))
+	return trail
+
+
+## The prints as flat polygons in one mesh (a Decal does not draw in the Compatibility renderer), lit like the
+## floor, and the low box over the living-room stretch that inspects them. The box is 2 cm tall so he walks over it.
+func _build_footprints() -> void:
+	var trail := footprint_trail()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in trail.size():
+		var fwd := (trail[mini(i + 1, trail.size() - 1)] - trail[maxi(i - 1, 0)]).normalized()  # along the line, not the sway
+		var side := Vector3(-fwd.z, 0.0, fwd.x)
+		for part: Array in SHOE:
+			Decor._poly(st, part.map(func(q: Vector2) -> Vector3: return trail[i] + side * q.x + fwd * q.y), Vector3.UP, RED_EARTH)
+	var prints := MeshInstance3D.new()
+	prints.name = "Footprints"
+	prints.mesh = st.commit()
+	prints.material_override = _material(RED_EARTH)
+	prints.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(prints)
+	_build_object([&"footprints", Vector3(4.65, 0.01, 8.45), Vector3(2.9, 0.02, 0.5), "Look at the footprints", "Footprints",
+		"Red earth, from the mountain road. You don't remember walking in."])
 
 
 func _build_label(l: Array) -> void:
