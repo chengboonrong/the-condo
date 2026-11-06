@@ -10,6 +10,14 @@ const ACT2_MIN := 240.0  # seconds of disturbance before act 3, even with enough
 const ACT2_MAX := 420.0  # fail-safe: act 3 starts anyway
 const DECISION_WAIT := 210.0  # fail-safe: waiting this long in B-11-07 is a choice too
 const BEACON_EVERY := 30.0
+## After the road the flat opens quiet: no event, and no ring, for this long from the story's first tick.
+const QUIET := 20.0
+const HOME_OBJECTIVE := "Wash up, then get some sleep."
+## What he finds in the quiet: [seconds after the first tick, line, seconds on screen]. Story lines: always shown.
+const OPENING_LINES := [
+	[3.0, "[Your phone says 12:41 AM. The clock on the wall says 11:47.]", 4.5],
+	[10.0, "[Your uniform is still damp from the fog.]", 3.5],
+]
 
 ## Clues that count as signs that something is wrong (others are flavour).
 const SIGN_CLUES: Array[StringName] = [&"vacant", &"own_unit", &"notes", &"mirror"]
@@ -31,20 +39,25 @@ const ENDINGS := {
 var scheduler: EventScheduler
 var transformer: RoomTransformer
 var beat: StringName = &""
+var road: StringName = &""  # how the road ended (Journey); &"" = the flat was opened directly
 var beat_started := 0.0
 var noticed := 0
 var progress: Array[Dictionary] = []  # every beat change, for tests and the playthrough report
 var _fired: Dictionary = {}  # one-shot keys in the current beat
-var _lines: Array = []  # queued [text, seconds]
+var _ever: Dictionary = {}  # one-shot keys for the whole flat (unlike _fired, kept across beats)
+var _lines: Array = []  # queued [text, seconds, always]
 var _line_left := 0.0
 var _last_shift := 0.0
 var _bedroom_since := -1.0
 var _next_beacon := INF
+var _t0 := -1.0  # when the first tick came
+var _asking := false  # the "How did you get home?" objective is showing
 
 
 func _init(event_scheduler: EventScheduler, room_transformer: RoomTransformer) -> void:
 	scheduler = event_scheduler
 	transformer = room_transformer
+	road = Journey.road_ending
 	EventBus.object_interacted.connect(_on_interacted)
 	EventBus.room_entered.connect(_on_room_entered)
 	EventBus.variant_changed.connect(_on_variant_changed)
@@ -57,6 +70,11 @@ func now() -> float:
 
 func beat_time() -> float:
 	return now() - beat_started
+
+
+## True while the flat is still holding its breath after the road.
+func quiet() -> bool:
+	return road != &"" and (_t0 < 0.0 or now() - _t0 < QUIET)
 
 
 func signs() -> int:
@@ -79,14 +97,22 @@ func tick(delta: float) -> void:
 	_speak(delta)
 	if beat == &"":
 		_go(&"home")
-		WorldState.set_objective("You're home from your shift at the mamak. Wash up, then get some sleep.")
+		_t0 = now()
+		_asking = road != &""
+		WorldState.set_objective("How did you get home?" if _asking else "You're home from your shift at the mamak. " + HOME_OBJECTIVE)
+	if road != &"":
+		for i in OPENING_LINES.size():
+			if now() - _t0 >= float(OPENING_LINES[i][0]) and _once_ever("opening%d" % i):
+				say(OPENING_LINES[i][1], OPENING_LINES[i][2], true)
+		if not quiet():
+			_end_question()
 	var t := beat_time()
 	match beat:
 		&"home":
 			if t >= BED_WAIT:
 				_ring()  # fail-safe: never went to bed
 		&"in_bed":
-			if t >= 4.0:
+			if t >= 4.0 and not quiet():
 				_ring()
 		&"ringing":
 			if _once("hint", 30.0):
@@ -146,8 +172,9 @@ func tick(delta: float) -> void:
 				_end(&"downstairs", "[You waited too long. Your hand is already on the wall.]")
 
 
-func say(text: String, seconds := 3.5) -> void:
-	_lines.append([text, seconds])
+## `always` lines are story, not sound captions: they show whatever "Captions for sounds" says.
+func say(text: String, seconds := 3.5, always := false) -> void:
+	_lines.append([text, seconds, always])
 
 
 ## Debug (F10): jump to the next act.
@@ -178,11 +205,27 @@ func _once(key: String, at: float) -> bool:
 	return true
 
 
+func _once_ever(key: String) -> bool:
+	if _ever.has(key):
+		return false
+	_ever[key] = true
+	return true
+
+
+## The question gives way to the usual objective (the quiet is over, or he found something).
+func _end_question() -> void:
+	if not _asking:
+		return
+	_asking = false
+	if beat == &"home":
+		WorldState.set_objective("Get some sleep." if WorldState.has_flag(&"washed") else HOME_OBJECTIVE)
+
+
 func _speak(delta: float) -> void:
 	_line_left -= delta
 	if _line_left <= 0.0 and not _lines.is_empty():
 		var line: Array = _lines.pop_front()
-		EventBus.subtitle_requested.emit(line[0], line[1])
+		(EventBus.line_requested if line[2] else EventBus.subtitle_requested).emit(line[0], line[1])
 		_line_left = float(line[1]) + 0.3
 
 
@@ -274,7 +317,7 @@ func _on_interacted(object_id: StringName) -> void:
 			if not WorldState.has_flag(&"washed"):
 				WorldState.set_flag(&"washed")
 				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5)
-				if beat == &"home":
+				if beat == &"home" and not _asking:
 					WorldState.set_objective("Get some sleep.")
 			else:
 				say("[Cold water.]", 2.0)
@@ -282,6 +325,7 @@ func _on_interacted(object_id: StringName) -> void:
 			if beat == &"home":
 				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0)
 				WorldState.set_objective("")
+				_asking = false  # lying down clears the objective, the question with it
 				_go(&"in_bed")
 			elif WorldState.act < WorldState.Act.ENDED:
 				say("[You can't sleep. Not now.]", 2.5)

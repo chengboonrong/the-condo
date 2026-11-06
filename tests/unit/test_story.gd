@@ -4,6 +4,8 @@ extends TestCase
 
 var stage: HorrorStage
 var rt: HorrorRuntime
+var lines: Array[String] = []  # story lines (line_requested): always shown
+var subtitles: Array[String] = []  # sound captions (subtitle_requested): the setting decides
 
 
 func _setup(pos: Vector3) -> StoryDirector:
@@ -31,9 +33,31 @@ func _until(cond: Callable, limit: float) -> bool:
 	return false
 
 
+func _listen() -> void:
+	EventBus.line_requested.connect(_on_line)
+	EventBus.subtitle_requested.connect(_on_subtitle)
+
+
+func _on_line(text: String, _seconds: float) -> void:
+	lines.append(text)
+
+
+func _on_subtitle(text: String, _seconds: float) -> void:
+	subtitles.append(text)
+
+
 func _done() -> bool:
+	if EventBus.line_requested.is_connected(_on_line):
+		EventBus.line_requested.disconnect(_on_line)
+		EventBus.subtitle_requested.disconnect(_on_subtitle)
 	rt.free()
 	return true
+
+
+## Exactly `seconds` of sim time, in 0.1 s steps (_until's float sum overshoots by a step).
+func _wait(seconds: float) -> void:
+	for i in roundi(seconds * 10.0):
+		rt.step(0.1)
 
 
 func test_a_player_who_does_nothing_still_gets_to_act_3() -> bool:
@@ -92,3 +116,56 @@ func test_both_endings_and_the_decision_fail_safe() -> bool:
 		check(rt.scheduler.running.is_empty() and rt.scheduler.queue.is_empty(), "and no event is left running")
 		rt.free()
 	return true
+
+
+func test_from_the_road_the_flat_opens_quiet_and_asking() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"caught"
+	_listen()
+	_wait(1.0)
+	eq(WorldState.objective, "How did you get home?", "the first objective is a question")
+	_wait(11.0)
+	eq(lines, ["[Your phone says 12:41 AM. The clock on the wall says 11:47.]", "[Your uniform is still damp from the fog.]"], "found, not told, in order")
+	check(lines.size() == 2 and not subtitles.has(lines[0]) and not subtitles.has(lines[1]), "story lines, not sound captions: always shown")
+	_wait(7.9)
+	check(WorldState.event_history.is_empty(), "nothing happens in the quiet")
+	eq(WorldState.objective, "How did you get home?", "the question stays for the whole quiet")
+	_wait(0.5)
+	eq(WorldState.objective, "Wash up, then get some sleep.", "then the usual objective, without the mamak")
+	eq(lines.size(), 2, "and the opening lines are not said again")
+	return _done()
+
+
+func test_lying_down_early_holds_the_ring_until_the_quiet_ends() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"saved"
+	_wait(5.0)
+	EventBus.object_interacted.emit(&"bed")
+	check(not _until(func() -> bool: return story.beat == &"ringing", 14.8), "no ring before 20 s")
+	check(_until(func() -> bool: return story.beat == &"ringing", 5.0), "it rings once the quiet is over")
+	eq(WorldState.objective, "Answer the intercom.", "and the question does not come back over it")
+	return _done()
+
+
+func test_washing_during_the_question_leaves_get_some_sleep() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"alive"
+	_wait(5.0)
+	EventBus.object_interacted.emit(&"sink")
+	_wait(1.0)
+	eq(WorldState.objective, "How did you get home?", "washing doesn't answer the question")
+	_wait(14.4)
+	eq(WorldState.objective, "Get some sleep.", "at the end of the quiet")
+	return _done()
+
+
+func test_opened_directly_the_flat_opens_as_today() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &""
+	_listen()
+	_wait(1.0)
+	eq(WorldState.objective, "You're home from your shift at the mamak. Wash up, then get some sleep.", "today's objective")
+	EventBus.object_interacted.emit(&"bed")
+	check(_until(func() -> bool: return story.beat == &"ringing", 4.2), "the intercom rings 4 s after lying down, as today")
+	eq(lines, [], "no new lines")
+	return _done()
