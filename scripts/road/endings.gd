@@ -12,8 +12,10 @@ extends Node3D
 ##           screams once he is down; her_comes: she comes for the camera, and the black card cuts in the moment she
 ##           reaches it, with no caption
 ## Once the walk is over (walk_over) Mei stands where she stopped. The stall stands wherever the core puts the light
-## (RoadDirector.light_s), so a skip to the walk finds it there. Every light here is switched by its energy alone, never
-## hidden or shown: a light coming or going on a surface would compile a new shader for it mid-game.
+## (RoadDirector.light_s), so a skip to the walk finds it there. Its lights come on and go out by their energy, but
+## some are shown late: the bulb and the ring light with the stall, once the light is placed, and Hafiz's torch with
+## him. Neither compiles a shader mid-game: the start card's warm-up (RoadMain._compile_shaders) has drawn everything
+## under each kind of light already.
 
 const BULB := Vector3(0.12, 1.8, -0.7)  # the bulb's centre in the stall's own space (the model's "bulb" empty)
 ## The bulb's glass and its light: a warm bare bulb under the road's grade (an emission of 1 reads neutral, 3 cool

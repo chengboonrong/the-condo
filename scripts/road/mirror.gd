@@ -111,14 +111,20 @@ func _process(_delta: float) -> void:
 
 ## The road's environment, for the mirror's own copy: the same fog and ambient light, but none of its grade (exposure,
 ## tonemap, glow, colour adjustment). The player's camera grades the glass with everything else, so the picture is
-## graded once, and the Brightness setting scales it once.
+## graded once, and the Brightness setting scales it once. Its colour adjustment is on but changes nothing: with it on
+## the renderer tonemaps in a pass after the scene, as for the player's camera, so the mirror draws with the same
+## shaders as his camera instead of a set of its own that would compile the first time it is switched on.
 func use_environment(world: Environment) -> void:
 	_world = world
 	camera.environment = world.duplicate()
 	camera.environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	camera.environment.tonemap_exposure = 1.0
 	camera.environment.glow_enabled = false
-	camera.environment.adjustment_enabled = false
+	camera.environment.adjustment_enabled = true
+	camera.environment.adjustment_brightness = 1.0
+	camera.environment.adjustment_contrast = 1.0
+	camera.environment.adjustment_saturation = 1.0
+	camera.environment.adjustment_color_correction = null
 
 
 ## On: the viewport renders every frame, the glass shows it, and she sits in it. Off: none of them.

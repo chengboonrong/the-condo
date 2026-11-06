@@ -78,8 +78,11 @@ func test_the_mirror_renders_only_in_mission_3() -> bool:
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "at the road's start it doesn't render")
 	check(not mirror.is_processing(), "nor follow the car")
 	var env := mirror.camera.environment
-	eq([env.tonemap_mode, env.tonemap_exposure, env.glow_enabled, env.adjustment_enabled, env.fog_enabled],
-		[Environment.TONE_MAPPER_LINEAR, 1.0, false, false, true], "its picture keeps the fog, ungraded: the player's camera grades it")
+	eq([env.tonemap_mode, env.tonemap_exposure, env.glow_enabled, env.fog_enabled],
+		[Environment.TONE_MAPPER_LINEAR, 1.0, false, true], "its picture keeps the fog, ungraded: the player's camera grades it")
+	eq([env.adjustment_enabled, env.adjustment_brightness, env.adjustment_contrast, env.adjustment_saturation],
+		[true, 1.0, 1.0, 1.0], "its adjustment on but changing nothing, so it draws with the player's camera's shaders")
+	check(env.adjustment_color_correction == null, "and no colour correction")
 	d.start_at(at)
 	await tree.process_frame
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "set up for mission 3, not yet begun: still not")

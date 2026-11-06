@@ -17,6 +17,24 @@ const MEI_DOOR := Vector3(0.86, 0.9, 0.3)
 const MEI_WINDOW := Vector3(0.82, 1.15, 0.3)
 const SHAKE := 0.012  # metres each way a thump on the roof shakes his view, at the most
 const SHAKE_SECONDS := 0.35
+## The warm-up's board (_compile_shaders), far above the road where none of its lights reach: BOARD_AWAY in front of a
+## camera of its own, a grid COLUMNS wide of CELL squares, each holding a copy turned by TILT so that a flat one (a
+## plane faces up) still shows. The mirror's camera looks at it from MIRROR_BACK further back, where its narrow picture
+## takes in the whole board.
+const WARM_AT := Vector3(0.0, 300.0, 0.0)
+const BOARD_AWAY := 2.5
+const CELL := 0.15
+const COLUMNS := 16
+const TILT := Vector3(0.5, 0.6, 0.0)
+const MIRROR_BACK := 6.0
+const PICTURE_LAYER := 1 << 19  # in the warm-up only: a picture of a viewport, which the mirror's camera leaves out
+## The warm-up's light states, one frame each: bit 1 the omni light, 2 the spot, 4 the phone light. The phone light's
+## first, then without it, then with it again: the renderer binds the phone light's shadow map only for its own pass
+## and leaves it bound after, and the driver seems to compile a shader again when what is bound with it differs. Measured
+## on the perf route (M1 Max, desktop): with the phone light's states last only, the slow car's first sight cost about
+## 70 ms and the mirror's first frame about 60 ms; with them first only, the phone light in the walk cost 128 ms; first
+## and last, no frame over 25 ms.
+const LIGHT_STATES: Array[int] = [4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7]
 
 @onready var player: PlayerController = $Player
 @onready var hud: Hud = $Hud
@@ -32,8 +50,10 @@ var audio: RoadAudio
 var her: Penanggal
 var endings: Endings
 var pause: PauseMenu
-var loaded := false  # the start card is ready to be clicked (tools wait for this)
+var loaded := false  # the shader warm-up is done and the start card can be clicked (tools wait for this)
+var ready_msec := 0  # engine start to the road built, for the perf report
 var _automated := false
+var _warmed := {}  # the renderer's RID of each material the warm-up drew -> true
 var _signalling := false  # the dashboard indicator ticks: from the signal to the pull out
 var _dead := false  # the car's engine has died (lights_dying), and it never starts again
 var _quiet := false  # the insects have stopped (insects_stop)
@@ -42,7 +62,7 @@ var _at_light := false  # the walk to the light (LightMission) is the core's mis
 
 
 func _ready() -> void:
-	if Main.has_flag("flat") or Main.has_flag("perf"):  # checks of the flat alone: straight to its own start card
+	if Main.has_flag("flat"):  # checks of the flat alone: straight to its own start card
 		process_mode = Node.PROCESS_MODE_DISABLED  # nothing is built, so nothing runs until the flat replaces it
 		Journey.arrive(&"")
 		return
@@ -104,14 +124,151 @@ func _ready() -> void:
 	look.film = hud.film_material
 	look.grade_override = &"road"
 	add_child(look)
+	ready_msec = Time.get_ticks_msec()
 	_finish_loading.call_deferred()
 
 
+## Headless too, unlike the flat's: nothing is drawn there, but what would be is known, and the tests check it.
 func _finish_loading() -> void:
+	await _compile_shaders()
 	loaded = true
 	hud.allow_start()
 	if Main.has_flag("smoke"):
 		_smoke()
+	elif Main.has_flag("perf"):
+		_automated = true
+		var route := RoadPerf.new()
+		route.director = director
+		route.her = her
+		route.hud = hud
+		route.player = player
+		route.scene_ready_msec = ready_msec
+		route.reported.connect(finish.bind(&"caught"))  # the ending it plays
+		add_child(route)
+
+
+## Behind the start card, as the flat does (Main._compile_shaders): a copy of each kind of thing the road draws, every
+## mesh, multimesh and sign's line with its own materials, shown in play or hidden till later, her in the mirror
+## included, is drawn on a board in front of a camera of its own under every mix of the road's lights, so that nothing
+## compiles a shader mid-game. In this renderer a light changes the shaders by its kind and by whether it casts a
+## shadow, not by which light it is, so three stand in for them all: an omni light for the sodium lamps, the tunnel's,
+## her fill in the mirror and the endings' bulb, ring light and fallen phone; an unshadowed spot for the headlights,
+## the dash, Mei's screen, Hafiz's torch and the lorry's lamps; and a copy of his phone light, the one with a shadow.
+## The mirror's camera draws the board each time too: its picture is drawn without shadow maps and with a pass after
+## the scene of its own (Mirror.use_environment). The order of the light states (LIGHT_STATES) matters as much as the
+## states.
+func _compile_shaders() -> void:
+	var cam := Camera3D.new()
+	cam.far = BOARD_AWAY * 4.0
+	add_child(cam)
+	cam.global_position = WARM_AT
+	cam.make_current()
+	var omni := OmniLight3D.new()
+	var spot := SpotLight3D.new()
+	var phone := player.phone_light.duplicate() as SpotLight3D
+	omni.omni_range = BOARD_AWAY * 3.0
+	for light: SpotLight3D in [spot, phone]:
+		light.spot_angle = 45.0  # the whole board
+		light.spot_range = BOARD_AWAY * 3.0
+	for light: Light3D in [omni, spot, phone]:
+		cam.add_child(light)
+	var copies: Array[GeometryInstance3D] = []
+	var boxes: Array[AABB] = []
+	var kinds := {}
+	for g: GeometryInstance3D in find_children("*", "GeometryInstance3D", true, false):
+		var materials := _materials_of(g)
+		var kind := "%s %d %s" % [g.get_class(), g.cast_shadow, materials]
+		if kinds.has(kind):
+			continue
+		kinds[kind] = true
+		copies.append(_copy(g))
+		boxes.append(g.get_aabb())
+		for m: RID in materials:
+			_warmed[m] = true
+	var board := Node3D.new()
+	add_child(board)
+	board.global_position = WARM_AT + Vector3.FORWARD * BOARD_AWAY
+	var rows := ceili(copies.size() / float(COLUMNS))
+	for n in copies.size():
+		var basis := Basis.from_euler(TILT) * (CELL * 0.9 / maxf(boxes[n].get_longest_axis_size(), 0.001))
+		var at := Vector3((n % COLUMNS - (COLUMNS - 1) * 0.5) * CELL, ((rows - 1) * 0.5 - n / COLUMNS) * CELL, 0.0)
+		copies[n].transform = Transform3D(basis, at - basis * boxes[n].get_center())
+		board.add_child(copies[n])
+	var mirror := car.mirror
+	var mask := mirror.camera.cull_mask
+	mirror.camera.cull_mask = mask & ~PICTURE_LAYER
+	mirror.camera.global_transform = cam.global_transform.translated(Vector3.BACK * MIRROR_BACK)
+	mirror.viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	for state in LIGHT_STATES:
+		omni.visible = state & 1 != 0
+		spot.visible = state & 2 != 0
+		phone.visible = state & 4 != 0
+		await get_tree().process_frame
+	mirror.viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED  # the mirror is off until Mission 3
+	mirror.camera.cull_mask = mask
+	board.queue_free()
+	player.camera.make_current()
+	cam.queue_free()
+
+
+## The renderer's RID of each material the warm-up drew (_compile_shaders): of every surface of everything under the
+## road, hidden or not.
+func warmed_materials() -> Dictionary:
+	return _warmed
+
+
+## The renderer's RID of each material `g` draws with: a mesh's surfaces' (whatever overrides them), a multimesh's, the
+## one a sign's line (Label3D) makes for itself, and an overlay.
+static func _materials_of(g: GeometryInstance3D) -> Array[RID]:
+	var out: Array[RID] = []
+	if g is MeshInstance3D:
+		var m := g as MeshInstance3D
+		for i in m.get_surface_override_material_count():
+			if m.get_active_material(i) != null:
+				out.append(m.get_active_material(i).get_rid())
+	elif g is MultiMeshInstance3D:
+		var mesh := (g as MultiMeshInstance3D).multimesh.mesh
+		for i in mesh.get_surface_count():
+			var mat := g.material_override if g.material_override != null else mesh.surface_get_material(i)
+			if mat != null:
+				out.append(mat.get_rid())
+	elif g is Label3D:
+		for i in RenderingServer.mesh_get_surface_count(g.get_base()):
+			out.append(RenderingServer.mesh_surface_get_material(g.get_base(), i))
+	else:
+		push_error("the warm-up does not know a %s (%s)" % [g.get_class(), g.name])
+	if g.material_overlay != null:
+		out.append(g.material_overlay.get_rid())
+	return out
+
+
+## A copy of `g`, shown, that draws as it does: the same mesh (or multimesh, which draws with a shader of its own) and
+## materials, shadow and layers, without what hangs under it. A sign's line is duplicated, and makes its own material
+## as the original did. A picture of a viewport (the mirror's glass) goes on PICTURE_LAYER, out of the mirror's sight:
+## drawn into its own viewport it would read the texture it writes, which WebGL refuses.
+static func _copy(g: GeometryInstance3D) -> GeometryInstance3D:
+	var copy: GeometryInstance3D
+	if g is MeshInstance3D:
+		var m := MeshInstance3D.new()
+		m.mesh = (g as MeshInstance3D).mesh
+		for i in m.get_surface_override_material_count():
+			m.set_surface_override_material(i, (g as MeshInstance3D).get_surface_override_material(i))
+		copy = m
+	elif g is MultiMeshInstance3D:
+		copy = MultiMeshInstance3D.new()
+		(copy as MultiMeshInstance3D).multimesh = (g as MultiMeshInstance3D).multimesh
+	else:
+		copy = g.duplicate(0)
+	copy.visible = true
+	copy.material_override = g.material_override
+	copy.material_overlay = g.material_overlay
+	copy.cast_shadow = g.cast_shadow
+	copy.transparency = g.transparency
+	copy.layers = g.layers
+	var picture := g.material_override as BaseMaterial3D
+	if picture != null and picture.albedo_texture is ViewportTexture:
+		copy.layers = PICTURE_LAYER
+	return copy
 
 
 ## `-- --smoke` / `?smoke`: the road starts at once and runs 3 s, then hands over to the flat. The flag carries

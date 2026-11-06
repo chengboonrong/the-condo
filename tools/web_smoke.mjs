@@ -2,8 +2,10 @@
 //   node tools/web_smoke.mjs [builds/web] [--perf] [--chromium|--webkit] [--nofilter] [--flat]
 // The game starts on the road, so a run needs a "ROAD-SMOKE ok" line and then a "SMOKE ok" line. --flat adds
 // &flat to the URL, which skips the road and checks the flat alone.
-// --perf runs the perf tour (?perf) in visible browser windows instead, so the real GPU is used
-// (add --headless to compare: a visible window that is covered by others can be throttled by macOS).
+// --perf runs the perf tours (?perf) in visible browser windows instead, so the real GPU is used
+// (add --headless to compare: a visible window that is covered by others can be throttled by macOS). The road's tour
+// comes first, then the flat's: a run needs both reports, "PERF road …" and then the flat's "PERF …" (--flat: the
+// flat's alone).
 // --nofilter adds &nofilter to the URL: that run draws the sharp picture, as `-- --nofilter` does on the desktop.
 // Needs Playwright with its browsers; set PLAYWRIGHT_FROM=/some/dir/ if it isn't installed next to the project.
 import http from 'node:http';
@@ -52,7 +54,7 @@ for (const [name, type] of [['chromium', chromium], ['webkit', webkit]].filter((
   await page.bringToFront();
   let smoke, road;
   const done = perf ? 'PERF load' : 'SMOKE';  // "ROAD-SMOKE" does not start with "SMOKE": the road's line never stands in for the flat's
-  for (let i = 0; i < 240 && !smoke; i++) {
+  for (let i = 0; i < 480 && !smoke; i++) {  // up to 4 min: the perf run plays both tours
     await page.waitForTimeout(500);
     smoke = lines.find((l) => l.startsWith(done));
     road = lines.find((l) => l.startsWith('ROAD-SMOKE'));
@@ -60,7 +62,7 @@ for (const [name, type] of [['chromium', chromium], ['webkit', webkit]].filter((
   }
   if (perf) {
     console.log(`${name}:\n${lines.filter((l) => l.startsWith('PERF')).join('\n') || 'no PERF lines'}`);
-    if (!smoke) failed++;
+    if (!smoke || !(flat || lines.some((l) => l.startsWith('PERF road load')))) failed++;
     await browser.close();
     continue;
   }

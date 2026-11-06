@@ -233,3 +233,72 @@ did not cause a hitch over 25 ms in the final runs.
 * **One fast machine only.** Integrated graphics and older GPUs are the real risk for the web build.
 * The tour teleports instead of walking, and does not include the endings or the long corridor of the
   *Vacant* ending.
+
+## The road
+
+Measured 2026-11-06 on the same machine (Apple M1 Max, 64 GB, macOS 27.0, Godot 4.7.2, Compatibility renderer), desktop
+only: the debug build from the project, `godot --path . -- --perf`, 1600×900, 3D scale 0.50, vsync off. **The web runs
+(WebKit and Chromium, the perf route and the plain smoke) have not been done yet, so no web figures are recorded
+here.**
+
+### How it was measured
+
+`-- --perf` (desktop) or `?perf` (web) now starts on the road (`RoadPerf`, `scripts/road/road_perf.gd`): about 49 s
+through its heaviest moments, each reached by a skip (`RoadDirector.start_at`, `debug_skip`), then one report in the
+flat's format with every line marked `PERF road`, and then the flat's own tour and report as before. The stages:
+
+| Stage | Seconds | What is on screen |
+|---|---|---|
+| drive | 11 | Mission 2 at cruising speed from 10 m short of the tunnel and through it, the fog going from none to all, her glimpsed every 4 s, and the slow car coming into sight |
+| mirror | 10 | Mission 3: the mirror on with her in it |
+| roof | 8 | Mission 4: the car dies with her on its roof (thumps), and Hafiz walks off with his phone as a torch |
+| walk | 5 | Mission 5: the walk to the light with her behind him |
+| catch | 15 | the caught ending, from where it is decided: the bulb dies, Hafiz's torch, his fallen phone, her at the camera |
+
+As in the flat's tour the view turns a full circle every 5 s and the phone light (the only light with a shadow) is on
+every other 4 s. Frame time, render CPU, draw calls, memory and load are measured as above.
+
+### Results
+
+Two runs, one after the other, the road's report and then the flat's from the same runs:
+
+| | Avg frame | p50 | p95 | p99 | Worst | Frames > 25 ms | Render CPU avg / p95 | Draw calls avg / max |
+|---|---|---|---|---|---|---|---|---|
+| The road | 2.25, 2.28 ms | 2.21, 2.26 ms | 2.94, 2.91 ms | 3.15, 3.11 ms | 11.41, 11.56 ms | 0, 0 | 0.90 / 1.18, 0.90 / 1.15 ms | 68 / 165, 68 / 166 |
+| The flat, after the road | 2.01, 2.00 ms | 1.94, 1.93 ms | 2.59, 2.58 ms | 2.85, 2.83 ms | 4.07, 4.03 ms | 0, 0 | 0.97 / 1.46, 0.96 / 1.45 ms | 86 / 279 |
+
+* **Load**: the road is built 1250 and 1248 ms after engine start, and its shader warm-up behind the start card is done
+  at 6424 and 6420 ms, about 5.2 s of warm-up (the flat's is about 2.6 s). The flat after the road: condo built at
+  55660 and 55655 ms, warm-up done at 58284 and 58253 ms.
+* **Memory**: video 52.5 MB on the road (80.6 MB in the flat after it); static 137.1 MB (peak 137.3).
+* **Download**: `index.pck` 8,468,100 bytes, 8270 KiB rounded up against the 8912 KiB cap (8259.9 KiB before this
+  change), from `godot --headless --path . --export-release Web /tmp/condo-road-web/index.html`.
+* **Machine load**: load averages (1 min) before and after each run: 1.91 and 2.27, 2.27 and 2.44. Logs:
+  `/tmp/t11/final/` (not committed).
+
+### What the measurements changed
+
+The road's warm-up (`RoadMain._compile_shaders`) draws a copy of each kind of thing under the road (every mesh,
+multimesh and sign's line with its own materials, hidden ones and her in the mirror included) on a board far above
+the road, under three stand-in lights (an omni light, an unshadowed spot and a copy of the phone light) in every mix,
+with the mirror's camera drawing the board too. On the route, before the fixes below:
+
+| Hitch (M1 Max, desktop) | When | Cause | Fix |
+|---|---|---|---|
+| 66–79 ms in every run (116 ms in the first) | 9.3 s into the drive, the slow car first in sight | not the slow car's materials (drawing the real slow car in the warm-up did not help): the warm-up drew every light state without the phone light before the phone light had ever cast a shadow. The renderer binds the phone light's shadow map only for that light's own pass and leaves it bound after, and the driver seems to compile a shader again when what is bound with it differs | the warm-up's light states start with the phone light's and end with them again (`RoadMain.LIGHT_STATES`) |
+| 128 ms, once | 29.9 s, in the walk with the phone light on | the same, the other way: with the phone light's states first only | as above |
+| 61–68 ms in every run (85 ms once) | 11.1 s, the mirror switched on | the mirror's picture was drawn with shaders of its own (no post-processing, so tonemapping in every shader); its own render took 57 ms of that frame. With the order fixed the frame was 23–26 ms, 21–22 ms of it the mirror's render | the mirror's colour adjustment is on but neutral, so the renderer tonemaps after the scene and the mirror uses the player's camera's shaders; its first frame no longer shows |
+
+After both fixes no frame went over 25 ms on the road in either run, and the worst was 11.4–11.6 ms.
+
+The mirror's picture is not quite the same with the second fix: its darkest tones are a little darker. In one frame
+compared before and after (320×112, the same moment of the route), pixels below 60 of 255 lost 0.7–6.3 levels on
+average, the darkest the most, and brighter ones moved by under 0.3; the picture's mean fell from 29.7 to 26.9.
+
+### Known gaps on the road
+
+* **The web is unmeasured**, as above: the road's bar is the flat's, no frame over 25 ms in WebKit after the start card.
+* The route starts at Mission 2 and plays the caught ending only: the lorry (it passes in Mission 1 and comes in the
+  alive and saved endings) and the ring light (saved) are not on it. Their lights are unshadowed spots and an omni
+  light, kinds the warm-up draws everything under.
+* The route skips between stages, so a stage's first frame also carries the skip (the car moves up to 550 m at once).
