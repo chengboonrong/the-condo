@@ -268,6 +268,12 @@ static func _height(profile: PackedVector2Array, out: float) -> float:
 	return 0.0
 
 
+## The ground's height `across` metres off the centreline at s (+ left), from the road's own height: 0 on the asphalt,
+## then the verge, the drain or the apron, and the cut slope up or the fall into the valley (the tunnel's lining aside).
+func ground_at(s: float, across: float) -> float:
+	return _height(_ground(_row(s), signf(across)), absf(across))
+
+
 ## How far from the centreline he can walk on `side` (+1 left) at s: to the drain or the rail's face, or the kerb in
 ## the tunnel.
 func wall(s: float, side: float) -> float:

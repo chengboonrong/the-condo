@@ -56,6 +56,7 @@ func _ready() -> void:
 	her = Penanggal.new()
 	her.name = "Her"
 	her.director = director
+	her.builder = builder
 	add_child(her)
 	EventBus.choices_requested.connect(hud.show_choices)
 	EventBus.choices_closed.connect(hud.close_choices)

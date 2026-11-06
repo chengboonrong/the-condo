@@ -5,6 +5,7 @@ extends TestCase
 
 func _her() -> Penanggal:
 	var her := Penanggal.new()
+	her.director = RoadDirector.new(RoadStage.new(), 1147)
 	tree.root.add_child(her)
 	return her
 
@@ -27,10 +28,11 @@ func test_behind_keeps_her_distance() -> bool:
 	var walker := Node3D.new()
 	tree.root.add_child(walker)
 	for her_near: float in [0.0, 1.0]:
-		var distance := lerpf(18.0, 4.0, her_near)
+		var distance := 18.0 if her_near == 0.0 else 4.0
+		her.director.her_near = her_near
 		walker.global_position = RoadLayout.point(700.0, 1.0)
 		her.hide_her()
-		her.behind(walker, distance)
+		her.behind(walker)
 		await _frames(2)
 		near(RoadLayout.closest_s(her.global_position), 700.0 - distance, 0.5, "her_near %.0f: %.0f m behind him along the road" % [her_near, distance])
 		check(her.global_position.y - RoadLayout.point(700.0 - distance).y > 2.3, "her_near %.0f: high enough that nothing of hers reaches the road" % her_near)
@@ -40,33 +42,73 @@ func test_behind_keeps_her_distance() -> bool:
 		await _frames(30)
 		near(RoadLayout.closest_s(her.global_position), 706.0 - distance, 0.5, "her_near %.0f: and she keeps it as he walks" % her_near)
 		near(_across(her.global_position), 1.0, 0.3, "her_near %.0f: on his line" % her_near)
+	her.director.her_near = 0.0
+	her.hide_her()
+	her.behind(walker)  # 18 m back
+	await _frames(2)
+	her.director.her_near = 0.5  # he breaks a rule on the way
+	await _frames(90)  # 7 m at 6 m/s, and some
+	near(RoadLayout.closest_s(her.global_position), 706.0 - 11.0, 0.5, "it brings her gliding in, to 11 m")
 	her.hide_her()
 	check(not her.visible, "hide_her hides her")
 	return true
 
 
+## Mission 2 shows her as the car, back in its lane after the overtake, comes on at 14 m/s: at s 523 the valley is on
+## the left, at s 740 on the right.
 func test_glimpse_is_brief_and_off_the_road() -> bool:
+	var builder := RoadBuilder.new()
+	tree.root.add_child(builder)
+	var car := CarRig.new()
+	tree.root.add_child(car)
 	var her := _her()
-	her.director = RoadDirector.new(RoadStage.new(), 1147)
-	her.director.car_s = 500.0
+	her.builder = builder
+	her.director.car_speed = 14.0
 	her.director.her_near = 0.12  # after one overtake
 	var lines := []
 	var on_line := func(text: String, _seconds: float) -> void: lines.append(text)
 	EventBus.line_requested.connect(on_line)
-	for glimpse in 2:
+	for car_s: float in [523.0, 740.0]:
+		her.director.car_s = car_s
+		car.place(car_s, her.director.lane)
 		her.show_glimpse()
-		var ahead := RoadLayout.closest_s(her.global_position) - 500.0
-		check(ahead >= 25.0 and ahead <= 35.0, "glimpse %d: 25-35 m ahead of the car (%.1f)" % [glimpse, ahead])
+		var s := RoadLayout.closest_s(her.global_position)
+		check(s - car_s >= 25.0 and s - car_s <= 35.0, "at %.0f: 25-35 m ahead of the car (%.1f)" % [car_s, s - car_s])
 		var shown := 0
-		var on_road := 0
-		for i in 180:
+		var off := INF  # her nearest to the road's middle, while seen
+		var valley := true
+		var lit := 0
+		var view := Vector2(-INF, INF)  # her bearing from his seat, most to the left and most to the right (+ left)
+		var ground := 0.0
+		for i in 120:
 			if her.visible:
 				shown += 1
-				if absf(_across(her.global_position)) <= RoadLayout.WIDTH / 2.0:
-					on_road += 1
+				var at := her.global_position
+				var across := _across(at)
+				off = minf(off, absf(across))
+				var here := RoadLayout.closest_s(at)
+				valley = valley and builder.ground_at(here, across) < builder.ground_at(here, -across)
+				for spot: SpotLight3D in car.headlights:
+					var to := at - spot.global_position
+					if to.length() < spot.spot_range and rad_to_deg(to.angle_to(-spot.global_basis.z)) < spot.spot_angle:
+						lit += 1
+						break
+				var seat := car.global_transform.affine_inverse() * at - Vector3(Penanggal.SEAT, 1.15, -0.78)
+				var bearing := rad_to_deg(atan2(seat.x, seat.z))
+				view = Vector2(maxf(view.x, bearing), minf(view.y, bearing))
+				if i == 60:  # set by her own frame before this one
+					var floor_y: float = her.materials()[0].get_shader_parameter(&"floor_y")
+					ground = at.y + floor_y - 0.02 - (RoadLayout.point(here).y + builder.ground_at(here, across))
 			await tree.process_frame
-		check(shown > 60 and shown <= 78, "glimpse %d: seen for over 1 s and at most 1.3 s (%.2f s)" % [glimpse, shown / 60.0])
-		eq(on_road, 0, "glimpse %d: frames over the road" % glimpse)
+			her.director.car_s += 14.0 / 60.0  # the car comes on
+			car.place(her.director.car_s, her.director.lane)
+		check(shown > 60 and shown <= 78, "at %.0f: seen for over 1 s and at most 1.3 s (%.2f s)" % [car_s, shown / 60.0])
+		check(off >= 5.2, "at %.0f: past the rail all the while (%.2f m out at the nearest)" % [car_s, off])
+		check(valley, "at %.0f: on the valley side" % car_s)
+		check(lit > 0, "at %.0f: her head in a headlight's beam for part of it (%d frames)" % [car_s, lit])
+		# the windscreen from his seat: its left pillar's edge at 12.4 degrees at her height, Hafiz's head from 30 right
+		check(view.x < 12.4 and view.y > -30.0, "at %.0f: in the windscreen all the while (%.1f to %.1f degrees)" % [car_s, view.y, view.x])
+		near(ground, 0.0, 0.01, "at %.0f: what hangs from her lies on the real ground there, not the road's plane" % car_s)
 	EventBus.line_requested.disconnect(on_line)
 	eq(lines, [Penanggal.SMELL], "the smell, after her first glimpse only")
 	return true
@@ -77,17 +119,23 @@ func test_catch_ends_on_the_ground() -> bool:
 	var victim := Node3D.new()
 	tree.root.add_child(victim)
 	victim.global_transform = CarRig.on_road(800.0, 1.0)  # standing on the road, facing down it
-	her.behind(victim, 6.0)
+	her.behind(victim)  # 18 m behind him
 	await _frames(2)
 	var feet := victim.global_position
 	var sounds: Array[StringName] = []
 	var on_sound := func(id: StringName, _pos: Vector3, _db: float) -> void: sounds.append(id)
 	EventBus.sound_requested.connect(on_sound)
 	her.catch(victim)
-	await _frames(120)
+	var fastest := 0.0
+	var was := her.global_position
+	for i in 240:
+		await tree.process_frame
+		fastest = maxf(fastest, her.global_position.distance_to(was) * 60.0)
+		was = her.global_position
 	EventBus.sound_requested.disconnect(on_sound)
+	check(fastest <= 2.0 * Penanggal.SWOOP + 0.5, "from 18 m off she comes at him no faster than a swoop (%.1f m/s)" % fastest)
 	var up := victim.global_basis.y.normalized()
-	check(absf(up.dot(Vector3.UP)) < sin(deg_to_rad(15.0)), "2 s on, he lies on the ground (up %s)" % up)
+	check(absf(up.dot(Vector3.UP)) < sin(deg_to_rad(15.0)), "4 s on, he lies on the ground (up %s)" % up)
 	near(victim.global_position.distance_to(feet), 0.0, 0.01, "fallen where he stood")
 	check(her.pool.is_visible_in_tree(), "a pool")
 	check(her.pool.global_position.distance_to(feet + up * Penanggal.SHOULDERS) < 0.4, "under his shoulders")
@@ -95,6 +143,12 @@ func test_catch_ends_on_the_ground() -> bool:
 	check(not sounds.is_empty(), "she is heard")
 	for id: StringName in sounds:
 		check(RoadAudio.SOUNDS.has(id) and id != &"stinger", "%s: one of the road's sounds, and no sting" % id)
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = RoadLayout.point(780.0) + Vector3.UP * 1.6
+	her.come_for(camera)
+	await _frames(30)
+	check(her.pool.is_visible_in_tree(), "the pool stays where it spread as she comes on")
 	return true
 
 
@@ -108,13 +162,24 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	var reached := [0]
 	her.reached.connect(func() -> void: reached[0] += 1)
 	her.come_for(camera)
-	await _frames(60)
-	near(her.global_position.distance_to(camera.global_position), 4.0, 0.15, "6 m/s at the camera")
+	await _frames(15)
+	var low := INF  # her lowest above the road while still LOW_IN and more from stopping
+	for i in 45:
+		low = minf(low, her.global_position.y - RoadLayout.point(RoadLayout.closest_s(her.global_position)).y)
+		await tree.process_frame
+	check(low > Penanggal.ABOVE_ROAD - 0.1, "she comes in high enough that nothing of hers lies on the road (%.2f m)" % low)
+	near(her.global_position.distance_to(camera.global_position), 4.1, 0.15, "6 m/s at the camera")
 	await _frames(120)
 	near(her.global_position.distance_to(camera.global_position), Penanggal.CLOSE, 0.05, "and stops 0.6 m away")
 	eq(reached[0], 1, "reached, once")
 	var face := her.global_basis.z.slide(Vector3.UP).normalized()
 	near(face.dot((camera.global_position - her.global_position).slide(Vector3.UP).normalized()), 1.0, 0.02, "her face to it")
+	her.hide_her()
+	camera.rotation.x = deg_to_rad(-60.0)  # looking down at the road
+	her.come_for(camera)
+	var out := her.global_position - camera.global_position
+	near(out.y, 0.0, 0.01, "from hiding she comes out of the fog level with it, not from under the road")
+	near(out.slide(Vector3.UP).length(), 15.0, 0.01, "15 m off")
 	return true
 
 

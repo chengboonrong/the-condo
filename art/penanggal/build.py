@@ -143,10 +143,10 @@ ENTRAILS = 3  # material index: skin, eyes, hair, entrails
 
 
 def neck(bm: bmesh.types.BMesh) -> None:
-    """The neck, torn off a few cm under the jaw. Skin above (material 0, the painted texture), never a clean cylinder,
-    torn along a line that dips and rises round the neck, with a ragged lip of skin below the tear and a few long flaps
-    hanging from it, curling in, raw on their insides (entrails). Within the tear, the torn flesh: a ring of yellow fat
-    under the skin, then dark, lumpy muscle."""
+    """The neck, torn off a few cm under the jaw. Skin above (material 0, the painted texture), gaunt: two cords running
+    down and in to the throat's hollow, never a clean cylinder, torn along a ragged line that dips and rises round the
+    neck, with a ragged lip of skin below the tear and a few long flaps hanging from it, curling in, raw on their
+    insides (entrails). Within the tear, the torn flesh: a ring of yellow fat under the skin, then dark, lumpy muscle."""
     sides, upper, lower = 26, 7, 4  # rings: down to the tear, then down the lip and the flaps
     top, bottom = Vector((0.0, 0.016, -0.04)), Vector((0.0, -0.002, -0.165))
     flaps = ((0.75, 0.32, 0.05), (2.4, 0.24, 0.032), (-1.2, 0.36, 0.06), (-2.65, 0.22, 0.028))  # (angle, width, length)
@@ -156,14 +156,16 @@ def neck(bm: bmesh.types.BMesh) -> None:
         a = math.tau * k / sides
         u = (top.z - z) / (top.z - bottom.z)
         out = Vector((math.sin(a), -math.cos(a), 0.0))
-        k_ = (1.0 + 0.05 * n3(Vector((out.x, out.y, z * 6.0)), 2.2, 4.0)) * (1.0 - 0.2 * smooth(hang / 0.05))
+        cords = sum(bump(math.remainder(a - side * (0.95 - 0.45 * u), math.tau), 0.26) for side in (1.0, -1.0))
+        gaunt = 0.08 * cords * (1.0 - 0.3 * u) - 0.035 * bump(math.remainder(a, math.tau), 0.3)  # cords, a hollow throat
+        k_ = (1.0 + 0.05 * n3(Vector((out.x, out.y, z * 6.0)), 2.2, 4.0) + gaunt) * (1.0 - 0.2 * smooth(hang / 0.05))
         return top.lerp(bottom, u) + Vector((out.x * (0.045 + 0.002 * u) * k_, out.y * (0.048 + 0.003 * u) * k_, 0.0))
 
     columns = []
     for k in range(sides):
         a = math.tau * k / sides
         ring = Vector((math.cos(a), math.sin(a), 0.0))  # noise round the neck, with no seam
-        cut = -0.158 + 0.007 * n3(ring, 1.6, 2.0)
+        cut = -0.158 + 0.007 * n3(ring, 1.6, 2.0) + 0.006 * n3(ring, 6.0, 9.0)  # wavering, and ragged
         drop = 0.004 + 0.006 * abs(n3(ring, 3.0, 5.0)) + sum(l * bump(math.remainder(a - fa, math.tau), w) for fa, w, l in flaps)
         columns.append([at(k, top.z + (cut - top.z) * i / (upper - 1), 0.0) for i in range(upper)]
                        + [at(k, cut - drop * j / lower, drop * j / lower) for j in range(1, lower + 1)])

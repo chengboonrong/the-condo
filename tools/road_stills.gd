@@ -10,7 +10,7 @@ extends SceneTree
 #  forward instead. "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has
 #  stopped; optional: who is saying a line, so the couple turn (&"": no one); optional: road cues to send after the
 #  ride's fields, as the mission's begin() would;
-#  optional: where she is, held still: "glimpse" (0.55 s into one), or [metres ahead of the camera, metres up]]
+#  optional: where she is, held still: "glimpse" (GLIMPSE_AT s into one), or [metres ahead of the camera, metres up]]
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -29,11 +29,12 @@ const SHOTS := [
 	["mei_turns", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}, &"mei"],  # Mei turns to him
 	["mirror_fourth", "CountMission", 0.0, 0.0, -0.33, 0.07, 0.0, false, {"seated": true, "car_s": 900.0, "car_speed": 9.0},
 		&"", [&"mirror_on"]],  # from his seat, the rear-view mirror and who sits beside him in it
-	["her_glimpse", 0, 500.0, 0.0, 0.0, 0.03, 0.12, false, {"seated": true, "car_s": 500.0, "car_speed": 9.0, "her_near": 0.12}, &"", [], "glimpse"],  # after the first overtake
+	["her_glimpse", 1, 515.0, 0.0, 0.0, 0.03, 0.12, false, {"seated": true, "car_s": 515.0, "car_speed": 14.0, "her_near": 0.12}, &"", [], "glimpse"],  # after an overtake, her nearest
 	["her_full", 0, 796.0, 1.8, 0.0, 0.0, 0.12, false, {"car_s": 793.0}, &"", [], [6.0, 0.0]],  # checking only, never published: in the parked car's lights
 	["her_close", 0, 800.0, 1.0, 0.0, 0.0, 0.6, true, {}, &"", [], [0.6, 0.0]],  # where she stops, by his phone's light
 ]
 const CELL := Vector2i(640, 360)
+const GLIMPSE_AT := 0.9  # seconds into her glimpse: her nearest before she fades
 const COLUMNS := 2
 
 
@@ -113,10 +114,10 @@ func _initialize() -> void:
 		if s.size() > 11:
 			if s[11] is String:
 				var car_s: float = road.director.car_s
-				road.director.car_s -= road.director.car_speed * 0.55  # where the car was when she showed
+				road.director.car_s -= road.director.car_speed * GLIMPSE_AT  # where the car was when she showed
 				her.show_glimpse()
 				road.director.car_s = car_s
-				her._t = 0.55
+				her._t = GLIMPSE_AT
 			else:
 				var cam: Camera3D = player.camera
 				her.come_for(cam)
