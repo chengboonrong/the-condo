@@ -104,7 +104,6 @@ var city_dir: Vector3  # where KL lies, level: the way the whole road goes down
 var signs: Array[GeometryInstance3D] = []  # every part of every sign: the boards, their posts and their lines
 var far_light: MeshInstance3D  # the light far down the road, once the car has died there (show_light): its haze
 var far_core: MeshInstance3D  # and the bulb's glow in it, which never shrinks below a few pixels
-var _materials: Array[Material] = []
 var _mats := {}  # mesh kind -> its material
 var _spans: Array = []  # [s_from, s_to, segment], one per RoadLayout.SEGMENTS
 var _flips: Array = []  # [s, the hill's side after it]: +1 left, -1 right
@@ -239,11 +238,6 @@ func _process(_delta: float) -> void:
 			far_light.global_position = camera.global_position + to * k
 			far_light.scale = Vector3.ONE * k * minf(1.0, to.length() / LIGHT_FROM)
 			far_core.global_position = far_light.global_position - to.normalized() * CORE_OUT
-
-
-## Every material the road made, for the start card's warm-up. The signs' lines (Label3D) draw with the engine's own.
-func materials() -> Array[Material]:
-	return _materials
 
 
 # --- the hill's side ----------------------------------------------------------------------------
@@ -830,7 +824,6 @@ func _apply_brightness() -> void:
 
 func _add_material(kind: StringName, m: Material) -> void:
 	_mats[kind] = m
-	_materials.append(m)
 
 
 func _build_materials() -> void:

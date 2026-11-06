@@ -263,17 +263,6 @@ func hafiz_stops() -> void:
 	_stride(_legs, 0.0, 0.0)
 
 
-## Every material they draw with, for the start card's warm-up.
-func materials() -> Array[Material]:
-	var out: Array[Material] = []
-	for m: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
-		for i in m.mesh.get_surface_count():
-			var mat := m.get_active_material(i)
-			if mat != null and not out.has(mat):
-				out.append(mat)
-	return out
-
-
 func _process(delta: float) -> void:
 	_his_left -= delta
 	_her_left -= delta

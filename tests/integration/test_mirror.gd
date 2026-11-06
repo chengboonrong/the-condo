@@ -46,10 +46,6 @@ func test_only_the_mirror_sees_her() -> bool:
 		"a 320x112 picture, 42 degrees across")
 	eq(mirror.viewport.positional_shadow_atlas_size, 0, "drawing no shadow maps of its own")
 	eq(mirror.fill.light_cull_mask, MIRROR_ONLY, "her own fill light lights nothing the player's camera sees")
-	var listed := mirror.materials()
-	for m: MeshInstance3D in mirror.fourth.find_children("*", "MeshInstance3D", true, false):
-		for i in m.mesh.get_surface_count():
-			check(listed.has(m.get_active_material(i)), "her %s is listed for the warm-up" % m.get_active_material(i).resource_name)
 	mirror.set_on(true)
 	await tree.process_frame
 	var face := mirror.fourth.global_position + car.global_basis.y * 0.55

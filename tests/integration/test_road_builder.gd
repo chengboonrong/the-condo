@@ -25,7 +25,6 @@ func test_the_road_builds_with_its_fog() -> bool:
 	road.set_fog(0.5)
 	check(road.environment.fog_density > 0.035 and road.environment.fog_density < 0.11, "in between, in between")
 	check(road._city.material_override.albedo_color.a > 0.0, "and shows some of it")
-	check(not road.materials().is_empty(), "it lists the materials it made, for the warm-up")
 	road.queue_free()
 	return true
 

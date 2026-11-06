@@ -196,17 +196,6 @@ func _process(delta: float) -> void:
 		_dying = -1.0
 
 
-## Every material it draws with, for the start card's warm-up.
-func materials() -> Array[Material]:
-	var out: Array[Material] = []
-	for m: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
-		for i in m.mesh.get_surface_count():
-			var mat := m.get_active_material(i)
-			if mat != null and not out.has(mat):
-				out.append(mat)
-	return out
-
-
 ## Two unshadowed headlights, each with an additive cone that shows in the fog; the lenses and the tail lamps lit;
 ## and the dash's glow, a short amber spot from the gauges aimed back and down onto the seat backs, so it never
 ## lights the headliner through the cluster's hood.

@@ -40,7 +40,7 @@ func test_behind_keeps_her_distance() -> bool:
 		await _frames(30)
 		near(RoadLayout.closest_s(her.global_position), 706.0 - distance, 0.5, "her_near %.0f: and she keeps it as he walks" % her_near)
 		near(_across(her.global_position), 1.0, 0.3, "her_near %.0f: on his line" % her_near)
-		eq(her.materials()[0].get_shader_parameter(&"fog_share"), 1.0, "her_near %.0f: in all of the road's fog" % her_near)
+		eq(her._skin[0].get_shader_parameter(&"fog_share"), 1.0, "her_near %.0f: in all of the road's fog" % her_near)
 	her.director.her_near = 0.0
 	her.hide_her()
 	her.behind(walker)  # 18 m back
@@ -114,9 +114,9 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 						in_view += 1
 					if i == 20:  # set by her own frame before this one
 						var here := RoadLayout.closest_s(pos)
-						var floor_y: float = her.materials()[0].get_shader_parameter(&"floor_y")
+						var floor_y: float = her._skin[0].get_shader_parameter(&"floor_y")
 						ground = pos.y + floor_y - 0.02 - (RoadLayout.point(here).y + builder.ground_at(here, across))
-						for m: ShaderMaterial in her.materials().slice(0, 4):  # her four surfaces: less of the road's fog
+						for m: ShaderMaterial in her._skin:  # her four surfaces: less of the road's fog
 							fog = fog and m.get_shader_parameter(&"fog_share") == Penanggal.GLIMPSE_FOG \
 								and m.get_shader_parameter(&"fog_density") == builder.environment.fog_density \
 								and m.get_shader_parameter(&"fog_color") == fog_color
@@ -306,23 +306,8 @@ func test_on_the_roof_nothing_passes_through_the_car() -> bool:
 	return true
 
 
-func test_her_warm_up_shows_every_material() -> bool:
+func test_her_four_surfaces_sway() -> bool:
 	var her := _her()
-	var mats := her.materials()
-	check(mats.size() == 5, "her four surfaces and the pool (%d)" % mats.size())
-	var sway := 0
-	for m in mats:
-		if m is ShaderMaterial and (m as ShaderMaterial).shader.code.contains("uniform vec3 motion"):
-			sway += 1
-	eq(sway, 4, "her four surfaces sway")
-	her.warm_up(Vector3(0.0, 50.0, 0.0))
-	for m in mats:
-		var drawn := false
-		for mesh: MeshInstance3D in her.find_children("*", "MeshInstance3D", true, false):
-			if mesh.is_visible_in_tree():
-				for s in mesh.mesh.get_surface_count():
-					drawn = drawn or mesh.get_active_material(s) == m
-		check(drawn, "%s is on a visible mesh" % m.resource_name)
-	await _frames(3)
-	check(not her.visible, "and she is hidden again")
+	eq(her._skin.filter(func(m: ShaderMaterial) -> bool: return m.shader.code.contains("uniform vec3 motion")).size(), 4,
+		"her four surfaces sway")
 	return true

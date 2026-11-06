@@ -331,10 +331,8 @@ casts a shadow, in 12 states (`LIGHT_STATES`), one frame each. The mirror's came
 because its picture has no shadow maps and a pass of its own. `warmed_materials()` lists what was drawn, and
 `test_every_road_material_is_warmed` checks that every material under the road is in it.
 
-The `materials()` methods on `CarRig`, `Couple`, `Lorry`, `SlowCar`, `Penanggal`, `Mirror`, `Endings` and
-`RoadBuilder`, and `Penanggal.warm_up`, are no longer what the warm-up reads. They remain for tests. Adding a material
-to one does nothing for the warm-up: a new material is warmed because the walk finds it, if it exists when the walk
-runs. What is made after the card is clicked is not.
+A new material is warmed because the walk finds it, if it exists when the walk runs. What is made after the card is
+clicked is not.
 
 ### Bots, stills and tools
 

@@ -155,17 +155,6 @@ func empty() -> void:
 	fill.light_specular = WET_SHINE
 
 
-## Every material it draws with, hers and the wet seat's included, for the warm-up.
-func materials() -> Array[Material]:
-	var out: Array[Material] = [_glass.material_override, wet.material_override]
-	for m: MeshInstance3D in fourth.find_children("*", "MeshInstance3D", true, false):
-		for i in m.mesh.get_surface_count():
-			var mat := m.get_active_material(i)
-			if mat != null and not out.has(mat):
-				out.append(mat)
-	return out
-
-
 ## The camera follows the car: it is in the viewport, outside the car's own transforms.
 func _follow() -> void:
 	camera.global_transform = global_transform * _aim

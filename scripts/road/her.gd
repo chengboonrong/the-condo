@@ -198,7 +198,6 @@ var _last := Vector3.ZERO  # last frame
 var _swing := Vector3.ZERO  # what hangs from her lags her motion: a velocity, on a spring
 var _swing_v := Vector3.ZERO
 var _timers := {}  # sound -> seconds to the next
-var _warm_frame := -1
 var _smelt := false
 var _rng := RandomNumberGenerator.new()  # presentation only
 
@@ -354,29 +353,8 @@ func hide_her() -> void:
 	pool.visible = false
 
 
-## Every material she draws with, for the start card's warm-up: her four surfaces and the pool.
-func materials() -> Array[Material]:
-	var out: Array[Material] = []
-	out.append_array(_skin)
-	out.append(_pool_material)
-	return out
-
-
-## Shows her and the pool at `at` for a frame, so their shaders compile behind the start card. Nothing is heard.
-func warm_up(at: Vector3) -> void:
-	global_position = at
-	visible = true
-	pool.visible = true
-	pool.global_position = at
-	_pool_material.set_shader_parameter(&"spread", POOL)
-	_warm_frame = Engine.get_process_frames()
-
-
 func _process(delta: float) -> void:
 	if _mode == &"":
-		if visible and _warm_frame >= 0 and Engine.get_process_frames() > _warm_frame:
-			_warm_frame = -1
-			hide_her()
 		return
 	_t += delta
 	var bob := 0.04
@@ -505,7 +483,6 @@ func _begin(mode: StringName, at: Vector3) -> void:
 	_base = at
 	global_position = at
 	_timers.clear()
-	_warm_frame = -1
 	_set_fade(1.0)
 	visible = true
 

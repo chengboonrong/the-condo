@@ -31,7 +31,6 @@ var _t := INF
 var _stop_s := NAN  # pull_up: where it stops; NAN when passing
 var _short := 0.0  # pull_up: metres short of its stop
 var _crawl := 0.0  # pull_up: metres short of its stop it comes no faster than PASS within
-var _materials: Array[Material] = []
 var _body := AABB()  # every box it is built of, in its own space
 
 
@@ -78,10 +77,6 @@ func pull_up(s: float, from := PULL_FROM, crawl := 0.0) -> void:
 	visible = true
 	set_process(true)
 	_process(0.0)
-
-
-func materials() -> Array[Material]:
-	return _materials
 
 
 func _process(delta: float) -> void:
@@ -138,5 +133,4 @@ func _material(color: Color, glow: float) -> StandardMaterial3D:
 		m.emission_enabled = true
 		m.emission = color
 		m.emission_energy_multiplier = glow
-	_materials.append(m)
 	return m

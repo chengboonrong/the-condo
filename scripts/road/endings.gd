@@ -173,18 +173,6 @@ func light(on: bool) -> void:
 		builder.hide_light()
 
 
-## Every material it draws with, for the start card's warm-up: the stall's, the phones' and the lorry's.
-func materials() -> Array[Material]:
-	var out: Array[Material] = []
-	for m: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
-		for i in m.mesh.get_surface_count():
-			var mat := m.get_active_material(i)
-			if mat != null and not out.has(mat):
-				out.append(mat)
-	out.append_array(lorry.materials())
-	return out
-
-
 func _process(_delta: float) -> void:
 	if director.light_s != _at_s:
 		_at_s = director.light_s

@@ -67,14 +67,3 @@ func _process(delta: float) -> void:
 	global_transform = CarRig.on_road(_s, lerpf(ACROSS, SlowCarMission.LAY_BY, smoothstep(0.0, 0.7, k)))
 	if _pull >= SlowCarMission.PULL_SECONDS:
 		_lamp.emission_energy_multiplier = 0.0  # dark, not switched off: no new shader mid-game
-
-
-## Every material it draws with, for the start card's warm-up.
-func materials() -> Array[Material]:
-	var out: Array[Material] = []
-	for m: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
-		for i in m.mesh.get_surface_count():
-			var mat := m.get_active_material(i)
-			if mat != null and not out.has(mat):
-				out.append(mat)
-	return out

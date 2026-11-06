@@ -55,8 +55,6 @@ func test_player_sits_and_stands() -> bool:
 	tree.root.add_child(road)
 	var car := _car()
 	car.place(100.0, RoadLayout.LANE)
-	var beam := (car.headlights[0].get_child(0) as MeshInstance3D).material_override
-	check(car.materials().has(beam), "its materials, for the warm-up, include the headlight beams")
 	var p := _player()
 	p.global_position = RoadLayout.point(100.0, 4.0) + Vector3.UP * 0.05
 	await tree.physics_frame
