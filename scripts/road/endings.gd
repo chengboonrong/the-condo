@@ -1,9 +1,11 @@
 class_name Endings
 extends Node3D
 ## The end of the road, as the core cues it (LightMission): the closed fruit stall at the light, with its bare bulb and
-## Hafiz's phone on its table, the lorry, and each ending's moments.
-##   alive   hafiz_at_stall: a lorry comes up the mountain and pulls up idling past the stall, and Hafiz walks up out
-##           of the fog to the stall
+## a phone on its table (Hafiz's, as saved finds; it stays there in alive, as hiding it would be seen), the lorry, and
+## each ending's moments.
+##   alive   hafiz_at_stall: Hafiz walks up out of the fog to the stall, his torch coming on; lorry_flagged: the lorry
+##           he flagged down comes down the mountain behind the two of them, passes them slowly and pulls up idling just
+##           past the stall, and she is gone
 ##   saved   phone_rings: his phone rings on the table; lorry_stops: a lorry pulls up behind the two of them
 ##   caught  light_out: the bulb dies, and Hafiz walks out of the fog ahead, his torch on them; her_catches_hafiz: she
 ##           flies up and over the two of them and drops onto him, his phone falls lit on the road beside him, and Mei
@@ -24,14 +26,19 @@ const BULB_RANGE := 10.0
 const BOX := Vector3(2.4, 2.2, 1.8)
 const BOX_AT := Vector3(0.0, 1.1, -0.85)
 const DIE := 0.25  # seconds the bulb takes to die: once, never a flicker
-const PHONE := Vector3(0.7, 0.783, -0.3)  # Hafiz's phone on the table, face up, in the stall's space
-## alive: metres past the light the lorry pulls up, come up the mountain out of the fog in the other lane, facing them,
-## its cab 4.8 m past the light, idling; it comes from LORRY_FROM metres below that, past the camera's far plane from
-## where it is decided, so it is never seen to appear.
+const PHONE := Vector3(0.7, 0.783, -0.3)  # the phone on the table, face up, in the stall's space
+## alive: metres past the light the lorry Hafiz flagged down pulls up, come down the mountain in their lane, its tail
+## 4.9 m past the light, idling. It comes from LORRY_FROM metres up the road from there, past the camera's far plane
+## behind them as they get there, so it is never seen to appear, and passes them at Lorry.PASS: it comes no faster
+## within LORRY_CRAWL metres of its stop.
 const LORRY_AHEAD := 9.0
-const LORRY_FROM := 100.0
-## alive: Hafiz walks up the asphalt's edge out of the fog below, past the lorry, to the stall's far post.
-const HAFIZ_FROM := 18.0  # metres past the light: 48 m on from where it is decided, about as long a walk as theirs
+const LORRY_FROM := 140.0
+const LORRY_CRAWL := 20.0
+## alive: Hafiz hurries up the asphalt's edge out of the fog below to the stall's far post, from 90 m on from where it
+## is decided (where even the clearest fog leaves no more of him than a faint smudge against the bulb's haze), and is
+## there in 24 s, before the lorry he flagged pulls up, even if they run to it.
+const HAFIZ_FROM := 60.0
+const HAFIZ_PACE := 2.4
 const HAFIZ_STOP := 1.6
 const HAFIZ_ACROSS := 3.6
 const LORRY_BEHIND := 11.0  # metres behind him it pulls up (saved)
@@ -145,9 +152,9 @@ func _ready() -> void:
 	dropped.top_level = true
 	dropped.visible = false
 	add_child(dropped)
-	dropped_light = _lamp(PHONE_COLOR, DROPPED_RANGE)
-	dropped_light.position.y = DROPPED_UP
-	dropped.add_child(dropped_light)
+	dropped_light = _lamp(PHONE_COLOR, DROPPED_RANGE)  # not the phone's child: shown always, and dark until it falls
+	dropped_light.top_level = true
+	add_child(dropped_light)
 	_light(false)
 	EventBus.road_cue.connect(_on_cue)
 	her.caught.connect(_on_caught)
@@ -193,10 +200,11 @@ func _on_cue(cue: StringName) -> void:
 		&"light_on":
 			light(true)
 		&"hafiz_at_stall":
-			couple.hafiz_comes(player, _at_s + HAFIZ_FROM, HAFIZ_ACROSS, _at_s + HAFIZ_STOP)
-			phone.visible = false  # it is in his hand
-			lorry.pull_up(_at_s + LORRY_AHEAD, true, LORRY_FROM)
+			couple.hafiz_comes(player, _at_s + HAFIZ_FROM, HAFIZ_ACROSS, _at_s + HAFIZ_STOP, HAFIZ_PACE)
+		&"lorry_flagged":  # out of the fog behind them, slowly past them, to where he flagged it: she is gone
+			lorry.pull_up(_at_s + LORRY_AHEAD, LORRY_FROM, LORRY_CRAWL)
 			_idling = true
+			her.hide_her()
 		&"phone_rings":
 			_ringing = true
 			screen.emission_energy_multiplier = SCREEN_GLOW
@@ -245,6 +253,7 @@ func _on_caught(victim: Node3D) -> void:
 	var road := CarRig.on_road(s, RoadLayout.across(at, s))
 	dropped.global_transform = Transform3D(road.basis.rotated(road.basis.y, 2.3), road.origin + road.basis.y * 0.005)
 	dropped.visible = true
+	dropped_light.global_position = road.origin + road.basis.y * DROPPED_UP
 	dropped_light.light_energy = DROPPED_LIGHT
 	couple.torch.light_energy = 0.0
 	EventBus.line_requested.emit(SCREAM, 2.5)

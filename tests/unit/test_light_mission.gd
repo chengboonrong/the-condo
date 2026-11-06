@@ -9,11 +9,14 @@ const LOOKS := "[Mei looks back.]"
 const OPTIONS := ["\"Don't look. Hold my hand.\"", "\"Maybe it's him.\""]
 const BESIDE := 3.3  # metres across: where he stands up beside his door (the car in its lane, 1.5 m to its left)
 const WALK := 2.2  # m/s
+const HAFIZ := "Hafiz: \"Eh! Found this uncle, he's going down. Jom.\""
 
 var d: RoadDirector
 var stage: RoadStage
 var cues: Array[StringName] = []
 var cue_s := {}  # cue -> his s along the road when it first came
+var cue_t := {}  # cue -> the time it first came
+var said_t := {}  # line -> the time it was first said
 var lines: Array = []  # [text, speaker]
 var asked: Array = []  # [choice id, options]
 var asked_s: Array[float] = []  # his s along the road as each was asked
@@ -33,6 +36,8 @@ func _setup(from_the_car := true) -> void:
 	stage.position = RoadLayout.point(d.car_s - 0.5, BESIDE)
 	cues.clear()
 	cue_s.clear()
+	cue_t.clear()
+	said_t.clear()
 	lines.clear()
 	asked.clear()
 	asked_s.clear()
@@ -60,10 +65,13 @@ func _on_cue(cue: StringName) -> void:
 	cues.append(cue)
 	if not cue_s.has(cue):
 		cue_s[cue] = RoadLayout.closest_s(stage.position)
+		cue_t[cue] = WorldState.time
 
 
 func _on_line(text: String, _seconds: float) -> void:
 	lines.append([text, &""])
+	if not said_t.has(text):
+		said_t[text] = WorldState.time
 
 
 func _on_speaker(speaker: StringName, _seconds: float) -> void:
@@ -139,9 +147,11 @@ func test_getting_out_and_keeping_every_rule() -> bool:
 		near(asked_s[1] - (d.car_s - 0.5), 0.65 * way, 0.5, "the second 65 %")
 	eq(lines.filter(func(l: Array) -> bool: return l == [VOICE, &""]).size(), 2, "the voice behind them each time, with no speaker turn")
 	check(not cues.has(&"mei_looks"), "she never looks")
-	check(cues.has(&"hafiz_at_stall") and not cues.has(&"light_out") and not cues.has(&"phone_rings"), "Hafiz comes to the stall")
-	check(lines.any(func(l: Array) -> bool: return l == ["Hafiz: \"Eh! Found this uncle, he's going down. Jom.\"", &"hafiz"]), "and says so")
-	check(cues.find(&"card_on") > cues.find(&"hafiz_at_stall"), "then the card")
+	check(cues.has(&"hafiz_at_stall") and not cues.has(&"light_out") and not cues.has(&"phone_rings") and not cues.has(&"lorry_stops"), "Hafiz comes to the stall")
+	var order := [&"hafiz_at_stall", &"walk_over", &"lorry_flagged", &"card_on"].map(func(c: StringName) -> int: return cues.find(c))
+	check(order[0] >= 0 and order[0] < order[1] and order[1] < order[2] and order[2] < order[3], "they get there, the lorry he flagged down comes, then the card (%s)" % [order])
+	near(said_t.get(HAFIZ, INF) - cue_t.get(&"lorry_flagged", -INF), LightMission.ALIVE_HAFIZ, 0.11, "once it has pulled up, he says so")
+	check(lines.any(func(l: Array) -> bool: return l == [HAFIZ, &"hafiz"]), "in his voice")
 	check(lines.back() == ["[The lorry takes the three of you down the mountain.]", &""], "and how it ends, last")
 	eq(ended, [&"alive"], "all three alive")
 	eq([WorldState.objective, WorldState.prompts.get(&"car_door_inside", "")], ["", ""], "its objective and the prompt go with it")
@@ -193,7 +203,8 @@ func test_reaching_the_light_ends_the_road() -> bool:
 	near(walk_ended_s, d.light_s - 4.0, WALK * 0.1 + 0.01, "the walk is done 4 m short of the light")
 	eq(cues.count(&"walk_over"), 1, "said once")
 	near(cue_s.get(&"walk_over", INF), d.light_s - 4.0, WALK * 0.1 + 0.01, "there")
-	near(cue_s[&"hafiz_at_stall"], d.light_s - 30.0, WALK * 0.1 + 0.01, "decided 30 m short: Hafiz is there, waiting")
+	near(cue_s[&"hafiz_at_stall"], d.light_s - 30.0, WALK * 0.1 + 0.01, "decided 30 m short: Hafiz walks up to the stall")
+	near(cue_s.get(&"lorry_flagged", INF), d.light_s - 4.0, WALK * 0.1 + 0.01, "and the lorry he flagged down comes once they are there")
 	eq(ended, [&"alive"], "the road ends, alive, once")
 	_teardown()
 	return true

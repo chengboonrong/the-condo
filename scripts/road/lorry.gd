@@ -1,9 +1,8 @@
 class_name Lorry
 extends Node3D
 ## A lorry, built in code: a dark cargo box on a dark cab, red and white reflective strips, and two headlights.
-## pass_by() drives it up the road past the bus stop in the other lane; at the road's end it comes up the other lane and
-## pulls up past the fruit stall, or comes down and pulls up behind the walkers (pull_up). The rest of the time it is
-## not on the road.
+## pass_by() drives it up the road past the bus stop in the other lane; at the road's end it comes down the walkers'
+## lane and pulls up, behind them or past them at the fruit stall (pull_up). The rest of the time it is not on the road.
 ## Like the car, it faces +Z with its origin on the ground.
 
 const SECONDS := 3.0
@@ -13,13 +12,15 @@ const DARK := Color(0.05, 0.05, 0.055)
 const PULL_FROM := 30.0  # metres up the road it comes from, pulling up...
 const PULLING := 5.0  # ...braking evenly to a stop over this many seconds (from 12 m/s)
 const CRUISE := 2.0 * PULL_FROM / PULLING  # m/s it comes at from further off, before it brakes
+const BRAKE := CRUISE / PULLING  # m/s², however it slows
+const PASS := 3.0  # m/s at the most it passes people on the road at, its side 0.3 m from their line
 const BRAKES := Vector3(0.0, 0.6, -1.0)  # its air brakes, under the cargo box
 
 var speed := 0.0  # m/s, down the road, pulling up
 var _t := INF
 var _stop_s := NAN  # pull_up: where it stops; NAN when passing
-var _uphill := false  # pull_up: coming up the other lane
-var _from := PULL_FROM  # pull_up: metres short of where it stops it comes from
+var _short := 0.0  # pull_up: metres short of its stop
+var _crawl := 0.0  # pull_up: metres short of its stop it comes no faster than PASS within
 var _materials: Array[Material] = []
 
 
@@ -54,14 +55,14 @@ func pass_by() -> void:
 	set_process(true)
 
 
-## It comes out of the fog and pulls up at s, braking evenly over the last PULL_FROM metres, and its air brakes hiss as
-## it stops: down the couple's lane from up the road, or `uphill`, up the other lane from down it, its lamps on whoever
-## is up the road. From further off than PULL_FROM (`from`), it comes at CRUISE until it brakes.
-func pull_up(s: float, uphill := false, from := PULL_FROM) -> void:
+## It comes down the couple's lane out of the fog, `from` metres up the road from s, and pulls up at s: at CRUISE,
+## braking evenly over the last PULL_FROM metres, and its air brakes hiss as it stops. Within `crawl` metres of s it
+## comes no faster than PASS, braking down to it before then: it is passing people on the road.
+func pull_up(s: float, from := PULL_FROM, crawl := 0.0) -> void:
 	_t = 0.0
 	_stop_s = s
-	_uphill = uphill
-	_from = maxf(from, PULL_FROM)
+	_short = from
+	_crawl = crawl
 	visible = true
 	set_process(true)
 	_process(0.0)
@@ -74,15 +75,10 @@ func materials() -> Array[Material]:
 func _process(delta: float) -> void:
 	_t += delta
 	if not is_nan(_stop_s):
-		var cruising := (_from - PULL_FROM) / CRUISE  # seconds before it brakes
-		var k := clampf((_t - cruising) / PULLING, 0.0, 1.0)
-		speed = CRUISE * (1.0 - k)
-		var short := PULL_FROM * (1.0 - k) * (1.0 - k) + maxf(cruising - _t, 0.0) * CRUISE  # metres short of its stop
-		if _uphill:
-			global_transform = CarRig.on_road(_stop_s + short, -RoadLayout.LANE, true)
-		else:
-			global_transform = CarRig.on_road(_stop_s - short, RoadLayout.LANE)
-		if k >= 1.0:
+		_short = maxf(_short - _speed(_short) * delta, 0.0)
+		speed = _speed(_short)
+		global_transform = CarRig.on_road(_stop_s - _short, RoadLayout.LANE)
+		if _short == 0.0:
 			set_process(false)
 			EventBus.sound_requested.emit(&"lorry_brake", global_transform * BRAKES, 0.0)
 		return
@@ -91,6 +87,15 @@ func _process(delta: float) -> void:
 		set_process(false)
 		return
 	global_transform = CarRig.on_road(lerpf(FROM, TO, _t / SECONDS), -RoadLayout.LANE, true)
+
+
+## m/s it comes at, `short` metres short of its stop: as fast as it can still brake to a stop there, and to PASS by
+## the time it is `_crawl` short of it.
+func _speed(short: float) -> float:
+	var v := minf(CRUISE, sqrt(2.0 * BRAKE * short))
+	if short <= _crawl:
+		return minf(v, PASS)
+	return minf(v, sqrt(PASS * PASS + 2.0 * BRAKE * (short - _crawl)))
 
 
 func _box(at: Vector3, size: Vector3, material: Material) -> void:

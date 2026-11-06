@@ -4,8 +4,8 @@ extends RoadMission
 ## He gets out, and he and Mei walk down the road to it while something follows them, calling in Hafiz's voice. The
 ## rules: don't look back, and keep Mei from looking. 30 m short of the light the count of every rule broken on the
 ## road decides how it ends, once; that ending plays, and the road is over:
-##   alive   a lorry comes up and pulls up idling past the stall, and Hafiz walks up to the bulb out of the fog below:
-##           it will take the three of them down
+##   alive   Hafiz walks up to the bulb out of the fog below; once they are there the lorry he flagged down comes down
+##           behind them, slowly past them, and pulls up past the stall: it will take the three of them down
 ##   saved   nobody is there but his ringing phone, and a lorry takes the two of them down
 ##   caught  the bulb dies there, Hafiz walks out of the fog ahead, she catches him and comes for the two of them
 ## The walk is over (walk_over) 4 m short of the light, or where the light dies. Every beat is timed here, never by the
@@ -23,7 +23,8 @@ const ASK_SECONDS := 5.0
 const DECIDE := 30.0  # metres short of the light: the ending is decided
 const THERE := 4.0  # metres short of it: they are there
 ## Seconds into each ending.
-const ALIVE_CARD := 4.5  # after Hafiz's line
+const ALIVE_HAFIZ := 19.5  # the lorry has pulled up (Endings: 18.7 s from 140 m, passing them at 3 m/s)
+const ALIVE_CARD := ALIVE_HAFIZ + 4.5  # after his line
 const SAVED_MEI := 2.5  # into the ringing
 const SAVED_LORRY := 6.5
 const SAVED_CARD := 12.0  # the lorry has pulled up behind them
@@ -69,6 +70,8 @@ func tick(delta: float) -> bool:
 		&"walk":
 			_walking()
 		&"alive":
+			if _passed(ALIVE_HAFIZ, delta):
+				d.say("Hafiz: \"Eh! Found this uncle, he's going down. Jom.\"", 3.5, &"hafiz")
 			if _passed(ALIVE_CARD, delta):
 				_card("[The lorry takes the three of you down the mountain.]")
 			return _over(ALIVE_CARD + CARD)
@@ -142,13 +145,13 @@ func _walking() -> void:
 				go(&"caught")
 				return
 			&"alive":
-				EventBus.road_cue.emit(&"hafiz_at_stall")  # walking up to the bulb as they come to it, a lorry idling
+				EventBus.road_cue.emit(&"hafiz_at_stall")  # walking up to the bulb out of the fog as they come to it
 	if _decided != &"" and s >= d.light_s - THERE:
 		EventBus.road_cue.emit(&"walk_over")
 		go(_decided)
 		match _decided:
 			&"alive":
-				d.say("Hafiz: \"Eh! Found this uncle, he's going down. Jom.\"", 3.5, &"hafiz")
+				EventBus.road_cue.emit(&"lorry_flagged")  # the lorry he flagged down comes down behind them
 			&"saved":
 				EventBus.road_cue.emit(&"phone_rings")
 

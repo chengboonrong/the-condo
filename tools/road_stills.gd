@@ -64,11 +64,15 @@ const SHOTS := [
 	["stall", "LightMission", 2142.0, 3.3, 0.15, -0.12, 0.0, false],
 	# checking only, never published: each ending (saved first: alive takes the phone off the table)
 	["ending_saved", "LightMission", 2146.0, 3.3, 0.35, -0.3, 0.24, false, {}, &"", [&"phone_rings", 0.5]],  # his phone rings on the table
-	# where alive is decided, 30 m short of the light in the clearest fog: just before, and just after the lorry and
-	# Hafiz are put past the stall
+	# where alive is decided, 30 m short of the light in the clearest fog: just before, as Hafiz sets off up the road out
+	# of the fog below, and 2 s on
 	["alive_before", "LightMission", 2120.0, 3.3, 0.0, 0.0, 0.0, true],
-	["alive_decided", "LightMission", 2120.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [&"hafiz_at_stall", 0.2]],
-	["ending_alive", "LightMission", 2146.0, 3.3, 0.0, 0.0, 0.0, false, {}, &"", [&"hafiz_at_stall", 10.0]],  # Hafiz and the lorry
+	["alive_decided", "LightMission", 2120.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [&"hafiz_at_stall"]],
+	["alive_2s", "LightMission", 2120.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [&"hafiz_at_stall", 2.0]],
+	# there: his torch comes on near them, the lorry he flagged down passes them, and it has pulled up past the stall
+	["alive_torch", "LightMission", 2146.0, 3.3, 0.0, 0.0, 0.0, false, {}, &"", [&"hafiz_at_stall", 16.5]],
+	["alive_pass", "LightMission", 2146.0, 3.3, -0.35, 0.0, 0.0, false, {}, &"", [&"hafiz_at_stall", 8.0, &"walk_over", &"lorry_flagged", 14.5]],
+	["ending_alive", "LightMission", 2146.0, 3.3, 0.0, 0.0, 0.0, false, {}, &"", [&"hafiz_at_stall", 7.0, &"walk_over", &"lorry_flagged", 19.5]],
 	# caught at its thickest fog, the breaker's, at level gaze: she is on Hafiz, the pool spreading; then she comes
 	["ending_caught", "LightMission", 2120.0, 3.3, 0.0, 0.0, 1.0, true, {"her_near": 1.0}, &"",
 		[&"her_behind", 1.0, &"light_out", 6.0, &"her_catches_hafiz", 6.0], "cued"],

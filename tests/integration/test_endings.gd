@@ -156,42 +156,85 @@ func test_getting_out_and_walking_beside_him() -> bool:
 	return true
 
 
-func test_alive_hafiz_and_a_lorry_at_the_stall() -> bool:
+## The lorry's body, in its own space: every box it is built of.
+func _lorry_box(lorry: Lorry) -> AABB:
+	var box := AABB()
+	for m: MeshInstance3D in lorry.find_children("*", "MeshInstance3D", true, false):
+		var part := m.transform * m.get_aabb()
+		box = part if box.size == Vector3.ZERO else box.merge(part)
+	return box
+
+
+func test_alive_hafiz_flags_a_lorry_down() -> bool:
 	var road := await _road()
 	road.director.start_at(_light_index(road))
 	await _frames(3)
 	var light_s := road.director.light_s
+	var p := road.player
 	_put(road, light_s - 30.0)
+	EventBus.road_cue.emit(&"her_behind")
 	EventBus.road_cue.emit(&"hafiz_at_stall")
-	await _frames(2)
+	await _frames(1)
 	var lorry := road.lorry
-	var first := RoadLayout.closest_s(lorry.global_position)
-	check(lorry.visible and first > light_s + Endings.LORRY_AHEAD + 20.0, "a lorry comes up the road out of the fog (%.0f m past the light)" % (first - light_s))
-	check(_looping(road, &"lorry_idle"), "its diesel heard")
-	check(not road.endings.phone.visible, "his phone is not on the table")
+	check(not lorry.visible, "no lorry yet")
+	check(road.endings.phone.visible, "the phone on the table stays: it would be seen to go")
 	var hafiz := road.couple.hafiz_out
-	check(hafiz.visible and RoadLayout.closest_s(hafiz.global_position) > light_s + 15.0, "Hafiz walks up out of the fog below")
-	var closest := INF  # metres between him and the lorry's side, at the least
-	for i in 60 * 14:
-		if i == 300:
-			_put(road, light_s - 4.0)  # they are there
+	var torch := road.couple.torch
+	var from := RoadLayout.closest_s(hafiz.global_position)
+	check(hafiz.visible and from > light_s + 55.0, "Hafiz walks up out of the fog below, from beyond what it shows (%.0f m past the light)" % (from - light_s))
+	eq(torch.light_energy, 0.0, "his torch not on yet")
+	var lit := [-1, -1, INF]  # frames in: his torch comes on, it is fully on; metres from him as it comes on
+	var torch_on := func(frame: int) -> void:
+		if lit[0] < 0 and torch.light_energy > 0.0:
+			lit[0] = frame
+			lit[2] = RoadLayout.closest_s(hafiz.global_position) - RoadLayout.closest_s(p.global_position)
+		if lit[1] < 0 and torch.light_energy == Couple.TORCH_ENERGY:
+			lit[1] = frame
+	var walk := roundi((30.0 - LightMission.THERE) / PlayerController.SPRINT_SPEED * 60.0)  # the soonest he is there
+	for i in walk:
+		p.global_position = RoadLayout.point(light_s - 30.0 + (30.0 - LightMission.THERE) * (i + 1) / walk, 3.3)
 		await tree.process_frame
-		var side := lorry.global_transform.affine_inverse() * hafiz.global_position
-		if absf(side.z) < 4.3:
-			closest = minf(closest, absf(side.x) - 1.2)
-	check(closest > 0.3, "clear of the lorry's side (%.2f m)" % closest)
-	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, -RoadLayout.LANE, true).origin), 0.0, 0.01, "the lorry has pulled up past the stall in the other lane, facing them")
-	check(_sounds.has(&"lorry_brake") and _looping(road, &"lorry_idle"), "its brakes hiss, and it idles")
+		torch_on.call(i)
+	EventBus.road_cue.emit(&"walk_over")  # they are there, as the core says
+	EventBus.road_cue.emit(&"lorry_flagged")
+	await _frames(1)
+	var box := _lorry_box(lorry)
+	var behind := RoadLayout.closest_s(p.global_position) - RoadLayout.closest_s(lorry.global_position) - box.end.z
+	check(lorry.visible and behind > p.camera.far, "a lorry comes down the mountain behind them, from past what he can see (%.0f m)" % behind)
+	check(not road.her.visible, "and she is gone")
+	check(_looping(road, &"lorry_idle"), "its diesel heard")
+	var mei := road.couple.mei_out
+	var clear := {p: INF, mei: INF, hafiz: INF}  # metres between each and the lorry's side, while beside it, at the least
+	var passing := 0.0  # m/s, its fastest beside any of them
+	var lane := 0.0  # metres off its lane's centre, at the most
+	for i in roundi(LightMission.ALIVE_HAFIZ * 60.0) - 1:
+		await tree.process_frame
+		torch_on.call(walk + 2 + i)
+		var ls := RoadLayout.closest_s(lorry.global_position)
+		lane = maxf(lane, absf(RoadLayout.across(lorry.global_position, ls) - RoadLayout.LANE))
+		for who: Node3D in clear:
+			var local := lorry.global_transform.affine_inverse() * who.global_position
+			if local.z > box.position.z - 0.25 and local.z < box.end.z + 0.25:  # a person is about 0.5 m across
+				clear[who] = minf(clear[who], absf(local.x) - box.end.x - 0.25)
+				passing = maxf(passing, lorry.speed)
+	check(lit[2] < Couple.TORCH_NEAR and lit[2] > Couple.TORCH_NEAR - 1.0, "he puts his torch on once he is near them (%.1f m)" % lit[2])
+	near((lit[1] - lit[0]) / 60.0, Couple.TORCH_FADE, 0.05, "and it comes on over about 2 s")
+	check(clear[p] < INF and clear[mei] < INF, "it passes them")
+	check(passing <= Lorry.PASS + 0.001, "slowly (%.1f m/s at the most)" % passing)
+	check(clear[p] > 0.0 and clear[mei] > 0.0 and clear[hafiz] > 0.0, "clear of him, Mei and Hafiz (%.2f, %.2f, %.2f m)" % [clear[p], clear[mei], clear[hafiz]])
+	check(lane < 0.01, "in its lane (%.2f m off)" % lane)
+	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, RoadLayout.LANE).origin), 0.0, 0.01, "it has pulled up just past the stall, facing down the road, where Hafiz flagged it")
+	check(lorry.speed == 0.0 and _sounds.has(&"lorry_brake") and _looping(road, &"lorry_idle"), "its brakes hiss, and it idles")
 	var hs := RoadLayout.closest_s(hafiz.global_position)
-	check(hs > light_s + 1.0 and hs < light_s + 2.5, "to the stall's far side (%.1f m past the light)" % (hs - light_s))
+	check(hs > light_s + 1.0 and hs < light_s + 2.5, "Hafiz is at the stall's far side (%.1f m past the light)" % (hs - light_s))
 	var faces := hafiz.global_basis.z.slide(Vector3.UP).normalized().dot(-RoadLayout.tangent(hs).slide(Vector3.UP).normalized())
 	check(faces > 0.95, "facing up the road to them")
 	near((hafiz.get_node("LegL") as Node3D).rotation.x, 0.0, 0.01, "standing still")
 	var e := road.endings
 	var off := absf(RoadLayout.across(hafiz.global_position, hs) - RoadLayout.across(e.bulb.global_position, hs))
 	check(off < 1.5, "under the bulb (%.1f m across the road from it)" % off)
-	var clear := await _walk_on(road, hs - 1.0, 3.0)
-	check(clear > 0.0, "he walks on to Hafiz, and Mei is never in the stall (%.2f m clear)" % clear)
+	var on := await _walk_on(road, hs - 1.0, 3.0)
+	check(on > 0.0, "he walks on to Hafiz, and Mei is never in the stall (%.2f m clear)" % on)
 	EventBus.road_cue.emit(&"card_on")
 	await _frames(2)
 	check(road.hud.is_card_shown() and not _looping(road, &"lorry_idle"), "the card, and the diesel is left behind")
@@ -245,6 +288,7 @@ func test_caught_the_light_dies_and_she_takes_hafiz() -> bool:
 	EventBus.road_cue.emit(&"her_behind")
 	await _frames(120)
 	var e := road.endings
+	check(e.dropped_light.is_visible_in_tree() and e.dropped_light.light_energy == 0.0 and not e.dropped.visible, "the light his phone will throw is there, dark: switched by its energy alone")
 	EventBus.road_cue.emit(&"light_out")
 	await _frames(roundi(Endings.DIE * 60.0) + 2)
 	check(e.bulb.light_energy == 0.0 and not road.builder.far_light.visible and not road.builder.far_core.visible, "the light dies, haze and all")
@@ -253,8 +297,9 @@ func test_caught_the_light_dies_and_she_takes_hafiz() -> bool:
 	check(hafiz.visible and hs > light_s - 30.0 + Endings.HAFIZ_AHEAD - 1.0, "Hafiz is out of the fog ahead (%.1f m)" % (hs - light_s + 30.0))
 	var torch := road.couple.torch
 	var at_them := (p.camera.global_position - torch.global_position).normalized()
-	check(torch.light_energy > 0.0 and rad_to_deg(at_them.angle_to(-torch.global_basis.z)) < torch.spot_angle, "his torch on, and on them")
+	check(torch.light_energy > 0.0 and rad_to_deg(at_them.angle_to(-torch.global_basis.z)) < torch.spot_angle, "his torch coming on, and on them")
 	await _frames(roundi(LightMission.CAUGHT_CATCH * 60.0))
+	eq(torch.light_energy, Couple.TORCH_ENERGY, "on, by the time she comes")
 	var walked := hs - RoadLayout.closest_s(hafiz.global_position)
 	check(walked > 3.0, "coming up the road to them (%.1f m)" % walked)
 	var meet := hafiz.global_position.distance_to(p.global_position)

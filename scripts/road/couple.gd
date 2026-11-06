@@ -4,7 +4,7 @@ extends Node3D
 ## beside him with her phone, its screen lighting her face from below. They turn when they speak (EventBus.road_line):
 ## Mei turns her head and shoulders to him in the back seat, and Hafiz glances up at the mirror. When the car dies,
 ## Hafiz gets out and walks off down the road with his phone as a torch (hafiz_leaves). On the walk to the light Mei
-## is on her feet beside him (walk_beside), and Hafiz is where the road's ending puts him: waiting, or coming back.
+## is on her feet beside him (walk_beside), and Hafiz may come back up the road to them out of the fog (hafiz_comes).
 
 const TURN := 0.5  # seconds to turn, and to turn back
 const GLANCE := 1.2  # seconds Hafiz takes his eyes off the road for the mirror
@@ -20,6 +20,10 @@ const SWING := 0.4  # radians each leg swings, forward and back
 const GONE := 60.0  # metres he walks before he is lost in the fog, torch and all
 const TORCH := Vector3(-0.12, 1.08, 0.33)  # his phone in his right hand, in his own space (measured on the model)
 const TORCH_ENERGY := 4.0
+## Coming back, he puts his torch on once he is TORCH_NEAR metres from them, and it comes on over TORCH_FADE seconds,
+## never a light that pops in.
+const TORCH_NEAR := 30.0
+const TORCH_FADE := 2.0
 ## Where his torch points, in his own space: walking off, at the road a few metres ahead of him, a pool that shows
 ## from the car; coming back up the road searching, along it at them, so it lights the two of them as he comes.
 const TORCH_OFF := Vector3(0.0, -0.35, 1.0)
@@ -108,6 +112,8 @@ var _hafiz_across := 0.0
 var _hafiz_stop := -INF  # where along the road he stops at the latest
 var _hafiz_walked := 0.0
 var _hafiz_stride := 0.0
+var _hafiz_pace := WALK  # m/s
+var _torch_on := 0.0  # 0 off to 1 on, as it comes on
 
 
 func _init(car: CarRig) -> void:
@@ -233,10 +239,10 @@ func hafiz_gone() -> void:
 	_towards = null
 
 
-## Hafiz walks up the road towards `walker`, `across` metres left of its centreline, from `from_s`, his phone's torch
-## on and pointed along the road at them, and stops at `stop_s` or MEET metres short of him, whichever he comes to
-## first.
-func hafiz_comes(walker: Node3D, from_s: float, across: float, stop_s := -INF) -> void:
+## Hafiz walks up the road towards `walker` at `pace`, `across` metres left of its centreline, from `from_s`, his
+## phone's torch pointed along the road at them, and stops at `stop_s` or MEET metres short of him, whichever he comes
+## to first.
+func hafiz_comes(walker: Node3D, from_s: float, across: float, stop_s := -INF, pace := WALK) -> void:
 	hafiz_gone()
 	_towards = walker
 	_hafiz_s = from_s
@@ -244,8 +250,9 @@ func hafiz_comes(walker: Node3D, from_s: float, across: float, stop_s := -INF) -
 	_hafiz_stop = stop_s
 	_hafiz_walked = 0.0
 	_hafiz_stride = 1.0
+	_hafiz_pace = pace
+	_torch_on = 0.0
 	_aim(TORCH_COMING)
-	torch.light_energy = TORCH_ENERGY
 	hafiz_out.visible = true
 	_walk_back(0.0)
 
@@ -332,8 +339,12 @@ func _walk_beside(delta: float) -> void:
 
 ## Hafiz coming back up the road to the walker, until MEET short of him or at his stop.
 func _walk_back(delta: float) -> void:
-	var gap := minf(_hafiz_s - RoadLayout.closest_s(_towards.global_position) - MEET, _hafiz_s - _hafiz_stop)
-	var step := clampf(gap, 0.0, WALK * delta)
+	var apart := _hafiz_s - RoadLayout.closest_s(_towards.global_position)
+	if apart < TORCH_NEAR:
+		_torch_on = move_toward(_torch_on, 1.0, delta / TORCH_FADE)
+	torch.light_energy = TORCH_ENERGY * _torch_on * _torch_on * _torch_on  # cubed: how bright it looks rises evenly
+	var gap := minf(apart - MEET, _hafiz_s - _hafiz_stop)
+	var step := clampf(gap, 0.0, _hafiz_pace * delta)
 	_hafiz_s -= step
 	_hafiz_walked += step
 	_hafiz_stride = move_toward(_hafiz_stride, 1.0 if gap > 0.0 else 0.0, delta / TURN)
