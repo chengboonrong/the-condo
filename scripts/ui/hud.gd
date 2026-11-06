@@ -460,7 +460,7 @@ func _process(delta: float) -> void:
 	if _ending_in > 0.0:
 		_ending_in -= delta
 		if _ending_in <= 0.0:
-			var e: Array = StoryDirector.ENDINGS[WorldState.ending]
+			var e := StoryDirector.ending_card(WorldState.ending, Journey.road_ending)
 			_ending_title.text = e[0]
 			_ending_text.text = e[1]
 			_inspect.visible = false

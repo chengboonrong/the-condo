@@ -121,6 +121,13 @@ A shift that is already safe applies inside `scheduler.request()`, so a beat tha
 switches to its waiting beat *before* asking for it. Noticing a moved object puts it back
 (`set_variant(..., is_shift = false)`), which counts as a sign and does not reset the clock.
 
+After the road (`Journey.road_ending` is `alive`, `saved` or `caught`) the same beats run with a few changes: a quiet
+opening with a question, the road's smell and look-back lines (always shown), and roof thumps in place of the bedroom
+knocks. Inspecting the intercom after Rosnah's call plays the last call once for `caught` and `saved` (wind and an
+idling engine, then Mei's or Hafiz's first line). `StoryDirector.ending_card(ending, road)` gives the last card its
+text: `caught` adds to or edits today's text, `saved` and `alive` have their own. With no road (the flat opened
+directly) every line is as before.
+
 The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
 `tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds.
 

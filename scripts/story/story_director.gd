@@ -39,6 +39,25 @@ const ENDINGS := {
 	&"downstairs": ["DOWNSTAIRS", "You knock three times.\n\nUpstairs, someone who has just come home from a shift at the mamak stops in the dark and listens.\n\nThe notes under their door are in your handwriting."],
 	&"vacant": ["VACANT", "The lift is warm, as if someone has just stepped out of it.\n\nA week later a new notice goes up by the letterboxes:\nUnit B-12-07 has been vacant since November.\n\nThe knocking never stops."],
 }
+## The last card after the road. Caught: today's text with a line added (downstairs) or its notice swapped (vacant).
+## Saved and alive: their own text. Any other road (the flat opened directly) keeps ENDINGS.
+const VACANT_NOTICE := "Unit B-12-07 has been vacant since November."
+const CAUGHT_NOTICE := "Unit B-12-07 has been vacant since November. Its tenant was one of three people found on the old road down the mountain."
+const ROAD_ENDINGS := {
+	&"saved": {
+		&"downstairs": "You knock three times.\n\nSomething knocks back, three times, from inside the wall, the way something landed on the roof of Hafiz's car.\n\nHafiz never got home. He's been knocking all night.",
+		&"vacant": "The lift is warm, as if someone has just stepped out of it.\n\nYou don't go back up.\n\nHafiz never got home. Some nights you still hear him knocking.",
+	},
+	&"alive": {
+		&"downstairs": "You knock three times.\n\nSomething knocks back.\n\nAll three of you got home. Something else came down the mountain too.",
+		&"vacant": "The lift is warm, as if someone has just stepped out of it.\n\nYou don't go back up.\n\nAll three of you got home. Something else came down the mountain too.",
+	},
+}
+## The intercom's last call after the road: the first line of the one who is lost.
+const LAST_CALL := {
+	&"caught": "\"Eh, you going down ah? Jom, we got space.\"",
+	&"saved": "\"Wah, so late still working ah? Kesian, bro.\"",
+}
 
 var scheduler: EventScheduler
 var transformer: RoomTransformer
@@ -66,6 +85,17 @@ func _init(event_scheduler: EventScheduler, room_transformer: RoomTransformer) -
 	EventBus.room_entered.connect(_on_room_entered)
 	EventBus.variant_changed.connect(_on_variant_changed)
 	scheduler.run_finished.connect(_on_run_finished)
+
+
+## The last card ([title, text]) for an ending, as the road changes it.
+static func ending_card(ending_id: StringName, road_ending: StringName) -> Array:
+	var card: Array = ENDINGS[ending_id]
+	if road_ending == &"caught":
+		var text: String = card[1]
+		return [card[0], text + "\n\nYou never got home." if ending_id == &"downstairs" else text.replace(VACANT_NOTICE, CAUGHT_NOTICE)]
+	if ROAD_ENDINGS.has(road_ending):
+		return [card[0], ROAD_ENDINGS[road_ending][ending_id]]
+	return card
 
 
 func now() -> float:
@@ -364,6 +394,7 @@ func _on_interacted(object_id: StringName) -> void:
 			elif WorldState.has_flag(&"answered_intercom"):
 				WorldState.add_clue(&"own_unit")
 				EventBus.inspect_requested.emit("Intercom", "LAST CALL  23:47\nFROM  B-12-07\n\nB-12-07 is this flat.")
+				_last_call()
 			else:
 				EventBus.inspect_requested.emit("Intercom", "The little screen is dark.")
 		&"intercom_mirror":
@@ -384,6 +415,14 @@ func _on_interacted(object_id: StringName) -> void:
 				_end(&"vacant")
 			else:
 				EventBus.inspect_requested.emit("Lift", "LIF ROSAK — DALAM PENYELENGGARAAN\nUNDER MAINTENANCE\n\nThe button doesn't light up.")
+
+
+## Once, after the road: the last call plays back, with the road's wind and engine and the one who is lost.
+func _last_call() -> void:
+	if LAST_CALL.has(road) and _once_ever("last_call"):
+		EventBus.sound_requested.emit(&"intercom_road", ApartmentLayout.ANCHORS[&"phone_intercom"]["pos"], 0.0)
+		say("[The speaker crackles. Wind, and an engine idling.]", 3.0, true)
+		say(LAST_CALL[road], 3.5, true)
 
 
 func _answer_rosnah() -> void:

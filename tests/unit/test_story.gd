@@ -320,5 +320,42 @@ func test_the_downstairs_knock_back_follows_the_road() -> bool:
 	return true
 
 
+func test_ending_cards_follow_the_road() -> bool:
+	for id: StringName in [&"downstairs", &"vacant"]:
+		eq(StoryDirector.ending_card(id, &""), StoryDirector.ENDINGS[id], "%s opened directly: as today" % id)
+		for road: StringName in [&"caught", &"saved", &"alive"]:
+			eq(StoryDirector.ending_card(id, road)[0], StoryDirector.ENDINGS[id][0], "%s/%s keeps its title" % [id, road])
+	check(StoryDirector.ending_card(&"downstairs", &"caught")[1].ends_with("You never got home."), "caught: he never got home")
+	check(StoryDirector.ending_card(&"vacant", &"caught")[1].contains("Its tenant was one of three people found on the old road down the mountain."), "caught: the notice")
+	check(StoryDirector.ending_card(&"downstairs", &"saved")[1].ends_with("He's been knocking all night."), "saved: Hafiz")
+	check(StoryDirector.ending_card(&"vacant", &"saved")[1].ends_with("Some nights you still hear him knocking."), "saved: Hafiz")
+	for id: StringName in [&"downstairs", &"vacant"]:
+		check(StoryDirector.ending_card(id, &"alive")[1].ends_with("Something else came down the mountain too."), "alive: %s" % id)
+	return true
+
+
+func test_the_last_call_points_back_once() -> bool:
+	var mei := "\"Eh, you going down ah? Jom, we got space.\""
+	var hafiz := "\"Wah, so late still working ah? Kesian, bro.\""
+	for road: StringName in [&"caught", &"saved", &"alive", &""]:
+		WorldState.reset()
+		sounds.clear()
+		lines.clear()
+		var story := _setup(ApartmentLayout.SPAWN)
+		story.road = road
+		_listen()
+		WorldState.set_flag(&"answered_intercom")
+		EventBus.object_interacted.emit(&"intercom")
+		EventBus.object_interacted.emit(&"intercom")
+		_wait(10.0)
+		var calls := 1 if road in [&"caught", &"saved"] else 0
+		eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), calls, "the wind and the engine, road %s" % road)
+		eq(lines.count("[The speaker crackles. Wind, and an engine idling.]"), calls, "the crackle goes with the sound, road %s" % road)
+		eq(lines.count(mei), 1 if road == &"caught" else 0, "Mei's line, road %s" % road)
+		eq(lines.count(hafiz), 1 if road == &"saved" else 0, "Hafiz's line, road %s" % road)
+		_done()
+	return true
+
+
 func _shifts_done() -> int:
 	return WorldState.event_history.filter(func(e: Dictionary) -> bool: return e["id"] == &"shift" and e["result"] == &"completed").size()
