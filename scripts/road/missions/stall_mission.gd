@@ -120,6 +120,8 @@ func tick(delta: float) -> bool:
 				go(&"quiet")
 		&"quiet":
 			if beat_t >= QUIET:
+				_door = false  # the light is the way on now: opening the door is no longer a break
+				WorldState.set_prompt(DOOR, "")
 				EventBus.road_cue.emit(&"light_on")
 				d.say("Mei: \"Eh, look. Got a light down there.\"", 3.5, &"mei")
 				go(&"light")

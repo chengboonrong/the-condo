@@ -159,6 +159,20 @@ func test_opening_the_door_costs_two_once() -> bool:
 	return true
 
 
+## Once the light is on and Mei has pointed at it, the door is the way on, not a break: its prompt goes.
+func test_the_door_prompt_goes_when_the_light_comes_on() -> bool:
+	_setup()
+	while not cues.has(&"light_on") and WorldState.time < 300.0:
+		if d.pending != &"":
+			EventBus.choice_made.emit(d.pending, 1 if d.pending == &"answer_voice" else 0)
+		d.step(0.1)
+	eq(WorldState.prompts.get(&"car_door_inside", ""), "", "no prompt on the door once the light is on")
+	EventBus.object_interacted.emit(&"car_door_inside")
+	eq(d.broken, [] as Array[Dictionary], "and using it breaks nothing")
+	_teardown()
+	return true
+
+
 func test_silence_lets_mei_open() -> bool:
 	_setup()
 	_play({&"answer_voice": 1})
