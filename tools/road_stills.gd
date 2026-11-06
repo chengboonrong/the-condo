@@ -7,7 +7,8 @@ extends SceneTree
 
 # [name, mission index, s, metres across (+ left), yaw from down the road (+ left), pitch, fog 0 to 1, phone light,
 #  optional: the director's ride fields to set after start_at; seated, the yaw is from the car's forward instead.
-#  "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has stopped]
+#  "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has stopped;
+#  optional: who is saying a line, so the couple turn]
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -22,6 +23,8 @@ const SHOTS := [
 	["slow_car", 1, 0.0, 0.0, 0.0, -0.03, 0.0, false, {"seated": true, "car_s": 140.0, "car_speed": 4.0, "slow_gap": 12.0}],  # behind it, in the headlights
 	["overtake", 1, 0.0, 0.0, 0.16, -0.03, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 8.0, "lane": 0.0, "slow_gap": 8.0}],  # pulling out, level with its tail, in the headlights
 	["lay_by", 1, 0.0, 0.0, 0.45, -0.03, 0.0, false, {"seated": true, "car_s": 634.0, "car_speed": 9.0, "lane": 0.9, "slow_gap": 12.0, "pull_in": {"car_s": 647.0, "lane": 0.9}}],  # it has pulled in, dark: they edge by (the keeper's, in switchback 1)
+	["couple", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # Hafiz and Mei from his seat
+	["mei_turns", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}, &"mei"],  # last: she stays turned
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -88,6 +91,9 @@ func _initialize() -> void:
 			player.global_position = layout.point(s[2], s[3])
 			player.set_look(builder.yaw_along(s[2]) + s[4], s[5])
 		player.phone_light.visible = s[7]
+		if s.size() > 9:
+			road.couple.turn_to(s[9], 60.0)
+			await create_timer(1.0).timeout  # the turn takes Couple.TURN
 		road.look.settle()
 		for f in 10:  # the fog follows the director on the next frame; also lets the grade's ramp texture refresh
 			await process_frame

@@ -2,8 +2,8 @@ class_name RoadMain
 extends Node3D
 ## The road down the mountain, the first scene of the game: it ends by handing over to the flat (see Journey).
 ## The road's core (RoadDirector) runs the missions; this wires it to the HUD and steps it while he plays. The road
-## itself is RoadBuilder's, in the core's fog. He starts at the staff exit; the couple's car (CarRig) follows the core's
-## ride each frame, and he rides in its back seat once the core seats him.
+## itself is RoadBuilder's, in the core's fog. He starts at the staff exit; the couple's car (CarRig), with Hafiz and Mei
+## in the front (Couple), follows the core's ride each frame, and he rides in its back seat once the core seats him.
 
 ## The road is over. `ending` is how it went; Journey carries it into the flat.
 signal finished(ending: StringName)
@@ -15,6 +15,7 @@ var director: RoadDirector
 var builder: RoadBuilder
 var look: Look
 var car: CarRig
+var couple: Couple
 var lorry: Lorry
 var slow_car: SlowCar
 var audio: RoadAudio
@@ -38,6 +39,8 @@ func _ready() -> void:
 	car = CarRig.new()
 	car.name = "Car"
 	add_child(car)
+	couple = Couple.new(car)
+	car.add_child(couple)
 	lorry = Lorry.new()
 	lorry.name = "Lorry"
 	add_child(lorry)
