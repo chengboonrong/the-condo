@@ -8,7 +8,7 @@ say they decide case by case.
 
 The road shows the penanggal of Malay folklore as a severed flying head with its windpipe, lungs, heart, stomach and
 intestines hanging below it, wet and dark, in a muted palette. In one ending she drops onto a man and a dark pool
-spreads under him. There is no sexual content and no real person or place. The models and the code are in the public
+spreads under him. There is no sexual content and no real person or named place. The models and the code are in the public
 repository (`art/penanggal/`, `assets/models/penanggal.glb`, `scripts/road/her.gd`).
 
 ## Result
@@ -107,8 +107,10 @@ the check for `docs/itch-page.md` the same day; the page says "This document is 
 > or annoying noises, or other material that is designed to be obnoxious then we may delist from our browse and search
 > pages."
 
-The penalty named is removal from the discovery index; the page stays reachable by its URL. The page does not mention
-blood, gore, violence or an age rating.
+The penalty named for shock images is removal from browse and search; the page stays reachable by its URL. For not
+respecting the adult classification it is harsher: itch.io "may remove all of your pages from being indexed on our
+discovery features, or permanently disable payments on your account". The page does not mention blood, gore, violence or
+an age rating.
 
 **Creator FAQ, "Is adult content allowed?"** ([Creator FAQ](https://itch.io/docs/creators/faq#is-adult-content-allowed),
 read 2026-11-06, no date shown). This is where itch.io defines adult content, and the definition is sexual: it bars
@@ -120,7 +122,9 @@ is ever sold, the payment processors' own policies apply; those were not read.
 **Terms of Service, section 3**
 ([itch.io Terms of Service](https://itch.io/docs/legal/terms), read 2026-11-06; the page carries "Updated April 15 2023"
 beside a payment link and no other date). It bars "unlawful, misleading, malicious, or discriminatory content" and
-unlawful acts. It has no passage on violence or gore.
+unlawful acts. It has no passage on violence or gore. It also says: "The posting of content or other actions that, in
+the Company’s sole discretion, degrades the experience of others may result in account termination without prior
+notice".
 
 **Discovery of adult-marked pages** ([Getting indexed](https://itch.io/docs/creators/getting-indexed), read
 2026-11-06): a page marked NSFW "will only appear to people who have NSFW browsing enabled", and people without accounts

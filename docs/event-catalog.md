@@ -57,9 +57,9 @@ deterministic, and a bot sees the same cues a player does.
 
 | Cue | Mission | Sent when |
 |---|---|---|
-| `card_on`, `card_off` | 1 | the opening's black card goes up at once and is taken away 13 s in |
+| `card_on`, `card_off` | 1 | the opening's black card goes up at once and is taken away 13 s in. Mission 5 sends `card_on` again for each ending's card |
 | `lorry_passes` | 1 | 20 s of waiting at the stop (the wait counts only while he is at the stop) |
-| `couple_stops` | 1 | 45 s of waiting, when the couple's car has stopped for him |
+| `couple_stops` | 1 | the car that set off at 45 s of waiting has stopped at the stop (about 60 to 65 s in) |
 | `seated` | 1 | he gets in |
 | `slow_car_seen` | 2 | the car has slowed to the slow car's speed behind it |
 | `indicator`, `overtake` | 2 | Hafiz is going to overtake: the indicator, then 2.5 s later the pull out |

@@ -142,7 +142,7 @@ the flat's: headless, deterministic, and talking to the presentation only throug
   comes from inside the scene it replaces.
 * The flat sees `road_ending != &""`: it shows a black card, "11:47 PM", while it builds, skips its start card and lets
   the card go over 1.5 s. The clock is 11:47 PM however the road ended. The flat runs the same story after every road
-  ending: nothing in it reads `road_ending` yet (part 2 of the plan, the alive and dead flats).
+  ending: nothing in the story reads `road_ending` yet (part 2 of the plan, the alive and dead flats).
 * A restart (the pause menu's Restart, or a click on the flat's ending card) calls `Journey.restart()`, which clears
   `road_ending` and loads the road again. The game never restarts into the flat.
 * `-- --flat` / `?flat`: the road hands straight over with `Journey.arrive(&"")`, so the flat shows its own start card
@@ -249,7 +249,7 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 |---|---|---|
 | `card_on`, `card_off` | Mission 1 (the opening card); Mission 5 (the endings' card) | the HUD's black card goes up, or fades over 1 s; `Endings` stops the phone and the lorry's diesel |
 | `lorry_passes` | Mission 1, 20 s into the wait | the lorry passes in the other lane, with its sound |
-| `couple_stops` | Mission 1, 45 s into the wait | nothing: the car is the core's ride |
+| `couple_stops` | Mission 1, once the car that set off at 45 s has stopped at the stop (about 60 to 65 s in) | nothing: the car is the core's ride |
 | `seated` | Mission 1, when he gets in | his door swings open and shut |
 | `slow_car_seen`, `slow_car_ahead` | Mission 2 | nothing: the slow car follows the core's `slow_gap` |
 | `indicator` | Mission 2, before an overtake | the indicator loop ticks |
@@ -335,8 +335,9 @@ runs. What is made after the card is clicked is not.
 
 * `tests/sim/road_playthrough.gd` (`RoadPlaythrough`) plays the core headless with a `RoadStage`: three bots, on seeds
   1147, 7 and 2026. `keeper` keeps every rule and ends `alive` with score 0, `wobbly` ends `saved` with 4 and `breaker`
-  ends `caught` with 16. They are bots, not people; the keeper's 7 to 15 sim minutes are a lower bound for a person
-  (about 8 minutes by the missions' beats), not a playtest.
+  ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 576 s of sim time (9.6 minutes; the test accepts 7 to 15
+  minutes) on all three seeds. That is a lower bound for a person, because the bot answers in a second and walks
+  straight, and it is not a playtest.
 * `tools/road_stills.sh <dir>` renders 44 stills of the road, one PNG per shot, and a contact sheet. Each starts its
   mission as `--mission` does and the simulation stands still. Stills made for checking stay out of the repository.
 * `-- --perf` runs `RoadPerf`, about 49 s through the road's heaviest moments, before the flat's tour
@@ -460,7 +461,8 @@ within about 1 m of his head is heard at its file level + 3 dB, whatever the tab
 his camera, as the lorry passing and the rev are, is at distance 0, so it is capped whatever it is played at. Rows
 marked † are those: the roof thump (0.4 m from his head), the window knock and the car doors (Mei's door and window are
 1.2 m away; his own door is beside him), the lorry passing and the rev. Their "Heard at" is file + 3 dB, worked out from
-that rule and not measured in a running game. Her breath is the same when she comes to his face (0.6 m). The flat's rows
+that rule and not measured in a running game. Her breath is the same when she comes to his face (0.6 m), and so is the
+wet flap that is heard at Mei's door when it is slapped shut. The flat's rows
 were not re-checked against this.
 
 | Sound | File | Played at | Heard at |
@@ -514,8 +516,7 @@ drip and breath (from where she is, falling off past 3 m), and, in one ending, t
 table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
 than the single knock (−14.6) and none is a sting. Close to his head the † rows pass it: the rev (−13.0) is 1.6 dB over
 it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump (−15.5) and the window knock (−16.0)
-stay under it. Six of them are seamless loops,
-imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
+stay under it. Six of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
 (2 s). The rest play once. Ten of them (both engine loops, the rev, the lorry passing, idling and braking, the sputter,
 the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is charged by the second of audio: at

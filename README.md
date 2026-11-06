@@ -3,8 +3,7 @@
 First-person psychological horror, made in Godot 4.7 for **GitHub Game Off 2026** (theme: **SHIFT**).
 
 > **Content warning:** blood and gore, a figure that appears suddenly, sudden loud sounds and flickering lights. The
-> road at the start of the game shows the penanggal of Malay folklore, a flying head with its insides hanging beneath
-> it. Not for young players. This page has no images of it.
+> horror comes from Malay folklore. Not for young players.
 
 The game starts on a foggy mountain road at midnight. The last staff bus has gone, and a couple stop to give you a
 lift down. The road has rules, and something follows the car. At the bottom you wake up at home, and the clock says

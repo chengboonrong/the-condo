@@ -32,8 +32,8 @@ Simulated playthroughs are bots, not people. They are never reported as human pl
 `godot --headless --path . --script res://tools/playthroughs.gd` rewrites `docs/playthroughs.md` with each
 bot's event sequence, director scores, progression, completion, errors and warnings. The road's bots are checked by
 `test_road_playthroughs.gd` and write no record: the keeper ends `alive` with score 0, the wobbly one `saved` with 4 and
-the breaker `caught` with 16. The keeper's sim time (7 to 15 minutes) is a lower bound for a person, because the bot
-answers in a second and walks straight.
+the breaker `caught` with 16. The keeper reaches `alive` at 576 s of sim time (9.6 minutes; the test accepts 7 to 15
+minutes), a lower bound for a person, because the bot answers in a second and walks straight.
 
 ## Builds
 
@@ -52,7 +52,6 @@ see [performance.md](performance.md).
   Look at each at full size against the four anti-goals (a ghost that looks fake, cheap jump scares, not Malaysian
   enough, boring missions).
 * The start card's text and its wrap at the window sizes players use.
-
 * Mouse capture and release in a real window and in browsers (pointer lock), the pause menu by mouse.
   On the web, Esc leaves pointer lock and the menu opens within half a second; only the Resume click
   closes it, and a refused lock (Resume clicked within a second of leaving) reopens it.

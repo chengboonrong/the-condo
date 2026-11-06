@@ -17,13 +17,13 @@ Run it again whenever the game's look changes.
 | Gameplay video or trailer | The YouTube link, once the trailer is uploaded there (the file is in Drive, "The Condo trailer") |
 
 These are the flat's images, made before the road was added. The page now opens on the road, so the cover, the
-screenshots and the trailer need re-shooting, which is separate work after the road is built. The cover and the
+screenshots and the trailer need re-shooting, which is separate work after this plan. The cover and the
 thumbnail show no gore (itch.io's guidelines ask for no explicit cover image, and shock images can get a page delisted
 from browse and search; see `docs/research/2026-11-06-gore-rules.md`).
 
 `tools/road_stills.sh <dir>` renders the road's 44 stills. Only the ones that show the road, the car and the couple,
 the mirror, the light and the stall belong on this page: `road_exit`, `road_stop`, `road_bend`, `road_tunnel`,
-`road_tunnel_in`, `road_awas40`, `road_awas431`, `road_city`, `car_arrives`, `back_seat`, `slow_car`, `overtake`,
+`road_tunnel_in`, `road_awas40`, `road_city`, `car_arrives`, `back_seat`, `slow_car`, `overtake`,
 `lay_by`, `couple`, `mei_turns`, `mirror_fourth`, `light_seen`, `walk_mei`, `walk_mei_looks`, `walk_light`, `walk_near`
 and `stall`, and the ten far, fogged glimpses (every `her_glimpse_*`), where she is a few pixels of dark shape. Never
 on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, every ending (`ending_saved`, `ending_alive`,
@@ -37,6 +37,8 @@ on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, every ending (`en
 
 ## Description
 
+> **Content warning:** blood and gore, a figure that appears suddenly, sudden loud sounds and flickering lights.
+>
 > **12:06 AM.** The last staff bus went down the mountain at eleven. Bang Din at the stall says the road down has
 > rules. He only tells them after midnight. You laughed. He didn't.
 >
@@ -81,8 +83,6 @@ on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, every ending (`en
 > **Settings:** brightness, field of view, head bob, mouse sensitivity, invert mouse Y, volume, Filter (a soft look),
 > captions for sounds (spoken lines always show), and reduced flashing (flickering lights dim slowly instead).
 >
-> **Content warning:** blood and gore, a figure that appears suddenly, sudden loud sounds and flickering lights.
->
 > **Credits:** made by Chris Cheng in Godot 4.7. The rooms and the road are built in code, the objects, the car and
 > the people in Blender from scripts, and every sound is synthesised in code; no third-party asset files are used.
 > The clock's numerals use the Inter font (SIL Open Font License 1.1). Source code (MIT licence): https://github.com/chengboonrong/the-condo
@@ -105,7 +105,7 @@ stay off the page until someone has run them.
 | Pricing | No payments | The trailer says "Play free in your browser" |
 | Genre | Horror | |
 | Tags | horror, gore, psychological-horror, first-person, atmospheric, exploration, 3d, godot, malaysia, singleplayer | itch.io allows 10, so `short` made way for `gore`, which is accurate now. The owner can swap. Never `porn`, `adult`, `hentai`, `erotic` or `sex` (itch.io's UK restriction reads them together with the sensitive-content setting) |
-| Average session | Set after a real playthrough | Only bots have played it: the road takes the keeper bot about 8 minutes at the least and the flat 5 to 20 (sim time, `docs/playthroughs.md`). Nobody has timed a person yet |
+| Average session | Set after a real playthrough | Only bots have played it: the keeper bot takes 576 s (9.6 minutes) to finish the road, and the flat 5 to 20 minutes (sim time, `docs/playthroughs.md`). Nobody has timed a person yet |
 | Age rating | None to set | itch.io has no age-rating setting and no blood-and-gore setting. Its quality guidelines and Creator FAQ (read 2026-11-06) mention neither; its admin said in 2018 that the only option is a NSFW toggle, and his 2025 post on the UK law still names one "Has sensitive content" setting. The content warning in the description is how the page says it |
 | Has sensitive content (*Metadata » Classification*) | The owner's call; open | The rule is that a page with "strong adult themes" "must be marked", and the Creator FAQ defines adult content as sexualised material. The game has none, so leaving the box off follows the written text. Ticking it is the cautious choice, and hides the page from visitors who have not turned adult content on. The wording of the checkbox itself was not read: the logged-in edit page was not opened. See `docs/research/2026-11-06-gore-rules.md` |
 | Languages | English | |
