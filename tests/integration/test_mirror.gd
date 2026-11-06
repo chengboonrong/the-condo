@@ -108,6 +108,7 @@ func test_the_mirror_renders_only_in_mission_3() -> bool:
 	check(not mirror.fourth.visible, "and she is gone")
 	d.start_at(at)
 	d.step(0.1)
+	check(is_equal_approx(mirror.fill.light_energy, Mirror.ENERGY), "played again: her light back down for her")
 	d.debug_skip()
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "skipped part way: off too")
 	_done(road)
