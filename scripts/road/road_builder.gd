@@ -42,6 +42,9 @@ const SODIUM := Color(1.0, 0.6, 0.26)
 const STRIP := Vector2(2.6, 5.72)  # the tunnel's light strips: out and up, just under the vault (5.80 there)
 const CITY_AWAY := 100.0  # metres from the camera to KL's glow: inside its 120 m far plane
 const CITY_ALPHA := 0.3  # the glow's strength in the clearest fog; the thickest takes it away
+const LIGHT_AWAY := 90.0  # metres from the camera, at the most, that the light far down the road is drawn at
+const LIGHT_UP := 2.6  # its bulb, above the road
+const LIGHT_ALPHA := 0.8  # its strength in the clearest fog; the thickest takes most of it away
 const LAMPS := [[-170.0, -1.0], [-110.0, -1.0], [5.0, 1.0], [70.0, -1.0], [130.0, 1.0]]  # [s, side]: +1 left
 
 ## The ground beside the road, as (metres out from the centreline, metres up), each point a [valley, hill] pair lerped
@@ -91,6 +94,7 @@ const FONT_PX := 64
 var environment: Environment
 var city_dir: Vector3  # where KL lies, level: the way the whole road goes down
 var signs: Array[GeometryInstance3D] = []  # every part of every sign: the boards, their posts and their lines
+var far_light: MeshInstance3D  # the light far down the road, once the car has died there (show_light)
 var _materials: Array[Material] = []
 var _mats := {}  # mesh kind -> its material
 var _spans: Array = []  # [s_from, s_to, segment], one per RoadLayout.SEGMENTS
@@ -98,6 +102,7 @@ var _flips: Array = []  # [s, the hill's side after it]: +1 left, -1 right
 var _rows: Array[Row] = []
 var _chunks: Array[Chunk] = []
 var _city: MeshInstance3D
+var _far_at := Vector3.ZERO  # where the far light's bulb really is
 
 
 ## One row of the road's meshes, and the frame anything placed beside the road at s uses.
@@ -177,6 +182,7 @@ func _ready() -> void:
 	_build_resort()
 	_build_stop()
 	_build_city()
+	_build_far_light()
 	for c in _chunks:
 		_commit(c)
 	Settings.changed.connect(_apply_brightness)
@@ -189,13 +195,29 @@ func set_fog(amount: float) -> void:
 	var alpha := CITY_ALPHA * (1.0 - clampf(amount, 0.0, 1.0))
 	if not is_equal_approx(city.albedo_color.a, alpha):  # no material update on a still frame
 		city.albedo_color.a = alpha
+	var far := far_light.material_override as StandardMaterial3D
+	alpha = LIGHT_ALPHA * (1.0 - 0.6 * clampf(amount, 0.0, 1.0))
+	if not is_equal_approx(far.albedo_color.a, alpha):
+		far.albedo_color.a = alpha
 
 
-## KL's glow stays CITY_AWAY down the valley from wherever the camera is, so it reads as far below.
+## The light far down the road comes on: a bulb over the road at s.
+func show_light(s: float) -> void:
+	_far_at = RoadLayout.point(s) + Vector3.UP * LIGHT_UP
+	far_light.visible = true
+
+
+## KL's glow stays CITY_AWAY down the valley from wherever the camera is, so it reads as far below. The far light is
+## drawn on the line to its bulb, no further than LIGHT_AWAY and at the size it would have there.
 func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera != null:
 		_city.global_position = camera.global_position + city_dir * CITY_AWAY + Vector3.DOWN * 5.0
+		if far_light.visible:
+			var to := _far_at - camera.global_position
+			var k := minf(1.0, LIGHT_AWAY / maxf(to.length(), 0.01))
+			far_light.global_position = camera.global_position + to * k
+			far_light.scale = Vector3.ONE * k
 
 
 ## Every material the road made, for the start card's warm-up. The signs' lines (Label3D) draw with the engine's own.
@@ -600,6 +622,20 @@ func _build_city() -> void:
 	add_child(_city)
 
 
+## The light far down the road (Mission 4): a warm haze, as a bare bulb makes in the fog. It ignores the fog, which
+## would hide it at that distance, and draws inside the camera's far plane (see _process).
+func _build_far_light() -> void:
+	far_light = MeshInstance3D.new()
+	far_light.name = "FarLight"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(9.0, 9.0)
+	far_light.mesh = quad
+	far_light.material_override = _mats[&"far_light"]
+	far_light.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	far_light.visible = false
+	add_child(far_light)
+
+
 ## The bus stop on the left verge: a metal roof on two posts at the back, a concrete bench under it, and the timetable
 ## plate. A slab covers the drain there.
 func _build_stop() -> void:
@@ -803,6 +839,7 @@ func _build_materials() -> void:
 	var city := _haze(Color(1.0, 0.55, 0.22, CITY_ALPHA), 0.0, 0.0)
 	city.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED  # it is always CITY_AWAY off
 	_add_material(&"city", city)
+	_add_material(&"far_light", _haze(Color(1.0, 0.78, 0.5, LIGHT_ALPHA), 40.0, 10.0))  # gone close to its bulb
 
 
 func _glow(color: Color, energy: float) -> StandardMaterial3D:

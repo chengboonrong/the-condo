@@ -13,6 +13,8 @@ extends RefCounted
 ## the slow car all three times, the wobbly one overtakes at the third, and the breaker says nothing: Hafiz overtakes.
 ## In mission 3 the keeper never turns round and answers "Three.", the wobbly one asks why and then says "Three.", and
 ## the breaker turns to her once and says "Four.".
+## In mission 4 the keeper and the wobbly one never open the door, stay quiet for the voice and stop Mei; the breaker
+## opens the door once and says nothing to either, so Mei opens hers.
 ##
 ## run(profile, seed) returns the ending, the time it took, the score, the rules broken, every beat, and the errors
 ## and warnings logged during the run.
@@ -27,9 +29,16 @@ const TO_HER := -1.3  # radians: the breaker turns to his right, where the fourt
 const TURN_SECONDS := 1.0  # ...this long, at the start of mission 3
 ## Each profile's answer, by choice id; -1 stays silent. The rows come with their missions.
 const ANSWERS := {
-	"keeper": {&"overtake_1": 0, &"overtake_2": 0, &"overtake_3": 0, &"count": 0},
-	"wobbly": {&"overtake_1": 0, &"overtake_2": 0, &"overtake_3": 2, &"count": 2, &"count_again": 0},
-	"breaker": {&"overtake_1": -1, &"overtake_2": -1, &"overtake_3": -1, &"count": 1},
+	"keeper": {&"overtake_1": 0, &"overtake_2": 0, &"overtake_3": 0, &"count": 0, &"answer_voice": 1, &"stop_mei": 0},
+	"wobbly": {&"overtake_1": 0, &"overtake_2": 0, &"overtake_3": 2, &"count": 2, &"count_again": 0, &"answer_voice": 1,
+		&"stop_mei": 0},
+	"breaker": {&"overtake_1": -1, &"overtake_2": -1, &"overtake_3": -1, &"count": 1, &"answer_voice": -1, &"stop_mei": -1},
+}
+## The prompts each profile leaves alone, as "object id: prompt"; it uses every other one once.
+const LEAVES := {
+	"keeper": ["car_door_inside: Open the door"],
+	"wobbly": ["car_door_inside: Open the door"],
+	"breaker": [],
 }
 
 var profile: String
@@ -98,7 +107,8 @@ func _use_prompts() -> void:
 			_prompts[id] = [text, now]
 		elif now - _prompts[id][1] >= USE_AFTER:
 			_prompts[id][1] = INF
-			due.append(id)
+			if not LEAVES[profile].has("%s: %s" % [id, text]):
+				due.append(id)
 	for id in due:  # after the loop: using one can change the prompts
 		EventBus.object_interacted.emit(id)
 

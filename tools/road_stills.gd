@@ -8,10 +8,13 @@ extends SceneTree
 # [name, mission index (or its class name), s, metres across (+ left), yaw from down the road (+ left), pitch, fog 0 to
 #  1, phone light, optional: the director's ride fields to set after start_at; seated, the yaw is from the car's
 #  forward instead. "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has
-#  stopped; optional: who is saying a line, so the couple turn (&"": no one); optional: road cues to send after the
-#  ride's fields, as the mission's begin() would;
+#  stopped; "play_out" in it: seconds the shot's cues play out for before it is taken; optional: who is saying a
+#  line, so the couple turn (&"": no one); optional: road cues to send after the ride's fields, as the mission's
+#  begin() would;
 #  optional: where she is, held still: seconds into a glimpse cued where the car is, played on a frame at a time as
-#  Mission 2 drives (slowing from the car's speed), or [metres ahead of the camera, metres up]]
+#  Mission 2 drives (slowing from the car's speed), [metres ahead of the camera, metres up], or "roof": on the car's
+#  roof]
+# Cues stay played (a dead car stays dead), so the shots that send the stall's come last.
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -44,6 +47,10 @@ const SHOTS := [
 	["her_glimpse_3_hill", 1, 0.0, 0.0, 0.0, 0.03, 0.36, false, {"seated": true, "car_s": 740.0, "car_speed": 14.0, "her_near": 0.36}, &"", [], 1.1],
 	["her_full", 0, 796.0, 1.8, 0.0, 0.0, 0.12, false, {"car_s": 793.0}, &"", [], [6.0, 0.0]],  # checking only, never published: in the parked car's lights
 	["her_close", 0, 800.0, 1.0, 0.0, 0.0, 0.6, true, {}, &"", [], [0.6, 0.0]],  # where she stops, by his phone's light
+	# the car has died on the long straight and Hafiz has gone: she is on the roof, her insides at his window, seen by
+	# his phone's light
+	["her_roof", "StallMission", 0.0, 0.0, 1.1, 0.12, 0.0, true, {"seated": true, "car_s": 2000.0, "car_speed": 0.0, "play_out": 4.5}, &"",
+		[&"lights_dying", &"hafiz_leaves", &"insects_stop"], "roof"],
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -95,7 +102,7 @@ func _initialize() -> void:
 		road.director.fog = s[6]
 		var ride: Dictionary = s[8] if s.size() > 8 else {}
 		for key: String in ride:
-			if key != "pull_in":
+			if key != "pull_in" and key != "play_out":
 				road.director.set(key, ride[key])
 		for cue: StringName in (s[10] if s.size() > 10 else []):
 			bus.road_cue.emit(cue)
@@ -110,6 +117,8 @@ func _initialize() -> void:
 				road.director.set(key, ride["pull_in"][key])
 			await process_frame
 			await process_frame
+		if ride.has("play_out"):  # the cues play out: the car dies, Hafiz walks off
+			await create_timer(ride["play_out"]).timeout
 		if player.is_seated():
 			player.set_look(PI + s[4], s[5])
 		else:
@@ -123,7 +132,9 @@ func _initialize() -> void:
 		her.hide_her()
 		her.set_process(true)
 		if s.size() > 11:
-			if s[11] is float:
+			if s[11] is String:  # "roof"
+				her.on_roof(road.car)
+			elif s[11] is float:
 				her.show_glimpse()
 				her.set_process(false)  # played on by hand, as the car drives
 				var cue: float = road.director.car_s

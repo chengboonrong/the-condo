@@ -8,6 +8,15 @@ extends Node3D
 ## The road is over. `ending` is how it went; Journey carries it into the flat.
 signal finished(ending: StringName)
 
+## Where the car's sounds come from, in its own space (+X its left, +Z its front): the engine, the roof over his head,
+## and Mei's door and its window, which are part of the body and never open.
+const ENGINE := Vector3(0.0, 0.7, 1.5)
+const ROOF := Vector3(0.4, 1.45, -0.6)
+const MEI_DOOR := Vector3(0.86, 0.9, 0.3)
+const MEI_WINDOW := Vector3(0.82, 1.15, 0.3)
+const SHAKE := 0.012  # metres each way a thump on the roof shakes his view, at the most
+const SHAKE_SECONDS := 0.35
+
 @onready var player: PlayerController = $Player
 @onready var hud: Hud = $Hud
 
@@ -24,6 +33,9 @@ var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
 var _signalling := false  # the dashboard indicator ticks: from the signal to the pull out
+var _dead := false  # the car's engine has died (lights_dying), and it never starts again
+var _quiet := false  # the insects have stopped (insects_stop)
+var _shake := 0.0  # seconds left of a thump's shake
 
 
 func _ready() -> void:
@@ -134,6 +146,40 @@ func _on_cue(cue: StringName) -> void:
 			car.mirror.empty()
 		&"her_glimpse":
 			her.show_glimpse()
+		&"lights_dying":
+			_dead = true
+			car.lights_dying()
+			_sound(&"engine_sputter", ENGINE, -2.0)
+		&"crank":
+			_sound(&"starter_crank", ENGINE, -2.0)
+		&"hafiz_leaves":
+			couple.hafiz_leaves()
+		&"door_cracked":
+			car.crack_door()
+		&"mei_door_cracked":  # her door opens a little and is slapped shut: heard, as it never moves
+			_sound(&"car_door_open", MEI_DOOR, 0.0)
+			var slap := create_tween()
+			slap.tween_interval(0.65)
+			slap.tween_callback(func() -> void:
+				_sound(&"wet_flap", MEI_DOOR, 0.0)
+				_sound(&"car_door_close", MEI_DOOR, 0.0))
+		&"insects_stop":
+			_quiet = true
+		&"thump":
+			_sound(&"thump_roof", ROOF, 0.0)  # no louder than the flat's knock, and louder than the knock on the glass
+			_shake = SHAKE_SECONDS
+		&"her_on_roof":
+			her.on_roof(car)
+		&"knock_window":
+			_sound(&"knock_glass", MEI_WINDOW, 0.0)
+		&"light_on":
+			builder.show_light(director.light_s)
+			her.hide_her()
+
+
+## One of the car's sounds, from `at` in the car's own space.
+func _sound(id: StringName, at: Vector3, volume_db: float) -> void:
+	EventBus.sound_requested.emit(id, car.global_transform * at, volume_db)
 
 
 func _physics_process(delta: float) -> void:
@@ -146,7 +192,17 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	builder.set_fog(director.fog)
 	_ride()
+	_shake_view(delta)
 	pause.guard(delta, _playing(), OS.has_feature("web"))
+
+
+## A thump on the roof jolts his view while he sits, a little and briefly (less with less head bob), and it settles.
+func _shake_view(delta: float) -> void:
+	if _shake <= 0.0 or not player.is_seated():
+		return
+	_shake = maxf(_shake - delta, 0.0)
+	var k := SHAKE * _shake / SHAKE_SECONDS * float(Settings.get_value("head_bob"))
+	player.camera.position = Vector3(sin(_shake * 90.0), sin(_shake * 70.0 + 1.3), 0.0) * k
 
 
 ## The car, the slow car, his seat and the ride's loops follow the core. The car stands out of sight up the road,
@@ -168,8 +224,8 @@ func _ride() -> void:
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
-	audio.set_loop(&"engine_loop", shown, -12.0 + away, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
-	audio.set_loop(&"insects_loop", true, -12.0 if inside else -6.0)  # the windows are up
+	audio.set_loop(&"engine_loop", shown and not _dead, -12.0 + away, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
+	audio.set_loop(&"insects_loop", not _quiet, -12.0 if inside else -6.0)  # the windows are up
 	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)
 	audio.set_loop(&"old_engine_loop", slow_car.visible and slow_car.speed > 0.0, -12.0 + linear_to_db(1.0 / maxf(slow_away / 10.0, 1.0)),
 		lerpf(0.6, 1.0, slow_car.speed / SlowCarMission.SLOW_SPEED))

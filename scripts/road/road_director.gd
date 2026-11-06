@@ -27,7 +27,7 @@ var seated := false
 var fog := 0.0  # 0 to 1: every broken rule thickens it
 var her_near := 0.0  # 0 to 1: every broken rule brings her closer
 var slow_gap := NAN  # metres from the couple's car to the slow car ahead; NAN when there is none
-var light_s := -1.0  # where the light shows down the road; -1 until it does
+var light_s := -1.0  # where the light down the road is: 150 m on from where the car died (Mission 4); -1 until then
 var mission_index := 0
 var pending: StringName = &""  # the open choice
 var look_rule: StringName = &""  # the rule his look is watched for
@@ -70,7 +70,7 @@ func _init(road_stage: RoadStage, seed_value: int, mission_list: Array[RoadMissi
 
 ## The road's missions in order. Each mission's task appends its own.
 static func default_missions() -> Array[RoadMission]:
-	var list: Array[RoadMission] = [LiftMission.new(), SlowCarMission.new(), CountMission.new()]
+	var list: Array[RoadMission] = [LiftMission.new(), SlowCarMission.new(), CountMission.new(), StallMission.new()]
 	return list
 
 

@@ -13,6 +13,10 @@ const SOUNDS := {
 	&"wet_flap": preload("res://assets/audio/wet_flap.wav"),  # her
 	&"drip": preload("res://assets/audio/drip.wav"),
 	&"rattle": preload("res://assets/audio/rattle.wav"),  # her breath
+	&"engine_sputter": preload("res://assets/audio/engine_sputter.wav"),  # the hatchback dying
+	&"starter_crank": preload("res://assets/audio/starter_crank.wav"),  # and not starting
+	&"thump_roof": preload("res://assets/audio/thump_roof.wav"),  # something landing on it
+	&"knock_glass": preload("res://assets/audio/knock_glass.wav"),  # on Mei's window
 }
 const STEPS := [
 	preload("res://assets/audio/road_step_1.wav"), preload("res://assets/audio/road_step_2.wav"),

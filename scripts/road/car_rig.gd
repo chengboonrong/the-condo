@@ -1,10 +1,13 @@
 class_name CarRig
 extends Node3D
 ## The couple's hatchback (assets/models/hatchback.glb) as the road uses it: where it stands on the road, its seats and
-## mirror mount, its rear left door as something he can use, its lights, and the materials it draws with. The model's
-## origin is the ground at the centre of the wheelbase, facing +Z, with its left at +X.
+## mirror mount, its rear left door as something he can use, Hafiz's door, its lights (which die with the engine), and
+## the materials it draws with. The model's origin is the ground at the centre of the wheelbase, facing +Z, with its
+## left at +X.
 
-const DOOR_OPEN := 60.0  # degrees the rear left door swings out when he gets in
+const DOOR_OPEN := 60.0  # degrees a door swings out when someone gets in or out
+const CRACK := 7.0  # degrees his door opens before it is slapped shut: a hand's width at its back edge
+const DYING := 4.0  # seconds the lights take to die with the engine
 const HEADLIGHT := Color(1.0, 0.93, 0.8)
 const TAIL := Color(0.9, 0.05, 0.03)
 const DASH := Color(1.0, 0.6, 0.25)
@@ -56,6 +59,7 @@ var seat_rear_right: Node3D  # the fourth's
 var mirror_mount: Node3D
 var mirror: Mirror  # on mirror_mount, with the fourth passenger in the rear right seat
 var door_rear_left: Interactable  # car_door from outside; car_door_inside once he sits
+var door_driver: MeshInstance3D  # Hafiz's, the front right; its origin is on its hinge line
 var headlights: Array[SpotLight3D] = []
 
 var _model: Node3D
@@ -63,6 +67,11 @@ var _footprint: AABB  # the body and the shut door, in the car's own space
 var _colliders: Array[CollisionShape3D] = []
 var _still := false  # it stood still at the last set_solid
 var _on_him := false  # it stopped where he stood, and he has not yet stepped clear of it
+var _dimmers: Array[Callable] = []  # each sets one of its lights, glows or beams to a share of its full strength
+var _dying := -1.0  # seconds into lights_dying; -1 while they are not dying
+var _flicker := 1.0  # a brown-out's share of the light as it dies
+var _flicker_left := 0.0
+var _rng := RandomNumberGenerator.new()  # presentation only
 
 
 ## Where a vehicle stands at s, `across` metres left of the centreline, nose along the road (or up it), pitched with
@@ -84,6 +93,7 @@ func _ready() -> void:
 	mirror = Mirror.new(seat_rear_right)
 	mirror.name = "Mirror"
 	mirror_mount.add_child(mirror)
+	door_driver = _model.get_node("door_driver")
 	var body: MeshInstance3D = _model.get_node("hatchback")
 	# A box he can't walk through, inside the door's skin so that a look at the door finds the door first.
 	var box := body.get_aabb()
@@ -130,14 +140,52 @@ func set_solid(still: bool, seated: bool, him: Vector3) -> void:
 		c.disabled = not on
 
 
-## He opens the rear left door from outside, gets in and pulls it shut from inside.
-func swing_door() -> void:
-	EventBus.sound_requested.emit(&"car_door_open", door_rear_left.global_position, 0.0)
+## A door swings out to `angle` (radians about its hinge), stays open `held` seconds and shuts: by default the rear
+## left door, as he gets in; Hafiz's, which opens the other way (+DOOR_OPEN), as he gets out.
+func swing_door(door: Node3D = door_rear_left, angle := -deg_to_rad(DOOR_OPEN), held := 0.4) -> void:
+	EventBus.sound_requested.emit(&"car_door_open", door.global_position, 0.0)
 	var tween := create_tween()
-	tween.tween_property(door_rear_left, "rotation:y", -deg_to_rad(DOOR_OPEN), 0.35)
-	tween.tween_interval(0.4)
-	tween.tween_property(door_rear_left, "rotation:y", 0.0, 0.25).set_ease(Tween.EASE_IN)
-	tween.tween_callback(func() -> void: EventBus.sound_requested.emit(&"car_door_close", door_rear_left.global_position, 0.0))
+	tween.tween_property(door, "rotation:y", angle, 0.35)
+	tween.tween_interval(held)
+	tween.tween_property(door, "rotation:y", 0.0, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_callback(func() -> void: EventBus.sound_requested.emit(&"car_door_close", door.global_position, 0.0))
+
+
+## Something outside holds his door: it opens a hand's width, and something wet slaps it shut.
+func crack_door() -> void:
+	var at := door_rear_left.global_position
+	EventBus.sound_requested.emit(&"car_door_open", at, 0.0)
+	var tween := create_tween()
+	tween.tween_property(door_rear_left, "rotation:y", -deg_to_rad(CRACK), 0.3)
+	tween.tween_interval(0.35)
+	tween.tween_callback(func() -> void: EventBus.sound_requested.emit(&"wet_flap", at, 0.0))
+	tween.tween_property(door_rear_left, "rotation:y", 0.0, 0.07).set_ease(Tween.EASE_IN)
+	tween.tween_callback(func() -> void: EventBus.sound_requested.emit(&"car_door_close", at, 0.0))
+
+
+## The engine dies, and over DYING seconds its lights do: the headlamps and their beams, the lenses, the tail lamps,
+## the gauges and the dash's glow. They brown out as they fade, unless reduced flashing is on: then they only dim.
+func lights_dying() -> void:
+	_dying = 0.0
+	_flicker = 1.0
+	_flicker_left = 0.0
+
+
+func _process(delta: float) -> void:
+	if _dying < 0.0:
+		return
+	_dying += delta
+	var k := 1.0 - smoothstep(0.0, DYING, _dying)
+	if not Settings.get_value("reduced_flashing"):
+		_flicker_left -= delta
+		if _flicker_left <= 0.0:
+			_flicker_left = _rng.randf_range(0.08, 0.3)
+			_flicker = _rng.randf_range(0.2, 0.7) if _rng.randf() < 0.5 else 1.0
+		k *= _flicker
+	for dim: Callable in _dimmers:
+		dim.call(k)
+	if _dying >= DYING:
+		_dying = -1.0
 
 
 ## Every material it draws with, for the start card's warm-up.
@@ -178,6 +226,7 @@ func _build_lights(body: MeshInstance3D) -> void:
 		var lamp: Node3D = _model.get_node("headlight_" + side)
 		lamp.add_child(spot)
 		headlights.append(spot)
+		_dim_light(spot)
 		var glare := MeshInstance3D.new()
 		var quad := QuadMesh.new()
 		quad.size = Vector2(1.6, 1.6)
@@ -201,8 +250,14 @@ func _build_lights(body: MeshInstance3D) -> void:
 		cone.rotation.x = -PI / 2.0  # the cylinder's +Y, its far end, along the light's -Z
 		cone.position = Vector3(0.0, 0.0, -BEAM / 2.0)
 		spot.add_child(cone)
+	for beam: ShaderMaterial in [cone_material, glare_material]:
+		var full: Color = beam.get_shader_parameter(&"color")
+		_dimmers.append(func(k: float) -> void: beam.set_shader_parameter(&"color", Color(full, full.a * k)))
 	_glow(body, &"headlight_lens", HEADLIGHT, 8.0)
 	_glow(body, &"taillight_lens", TAIL, 1.5)
+	var gauges := _own(body, &"gauges")
+	var lit := gauges.emission_energy_multiplier
+	_dimmers.append(func(k: float) -> void: gauges.emission_energy_multiplier = lit * k)
 	var dash := SpotLight3D.new()
 	dash.light_color = DASH
 	dash.light_energy = 0.6
@@ -211,6 +266,7 @@ func _build_lights(body: MeshInstance3D) -> void:
 	dash.shadow_enabled = false
 	dash.rotation.x = -0.45  # its -Z is the back of the car: tipped down onto the front seats' backs
 	(_model.get_node("dash_glow") as Node3D).add_child(dash)
+	_dim_light(dash)
 	# The fog's grey through the rear and side windows, just enough to give the front seats' backs their shape.
 	var fill := SpotLight3D.new()
 	fill.light_color = Color(0.55, 0.6, 0.7)
@@ -225,14 +281,31 @@ func _build_lights(body: MeshInstance3D) -> void:
 
 ## The model's lens surfaces are plain gloss: a copy of each, lit.
 func _glow(body: MeshInstance3D, surface: StringName, color: Color, energy: float) -> void:
+	var lit := _own(body, surface)
+	lit.emission_enabled = true
+	lit.emission = color
+	lit.emission_energy_multiplier = energy
+	_dimmers.append(func(k: float) -> void: lit.emission_energy_multiplier = energy * k)
+
+
+## The car's own copy of one of the model's materials, so the car can change it.
+func _own(body: MeshInstance3D, surface: StringName) -> StandardMaterial3D:
 	for i in body.mesh.get_surface_count():
 		var mat := body.mesh.surface_get_material(i)
 		if mat != null and mat.resource_name == surface:
-			var lit := mat.duplicate() as StandardMaterial3D
-			lit.emission_enabled = true
-			lit.emission = color
-			lit.emission_energy_multiplier = energy
-			body.set_surface_override_material(i, lit)
+			var own := mat.duplicate() as StandardMaterial3D
+			body.set_surface_override_material(i, own)
+			return own
+	push_error("the hatchback has no %s surface" % surface)
+	return StandardMaterial3D.new()
+
+
+## A light that dies with the engine: out altogether once it is dead.
+func _dim_light(light: Light3D) -> void:
+	var full := light.light_energy
+	_dimmers.append(func(k: float) -> void:
+		light.light_energy = full * k
+		light.visible = k > 0.0)
 
 
 static func _collider(box: AABB) -> CollisionShape3D:
