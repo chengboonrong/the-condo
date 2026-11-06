@@ -32,7 +32,7 @@ FRONT_H, BACK_H = 2.22, 1.92  # the tops of the front and back beams
 BEAM_Y = 0.7  # the middle beam, the bulb under it
 BULB_AT = Vector((0.12, BEAM_Y, 1.8))  # the bulb's centre
 TIMBER = (0.12, 0.092, 0.062)  # linear: weathered sawn timber
-BLUE = (0.035, 0.1, 0.24)  # linear: a cheap blue tarp, faded
+BLUE = (0.025, 0.16, 0.7)  # linear: a cheap blue tarp, bright enough to stay blue under the warm bulb
 
 
 def smooth(t: float) -> float:
@@ -143,10 +143,11 @@ def crates(bm: bmesh.types.BMesh) -> None:
 # --- the durians ----------------------------------------------------------------------------------------
 
 def durian(bm: bmesh.types.BMesh, centre: Vector, length: float, yaw: float, tilt: float, seed: float) -> Vector:
-    """A durian (lying on its side, or hung by its stalk with tilt -pi/2): an ovoid, a little lopsided, covered in short
-    sharp thorns (a lattice of points raised between hollows), olive green to brown, with its woody stalk. Returns the
-    stalk's end."""
-    rings, segments = 9, 20
+    """A durian (lying on its side, or hung by its stalk with tilt -pi/2): an ovoid, a little lopsided, covered in rings
+    of short sharp thorns (a lattice of points raised between hollows, each quad split on the diagonal between its two
+    hollows so every point is a four-sided thorn, flat shaded so each face catches the light on its own), olive green
+    to brown, with its woody stalk. Returns the stalk's end."""
+    rings, segments = 13, 24  # an even count round, so the lattice closes
     r = length * 0.38
     pose = Matrix.Translation(centre) @ Matrix.Rotation(yaw, 4, "Z") @ Matrix.Rotation(tilt, 4, "Y")
     rows = []
@@ -158,15 +159,20 @@ def durian(bm: bmesh.types.BMesh, centre: Vector, length: float, yaw: float, til
             d = Vector((math.cos(t), math.sin(t) * math.cos(a), math.sin(t) * math.sin(a)))
             lump = 1.0 + 0.08 * perlin.noise(d * 2.0 + Vector((seed, 0, 0)))
             p = Vector((d.x * length / 2, d.y * r, d.z * r * 0.92)) * lump
-            thorn = 1.28 if (k + i) % 2 == 0 else 0.95
+            thorn = 1.13 if (k + i) % 2 == 0 else 0.96
             row.append(pose @ (p * thorn))
         rows.append(row)
     new = [[bm.verts.new(p) for p in row] for row in rows]
     ends = [bm.verts.new(pose @ Vector((-length / 2 * 1.04, 0, 0))), bm.verts.new(pose @ Vector((length / 2 * 1.04, 0, 0)))]
-    for a_, b_ in zip(new, new[1:]):
+    for k, (a_, b_) in enumerate(zip(new, new[1:]), start=1):  # k as in rows
         for i in range(segments):
             j = (i + 1) % segments
-            bm.faces.new([a_[i], a_[j], b_[j], b_[i]])
+            if (k + i) % 2 == 0:  # a_[i] and b_[j] are thorns: split between a_[j] and b_[i]
+                bm.faces.new([a_[i], a_[j], b_[i]])
+                bm.faces.new([a_[j], b_[j], b_[i]])
+            else:
+                bm.faces.new([a_[i], a_[j], b_[j]])
+                bm.faces.new([a_[i], b_[j], b_[i]])
     for i in range(segments):
         j = (i + 1) % segments
         bm.faces.new([new[0][j], new[0][i], ends[0]])
@@ -177,11 +183,11 @@ def durian(bm: bmesh.types.BMesh, centre: Vector, length: float, yaw: float, til
 
     def colour(p: Vector) -> tuple:
         q = rest @ p
-        out = (Vector((q.x / (length / 2), q.y / r, q.z / r)).length - 1.0) / 0.22
+        out = (Vector((q.x / (length / 2), q.y / r, q.z / r)).length - 1.0) / 0.12
         c = mix((0.12, 0.125, 0.035), (0.17, 0.14, 0.045), 0.5 + 0.8 * perlin.noise(q * 12.0 + Vector((seed, 0, 0))))
         c = mix(c, (0.075, 0.058, 0.028), smooth(out))  # the thorns' tips, brown
         return mix(c, (0.05, 0.045, 0.03), 0.5 * smooth((-q.z - r * 0.5) / (r * 0.4)))  # dirty where it lies
-    paint(bm, verts, colour, flat=False)
+    paint(bm, verts, colour)
     stalk = [pose @ Vector((length / 2 * 1.02 + s * 0.05, 0, s * 0.006)) for s in (0.0, 0.5, 1.0)]
     paint(bm, tube(bm, stalk, 0.009, 5), lambda p: (0.07, 0.06, 0.035))
     return stalk[-1]
@@ -235,8 +241,8 @@ def tarp(bm: bmesh.types.BMesh) -> None:
     bmesh.ops.recalc_face_normals(bm, faces=list({f for v in allv for f in v.link_faces}))
 
     def colour(p: Vector) -> tuple:
-        c = mix(BLUE, (0.05, 0.1, 0.19), 0.5 + 0.8 * perlin.noise(Vector((p.x * 1.5, p.y * 1.5, p.z * 1.5))))  # sun-faded
-        c = mix(c, (0.025, 0.03, 0.035), 0.6 * smooth((perlin.noise(Vector((p.x * 6.0, p.y * 1.0, p.z * 6.0))) - 0.15) / 0.3))  # grime
+        c = mix(BLUE, (0.08, 0.22, 0.58), 0.5 + 0.8 * perlin.noise(Vector((p.x * 1.5, p.y * 1.5, p.z * 1.5))))  # sun-faded
+        c = mix(c, (0.025, 0.03, 0.035), 0.35 * smooth((perlin.noise(Vector((p.x * 6.0, p.y * 1.0, p.z * 6.0))) - 0.15) / 0.3))  # grime
         return mix(c, (0.03, 0.03, 0.03), 0.5 * smooth((0.6 - p.z) / 0.3))  # mud at the bottom of the back
     paint(bm, allv, colour, TARP, flat=False)
 
