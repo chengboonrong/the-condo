@@ -237,19 +237,43 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Door opening by itself (event) | −6.9 | −4 | −10.9 |
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
+| Roof thump ×3 (the road, something lands on the car) | −15.5 | +2 | −13.5 |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
+| Lorry passing in the other lane (the road) | −17.0 | 0 | −17.0 |
+| Car door shut (the road) | −17.0 | 0 | −17.0 |
 | Door opening (the player) | −6.9 | −11 | −17.9 |
+| Hatchback revving for the overtake (the road) | −16.0 | −2 | −18.0 |
+| Phone ringing on the table (the road) | −19.0 | 0 | −19.0 |
+| Knock on the car window ×3 (the road) | −19.0 | 0 | −19.0 |
 | Door closing | −20.6 | 0 | −20.6 |
+| Engine dying (the road) | −19.0 | −2 | −21.0 |
+| Starter cranking ×2 (the road) | −19.0 | −2 | −21.0 |
+| Car door opened (the road) | −23.0 | 0 | −23.0 |
+| Indicator, one flash (the road) | −24.0 | 0 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
 | Your footsteps (walk / sprint / crouch) | −19.8 to −15.9 | −15 / −10 / −22 | about −33 / −28 / −40 |
+| Your footsteps on asphalt (the road: walk / sprint / crouch) | −20.4 to −17.7 | −15 / −10 / −22 | about −34 / −29 / −41 |
 | Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
+| Her wet flap, her breath (the road) | −27.0 | 0 | −27.0 |
+| Her drip (the road) | −28.0 | 0 | −28.0 |
 | Tap running (loop) | −19.4 | −8 | −27.4 |
+| Hatchback engine from the back seat (loop, pitch 0.7× to 1.6× with speed) | −16.0 | −12 | −28.0 |
+| Slow car's old engine (loop) | −20.0 | −12 | −32.0 |
+| Night insects (loop, stop when the car dies) | −27.0 | −6 | −33.0 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
 | Ceiling fan (loop) | −17.3 | −18.5 | −35.8 |
 | Fridge (loop) | −11.9 | −26 | −37.9 |
 | Neighbour's TV through the wall (loop) | −17.5 | −22.5 | −40 |
 | Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
+
+The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prints each file's level as it makes it).
+Their file levels are measured from the files. "Played at" is what `RoadAudio` should use: it is proposed here,
+because `RoadAudio` is built after the sounds, so their "Heard at" is that proposal's result, not a measurement of
+the game. None is louder than the knock ×3 and none is a sting. Nine of them (both engine loops, the rev, the
+insects, the lorry, the sputter, the crank, her breath and the phone) are saved at 22.05 kHz: nothing in them is
+above 8 kHz, and the pack is charged by the second. Only the three `_loop` files loop. The rest play once, the
+indicator flash (0.667 s) and the phone's ring (2.1 s) included: the code repeats those two back to back.
 
 The three home beds stop one at a time, the TV when act 2 begins, the fridge 75 s into act 2 (or at act 3) and
 the fan 15 s into act 3, fading over 1.5 s (the fan winds down over 3 s), and no sting marks it.
