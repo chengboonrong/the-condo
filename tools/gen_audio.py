@@ -568,7 +568,7 @@ def road_sounds():
         print(f"road_step_{i + 1}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS")
     save_db("engine_sputter", engine_sputter(), -19.0, half=True)
     save_db("starter_crank", starter_crank(), -19.0, half=True)
-    save_db("thump_roof", thump_roof(), -15.5)
+    save_db("thump_roof", thump_roof(), -18.5)  # heard at the +3 dB max_db cap near his head: -15.5
     save_db("knock_glass", knock_glass(), -19.0)
     save_db("wet_flap", wet_flap(), -27.0)
     save_db("drip", drip(), -28.0)

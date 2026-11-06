@@ -168,9 +168,9 @@ func _on_cue(cue: StringName) -> void:
 		&"insects_stop":
 			_quiet = true
 		&"thump":
-			# It is heard at the positional cap (+3 dB, ROOF being well inside unit_size): played at -3 dB its loudest
-			# is -15.5 dB as heard, under the flat's knock (-14.6).
-			_sound(&"thump_roof", ROOF, -3.0)
+			# Within about 1 m of his head the +3 dB max_db cap applies after the play level, so as heard it is the
+			# file (-18.5) + 3 = -15.5 dB, under the door knock's -14.6 (the window knock is heard at -16.0).
+			_sound(&"thump_roof", ROOF, 0.0)
 			_shake = SHAKE_SECONDS
 		&"her_on_roof":
 			her.on_roof(car)
