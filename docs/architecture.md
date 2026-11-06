@@ -476,10 +476,12 @@ were not re-checked against this.
 | Door opening by itself (event) | −6.9 | −4 | −10.9 |
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
+| Thump ×3 (the bedroom wall and the knock back at DOWNSTAIRS, after the road) | −14.6 | +2 / 0 (the beacon) | −12.6 / −14.6 |
 | Hatchback revving for the overtake (the road) † | −16.0 | −2 (no effect: see †) | −13.0 |
 | Car door shut (the road) † | −17.0 | 0 | −14.0 |
 | Lorry passing in the other lane (the road) † | −17.0 | 0 (no effect: see †) | −14.0 |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
+| Thump ×1 (the wall answers, after the road) | −14.6 | 0 | −14.6 |
 | Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
 | Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
@@ -490,6 +492,7 @@ were not re-checked against this.
 | Engine dying (the road) | −19.0 | −2 | −21.0 |
 | Lorry's air brakes as it pulls up (the road) | −21.0 | 0 | −21.0 |
 | Starter cranking ×2 (the road) | −19.0 | −2 | −21.0 |
+| Intercom's last call, wind and the idling engine (after the road) | −22.0 | 0 | −22.0 |
 | Indicator (the road, loop: one flash) | −24.0 | 0 | −24.0 |
 | Lorry's diesel idling (the road, loop: 60 firings) | −20.0 | −4 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
@@ -525,6 +528,11 @@ indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s,
 the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is charged by the second of audio: at
 44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the lorry loses about 1.3% of its power
 above 11 kHz (its tyre hiss). The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.
+
+The rows marked "after the road" are the flat's own sounds that the road changes (`bridge_sounds()` in `tools/gen_audio.py`).
+The thumps are `thump_roof`'s body at knock3's timing and the knock's level, so the story's bedroom knocks are the roof's
+thumps; the front door's knocks stay knocks. The intercom's call is 3 s of wind and the road's engine through a 300 to
+3400 Hz door speaker, saved at 22.05 kHz.
 
 The three home beds stop one at a time, the TV when act 2 begins, the fridge 75 s into act 2 (or at act 3) and
 the fan 15 s into act 3, fading over 1.5 s (the fan winds down over 3 s), and no sting marks it.

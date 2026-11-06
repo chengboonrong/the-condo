@@ -1,7 +1,7 @@
 class_name KnockEvent
 extends HorrorEvent
 ## Three knocks from a wall near the player. Prefers rooms the player avoids; a curious player
-## hears the next knock somewhere new. params.anchor forces the location (story).
+## hears the next knock somewhere new. params.anchor forces the location and params.sound the sound (story).
 
 @export var max_steps := 2
 @export var volume_db := 0.0
@@ -39,7 +39,7 @@ func prepare(ctx: EventContext, run: Dictionary) -> String:
 
 
 func start(ctx: EventContext, run: Dictionary) -> void:
-	EventBus.sound_requested.emit(&"knock3", run["position"], float(run["params"].get("volume_db", volume_db)))
+	EventBus.sound_requested.emit(run["params"].get("sound", &"knock3"), run["position"], float(run["params"].get("volume_db", volume_db)))
 	var where := ctx.room_name(run["room"])
 	EventBus.subtitle_requested.emit("[Three knocks%s]" % ("" if where == "???" else " from the %s" % where), 3.0)
 

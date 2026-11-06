@@ -17,6 +17,9 @@ const SOUNDS := {
 	&"intercom_ring": preload("res://assets/audio/intercom_ring.wav"),
 	&"stinger": preload("res://assets/audio/stinger.wav"),
 	&"lift_ding": preload("res://assets/audio/lift_ding.wav"),
+	&"thump3": preload("res://assets/audio/thump3.wav"),
+	&"thump1": preload("res://assets/audio/thump1.wav"),
+	&"intercom_road": preload("res://assets/audio/intercom_road.wav"),
 }
 const STEPS := [
 	preload("res://assets/audio/footstep_1.wav"), preload("res://assets/audio/footstep_2.wav"),

@@ -28,7 +28,7 @@ rejected / queued (story)
 
 | ID | Intensity | Cooldown | Duration | Channels | Location rule | State change | Adapts to |
 |---|---|---|---|---|---|---|---|
-| `knock_wall` | 0.35 | 25 s | 1.6 s | audio_major | Knock anchor ≤ 2 rooms away (floor knock if in the same room); weighted towards avoided rooms, and a curious player rarely hears it from the last knock's room again. `params.anchor` forces it. | none | curiosity, idle, room avoidance |
+| `knock_wall` | 0.35 | 25 s | 1.6 s | audio_major | Knock anchor ≤ 2 rooms away (floor knock if in the same room); weighted towards avoided rooms, and a curious player rarely hears it from the last knock's room again. `params.anchor` forces it; `params.sound` (default `knock3`) picks the sound, and the story passes `thump3` for the bedroom wall after the road. | none | curiosity, idle, room avoidance |
 | `light_flicker` | 0.30 | 35 s | 2.2 s | lights, lights:<room> | The player's room, only if its light is on. | 35 %: the light goes out, only in rooms with a switch; a cut-short flicker shows the real light again | light dependence, hesitation |
 | `door_slam` | 0.50 | 45 s | 1.2 s | door, door:<id> | A door of the player's room at least 1.8 m away; never the front, gap or mirror door (story only). Heard from the far side. | door shut/opened; restored (quietly) on cancel/fail unless the player is now within 1.8 m | hesitation, room avoidance |
 | `footsteps` | 0.55 | 50 s | ≤ 7 s | audio_major | From the entity's room if ≤ 2 away, else a room ≤ 2 away; walks the room graph and stops at the player's doorway. | none | avoidance, idle |

@@ -13,6 +13,10 @@ const BEACON_EVERY := 30.0
 ## After the road the flat opens quiet: no event, and no ring, for this long from the story's first tick.
 const QUIET := 20.0
 const HOME_OBJECTIVE := "Wash up, then get some sleep."
+## New story lines after the road (always shown). SMELL is a copy of Penanggal.SMELL, so the flat doesn't load the road's
+## script; a test keeps them equal.
+const SMELL := "[A sour smell, like vinegar.]"
+const REVERSAL := "[On the road you weren't allowed to look back. Here, you can't look away.]"
 ## What he finds in the quiet: [seconds after the first tick, line, seconds on screen]. Story lines: always shown.
 const OPENING_LINES := [
 	[3.0, "[Your phone says 12:41 AM. The clock on the wall says 11:47.]", 4.5],
@@ -122,17 +126,19 @@ func tick(delta: float) -> void:
 				_go(&"complained")
 		&"complained":
 			if t >= 8.0:
-				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0})
+				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0, "sound": _knock(3)})
 				WorldState.set_objective("Find where the knocking came from.")
 				_go(&"knocked")
 		&"knocked":
 			if WorldState.player_room == &"bedroom":
 				if _bedroom_since < 0.0:
 					_bedroom_since = now()
+				elif now() - _bedroom_since >= 4.0:
+					_smell()
 			else:
 				_bedroom_since = -1.0
 				if _once("again", 45.0):
-					scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0}, 5)
+					scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0, "sound": _knock(3)}, 5)
 			if t >= 120.0 or (_bedroom_since >= 0.0 and now() - _bedroom_since >= 15.0):
 				_wall_answers()
 		&"disturbance":
@@ -159,7 +165,7 @@ func tick(delta: float) -> void:
 			# fail-safe: knocks from behind the new door keep calling the player back to the bedroom
 			if now() >= _next_beacon and not [&"bedroom", &"gap"].has(WorldState.player_room):
 				_next_beacon = now() + BEACON_EVERY
-				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north"}, 5)
+				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "sound": _knock(3)}, 5)
 		&"decision":
 			if _once("ring", 5.0):
 				scheduler.request(&"phone_ring", {"anchor": &"phone_mirror", "stop_flag": &"answered_mirror"})
@@ -235,8 +241,27 @@ func _ring() -> void:
 	_go(&"ringing")
 
 
+## The bedroom wall knocks with the roof's body (thump_roof) after the road, and with plain knocks when the flat is
+## opened directly.
+func _knock(count: int) -> StringName:
+	return StringName(("thump%d" if road != &"" else "knock%d") % count)
+
+
+## Her smell, once in the flat, after the road.
+func _smell() -> void:
+	if road != &"" and _once_ever("smell"):
+		say(SMELL, 4.0, true)
+
+
+## The road's rule turned round, once in the flat, after the road.
+func _reversal() -> void:
+	if road != &"" and _once_ever("reversal"):
+		say(REVERSAL, 5.0, true)
+
+
 func _wall_answers() -> void:
-	EventBus.sound_requested.emit(&"knock1", ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
+	_smell()  # if he touched the wall before the 4 s were up
+	EventBus.sound_requested.emit(_knock(1), ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
 	say("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
 	WorldState.set_act(WorldState.Act.DISTURBANCE)
 	WorldState.set_objective("Something in the flat is wrong. Look around.")
@@ -287,7 +312,7 @@ func _end(ending_id: StringName, line := "") -> void:
 		EventBus.subtitle_requested.emit(line, 4.0)
 	match ending_id:
 		&"downstairs":
-			EventBus.sound_requested.emit(&"knock3", ApartmentLayout.ANCHORS[&"knock_mirror"]["pos"], 2.0)
+			EventBus.sound_requested.emit(_knock(3), ApartmentLayout.ANCHORS[&"knock_mirror"]["pos"], 2.0)
 		&"vacant":
 			EventBus.sound_requested.emit(&"lift_ding", ApartmentLayout.LIFT_POS + Vector3.UP * 1.5, 0.0)
 	for run in scheduler.running.duplicate():
@@ -312,6 +337,7 @@ func _on_interacted(object_id: StringName) -> void:
 			noticed += 1
 			if beat == &"disturbance" and signs() < SIGNS_NEEDED:
 				WorldState.set_objective("Things move when you aren't looking. Keep looking.")
+				_reversal()
 	match object_id:
 		&"sink":
 			if not WorldState.has_flag(&"washed"):
@@ -408,3 +434,5 @@ func _on_variant_changed(area_id: StringName, variant: StringName) -> void:
 func _on_run_finished(run: Dictionary) -> void:
 	if run["id"] == &"shift" and run["state"] == EventScheduler.State.COMPLETED:
 		_last_shift = now()
+		if beat == &"disturbance":
+			_reversal()

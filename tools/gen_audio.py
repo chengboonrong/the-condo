@@ -604,6 +604,31 @@ def road_sounds():
     save_db("lorry_brake", lorry_brake(), -21.0, half=True)
 
 
+def thump3():
+    """The flat's bedroom wall knocking after the road, with the roof's body (thump_roof) and knock3's timing: three
+    thumps at 0, 0.38 and 0.74 s in 1.3 s, the second a little softer."""
+    return mix(at(thump_roof(), 0.0, 1.3), at(gain(thump_roof(), 0.9), 0.38, 1.3), at(thump_roof(), 0.74, 1.3))
+
+
+def intercom_road():
+    """What the intercom's last call sounds like after the road: wind that swells and the road's idling engine, for 3 s,
+    heard through a door speaker (300 to 3400 Hz)."""
+    r = random.Random(1331)
+    n = 3 * SR
+    wind = lowpass(noise(3.0, r), 1200)
+    wind = [s * 1.5 * (0.3 + 0.7 * math.sin(math.pi * i / n)) for i, s in enumerate(wind)]
+    engine = gain(engine_loop() * 2, 0.5)  # the loop is 1.5 s: its first 3 s
+    return fade(highpass(lowpass(mix(wind, engine), 3400), 300), 0.05, 0.4)
+
+
+def bridge_sounds():
+    """The flat after the road (docs/superpowers/specs/2026-11-06-road-flat-bridge-design.md): the wall knocks with the
+    roof's body, and the intercom's last call has the road in it."""
+    save_db("thump3", thump3(), KNOCK_DB)
+    save_db("thump1", thump_roof(), KNOCK_DB)
+    save_db("intercom_road", intercom_road(), -22.0, half=True)
+
+
 def main():
     knocks = mix(at(knock(1.0, 1.0), 0.0, 1.3), at(knock(0.97, 0.9), 0.38, 1.3), at(knock(1.03, 1.0), 0.74, 1.3))
     save("knock3", knocks)
@@ -691,6 +716,7 @@ def main():
             raise SystemExit(f"{name}: its loop seam clicks")
         save(name, x, 0.5)
     road_sounds()
+    bridge_sounds()
 
 
 if __name__ == "__main__":
