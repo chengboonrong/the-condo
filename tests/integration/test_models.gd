@@ -5,7 +5,7 @@ extends TestCase
 const TRIS := {&"wall_clock": 1500, &"work_shoes": 2000, &"shoe_rack": 2000, &"dining_table": 6000, &"dining_chair": 2500,
 	&"basin": 4000, &"tap_water": 300, &"intercom": 1000, &"front_door": 3000, &"bed": 8000, &"fridge": 4000,
 	&"ceiling_fan": 3000, &"tv_cabinet": 6000,
-	&"figure": 12000, &"apron_hung": 1500}
+	&"figure": 12000, &"apron_hung": 1500, &"hatchback": 14000, &"old_sedan": 8000}
 # Floor footprints: node name -> [centre x, centre z, size x, size z] of the collider it replaces.
 const FOOTPRINTS := {
 	&"shoe_rack": [0.25, 8.0, 0.4, 1.0],
