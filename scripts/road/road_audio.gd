@@ -59,6 +59,9 @@ func play_at(sound_id: StringName, pos: Vector3, volume_db: float) -> void:
 
 ## Starts, changes or stops one of LOOPS. A loop that is already playing keeps going: only its level and pitch change.
 func set_loop(id: StringName, on: bool, volume_db: float, pitch := 1.0) -> void:
+	if not LOOPS.has(id):
+		push_warning("unknown loop %s" % id)
+		return
 	var p: AudioStreamPlayer = loops.get(id)
 	if p == null:
 		if not on:

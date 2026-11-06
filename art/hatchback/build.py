@@ -484,7 +484,7 @@ def exterior(body: Part, door_rl: Part, door_dr: Part) -> None:
     for sx in (1, -1):
         m = Matrix.Translation((sx * 0.67, -1.945, 0.735)) @ Matrix.Rotation(math.radians(sx * 30), 4, "Z")
         body.rbox((0, 0, 0), (0.36, 0.07, 0.10), 0.02, M["liner"], m, seg=1)
-        body.rbox((0, -0.008, 0), (0.34, 0.05, 0.085), 0.02, headlight, m, seg=1)
+        body.rbox((0, -0.013, 0), (0.34, 0.05, 0.085), 0.02, headlight, m, seg=1)  # its face 3 mm proud of the liner's
         body.rbox((sx * 0.52, 1.872, 0.80), (0.24, 0.035, 0.17), 0.012, taillight, seg=1)
         body.rbox((sx * 0.95, -0.80, 1.035), (0.09, 0.14, 0.09), 0.02, M["paint"], None, seg=1)  # the door mirror
         body.box((sx * 0.905, -0.78, 1.0), (0.05, 0.04, 0.03), M["paint"])

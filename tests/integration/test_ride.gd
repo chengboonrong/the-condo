@@ -131,6 +131,7 @@ func test_the_car_stops_at_the_stop() -> bool:
 	var stopped := await _until(func() -> bool: return seen.any(func(c: Array) -> bool: return c[0] == &"couple_stops"), 120.0)
 	EventBus.road_cue.disconnect(on_cue)
 	check(stopped, "the couple stop for him")
+	check(seen.any(func(c: Array) -> bool: return c[0] == &"lorry_passes"), "the lorry passed first")
 	for c: Array in seen:
 		if c[0] == &"lorry_passes":
 			check(not c[1], "20 s into the wait the car is still not shown")
@@ -138,6 +139,34 @@ func test_the_car_stops_at_the_stop() -> bool:
 			check(c[1], "it is shown once it has come")
 			near(c[2].distance_to(RoadLayout.point(RoadLayout.BUS_STOP_S, RoadLayout.LANE)), 0.0, 0.3, "the car stands at the stop")
 	check(road.audio.loops[&"engine_loop"].playing, "its engine runs")
+	_done(road)
+	return true
+
+
+## He waits in the lane, where the car stops: it must not shove him or shut him in, and once he steps clear of it,
+## it is solid again.
+func test_the_car_does_not_stop_on_him() -> bool:
+	var road: RoadMain = await _road()
+	var p := road.player
+	var lane := RoadLayout.point(RoadLayout.BUS_STOP_S, RoadLayout.LANE)
+	var off := func() -> float: return Vector2(p.global_position.x - lane.x, p.global_position.z - lane.z).length()
+	p.global_position = lane + Vector3.UP * 0.05
+	var stopped := await _until(func() -> bool: return WorldState.prompts.get(&"car_door", "") == "Get in", 120.0)
+	check(stopped, "the couple stop, with him in the lane")
+	for i in 30:
+		await tree.physics_frame
+	near(off.call(), 0.0, 0.05, "the car coming and standing where he stands does not shove him")
+	p.use_scripted_move = true
+	p.scripted_move = Vector2(0.0, 1.0)
+	var out := await _until(func() -> bool:
+		_face(p, RoadLayout.BUS_STOP + Vector3.UP * 1.62)
+		return off.call() > 2.0, 3.0)
+	p.scripted_move = Vector2.ZERO
+	check(out, "he walks out of it (%.2f m)" % off.call())
+	await tree.physics_frame
+	await tree.physics_frame
+	var shapes := road.car.find_children("*", "CollisionShape3D", true, false)
+	check(not shapes.is_empty() and shapes.all(func(c: CollisionShape3D) -> bool: return not c.disabled), "once he is clear, it is solid")
 	_done(road)
 	return true
 
@@ -190,6 +219,9 @@ func test_road_audio_plays_the_road() -> bool:
 	near(engine.pitch_scale, 0.8, 0.001, "and pitch")
 	audio.set_loop(&"engine_loop", false, -14.0)
 	check(not engine.playing, "and stops")
+	var players := audio.get_child_count()
+	audio.set_loop(&"no_such_loop", true, 0.0)  # warns
+	check(audio.get_child_count() == players and not audio.loops.has(&"no_such_loop"), "an unknown loop is refused, leaving no player")
 	EventBus.sound_requested.emit(&"player_step", Vector3.ZERO, -15.0)
 	var steps := audio.find_children("*", "AudioStreamPlayer3D", true, false).filter(func(a: AudioStreamPlayer3D) -> bool: return a.playing)
 	eq(steps.size(), 1, "a footstep plays")

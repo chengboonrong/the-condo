@@ -9,6 +9,8 @@ const HEADLIGHT := Color(1.0, 0.93, 0.8)
 const TAIL := Color(0.9, 0.05, 0.03)
 const DASH := Color(1.0, 0.6, 0.25)
 const BEAM := 14.0  # metres of each headlight's cone in the fog
+const CLEAR := 0.35  # metres he must be from its body before it turns solid: his capsule's radius and a little
+const GLARE_AHEAD := 0.18  # metres the glare sits ahead of the lamp, so the housing and nose never hide its centre
 const BEAM_SHADER := """
 shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled;
@@ -56,6 +58,8 @@ var door_rear_left: Interactable  # car_door from outside; car_door_inside once 
 var headlights: Array[SpotLight3D] = []
 
 var _model: Node3D
+var _footprint: AABB  # the body and the shut door, in the car's own space
+var _colliders: Array[CollisionShape3D] = []
 
 
 ## Where a vehicle stands at s, `across` metres left of the centreline, nose along the road (or up it), pitched with
@@ -77,8 +81,10 @@ func _ready() -> void:
 	var body: MeshInstance3D = _model.get_node("hatchback")
 	# A box he can't walk through, inside the door's skin so that a look at the door finds the door first.
 	var box := body.get_aabb()
+	_footprint = AABB(Vector3(-0.78, box.position.y, box.position.z), Vector3(1.56, box.size.y, box.size.z))
 	var solid := StaticBody3D.new()
-	solid.add_child(_collider(AABB(Vector3(-0.78, box.position.y, box.position.z), Vector3(1.56, box.size.y, box.size.z))))
+	_colliders.append(_collider(_footprint))
+	solid.add_child(_colliders[-1])
 	add_child(solid)
 	var door: MeshInstance3D = _model.get_node("door_rear_left")
 	door_rear_left = Interactable.new()
@@ -89,12 +95,24 @@ func _ready() -> void:
 	_model.add_child(door_rear_left)
 	door.reparent(door_rear_left, false)
 	door.transform = Transform3D.IDENTITY
-	door_rear_left.add_child(_collider(door.get_aabb()))
+	_colliders.append(_collider(door.get_aabb()))
+	door_rear_left.add_child(_colliders[-1])
+	_footprint = _footprint.merge(door_rear_left.transform * door.get_aabb())
 	_build_lights(body)
 
 
 func place(s: float, across: float) -> void:
 	global_transform = on_road(s, across)
+
+
+## Solid only while it stands still and `him` (his feet) is clear of it: moving, or stopped where he stands, it must not
+## shove him or shut him in. Its door can then only be used once he has stepped out of it.
+func set_solid(still: bool, him: Vector3) -> void:
+	var at := global_transform.affine_inverse() * him
+	at.y = _footprint.get_center().y
+	var on := still and not _footprint.grow(CLEAR).has_point(at)
+	for c in _colliders:
+		c.disabled = not on
 
 
 ## He opens the rear left door from outside, gets in and pulls it shut from inside.
@@ -134,7 +152,8 @@ func _build_lights(body: MeshInstance3D) -> void:
 	for side: String in ["l", "r"]:
 		var spot := SpotLight3D.new()
 		spot.light_color = HEADLIGHT
-		spot.light_energy = 4.0
+		spot.light_energy = 3.0
+		spot.light_specular = 0.1  # the asphalt's sheen toward someone in front of the car stays off white
 		spot.spot_range = 45.0
 		spot.spot_angle = 20.0
 		spot.spot_angle_attenuation = 1.5
@@ -150,6 +169,7 @@ func _build_lights(body: MeshInstance3D) -> void:
 		glare.mesh = quad
 		glare.material_override = glare_material
 		glare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glare.position.z = -GLARE_AHEAD
 		lamp.add_child(glare)
 		var cone := MeshInstance3D.new()
 		var mesh := CylinderMesh.new()

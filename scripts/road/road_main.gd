@@ -118,12 +118,14 @@ func _process(delta: float) -> void:
 
 
 ## The car, his seat and the ride's loops follow the core. The car stands out of sight up the road, hidden and not
-## solid, until it comes for him. The engine's pitch follows the car's speed; outside, it fades with distance.
+## solid, until it comes for him, and is solid only once it has stopped clear of him. The engine's pitch follows the
+## car's speed; outside, it fades with distance.
 func _ride() -> void:
 	var shown := director.seated or director.car_speed > 0.0 or director.car_s > LiftMission.CAR_FROM
 	car.visible = shown
 	car.process_mode = Node.PROCESS_MODE_INHERIT if shown else Node.PROCESS_MODE_DISABLED
 	car.place(director.car_s, director.lane)
+	car.set_solid(director.car_speed == 0.0, player.global_position)
 	if director.seated != player.is_seated():
 		if director.seated:
 			player.sit(car.seat_rear_left)
