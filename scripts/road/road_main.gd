@@ -15,15 +15,15 @@ var _automated := false
 
 
 func _ready() -> void:
+	if Main.has_flag("flat") or Main.has_flag("perf"):  # checks of the flat alone: straight to its own start card
+		Journey.arrive(&"")
+		return
 	WorldState.reset()
 	pause = PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)
 	hud.bind(player)
 	hud.started.connect(_on_started)
-	if Main.has_flag("flat") or Main.has_flag("perf"):  # checks of the flat alone: straight to its own start card
-		Journey.arrive.call_deferred(&"")  # deferred: the tree is still adding this scene, the first one
-		return
 	_finish_loading.call_deferred()
 
 

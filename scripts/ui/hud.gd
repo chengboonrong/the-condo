@@ -304,7 +304,8 @@ func start() -> void:
 
 
 ## A black card with centred text over everything but the subtitles. It replaces the start card, which a player
-## who comes from the road has already passed.
+## who comes from the road has already passed: it hides the start card, so a card shown before the start makes
+## the start unclickable.
 func show_card(text: String) -> void:
 	if _card_tween != null:
 		_card_tween.kill()

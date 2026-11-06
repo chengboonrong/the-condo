@@ -11,13 +11,16 @@ var road_ending: StringName = &""
 var change_scenes := true
 
 
+## The scene changes deferred, on both calls: change_scene_to_file takes the current scene out of the tree at
+## once, and whoever calls these (the click that starts the road, the Restart button) is inside that scene with
+## code still to run.
 func arrive(ending: StringName) -> void:
 	road_ending = ending
 	if change_scenes:
-		get_tree().change_scene_to_file(FLAT_SCENE)
+		get_tree().change_scene_to_file.call_deferred(FLAT_SCENE)
 
 
 func restart() -> void:
 	road_ending = &""
 	if change_scenes:
-		get_tree().change_scene_to_file(ROAD_SCENE)
+		get_tree().change_scene_to_file.call_deferred(ROAD_SCENE)

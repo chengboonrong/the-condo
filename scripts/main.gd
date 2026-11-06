@@ -164,7 +164,7 @@ func _process(delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and player != null and pause != null:
 		pause.focus_lost(_playing())
 
 

@@ -79,6 +79,30 @@ func test_the_road_hands_over_on_the_click() -> bool:
 	return true
 
 
+## A real scene change, with the road as the current scene as it is in the game (the runner has none, and a change
+## only removes the one it has). The click that starts the road is still being handled when the road hands over:
+## the scene must not be taken out from under it, or the HUD's next line runs on a viewport that is gone.
+func test_the_start_click_hands_over_without_an_error() -> bool:
+	_begin()
+	Journey.change_scenes = true
+	var road := _scene(Journey.ROAD_SCENE) as RoadMain
+	tree.current_scene = road
+	await _loaded(road)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = Vector2(800, 450)
+	tree.root.push_input(click, true)
+	check(road.is_inside_tree(), "the road is still there when the click returns")
+	eq(Journey.road_ending, &"alive", "Journey carries the ending at once")
+	for i in 3:
+		await tree.process_frame
+	check(not is_instance_valid(road), "the road is gone a frame later")
+	check(tree.current_scene != null and tree.current_scene.scene_file_path == Journey.FLAT_SCENE, "and the flat is the scene")
+	_end()  # the flat is not ours to free: the runner frees what a test added
+	return true
+
+
 func test_restart_goes_back_to_the_road() -> bool:
 	_begin()
 	var main := _scene(Journey.FLAT_SCENE)
