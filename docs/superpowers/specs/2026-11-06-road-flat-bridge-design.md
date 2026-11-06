@@ -1,8 +1,8 @@
 # 11:47PM — the bridge from the road to the flat
 
-Status: owner-approved in conversation, 2026-11-06 (each part played back and answered "All good"). Branch
-`feat/road-flat-bridge`, from local main at f1e1177. Everything not marked "owner" is my call, and the owner
-approved the parts as described below.
+Status: each part played back to the owner and answered "All good" (2026-11-06); the whole document awaits the
+owner's approval. Branch `feat/road-flat-bridge`, from local main at f1e1177. Everything not marked "owner" is my
+call; the calls made after the builder check are listed at the end.
 
 ## Intent
 
@@ -28,28 +28,41 @@ and puzzle, and only its opening, a few sounds and some words change, so that th
 ### 1. The opening: suddenly home
 
 * No cutscene, no narrator, no message explaining anything. The road's black card (`"11:47 PM"`, main.gd) hands
-  over as now; he is standing in his own dark living room (the flat's existing spawn).
-* **Quiet first.** About 20 s with no horror event: the fridge hum and the building settling only.
+  over as now; he is standing in his own dark living room (the flat's existing spawn and yaw, facing the wall with
+  the clock, so the first caption matches what he sees; the footprints are behind him and found when he turns).
+* **Quiet first.** About 20 s with no event of any kind, scripted or adaptive: no knock, no ring, no shift. If he
+  lies down early, the intercom's ring waits until the quiet is over. The ambient beds play as they do today (they
+  are the quiet); no new sound.
 * **Things that don't add up, found, not told:**
   * a caption a few seconds in: *[Your phone says 12:41 AM. The clock on the wall says 11:47.]*
   * a caption soon after: *[Your uniform is still damp from the fog.]*
   * red earth by the front door: footprints of the mountain road's red earth from the door to where he stood,
     drawn in code (flat decals, no model files). Inspecting them: *Red earth, from the mountain road. You don't
     remember walking in.*
-* **The first objective is a question:** *How did you get home?* It becomes the flat's usual *Wash up, then get
-  some sleep.* after the quiet stretch (or when he inspects the footprints, if sooner). The rest of the flat's flow
-  is unchanged.
+* **The first objective is a question:** *How did you get home?* It becomes *Wash up, then get some sleep.*
+  (without today's "You're home from your shift at the mamak.") after the quiet stretch, or when he inspects the
+  footprints, if sooner. The rest of the flat's flow is unchanged. The footprints are flat quads drawn in code
+  (Godot's Decal node doesn't draw in the Compatibility renderer).
 
 ### 2. The road follows him in
 
-* **The knocks sound like the roof.** The flat's three knocks from the bedroom use the body of the road's roof
-  thump (`thump_roof.wav`), so a player who heard it on the road recognises it. Same timing and loudness rules as
-  the knocks today.
+* **The knocks sound like the roof.** The knocks from the bedroom wall use the body of the road's roof thump
+  (`thump_roof.wav`), so a player who heard it on the road recognises it: the story's bedroom knocks, the wall's
+  answer (`_wall_answers`) and the knock back at DOWNSTAIRS. The front door's knocks (the visitor) and the other
+  knocks stay as they are. Same timing and loudness rules as the knocks today.
 * **Her smell, once.** The road's line *[A sour smell, like vinegar.]* (her.gd `SMELL`) plays once in the flat,
   near the bedroom wall, after the first knocks. Never explained.
-* **The rules mirror each other.** The first time the flat's *Things move when you aren't looking. Keep looking.*
-  appears, one caption makes the reversal deliberate: *[On the road you weren't allowed to look back. Here, you
-  can't look away.]*
+* **The rules mirror each other.** One caption makes the reversal deliberate: *[On the road you weren't allowed to
+  look back. Here, you can't look away.]* It plays once, at whichever comes first: the flat's *Things move when you
+  aren't looking. Keep looking.* objective, or the first shift of the disturbance beat (so a player who never sees
+  that objective still gets it).
+* **Continuity.** The bedroom window's text says "the mamak where you work is still open"; the road puts his stall
+  up at the resort. It becomes "the mamak where you used to work is still open", everywhere.
+
+**Captions and the setting.** These new lines are story, not sound captions, so they always show, whatever
+"Captions for sounds" says (as the road's smell line does, through `line_requested`): the phone and clock, the damp
+uniform, the smell, the reversal. The intercom's voices are bare quoted lines with no speaker name (the player
+recognises the line; the game doesn't say who).
 
 ### 3. The clues point back
 
@@ -111,3 +124,12 @@ The flat's two endings keep their names and choices. Only their last card's text
 * Stills of the opening (the footprints by the door) and the captions, looked at.
 * A separate reviewer reads the diff against this document.
 * The owner plays it through.
+
+## Calls made after the builder check (mine, for the owner to check)
+
+1. He wakes facing the clock, as today; the footprints are behind him.
+2. The quiet holds every event, the intercom's ring included; the room's usual hum stays on.
+3. The new lines always show, even with "Captions for sounds" off; the intercom's voices carry no name.
+4. The look-back line also fires on the first moving object, so nobody misses it.
+5. Only the bedroom-wall knocks become the roof thump; the front door's stay.
+6. "The mamak where you work" becomes "where you used to work".
