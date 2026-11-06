@@ -6,7 +6,8 @@
 extends SceneTree
 
 # [name, mission index, s, metres across (+ left), yaw from down the road (+ left), pitch, fog 0 to 1, phone light,
-#  optional: the director's ride fields to set after start_at; seated, the yaw is from the car's forward instead]
+#  optional: the director's ride fields to set after start_at; seated, the yaw is from the car's forward instead.
+#  "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has stopped]
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -19,7 +20,8 @@ const SHOTS := [
 	["car_arrives", 0, 2.0, 3.4, PI - 0.15, -0.03, 0.0, false, {"car_s": -10.0, "car_speed": 9.0}],  # from the stop
 	["back_seat", 0, 615.0, 0.0, -0.25, -0.04, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # chevrons 20-40 m on
 	["slow_car", 1, 0.0, 0.0, 0.0, -0.03, 0.0, false, {"seated": true, "car_s": 140.0, "car_speed": 4.0, "slow_gap": 12.0}],  # behind it, in the headlights
-	["overtake", 1, 0.0, 0.0, 1.1, -0.05, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 10.0, "lane": -1.8, "slow_gap": 3.0}],  # passing it in the other lane, looking left
+	["overtake", 1, 0.0, 0.0, 0.16, -0.03, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 8.0, "lane": 0.0, "slow_gap": 8.0}],  # pulling out, level with its tail, in the headlights
+	["lay_by", 1, 0.0, 0.0, 0.45, -0.03, 0.0, false, {"seated": true, "car_s": 634.0, "car_speed": 9.0, "lane": 0.9, "slow_gap": 12.0, "pull_in": {"car_s": 647.0, "lane": 0.9}}],  # it has pulled in, dark: they edge by (the keeper's, in switchback 1)
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -67,9 +69,19 @@ func _initialize() -> void:
 		road.director.fog = s[6]
 		var ride: Dictionary = s[8] if s.size() > 8 else {}
 		for key: String in ride:
-			road.director.set(key, ride[key])
+			if key != "pull_in":
+				road.director.set(key, ride[key])
 		await process_frame  # the road follows the core's ride in its _process: the car, and his seat
 		await process_frame
+		if ride.has("pull_in"):  # the slow car pulls in and goes dark, and the couple go by it
+			road.slow_car.pull_in()
+			road.director.slow_gap = NAN
+			while road.slow_car.speed > 0.0:
+				await process_frame
+			for key: String in ride["pull_in"]:
+				road.director.set(key, ride["pull_in"][key])
+			await process_frame
+			await process_frame
 		if player.is_seated():
 			player.set_look(PI + s[4], s[5])
 		else:

@@ -153,7 +153,9 @@ func _ride() -> void:
 	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)
 	audio.set_loop(&"old_engine_loop", slow_car.visible and slow_car.speed > 0.0, -12.0 + linear_to_db(1.0 / maxf(slow_away / 10.0, 1.0)),
 		lerpf(0.6, 1.0, slow_car.speed / SlowCarMission.SLOW_SPEED))
-	audio.set_loop(&"indicator", _signalling and slow_car.visible, 0.0)
+	if is_nan(director.slow_gap):
+		_signalling = false  # the slow car is gone, by the lay-by or a skip: so is the indicator
+	audio.set_loop(&"indicator", _signalling, 0.0)
 
 
 func _notification(what: int) -> void:

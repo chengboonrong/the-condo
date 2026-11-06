@@ -2,11 +2,9 @@ class_name SlowCar
 extends Node3D
 ## The slow car (assets/models/old_sedan.glb): an old, faded yellow saloon with nobody at the wheel, one dim tail light
 ## lit and the other dead. It follows the core's slow_gap, ahead of the couple's car in their lane, and is hidden when
-## there is none. On slow_car_gone it pulls into a lay-by and goes dark. The model's origin is the ground at the
-## centre of the wheelbase, facing +Z, its left at +X.
+## there is none. On slow_car_gone it pulls into a lay-by (SlowCarMission has its numbers) and goes dark. The model's
+## origin is the ground at the centre of the wheelbase, facing +Z, its left at +X.
 
-const LAY_BY := 3.3  # across, where it parks: half on the verge, clear of the couple's lane (SlowCarMission.PASSING_LANE)
-const PULL_SECONDS := 3.0  # it slows to a stop over this while it moves across
 const FAR := 150.0  # a parked car is hidden this far from the couple's car
 const TAIL := Color(0.8, 0.05, 0.03)
 const TAIL_ENERGY := 1.0  # dim: the hatchback's are 1.5 and its lamps are whole
@@ -53,14 +51,14 @@ func pull_in() -> void:
 
 
 func _process(delta: float) -> void:
-	if _pull < 0.0 or _pull >= PULL_SECONDS:
+	if _pull < 0.0 or _pull >= SlowCarMission.PULL_SECONDS:
 		return
-	_pull = minf(_pull + delta, PULL_SECONDS)
-	var k := _pull / PULL_SECONDS
+	_pull = minf(_pull + delta, SlowCarMission.PULL_SECONDS)
+	var k := _pull / SlowCarMission.PULL_SECONDS
 	speed = SlowCarMission.SLOW_SPEED * (1.0 - k)
-	_s = _from_s + SlowCarMission.SLOW_SPEED * PULL_SECONDS * (k - k * k * 0.5)
-	global_transform = CarRig.on_road(_s, lerpf(RoadLayout.LANE, LAY_BY, smoothstep(0.0, 1.0, k)))
-	if _pull >= PULL_SECONDS:
+	_s = _from_s + SlowCarMission.PULL_DISTANCE * (2.0 - k) * k  # slowing evenly to a stop
+	global_transform = CarRig.on_road(_s, lerpf(RoadLayout.LANE, SlowCarMission.LAY_BY, smoothstep(0.0, 1.0, k)))
+	if _pull >= SlowCarMission.PULL_SECONDS:
 		_lamp.emission_energy_multiplier = 0.0  # dark, not switched off: no new shader mid-game
 
 

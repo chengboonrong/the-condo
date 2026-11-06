@@ -70,17 +70,68 @@ func test_it_pulls_into_the_lay_by_and_goes_dark() -> bool:
 	car.pull_in()
 	car.place(110.0, NAN)  # the core has let go of it
 	check(car.visible, "it stays on the road after the core's gap is gone")
-	for i in 90:
-		car._process(0.05)  # 4.5 s: past the 3 s it takes
+	for i in ceili(SlowCarMission.PULL_SECONDS / 0.05) + 10:
+		car._process(0.05)  # past the time it takes
 	var parked := car.global_position
 	near(car.speed, 0.0, 0.001, "it has stopped")
-	near(parked.distance_to(RoadLayout.point(112.0 + 6.0, RoadLayout.LANE + 1.5)), 0.0, 0.5, "6 m further on, in the lay-by")
+	near(parked.distance_to(RoadLayout.point(112.0 + SlowCarMission.PULL_DISTANCE, SlowCarMission.LAY_BY)), 0.0, 0.05, "in the lay-by, as far on as the mission says")
 	near(dim.emission_energy_multiplier, 0.0, 0.001, "and its light is out")
 	car.place(125.0, NAN)
 	check(car.visible and car.global_position == parked, "it stays where it stopped")
 	car.place(400.0, NAN)
 	check(not car.visible, "out of sight once the road has left it far behind")
 	car.queue_free()
+	return true
+
+
+## The ground plan of a model's body: its box's four corners in the world, flattened.
+func _plan(node: Node3D, mesh_name: String) -> PackedVector2Array:
+	var box := (node.find_child(mesh_name, true, false) as MeshInstance3D).get_aabb()
+	var out := PackedVector2Array()
+	for corner: Vector2 in [Vector2(box.position.x, box.position.z), Vector2(box.end.x, box.position.z), Vector2(box.end.x, box.end.z), Vector2(box.position.x, box.end.z)]:
+		var p := node.global_transform * Vector3(corner.x, 0.0, corner.y)
+		out.append(Vector2(p.x, p.z))
+	return out
+
+
+## The least distance between two plans that don't overlap, 0 if they do.
+func _apart(a: PackedVector2Array, b: PackedVector2Array) -> float:
+	if not Geometry2D.intersect_polygons(a, b).is_empty():
+		return 0.0
+	var least := INF
+	for pair: Array in [[a, b], [b, a]]:
+		for p: Vector2 in pair[0]:
+			for i in 4:
+				least = minf(least, p.distance_to(Geometry2D.get_closest_point_to_segment(p, pair[1][i], pair[1][(i + 1) % 4])))
+	return least
+
+
+## The lay-by's numbers (SlowCarMission): the parked car clears the guard rail, and the couple, edged over to
+## PASSING_LANE, go by it without touching it, whatever they pass at.
+func test_the_couple_go_by_the_parked_car_clear_of_it_and_of_the_rail() -> bool:
+	var couple := CarRig.new()
+	tree.root.add_child(couple)
+	var slow := _car()
+	slow.place(640.0, SlowCarMission.FOLLOW_GAP)  # the keeper's lay-by, in switchback 1
+	slow.pull_in()
+	for i in ceili(SlowCarMission.PULL_SECONDS / 0.05) + 10:
+		slow._process(0.05)
+	var parked := _plan(slow, "old_sedan")
+	var out := 0.0  # the plan's furthest corner from the centreline
+	for p: Vector2 in parked:
+		var at := Vector3(p.x, 0.0, p.y)
+		var s := RoadLayout.closest_s(at)
+		out = maxf(out, (at - RoadLayout.point(s)).dot(Vector3(RoadLayout.tangent(s).z, 0.0, -RoadLayout.tangent(s).x)))
+	check(RoadBuilder.WALL_VALLEY - out >= 0.3, "the parked car is %.2f m inside the guard rail's face" % (RoadBuilder.WALL_VALLEY - out))
+	var closest := INF
+	var s := 640.0 + SlowCarMission.FOLLOW_GAP - 15.0
+	while s < 640.0 + SlowCarMission.FOLLOW_GAP + SlowCarMission.PAST + 3.0:
+		couple.place(s, SlowCarMission.PASSING_LANE)
+		closest = minf(closest, _apart(parked, _plan(couple, "hatchback")))
+		s += 0.25
+	check(closest >= 0.3, "and the couple's car goes by it %.2f m clear" % closest)
+	couple.queue_free()
+	slow.queue_free()
 	return true
 
 
@@ -104,5 +155,30 @@ func test_the_road_plays_the_slow_cars_sounds() -> bool:
 	road.director.slow_gap = NAN
 	await road.get_tree().process_frame
 	check(not road.slow_car.visible and not road.audio.loops[&"old_engine_loop"].playing, "no slow car, no old engine")
+	_done(road)
+	return true
+
+
+func test_the_road_pulls_the_slow_car_in_and_lets_go_of_the_indicator() -> bool:
+	var road: RoadMain = await _road()
+	road.director.slow_gap = 20.0
+	await road.get_tree().process_frame
+	await road.get_tree().process_frame
+	EventBus.road_cue.emit(&"indicator")
+	await road.get_tree().process_frame
+	check(road.audio.loops[&"indicator"].playing, "the indicator ticks")
+	road.director.slow_gap = NAN  # no overtake came: the slow car is simply gone
+	await road.get_tree().process_frame
+	check(not road.audio.loops[&"indicator"].playing, "it stops with the slow car")
+	road.director.slow_gap = 20.0
+	await road.get_tree().process_frame
+	await road.get_tree().process_frame
+	check(not road.audio.loops[&"indicator"].playing, "and does not start again with the next one")
+	EventBus.road_cue.emit(&"slow_car_gone")  # as the mission sends it, with the gap let go
+	road.director.slow_gap = NAN
+	await road.get_tree().process_frame
+	await road.get_tree().process_frame
+	check(road.slow_car.visible, "the slow car stays on the road, pulling in, once the core has let go of it")
+	check(road.slow_car.speed < SlowCarMission.SLOW_SPEED, "and slowing (%.2f m/s)" % road.slow_car.speed)
 	_done(road)
 	return true

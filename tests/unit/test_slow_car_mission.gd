@@ -17,6 +17,7 @@ var cue_log: Array = []  # [cue, world time, slow_gap then, lane then]
 var lines: Array = []  # [text, speaker] in the order they were said
 var asked: Array = []  # [choice id, options, world time]
 var ended: Array[StringName] = []
+var end_lane := NAN  # the lane when the road ended
 var low_gap := INF  # the smallest slow_gap seen
 var low_lane := INF
 var top_speed := 0.0
@@ -33,6 +34,7 @@ func _setup() -> void:
 	lines.clear()
 	asked.clear()
 	ended.clear()
+	end_lane = NAN
 	low_gap = INF
 	low_lane = INF
 	top_speed = 0.0
@@ -70,6 +72,7 @@ func _on_asked(choice_id: StringName, options: PackedStringArray) -> void:
 
 func _on_ended(ending: StringName) -> void:
 	ended.append(ending)
+	end_lane = d.lane
 
 
 ## Plays the mission to the end. `answers[n - 1]` is the answer to the n-th attempt, one second after it opens; -1
@@ -216,11 +219,27 @@ func test_the_rule_recall_and_each_attempt_word_for_word() -> bool:
 
 
 func test_each_attempt_is_about_forty_seconds_after_the_last() -> bool:
+	for answers: Array in [[0, 0, 0], [-1, -1, -1], [2, 2, 2]]:  # kept, then overtaking after silence, then at once
+		_setup()
+		_play(answers)
+		eq(asked.size(), 3, "%s: three attempts" % [answers])
+		for n in [1, 2]:
+			var gap: float = asked[n][2] - asked[n - 1][2]
+			check(gap > 30.0 and gap < 50.0, "%s: attempt %d opens %.0f s after attempt %d" % [answers, n + 1, gap, n])
+		_teardown()
+	return true
+
+
+func test_the_couple_edge_past_the_lay_by_and_are_in_their_lane_when_it_ends() -> bool:
 	_setup()
 	_play([0, 0, 0])
-	for n in [1, 2]:
-		var gap: float = asked[n][2] - asked[n - 1][2]
-		check(gap > 30.0 and gap < 50.0, "attempt %d is %.0f s after attempt %d" % [n + 1, gap, n])
+	near(low_lane, SlowCarMission.PASSING_LANE, 0.01, "they edge over to clear the parked car")
+	eq(ended, [&"alive"], "(the mission is over)")
+	near(end_lane, RoadLayout.LANE, 0.001, "and back in their own lane, so the next mission never starts at the lay-by's")
+	_teardown()
+	_setup()
+	_play([-1, -1, -1])
+	near(end_lane, RoadLayout.LANE, 0.001, "after three overtakes too")
 	_teardown()
 	return true
 

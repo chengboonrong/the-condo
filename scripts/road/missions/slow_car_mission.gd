@@ -7,7 +7,8 @@ extends RoadMission
 ## lights go out.
 ##
 ## Beats: cruise, seen (coming up on it), then per attempt follow, urge, ask and either kept or (signal, pass, away).
-## After the last attempt: lay_by, gone.
+## After the last attempt: lay_by, gone. Each ask opens about 40 s after the last: after an overtake and the same car
+## ahead again, the next urge comes at once instead of after a long follow.
 
 const CRUISE_SPEED := 9.0
 const SLOW_SPEED := 4.0  # the slow car's, and then the couple's behind it
@@ -28,9 +29,16 @@ const URGE_SECONDS := 5.0  # from what he says to the choice
 const ASK_SECONDS := 6.0
 const KEPT_SECONDS := 11.0  # his grumble, and the crawl on: the attempts come about 40 s apart
 const ATTEMPTS := 3
+const BEHIND := [&"seen", &"follow", &"urge", &"ask", &"kept", &"signal", &"lay_by"]  # beats spent closing up on it, or behind it
 const KEEPS := [0, 1]  # the first two options keep the rule; the third, and silence, break it
-const PASSING_LANE := 0.9  # across, in the lane, while the car goes by the one in the lay-by (SlowCar.LAY_BY)
-const PAST := 12.0  # metres beyond where it pulled in that end the mission
+## The lay-by, which SlowCar draws and the couple's car goes by: it slows to a stop over PULL_SECONDS, moving across to
+## LAY_BY (half on the verge), and the couple's car edges over to clear it, then is back in its lane.
+const LAY_BY := 3.3  # across, where the slow car parks
+const PULL_SECONDS := 3.0
+const PULL_DISTANCE := SLOW_SPEED * PULL_SECONDS / 2.0  # metres it goes on while it slows to a stop
+const PASS_ACROSS := 2.4  # between the two cars' centres as the couple go by: their half widths, mirrors and all, and 0.4 m clear
+const PASSING_LANE := LAY_BY - PASS_ACROSS
+const PAST := PULL_DISTANCE + 6.0  # metres beyond where it began to pull in that end the mission: 6 m clear of it
 const OBJECTIVE := "Keep him behind the slow car."
 const RECALL := "[Bang Din: \"A slow car with nobody driving, you follow it. However long. Never potong.\"]"
 const MEI_LINE := "Mei: \"Eh… isn't that the same car?\""
@@ -74,23 +82,22 @@ func begin() -> void:
 func tick(delta: float) -> bool:
 	if not is_nan(d.slow_gap):
 		d.slow_gap += (SLOW_SPEED - d.car_speed) * delta  # the slow car crawls on at its own speed
+	if BEHIND.has(beat):
+		_close_in()
 	match beat:
 		&"cruise":
 			if beat_t >= CRUISE_SECONDS:
 				d.slow_gap = START_GAP
 				go(&"seen")
 		&"seen":
-			_close_in()
 			if is_equal_approx(d.car_speed, SLOW_SPEED):
 				EventBus.road_cue.emit(&"slow_car_seen")
 				WorldState.set_objective(OBJECTIVE)
 				d.say(RECALL, 5.0)
 				_next()
 		&"follow":
-			_close_in()
 			if beat_t >= FOLLOW_SECONDS:
-				d.say(URGE[_attempt - 1], 3.5, &"hafiz")
-				go(&"urge")
+				_urge()
 		&"urge":
 			if beat_t >= URGE_SECONDS:
 				d.ask(_choice(), PackedStringArray(OPTIONS[_attempt - 1]), ASK_SECONDS, PackedInt32Array(KEEPS), &"overtook")
@@ -126,9 +133,8 @@ func tick(delta: float) -> bool:
 				d.slow_gap = AHEAD_GAP
 				EventBus.road_cue.emit(&"slow_car_ahead")
 				d.say(MEI_LINE, 3.5, &"mei")
-				_next()
+				_next(true)
 		&"lay_by":
-			_close_in()
 			if is_equal_approx(d.car_speed, SLOW_SPEED):
 				_lay_s = d.car_s + d.slow_gap
 				d.slow_gap = NAN  # gone to the core; SlowCar pulls in and goes dark on the cue
@@ -137,9 +143,9 @@ func tick(delta: float) -> bool:
 				d.lane_to(PASSING_LANE)
 				go(&"gone")
 		&"gone":
-			if d.car_s > _lay_s + PAST:
+			if d.car_s > _lay_s + PAST:  # back in his own lane before the mission is over
 				d.lane_to(RoadLayout.LANE)
-				return true
+				return is_equal_approx(d.lane, RoadLayout.LANE)
 	return false
 
 
@@ -153,13 +159,21 @@ func _choice() -> StringName:
 	return StringName("overtake_%d" % _attempt)
 
 
-## The next attempt, or the lay-by after the last.
-func _next() -> void:
+## The next attempt, or the lay-by after the last. `at_once`: Hafiz speaks now, not after the long follow.
+func _next(at_once := false) -> void:
 	if _attempt >= ATTEMPTS:
 		go(&"lay_by")
+		return
+	_attempt += 1
+	if at_once:
+		_urge()
 	else:
-		_attempt += 1
 		go(&"follow")
+
+
+func _urge() -> void:
+	d.say(URGE[_attempt - 1], 3.5, &"hafiz")
+	go(&"urge")
 
 
 ## Closes up on the slow car at cruising speed, and slows in time to settle FOLLOW_GAP behind it.
