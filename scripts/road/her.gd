@@ -32,6 +32,9 @@ const GONE_AT := 21.0  # and as she goes: in the front door's window
 ## head and its right pillar, short of Hafiz. She may pass behind the pillar or a head, but not as she goes.
 const CLEAR := [Vector2(8.0, 12.0), Vector2(16.5, 25.5), Vector2(-35.0, -7.5)]
 const FADE := 0.1  # seconds she takes to come out of the fog, and to go back into it
+## The share of the road's fog between her and his eye in a glimpse: she shows through it more than the road does, as
+## nothing of this world would. Everywhere else she takes all of it (1.0, the road's fog exactly).
+const GLIMPSE_FOG := 0.1
 const ABOVE_ROAD := 2.45  # her skull above the road behind a walker: the ends of her insides just clear it
 const BEHIND := Vector2(18.0, 4.0)  # metres behind a walker along the road, from no rule broken to her nearest
 const FOLLOW := 6.0  # m/s at most, keeping behind a walker
@@ -74,7 +77,10 @@ float value_noise(vec3 p) {
 ## sways more the further it hangs (with the square of the distance), trails against `motion` (her velocity, in her own
 ## space) keeping its length, and lies on the ground wherever it would reach below `floor_y`. On the organs and the skin
 ## the roughness wanders in patches and the surface is lumpy (`bump`, metres), so their highlights break up: wet flesh,
-## not rubber hoses or plastic. `fade` dissolves her in and out.
+## not rubber hoses or plastic. `fade` dissolves her in and out. She makes her own fog, `fog_share` of the road's:
+## writing FOG replaces the renderer's (Compatibility, scene.glsl: CUSTOM_FOG_USED skips fog_process, and the fog is
+## then mixed in as ever), so it repeats fog_process's exponential fog from the road's density and colour in linear.
+## ponytail: exponential fog only; the road has no height fog, no sun scatter and no depth fog to repeat.
 const SWAY_SHADER := """
 shader_type spatial;
 render_mode cull_disabled;
@@ -87,6 +93,9 @@ uniform float bump = 0.0;
 uniform vec3 motion = vec3(0.0);
 uniform float floor_y = -100.0;
 uniform float fade = 1.0;
+uniform float fog_density = 0.0;
+uniform vec3 fog_color = vec3(0.0);
+uniform float fog_share = 1.0;
 varying vec3 rest;
 """ + NOISE + """
 void vertex() {
@@ -129,6 +138,7 @@ void fragment() {
 		float det = dot(dx, r1);
 		NORMAL = normalize(abs(det) * NORMAL - sign(det) * (dFdx(h) * r1 + dFdy(h) * r2));
 	}
+	FOG = vec4(fog_color, fog_share * (1.0 - exp(min(0.0, -length(VERTEX) * fog_density))));
 	// last, so the slopes above are taken with the whole quad drawn
 	if (fade < 1.0 && fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715)))) >= fade) {
 		discard;
@@ -470,7 +480,7 @@ func _begin(mode: StringName, at: Vector3) -> void:
 
 
 ## What hangs from her swings after her motion, as a heavy wet rope would (a period of about 2 s, settling in a few
-## swings), and lies on the ground wherever it would reach below it.
+## swings), and lies on the ground wherever it would reach below it. Her fog follows the road's as it thickens.
 func _sway(delta: float) -> void:
 	var v := (global_position - _last) / delta if delta > 0.0 else Vector3.ZERO
 	_last = global_position
@@ -478,9 +488,15 @@ func _sway(delta: float) -> void:
 	_swing += _swing_v * delta
 	var motion := global_basis.inverse() * _swing
 	var floor_y := _ground_under(global_position) + 0.02 - global_position.y
+	var env := builder.environment if builder != null else null
+	var density := env.fog_density if env != null and env.fog_enabled else 0.0
+	var fog := env.fog_light_color.srgb_to_linear() * env.fog_light_energy if env != null else Color.BLACK
 	for m in _skin:
 		m.set_shader_parameter(&"motion", motion)
 		m.set_shader_parameter(&"floor_y", floor_y)
+		m.set_shader_parameter(&"fog_density", density)
+		m.set_shader_parameter(&"fog_color", Vector3(fog.r, fog.g, fog.b))
+		m.set_shader_parameter(&"fog_share", GLIMPSE_FOG if _mode == &"glimpse" else 1.0)
 
 
 ## The ground's height under `at`: the road's, and beside it the verge, the drain or the drop into the valley.

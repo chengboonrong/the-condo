@@ -42,6 +42,7 @@ func test_behind_keeps_her_distance() -> bool:
 		await _frames(30)
 		near(RoadLayout.closest_s(her.global_position), 706.0 - distance, 0.5, "her_near %.0f: and she keeps it as he walks" % her_near)
 		near(_across(her.global_position), 1.0, 0.3, "her_near %.0f: on his line" % her_near)
+		eq(her.materials()[0].get_shader_parameter(&"fog_share"), 1.0, "her_near %.0f: in all of the road's fog" % her_near)
 	her.director.her_near = 0.0
 	her.hide_her()
 	her.behind(walker)  # 18 m back
@@ -71,6 +72,8 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 	var lines := []
 	var on_line := func(text: String, _seconds: float) -> void: lines.append(text)
 	EventBus.line_requested.connect(on_line)
+	var linear := RoadBuilder.FOG_COLOR.srgb_to_linear()
+	var fog_color := Vector3(linear.r, linear.g, linear.b)
 	for car_s: float in [523.0, 740.0]:
 		for her_near: float in [0.12, 0.24, 0.36]:
 			var what := "at %.0f, her_near %.2f" % [car_s, her_near]
@@ -90,6 +93,7 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 			var lit := 0
 			var last := NAN  # her bearing from his seat as she goes (+ left)
 			var ground := INF
+			var fog := true  # her four surfaces take GLIMPSE_FOG of the road's own fog
 			for i in 120:
 				if her.visible:
 					shown += 1
@@ -110,6 +114,10 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 						var here := RoadLayout.closest_s(pos)
 						var floor_y: float = her.materials()[0].get_shader_parameter(&"floor_y")
 						ground = pos.y + floor_y - 0.02 - (RoadLayout.point(here).y + builder.ground_at(here, across))
+						for m: ShaderMaterial in her.materials().slice(0, 4):  # her four surfaces: less of the road's fog
+							fog = fog and m.get_shader_parameter(&"fog_share") == Penanggal.GLIMPSE_FOG \
+								and m.get_shader_parameter(&"fog_density") == builder.environment.fog_density \
+								and m.get_shader_parameter(&"fog_color") == fog_color
 				await tree.process_frame
 				her.director.car_s += her.director.car_speed / 60.0  # the car comes on, slowing as Mission 2's does
 				her.director.car_speed -= RoadDirector.ACCEL / 60.0
@@ -124,6 +132,7 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 			if her_near >= 0.24:
 				check(in_view >= 36, "%s: in view for 0.6 s or more (%.2f s)" % [what, in_view / 60.0])
 			near(ground, 0.0, 0.01, "%s: what hangs from her lies on the real ground there, not the road's plane" % what)
+			check(fog, "%s: she shows through the road's fog, taking GLIMPSE_FOG of it" % what)
 	EventBus.line_requested.disconnect(on_line)
 	eq(lines, [Penanggal.SMELL], "the smell, after her first glimpse only")
 	return true
