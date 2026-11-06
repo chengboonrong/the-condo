@@ -551,9 +551,35 @@ def phone_ring_mobile():
     return circ(lambda x: lowpass(x, 5000), out)
 
 
+def lorry_idle():
+    """A loaded lorry's diesel idling, from a few metres off outside: a six-cylinder at 600 rpm (30 firings a
+    second, each a low boom with its injector's clatter) over a rumble. 60 firings in 2 s, so it is seamless."""
+    r = random.Random(1315)
+    n, fire = 2 * SR, 30
+    cyl = [mix(firing(r, b, 1.2), gain(tick(r, 0.015, 900, 3000, 0.003), 0.5)) for b in (58, 66, 61, 70, 63, 68)]
+    out = [0.0] * n
+    for k in range(60):
+        put(out, cyl[k % 6], k / fire, r.uniform(0.85, 1.1), wrap=True)
+    rumble = circ(lambda x: lowpass(x, 120), noise(2.0, r))
+    return circ(lambda x: highpass(lowpass(x, 2500), 30), mix(out, gain(rumble, 1.2)))
+
+
+def lorry_brake():
+    """A lorry's air brakes as it stops: the valve's chuff, then a long hiss of air that dies away, 1.3 s."""
+    r = random.Random(1316)
+    n = int(1.3 * SR)
+    hiss = highpass(lowpass(noise(1.3, r), 6500), 1600)
+    hiss = [s * min(1.0, i / (0.03 * SR)) * math.exp(-i / SR / 0.45) for i, s in enumerate(hiss)]
+    out = [0.0] * n
+    put(out, puff(r, 0.08, 500, 0.02), 0.0, 1.5)
+    put(out, hiss, 0.02)
+    return fade(out, 0.002, 0.2)
+
+
 def road_sounds():
-    """Every sound the road's tasks name. Five are loops, imported with edit/loop_mode=2 and only ever started with
-    RoadAudio.set_loop: the three _loop files, the indicator (one flash) and the phone (one ring). The rest play once."""
+    """Every sound the road's tasks name. Six are loops, imported with edit/loop_mode=2 and only ever started with
+    RoadAudio.set_loop: the three _loop files, the indicator (one flash), the phone (one ring) and the lorry's idle.
+    The rest play once."""
     save_db("engine_loop", engine_loop(), -16.0, loop=True, half=True)
     save_db("old_engine_loop", old_engine_loop(), -20.0, loop=True, half=True)
     save_db("insects_loop", insects_loop(), -27.0, loop=True)  # full rate: 13% of its power is above 11 kHz
@@ -574,6 +600,8 @@ def road_sounds():
     save_db("drip", drip(), -28.0)
     save_db("rattle", rattle(), -27.0, half=True)
     save_db("phone_ring_mobile", phone_ring_mobile(), -19.0, loop=True, half=True)
+    save_db("lorry_idle", lorry_idle(), -20.0, loop=True, half=True)
+    save_db("lorry_brake", lorry_brake(), -21.0, half=True)
 
 
 def main():

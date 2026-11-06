@@ -248,9 +248,11 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Knock on the car window ×3 (the road) | −19.0 | 0 | −19.0 |
 | Door closing | −20.6 | 0 | −20.6 |
 | Engine dying (the road) | −19.0 | −2 | −21.0 |
+| Lorry's air brakes as it pulls up (the road) | −21.0 | 0 | −21.0 |
 | Starter cranking ×2 (the road) | −19.0 | −2 | −21.0 |
 | Car door opened (the road) | −23.0 | 0 | −23.0 |
 | Indicator (the road, loop: one flash) | −24.0 | 0 | −24.0 |
+| Lorry's diesel idling (the road, loop: 60 firings) | −20.0 | −4 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
 | Your footsteps (walk / sprint / crouch) | −19.8 to −15.9 | −15 / −10 / −22 | about −33 / −28 / −40 |
 | Your footsteps on asphalt (the road: walk / sprint / crouch) | −20.7 to −17.8 | −15 / −10 / −22 | about −34 / −29 / −41 |
@@ -271,13 +273,13 @@ The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prin
 Their file levels are measured from the files. "Played at" is what `RoadAudio` uses: so far the engine (seated;
 outside it falls off as 1/distance), the insects, both car doors, the lorry, the asphalt steps, the slow car's old
 engine (from 10 m away it falls off as 1/distance, and its pitch drops as it stops), the indicator (while Hafiz
-signals), the rev (as he pulls out) and her wet flap, drip and breath (from where she is, falling off past 3 m)
-play at these levels, and the rest are proposals until their missions play them. Their "Heard at" is that level's
+signals), the rev (as he pulls out), her wet flap, drip and breath (from where she is, falling off past 3 m), the
+phone on the stall's table (falling off past 3 m), the lorry's idle (past 6 m) and its air brakes play at these levels, and the rest are proposals until their missions play them. Their "Heard at" is that level's
 result, not a measurement of the game. None is louder than the single knock
-(−14.6) and none is a sting. Five of them are seamless loops, imported with `edit/loop_mode=2` and only ever started
+(−14.6) and none is a sting. Six of them are seamless loops, imported with `edit/loop_mode=2` and only ever started
 and stopped with `RoadAudio.set_loop`: the three `_loop` files, the indicator (one flash, 0.667 s, 90 flashes a
-minute) and the phone (one ring, 2.1 s, ending in a pause). The rest play once. Eight of them (both engine loops,
-the rev, the lorry, the sputter, the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is
+minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle (2 s). The rest play once. Ten of them
+(both engine loops, the rev, the lorry passing, idling and braking, the sputter, the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is
 charged by the second of audio: at 44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the
 lorry loses about 1.3% of its power above 11 kHz (its tyre hiss).
 The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.

@@ -9,6 +9,7 @@ const SOUNDS := {
 	&"car_door_open": preload("res://assets/audio/car_door_open.wav"),
 	&"car_door_close": preload("res://assets/audio/car_door_close.wav"),
 	&"lorry_pass": preload("res://assets/audio/lorry_pass.wav"),
+	&"lorry_brake": preload("res://assets/audio/lorry_brake.wav"),  # its air brakes, pulling up
 	&"rev": preload("res://assets/audio/rev.wav"),  # the hatchback, opened up for the overtake
 	&"wet_flap": preload("res://assets/audio/wet_flap.wav"),  # her
 	&"drip": preload("res://assets/audio/drip.wav"),
@@ -29,6 +30,7 @@ const LOOPS := {
 	&"insects_loop": preload("res://assets/audio/insects_loop.wav"),
 	&"indicator": preload("res://assets/audio/indicator.wav"),
 	&"phone_ring_mobile": preload("res://assets/audio/phone_ring_mobile.wav"),
+	&"lorry_idle": preload("res://assets/audio/lorry_idle.wav"),  # its diesel, standing
 }
 const POOL_SIZE := 8
 
