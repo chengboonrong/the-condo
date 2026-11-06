@@ -6,9 +6,10 @@ extends TestCase
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
 const VOICE := "[Outside, in Hafiz's voice: \"Bro! Open the door, I found help!\"]"
 const MEI := "Mei: \"That's him! I'm opening—\""
+const MEI_LIGHT := "Mei: \"Eh, look. Got a light down there.\""
 const KEPT_CUES: Array[StringName] = [
 	&"lights_dying", &"crank", &"crank", &"hafiz_leaves", &"insects_stop", &"thump", &"her_on_roof", &"thump", &"thump",
-	&"knock_window", &"knock_window", &"knock_window", &"light_on",
+	&"mei_reaches_door", &"knock_window", &"knock_window", &"knock_window", &"light_on",
 ]
 
 var d: RoadDirector
@@ -116,6 +117,7 @@ func test_keeping_breaks_nothing() -> bool:
 	eq(lines.filter(func(l: Array) -> bool: return l[0] == RECALL).size(), 1, "Bang Din's rule, once")
 	check(lines.any(func(l: Array) -> bool: return l == [VOICE, &""]), "the voice outside, bracketed, with no speaker in the car")
 	check(lines.any(func(l: Array) -> bool: return l == [MEI, &"mei"]), "Mei, who thinks it is him")
+	check(lines.back() == [MEI_LIGHT, &"mei"], "and Mei sees the light, last, before the mission is over")
 	eq(lines.filter(func(l: Array) -> bool: return String(l[0]).begins_with("Hafiz: \"") and l[1] == &"hafiz").size(), 2, "Hafiz's two lines before he goes")
 	eq(ended, [&"alive"], "the mission is done")
 	eq([WorldState.objective, WorldState.prompts.get(&"car_door_inside", "")], ["", ""], "its objective and the door's prompt go with it")

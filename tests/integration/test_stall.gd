@@ -4,6 +4,7 @@ extends TestCase
 ## road.
 
 var _was_changing := true
+var _sounds: Array[StringName] = []  # every sound asked for while the road plays the car dying
 
 
 func _frames(n: int) -> void:
@@ -45,6 +46,15 @@ func test_dying_lights_respect_reduced_flashing() -> bool:
 			eq(rises, 0, "%s: and only falls" % what)
 		else:
 			check(rises > 0, "%s: it may flicker, and does (%d rises)" % [what, rises])
+			var jumps: Array[int] = []  # frames where it browns out or comes back
+			for i in range(1, energy.size()):
+				if absf(energy[i] - energy[i - 1]) / full > 0.05:
+					jumps.append(i)
+			var closest := INF
+			for j in range(1, jumps.size()):
+				closest = minf(closest, (jumps[j] - jumps[j - 1]) / 60.0)
+			check(jumps.size() >= 2 and closest >= CarRig.BROWN_OUT - 0.02,
+				"%s: under 3 flashes a second (%d changes, %.2f s apart at the least)" % [what, jumps.size(), closest])
 		car.queue_free()
 	Settings.set_value("reduced_flashing", was)
 	return true
@@ -63,6 +73,8 @@ func test_the_road_plays_the_car_dying() -> bool:
 	road.set_physics_process(false)  # the core stands still: the cues come from here
 	road.director.start_at(road.director.missions.find_custom(func(m: RoadMission) -> bool: return m is StallMission))
 	road.director.car_speed = 0.0
+	_sounds.clear()
+	EventBus.sound_requested.connect(_on_sound)
 	await _frames(2)
 	var p := road.player
 	check(p.is_seated() and road.audio.loops[&"engine_loop"].playing, "(seated, with the engine running)")
@@ -70,12 +82,13 @@ func test_the_road_plays_the_car_dying() -> bool:
 	await _frames(2)
 	check(not road.audio.loops[&"engine_loop"].playing, "the engine stops when the car dies")
 	check(_playing(road, &"engine_sputter"), "with a sputter")
+	EventBus.road_cue.emit(&"crank")
 	EventBus.road_cue.emit(&"hafiz_leaves")
 	await _frames(60)
 	var hafiz := road.couple.hafiz_out
 	check(not road.couple.hafiz.visible and hafiz.visible, "Hafiz is out of his seat and on his feet")
 	check(road.car.door_driver.rotation.y > 0.5, "his door is open")
-	near(hafiz.global_position.distance_to(road.car.global_transform * Vector3(-1.2, 0.0, 0.1)), 0.0, 0.3, "and he stands beside it")
+	near(hafiz.global_position.distance_to(road.car.global_transform * Couple.OUT), 0.0, 0.3, "and he stands beside it")
 	await _frames(240)
 	near(road.car.door_driver.rotation.y, 0.0, 0.001, "he shuts it behind him")
 	var ahead := (hafiz.global_position - road.car.global_position).dot(road.car.global_basis.z)
@@ -103,13 +116,42 @@ func test_the_road_plays_the_car_dying() -> bool:
 		opened = minf(opened, road.car.door_rear_left.rotation.y)
 	check(opened < -0.1 and opened > -0.2, "his door opens a hand's width (%.2f rad)" % opened)
 	near(road.car.door_rear_left.rotation.y, 0.0, 0.001, "and is slapped shut")
+	var mei := road.couple.mei
+	EventBus.road_cue.emit(&"mei_reaches_door")
+	EventBus.road_line.emit(&"mei", 3.0)
+	await _frames(40)
+	var face := _facing(road, mei)
+	check(face.x > 0.7 and face.z > -0.2, "Mei says she is opening it to her own door, not round to him (%s)" % face)
+	EventBus.road_cue.emit(&"mei_door_cracked")
+	EventBus.road_cue.emit(&"knock_window")
+	await _frames(240)  # her line ends, and she faces the road again
 	EventBus.road_cue.emit(&"light_on")
-	await _frames(2)
+	EventBus.road_line.emit(&"mei", 3.5)
+	await _frames(40)
 	check(road.builder.far_light.visible, "a light shows far down the road")
 	check(not road.her.visible, "and she has gone")
+	face = _facing(road, mei)
+	var lean := (mei.get_node("Chest") as Node3D).rotation.x
+	check(face.z > 0.9 and lean > 0.15, "Mei leans in to the windscreen to see it, not round to him (%s, %.2f rad)" % [face, lean])
+	EventBus.sound_requested.disconnect(_on_sound)
+	for id: StringName in [&"engine_sputter", &"starter_crank", &"car_door_open", &"car_door_close", &"wet_flap",
+			&"thump_roof", &"knock_glass"]:
+		check(_sounds.has(id), "the car dying plays %s" % id)
+	var unknown := _sounds.filter(func(id: StringName) -> bool: return not RoadAudio.SOUNDS.has(id))
+	eq(unknown, [], "and every sound it plays is one the road has")
 	road.queue_free()
 	Journey.change_scenes = _was_changing
 	return true
+
+
+func _on_sound(id: StringName, _at: Vector3, _volume_db: float) -> void:
+	_sounds.append(id)
+
+
+## Which way Mei's face points, in the car's space (+X its left, +Z its front).
+func _facing(road: RoadMain, mei: Node3D) -> Vector3:
+	var head: Node3D = mei.get_node("Chest/Head")
+	return road.car.global_basis.inverse() * head.global_basis.z
 
 
 func _playing(road: RoadMain, sound: StringName) -> bool:

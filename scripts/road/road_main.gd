@@ -156,6 +156,8 @@ func _on_cue(cue: StringName) -> void:
 			couple.hafiz_leaves()
 		&"door_cracked":
 			car.crack_door()
+		&"mei_reaches_door":
+			couple.mei_faces(&"door")
 		&"mei_door_cracked":  # her door opens a little and is slapped shut: heard, as it never moves
 			_sound(&"car_door_open", MEI_DOOR, 0.0)
 			var slap := create_tween()
@@ -166,7 +168,9 @@ func _on_cue(cue: StringName) -> void:
 		&"insects_stop":
 			_quiet = true
 		&"thump":
-			_sound(&"thump_roof", ROOF, 0.0)  # no louder than the flat's knock, and louder than the knock on the glass
+			# It is heard at the positional cap (+3 dB, ROOF being well inside unit_size): played at -3 dB its loudest
+			# is -15.5 dB as heard, under the flat's knock (-14.6).
+			_sound(&"thump_roof", ROOF, -3.0)
 			_shake = SHAKE_SECONDS
 		&"her_on_roof":
 			her.on_roof(car)
@@ -174,6 +178,7 @@ func _on_cue(cue: StringName) -> void:
 			_sound(&"knock_glass", MEI_WINDOW, 0.0)
 		&"light_on":
 			builder.show_light(director.light_s)
+			couple.mei_faces(&"ahead")  # she leans in to see it, and he sees it past her
 			her.hide_her()
 
 

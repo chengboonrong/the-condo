@@ -8,6 +8,7 @@ extends Node3D
 const DOOR_OPEN := 60.0  # degrees a door swings out when someone gets in or out
 const CRACK := 7.0  # degrees his door opens before it is slapped shut: a hand's width at its back edge
 const DYING := 4.0  # seconds the lights take to die with the engine
+const BROWN_OUT := 0.35  # seconds at the least between a brown-out and the light back: under 3 flashes a second
 const HEADLIGHT := Color(1.0, 0.93, 0.8)
 const TAIL := Color(0.9, 0.05, 0.03)
 const DASH := Color(1.0, 0.6, 0.25)
@@ -179,8 +180,8 @@ func _process(delta: float) -> void:
 	if not Settings.get_value("reduced_flashing"):
 		_flicker_left -= delta
 		if _flicker_left <= 0.0:
-			_flicker_left = _rng.randf_range(0.08, 0.3)
-			_flicker = _rng.randf_range(0.2, 0.7) if _rng.randf() < 0.5 else 1.0
+			_flicker_left = _rng.randf_range(BROWN_OUT, 0.6)
+			_flicker = _rng.randf_range(0.2, 0.7) if _flicker == 1.0 else 1.0
 		k *= _flicker
 	for dim: Callable in _dimmers:
 		dim.call(k)

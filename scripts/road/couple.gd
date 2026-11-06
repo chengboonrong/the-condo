@@ -20,9 +20,19 @@ const GONE := 60.0  # metres he walks before he is lost in the fog, torch and al
 const TORCH := Vector3(-0.12, 1.08, 0.33)  # his phone in his right hand, in his own space (measured on the model)
 ## Mei's turn to the back seat, over her left shoulder: her chest twists left and leans in towards the middle of the
 ## car, and her head turns on round, so from his seat her eyes show over her headrest, on him. rotation.y > 0 is to her
-## left.
+## left, x > 0 forward and z > 0 to her right.
 const MEI_CHEST := Vector3(0.0, deg_to_rad(35.0), deg_to_rad(20.0))
 const MEI_HEAD := Vector3(0.0, deg_to_rad(80.0), 0.0)
+## Where else she turns for a line (mei_faces), as [chest, head]: leaning in and over to her left to see down the
+## road, which from his seat uncovers the road ahead past her (no further in: her screen's glow would catch the
+## windscreen as a lamp out in the fog); or to her own door, for its handle.
+const MEI_TO := {
+	&"him": [MEI_CHEST, MEI_HEAD],
+	&"ahead": [Vector3(deg_to_rad(12.0), 0.0, deg_to_rad(-20.0)),
+		Vector3(deg_to_rad(-5.0), deg_to_rad(-5.0), deg_to_rad(15.0))],
+	&"door": [Vector3(deg_to_rad(10.0), deg_to_rad(20.0), deg_to_rad(-10.0)),
+		Vector3(deg_to_rad(15.0), deg_to_rad(55.0), 0.0)],
+}
 ## Her phone's screen as she sits facing the road, in her head's space (measured on the model): its centre, and the way
 ## it faces, up at her face.
 const SCREEN := Vector3(-0.035, -0.188, 0.316)
@@ -64,6 +74,8 @@ var _his_left := 0.0  # seconds each stays turned
 var _her_left := 0.0
 var _his_turn := 0.0  # 0 facing the road, 1 turned
 var _her_turn := 0.0
+var _her_to: Array = MEI_TO[&"him"]  # her pose, turned
+var _her_next: Array = MEI_TO[&"him"]  # her pose for her next line
 var _out_t := -1.0  # seconds since his door opened, as he gets out; -1 unless he is getting out or walking off
 var _out_s := 0.0  # where along the road he sets off from
 var _out_across := 0.0
@@ -126,14 +138,21 @@ func _ready() -> void:
 	EventBus.road_line.connect(turn_to)
 
 
-## Someone in the car says a line for `seconds`: Mei turns to him for hers, and stays turned through the gap before
-## a next line, so two of hers in a row are one turn; Hafiz glances at the mirror for his.
+## Someone in the car says a line for `seconds`: Mei turns to him for hers (or where mei_faces said), and stays
+## turned through the gap before a next line, so two of hers in a row are one turn; Hafiz glances at the mirror for his.
 func turn_to(speaker: StringName, seconds: float) -> void:
 	match speaker:
 		&"mei":
+			_her_to = _her_next
+			_her_next = MEI_TO[&"him"]
 			_her_left = seconds + RoadDirector.LINE_GAP
 		&"hafiz":
 			_his_left = minf(seconds, GLANCE)
+
+
+## Mei's next line is said not to him but `to` (a MEI_TO pose); after it, she turns to him again.
+func mei_faces(to: StringName) -> void:
+	_her_next = MEI_TO[to]
 
 
 ## The car has died: Hafiz opens his door, gets out, shuts it behind him and walks off ahead down the road, his phone
@@ -165,8 +184,8 @@ func _process(delta: float) -> void:
 	_her_turn = move_toward(_her_turn, 1.0 if _her_left > 0.0 else 0.0, delta / TURN)
 	_his_head.rotation = _mirror * smoothstep(0.0, 1.0, _his_turn)
 	var k := smoothstep(0.0, 1.0, _her_turn)
-	_her_chest.rotation = MEI_CHEST * k
-	_her_head.rotation = MEI_HEAD * k
+	_her_chest.rotation = _her_to[0] * k
+	_her_head.rotation = _her_to[1] * k
 	if _out_t >= 0.0:
 		_walk_off(delta)
 

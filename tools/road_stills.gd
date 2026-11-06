@@ -51,6 +51,10 @@ const SHOTS := [
 	# his phone's light
 	["her_roof", "StallMission", 0.0, 0.0, 1.1, 0.12, 0.0, true, {"seated": true, "car_s": 2000.0, "car_speed": 0.0, "play_out": 4.5}, &"",
 		[&"lights_dying", &"hafiz_leaves", &"insects_stop"], "roof"],
+	# then it goes quiet, and from his seat the light shows far down the road past Mei, who leans in to see it
+	["light_seen", "StallMission", 0.0, 0.0, 0.0, 0.02, 0.0, false,
+		{"seated": true, "car_s": 2000.0, "car_speed": 0.0, "light_s": 2150.0, "play_out": 8.0}, &"mei",
+		[&"lights_dying", &"hafiz_leaves", &"insects_stop", &"light_on"]],
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -104,10 +108,10 @@ func _initialize() -> void:
 		for key: String in ride:
 			if key != "pull_in" and key != "play_out":
 				road.director.set(key, ride[key])
-		for cue: StringName in (s[10] if s.size() > 10 else []):
-			bus.road_cue.emit(cue)
 		await process_frame  # the road follows the core's ride in its _process: the car, and his seat
 		await process_frame
+		for cue: StringName in (s[10] if s.size() > 10 else []):  # once the car is there: Hafiz gets out of it
+			bus.road_cue.emit(cue)
 		if ride.has("pull_in"):  # the slow car pulls in and goes dark, and the couple go by it
 			road.slow_car.pull_in()
 			road.director.slow_gap = NAN

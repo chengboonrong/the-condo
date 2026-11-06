@@ -3,9 +3,10 @@ extends RoadMission
 ## Mission 4, the car dies. On the long straight the engine and the lights die and the car rolls to a stop; it won't
 ## start. Hafiz walks off down the road to find help, and he and Mei wait in the car. The insects stop, something lands
 ## on the roof, a voice outside sounds like Hafiz's, and Mei wants to open her door. The rules: don't open the door,
-## and don't answer. When it goes quiet, a light shows far down the road.
+## and don't answer. When it goes quiet, a light shows far down the road, and Mei sees it.
 ##
-## Beats: cruise (to the long straight), dying, cranking, hafiz_leaves, waiting, thumps, voice, mei, knocks, quiet.
+## Beats: cruise (to the long straight), dying, cranking, hafiz_leaves, waiting, thumps, voice, mei, knocks, quiet,
+## light.
 
 const CRUISE_SPEED := 9.0
 const STOP_S := 2000.0  # where the car stands, on the long straight; the next mission takes it up here
@@ -22,6 +23,7 @@ const ASK_MEI := 1.0
 const KNOCKS := [1.5, 2.3, 3.1]  # on Mei's window
 const KNOCKING := 5.0
 const QUIET := 10.0  # after the knocks, until the light
+const LIGHT := 4.0  # Mei's line about the light, before the mission is over
 const DOOR := &"car_door_inside"
 const OBJECTIVE := "Stay in the car. Don't open the door. Don't answer."
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
@@ -98,6 +100,7 @@ func tick(delta: float) -> bool:
 				_asked = true
 				d.ask(&"answer_voice", PackedStringArray(["\"Hafiz? That you?\"", "Stay quiet."]), 6.0, PackedInt32Array([1, -1]), &"answered")
 			elif _asked and d.answer(&"answer_voice") != RoadDirector.NONE:
+				EventBus.road_cue.emit(&"mei_reaches_door")  # she says it to her door, not to him
 				d.say(MEI_LINE, 3.0, &"mei")
 				_asked = false
 				go(&"mei")
@@ -118,7 +121,10 @@ func tick(delta: float) -> bool:
 		&"quiet":
 			if beat_t >= QUIET:
 				EventBus.road_cue.emit(&"light_on")
-				return true
+				d.say("Mei: \"Eh, look. Got a light down there.\"", 3.5, &"mei")
+				go(&"light")
+		&"light":
+			return beat_t >= LIGHT
 	return false
 
 

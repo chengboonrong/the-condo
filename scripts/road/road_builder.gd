@@ -45,6 +45,7 @@ const CITY_ALPHA := 0.3  # the glow's strength in the clearest fog; the thickest
 const LIGHT_AWAY := 90.0  # metres from the camera, at the most, that the light far down the road is drawn at
 const LIGHT_UP := 2.6  # its bulb, above the road
 const LIGHT_ALPHA := 0.8  # its strength in the clearest fog; the thickest takes most of it away
+const LIGHT_SIZE := 36.0  # metres across its haze, at the bulb: wide enough to spill past Mei from his seat
 const LAMPS := [[-170.0, -1.0], [-110.0, -1.0], [5.0, 1.0], [70.0, -1.0], [130.0, 1.0]]  # [s, side]: +1 left
 
 ## The ground beside the road, as (metres out from the centreline, metres up), each point a [valley, hill] pair lerped
@@ -628,7 +629,7 @@ func _build_far_light() -> void:
 	far_light = MeshInstance3D.new()
 	far_light.name = "FarLight"
 	var quad := QuadMesh.new()
-	quad.size = Vector2(9.0, 9.0)
+	quad.size = Vector2(LIGHT_SIZE, LIGHT_SIZE)
 	far_light.mesh = quad
 	far_light.material_override = _mats[&"far_light"]
 	far_light.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
