@@ -39,6 +39,9 @@ const WALL_TUNNEL := 3.9  # and to the walkway's kerb in the tunnel
 const RESORT_END := -22.0  # the resort's back wall stands on the left from START_S to here
 const GATE_S := -196.0  # the resort's service gate, shut, across the top of the road
 const SODIUM := Color(1.0, 0.6, 0.26)
+const STRIP := Vector2(2.6, 5.72)  # the tunnel's light strips: out and up, just under the vault (5.80 there)
+const CITY_AWAY := 100.0  # metres from the camera to KL's glow: inside its 120 m far plane
+const CITY_ALPHA := 0.3  # the glow's strength in the clearest fog; the thickest takes it away
 const LAMPS := [[-170.0, -1.0], [-110.0, -1.0], [5.0, 1.0], [70.0, -1.0], [130.0, 1.0]]  # [s, side]: +1 left
 
 ## The ground beside the road, as (metres out from the centreline, metres up), each point a [valley, hill] pair lerped
@@ -86,6 +89,7 @@ const POST_BANDS := [Color(0.06, 0.06, 0.06), Color(0.85, 0.85, 0.83)]  # black 
 const FONT_PX := 64
 
 var environment: Environment
+var city_dir: Vector3  # where KL lies, level: the way the whole road goes down
 var signs: Array[GeometryInstance3D] = []  # every part of every sign: the boards, their posts and their lines
 var _materials: Array[Material] = []
 var _mats := {}  # mesh kind -> its material
@@ -93,6 +97,7 @@ var _spans: Array = []  # [s_from, s_to, segment], one per RoadLayout.SEGMENTS
 var _flips: Array = []  # [s, the hill's side after it]: +1 left, -1 right
 var _rows: Array[Row] = []
 var _chunks: Array[Chunk] = []
+var _city: MeshInstance3D
 
 
 ## One row of the road's meshes, and the frame anything placed beside the road at s uses.
@@ -171,6 +176,7 @@ func _ready() -> void:
 	_build_tunnel()
 	_build_resort()
 	_build_stop()
+	_build_city()
 	for c in _chunks:
 		_commit(c)
 	Settings.changed.connect(_apply_brightness)
@@ -179,6 +185,17 @@ func _ready() -> void:
 ## 0 is the clearest fog, with no rule broken; 1 the thickest.
 func set_fog(amount: float) -> void:
 	environment.fog_density = lerpf(FOG_CLEAR, FOG_THICK, clampf(amount, 0.0, 1.0))
+	var city := _city.material_override as StandardMaterial3D
+	var alpha := CITY_ALPHA * (1.0 - clampf(amount, 0.0, 1.0))
+	if not is_equal_approx(city.albedo_color.a, alpha):  # no material update on a still frame
+		city.albedo_color.a = alpha
+
+
+## KL's glow stays CITY_AWAY down the valley from wherever the camera is, so it reads as far below.
+func _process(_delta: float) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera != null:
+		_city.global_position = camera.global_position + city_dir * CITY_AWAY + Vector3.DOWN * 5.0
 
 
 ## Every material the road made, for the start card's warm-up. The signs' lines (Label3D) draw with the engine's own.
@@ -251,6 +268,16 @@ static func _height(profile: PackedVector2Array, out: float) -> float:
 	return 0.0
 
 
+## How far from the centreline he can walk on `side` (+1 left) at s: to the drain or the rail's face, or the kerb in
+## the tunnel.
+func wall(s: float, side: float) -> float:
+	return _wall(_row(s), side)
+
+
+func _wall(r: Row, side: float) -> float:
+	return WALL_TUNNEL if _in_tunnel(r.s) else lerpf(WALL_VALLEY, WALL_HILL, r.hilly(side))
+
+
 static func _in_tunnel(s: float) -> bool:
 	return s >= RoadLayout.TUNNEL.x and s <= RoadLayout.TUNNEL.y
 
@@ -269,8 +296,6 @@ func _build_row(c: Chunk, a: Row, b: Row, i: int) -> void:
 		if tunnel:
 			var lining := PackedVector2Array(LINING)
 			_strip(c, &"ground", a, b, side, lining, lining, 0, lining.size() - 1, CONCRETE * 0.8)
-			if (i - int((RoadLayout.TUNNEL.x - RoadLayout.START_S) / STEP)) % 3 == 0:  # a lamp every 6 m
-				_box(c, &"sodium", Transform3D(a.basis(), a.at(side, 2.6, 5.9)), Vector3(0.16, 0.05, 1.2), SODIUM)
 		else:
 			var ga := _ground(a, side)
 			var gb := _ground(b, side)
@@ -283,8 +308,8 @@ func _build_row(c: Chunk, a: Row, b: Row, i: int) -> void:
 				_strip(c, &"ground", a, b, side, rail, rail, 0, rail.size() - 1, STEEL * 0.7, true)  # its back
 				if i % 2 == 0:  # a post every 4 m
 					_box(c, &"ground", Transform3D(a.basis(), a.at(side, 4.92, 0.375)), Vector3(0.15, 0.75, 0.1), STEEL * 0.8)
-		limits.append(WALL_TUNNEL if tunnel else lerpf(WALL_VALLEY, WALL_HILL, a.hilly(side)))
-		limits.append(WALL_TUNNEL if tunnel else lerpf(WALL_VALLEY, WALL_HILL, b.hilly(side)))
+		limits.append(_wall(a, side))  # each end its own, so the wall slants into a tunnel mouth with no gap
+		limits.append(_wall(b, side))
 	# limits: left at a, left at b, right at a, right at b
 	var floor_a := [a.at(1.0, limits[0], 0.0), a.at(-1.0, limits[2], 0.0)]
 	var floor_b := [b.at(1.0, limits[1], 0.0), b.at(-1.0, limits[3], 0.0)]
@@ -345,11 +370,9 @@ func _build_chevrons() -> void:
 		var s: float = sp[0] + BLEND
 		while s < sp[1] - 3.0:
 			var r := _row(s)
-			var c := _chunk_at(s)
 			var basis := r.basis()
-			var foot := r.at(-turn, 5.35, 0.0)
-			_post(c, Transform3D(basis, foot - basis.z * 0.03), 1.0)
-			var mid := foot + Vector3.UP * 1.3
+			var c := _chunk_at(s)
+			var mid := _board(c, r, -turn, Vector2(0.6, 0.75), 0.925, 0.0)
 			var x := basis.x * 0.3
 			var y := Vector3.UP * 0.375
 			var u := [0.0, 0.25] if turn < 0.0 else [0.25, 0.0]  # the board's chevron points right: mirrored for a left turn
@@ -364,21 +387,17 @@ func _build_signs() -> void:
 		var r := _row(sign[0])
 		var c := _chunk_at(sign[0])
 		var basis := r.basis()
-		var out := 6.6 if r.hilly(1.0) > 0.5 else 5.35
 		var lines: Array = sign[1]
-		var sizes := lines.map(func(text: String) -> float: return 0.0056 if text == "AWAS" else 0.0034)
+		var sizes := lines.map(func(text: String) -> float: return 0.0056 if text == "AWAS" else 0.0026)
 		var width := 0.0
 		var height := 0.3
 		for k in lines.size():
 			width = maxf(width, font.get_string_size(lines[k], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x * sizes[k])
 			height += font.get_height(FONT_PX) * sizes[k]
 		width += 0.4
-		var bottom := 1.4
-		var mid := r.at(1.0, out, bottom + height * 0.5)
+		var mid := _board(c, r, 1.0, Vector2(width, height), 1.4, 0.3)
 		_box(c, &"signs", Transform3D(basis, mid), Vector3(width, height, 0.04), AWAS_RED)
-		for x: float in [-0.5, 0.5]:
-			_post(c, Transform3D(basis, r.at(1.0, out, 0.0) + basis.x * (width * x - signf(x) * 0.3) - basis.z * 0.05), bottom + height - 0.1)
-		var top := bottom + height - 0.15
+		var top := height * 0.5 - 0.15  # from the board's middle
 		for k in lines.size():
 			var line_height: float = font.get_height(FONT_PX) * sizes[k]
 			var label := Label3D.new()
@@ -390,7 +409,7 @@ func _build_signs() -> void:
 			label.shaded = true
 			label.alpha_cut = Label3D.ALPHA_CUT_DISCARD
 			label.visibility_range_end = VIEW
-			label.transform = Transform3D(basis, r.at(1.0, out, top - line_height * 0.5) + basis.z * 0.025 - c.node.position)
+			label.transform = Transform3D(basis, mid + Vector3.UP * (top - line_height * 0.5) + basis.z * 0.025 - c.node.position)
 			top -= line_height
 			c.node.add_child(label)
 			signs.append(label)
@@ -398,12 +417,29 @@ func _build_signs() -> void:
 		var r := _row(s)
 		var c := _chunk_at(s)
 		var basis := r.basis()
-		var foot := r.at(1.0, 6.6 if r.hilly(1.0) > 0.5 else 5.35, 0.0)
-		_post(c, Transform3D(basis, foot - basis.z * 0.03), 1.75)
-		var mid := foot + Vector3.UP * 2.2
+		var mid := _board(c, r, 1.0, Vector2(0.9, 0.9), 1.75, 0.0)
 		var x := basis.x * 0.45
 		var y := Vector3.UP * 0.45
 		_poly(c, &"sign_faces", [mid + y, mid + x, mid - y, mid - x], basis.z, Color.WHITE, [Vector2(0.5, 0.0), Vector2(0.75, 0.5), Vector2(0.5, 1.0), Vector2(0.25, 0.5)])
+
+
+## Sets a board of `size` (width, height) beside the road on `side` at r, and its banded posts. On the valley side it
+## stands behind the guard rail, `bottom` metres up. On the hill side it hangs over the verge, high enough to walk
+## under and to clear the cut slope it reaches into. The posts (`inset` in from each edge, or one in the middle for
+## 0) start on the ground. Returns the board's centre.
+func _board(c: Chunk, r: Row, side: float, size: Vector2, bottom: float, inset: float) -> Vector3:
+	var ground := _ground(r, side)
+	var near := EDGE + 0.15
+	if r.hilly(side) > 0.5:
+		bottom = maxf(2.2, _height(ground, near + size.x) + 0.3)
+	else:
+		near = WALL_VALLEY + 0.3
+	var basis := r.basis()
+	var top := r.p.y + bottom + size.y - 0.1
+	for x: float in ([near + size.x * 0.5] if inset == 0.0 else [near + inset, near + size.x - inset]):
+		var foot := r.at(side, x, _height(ground, x))
+		_post(c, Transform3D(basis, foot - basis.z * 0.05), top - foot.y)
+	return r.at(side, near + size.x * 0.5, bottom + size.y * 0.5)
 
 
 ## A sodium street lamp on `side`: a pole beyond the walk wall, an arm over the road, the glowing head, its light,
@@ -414,7 +450,8 @@ func _lamp(s: float, side: float) -> void:
 	var basis := r.basis()
 	var out := 6.6 if r.hilly(side) > 0.5 else 5.4
 	var reach := out - 2.3
-	_box(c, &"ground", Transform3D(basis, r.at(side, out, 4.0)), Vector3(0.16, 8.0, 0.16), STEEL * 0.7)
+	var foot := _height(_ground(r, side), out)
+	_box(c, &"ground", Transform3D(basis, r.at(side, out, (foot + 8.0) * 0.5)), Vector3(0.16, 8.0 - foot, 0.16), STEEL * 0.7)
 	_box(c, &"ground", Transform3D(basis, r.at(side, (out + reach) * 0.5, 7.92)), Vector3(2.4, 0.08, 0.08), STEEL * 0.7)
 	_box(c, &"ground", Transform3D(basis, r.at(side, reach, 7.95)), Vector3(0.7, 0.16, 0.32), STEEL * 0.5)
 	_box(c, &"sodium", Transform3D(basis, r.at(side, reach, 7.86)), Vector3(0.5, 0.03, 0.22), SODIUM)
@@ -467,8 +504,18 @@ func _build_tunnel() -> void:
 	var c := _chunk_at(mid)
 	for block: Array in [[Vector3(-27.0, 2.5, 0.0), Vector3(36.0, 55.0, length)], [Vector3(27.0, 2.5, 0.0), Vector3(36.0, 55.0, length)], [Vector3(0.0, 19.75, 0.0), Vector3(18.0, 20.5, length)]]:
 		_box(c, &"ground", Transform3D(xf.basis, xf * (block[0] as Vector3)), block[1], EARTH)
-	for s: float in [RoadLayout.TUNNEL.x + 15.0, RoadLayout.TUNNEL.y - 15.0]:
-		_light(_chunk_at(s), RoadLayout.point(s) + Vector3.UP * 5.2, 26.0, 2.5)
+	var s := RoadLayout.TUNNEL.x + 3.0
+	while s <= RoadLayout.TUNNEL.y - 3.0:  # a light strip every 6 m on both sides, none out past a mouth
+		var r := _row(s)
+		for side: float in [1.0, -1.0]:
+			_box(_chunk_at(s), &"sodium", Transform3D(r.basis(), r.at(side, STRIP.x, STRIP.y)), Vector3(0.16, 0.05, 1.2), SODIUM)
+		s += 6.0
+	# The top portal's lamp hangs 2 m in front of its face, which a light inside could not reach; the other lights
+	# the rest of the tube, from 35 m inside the bottom mouth.
+	for at: Vector2 in [Vector2(RoadLayout.TUNNEL.x - 2.0, 26.0), Vector2(RoadLayout.TUNNEL.y - 35.0, 32.0)]:  # [s, range]
+		_light(_chunk_at(at.x), RoadLayout.point(at.x) + Vector3.UP * 5.5, at.y, 2.5)
+	var top := _row(RoadLayout.TUNNEL.x)
+	_box(_chunk_at(RoadLayout.TUNNEL.x + STEP), &"sodium", Transform3D(top.basis(), top.at(1.0, 0.0, 7.0) - top.fwd * 0.1), Vector3(0.6, 0.12, 0.2), SODIUM)
 
 
 ## Where the portal's face meets a point of the lining: straight out to its side for the kerb and the wall's foot,
@@ -532,6 +579,21 @@ func _build_resort() -> void:
 	add_child(glow)
 
 
+## KL's glow in the clouds far below: a low, wide sodium haze kept down the valley (see _process). Nearer things
+## hide it; a thicker fog fades it out (set_fog).
+func _build_city() -> void:
+	var drop := RoadLayout.point(_rows[-1].s) - RoadLayout.point(RoadLayout.START_S)
+	city_dir = Vector3(drop.x, 0.0, drop.z).normalized()
+	_city = MeshInstance3D.new()
+	_city.name = "City"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(260.0, 30.0)
+	_city.mesh = quad
+	_city.material_override = _mats[&"city"]
+	_city.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_city)
+
+
 ## The bus stop on the left verge: a metal roof on two posts at the back, a concrete bench under it, and the timetable
 ## plate. A slab covers the drain there.
 func _build_stop() -> void:
@@ -566,19 +628,11 @@ func _tool(c: Chunk, kind: StringName) -> SurfaceTool:
 	return c.tools[kind]
 
 
-## One convex polygon, in world space, facing n. Godot draws clockwise triangles as front faces, so each triangle is
-## turned round if it would face away (as Decor._poly). normals: per point, for smooth shading.
+## One convex polygon, in world space, facing n, into chunk c's mesh of `kind`: Decor._poly, moved into the chunk.
+## normals: per point, for smooth shading.
 func _poly(c: Chunk, kind: StringName, p: Array, n: Vector3, color: Color, uv: Array = [], normals: Array = []) -> void:
-	var st := _tool(c, kind)
-	for i in range(1, p.size() - 1):
-		var tri := [0, i, i + 1]
-		if (p[i] - p[0]).cross(p[i + 1] - p[0]).dot(n) > 0.0:
-			tri = [0, i + 1, i]
-		for k: int in tri:
-			st.set_normal(normals[k] if not normals.is_empty() else n)
-			st.set_color(color)
-			st.set_uv(uv[k] if not uv.is_empty() else Vector2.ZERO)
-			st.add_vertex(p[k] - c.node.position)
+	var o := c.node.position
+	Decor._poly(_tool(c, kind), p.map(func(q: Vector3) -> Vector3: return q - o), n, color, uv, normals)
 
 
 ## The cross-section points j0 to j1 of pa (at row a) and pb (at row b) on `side`, as a strip along the road, smooth
@@ -622,6 +676,14 @@ func _post(c: Chunk, xf: Transform3D, height: float) -> void:
 		_box(c, &"signs", Transform3D(xf.basis, xf.origin + Vector3.UP * (z + band * 0.5)), Vector3(0.07, band, 0.07), POST_BANDS[k % 2])
 		z += band
 		k += 1
+	var x := xf.basis.x * 0.05
+	var y := Vector3.UP * height
+	var z_ := xf.basis.z * 0.05
+	var corners := [xf.origin + x + z_, xf.origin + x - z_, xf.origin - x - z_, xf.origin - x + z_]
+	for j in 4:  # he walks into a post, not through it
+		var a: Vector3 = corners[j]
+		var b: Vector3 = corners[(j + 1) % 4]
+		_face(c, [a, b, b + y, a + y])
 
 
 ## Two triangles of the walking colliders.
@@ -729,6 +791,9 @@ func _build_materials() -> void:
 	_mats[&"cards"] = [_card_mesh(0), _card_mesh(1)]
 	_add_material(&"halo", _haze(Color(SODIUM, 0.7), 25.0, 110.0))
 	_add_material(&"resort_glow", _haze(Color(1.0, 0.72, 0.45, 0.35), 60.0, 125.0))
+	var city := _haze(Color(1.0, 0.55, 0.22, CITY_ALPHA), 0.0, 0.0)
+	city.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED  # it is always CITY_AWAY off
+	_add_material(&"city", city)
 
 
 func _glow(color: Color, energy: float) -> StandardMaterial3D:

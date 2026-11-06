@@ -11,6 +11,10 @@ const SHOTS := [
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
 	["road_bend", 0, 636.0, 1.8, -0.25, -0.08, 0.5, true],  # into the first switchback, by the phone's light
 	["road_tunnel", 0, 244.0, 1.8, 0.0, 0.0, 0.0, false],  # the tunnel's mouth, lit inside
+	["road_tunnel_in", 0, 290.0, 1.8, 0.0, 0.05, 0.0, false],  # inside it, its light strips
+	["road_awas40", 0, 35.0, 1.0, 0.75, 0.15, 0.0, true],  # the first AWAS board, on the hill side, by the phone's light
+	["road_awas431", 0, 426.5, 2.0, 0.8, 0.05, 0.0, true],  # the one behind the rail, before switchback 1
+	["road_city", 0, 360.0, 1.8, 0.0, 0.0, 0.0, false],  # down the road towards KL's glow, in the clearest fog
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2

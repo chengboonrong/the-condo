@@ -161,7 +161,7 @@ func finish() -> void:
 
 ## One polygon (convex, points in order around it) facing n. Godot draws clockwise triangles as front
 ## faces, so each triangle is flipped if it would face away. normals: per point, for smooth shading.
-func _poly(st: SurfaceTool, p: Array, n: Vector3, color: Color, uv: Array = [], normals: Array = []) -> void:
+static func _poly(st: SurfaceTool, p: Array, n: Vector3, color: Color, uv: Array = [], normals: Array = []) -> void:
 	for i in range(1, p.size() - 1):
 		var tri := [0, i, i + 1]
 		if (p[i] - p[0]).cross(p[i + 1] - p[0]).dot(n) > 0.0:
