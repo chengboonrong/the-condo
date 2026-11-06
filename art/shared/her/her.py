@@ -10,7 +10,8 @@ from a centre parting under gravity until the head curves away beneath them, and
 the head posed in model space, so the same hair falls round her face in one model and over it in the other.
 
 Materials: "skin", "eyes", "hair" (seen from both sides). Every part carries a colour attribute, "Color" (white where
-it means nothing), so the parts can be joined with ones coloured per vertex.
+it means nothing), so the parts can be joined with ones coloured per vertex. head(colour=...) gives the plain skin
+instead of the painted one: no texture, coloured per vertex (plain_skin_material()).
 """
 import math
 import os
@@ -24,7 +25,7 @@ from mathutils import noise as perlin
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:0] = [os.path.join(os.path.dirname(HERE), "apron")]
-from apron import _fbm, _over, _smooth  # noqa: E402  the shared texture helpers
+from apron import fbm, over, smoothstep  # noqa: E402  the shared texture helpers
 
 perlin.seed_set(611)
 
@@ -312,13 +313,15 @@ def front_uv(obj: bpy.types.Object, head: Matrix = Matrix()) -> None:
 
 # --- the head -------------------------------------------------------------------------------------------
 
-def head(name: str, tris: int, pose: Matrix = Matrix()) -> bpy.types.Object:
-    """Her skin, about tris triangles, posed into model space by pose. Material 0 is "skin"."""
+def head(name: str, tris: int, pose: Matrix = Matrix(), colour: tuple | None = None) -> bpy.types.Object:
+    """Her skin, about tris triangles, posed into model space by pose. Material 0 is "skin": the painted texture, or
+    with colour (linear RGBA) the plain skin, that colour per vertex."""
     bm = new_bmesh()
-    grid(bm, rows(), 0)
-    obj = to_object(name, bm, [skin_material()])
+    grid(bm, rows(), 0, (lambda p: colour) if colour else None)
+    obj = to_object(name, bm, [plain_skin_material() if colour else skin_material()])
     decimate(obj, tris)
-    front_uv(obj)
+    if not colour:
+        front_uv(obj)
     obj.data.transform(pose)
     return obj
 
@@ -371,14 +374,19 @@ def eyes(name: str, pose: Matrix = Matrix()) -> bpy.types.Object:
 
 def hairline(a: float) -> float:
     """How low the hair comes at the angle a round the head (0 the face, pi the nape): a high, rounded forehead, down
-    over the temples and in front of the ears, and low at the nape."""
-    a = abs(math.remainder(a, math.tau))
+    over the temples and in front of the ears, and low at the nape. Ragged by a cm or so, never an even line; the
+    parting opens a little way up from the middle of the forehead, and the hair is thinner at the temples."""
+    s = math.remainder(a, math.tau)
+    a = abs(s)
     keys = [(0.0, 0.067), (0.45, 0.062), (0.85, 0.044), (1.15, 0.022), (1.42, -0.022), (1.8, -0.035), (2.4, -0.066),
             (math.pi, -0.078)]
+    z = keys[-1][1]
     for (a0, z0), (a1, z1) in zip(keys, keys[1:]):
         if a <= a1:
-            return z0 + (z1 - z0) * smooth((a - a0) / (a1 - a0))
-    return keys[-1][1]
+            z = z0 + (z1 - z0) * smooth((a - a0) / (a1 - a0))
+            break
+    ragged = 0.006 * perlin.noise(Vector((s * 4.0, 1.3, 0.7))) + 0.003 * perlin.noise(Vector((s * 14.0, 4.1, 2.9)))
+    return z + ragged + 0.014 * bump(s, 0.06) + 0.006 * bump(a - 1.0, 0.25)
 
 
 def scalp(d: Vector) -> Vector:
@@ -390,16 +398,19 @@ def scalp(d: Vector) -> Vector:
 
 
 def shell(tris: int, pose: Matrix = Matrix()) -> bpy.types.Object:
-    """The hair flat on the scalp, wet: clinging, with grooves where it parts into clumps; tucked inside the head below
-    the hairline."""
+    """The hair flat on the scalp, wet: clinging, with grooves where it parts into clumps, thinning to almost nothing
+    over its last 2 cm, where the skin shows through in patches; tucked inside the head below the hairline."""
     def offset(d: Vector, p: Vector) -> Vector:
         a = math.atan2(d.x, -d.y)
         edge = p.z - hairline(a)
         if edge < 0:
             return p * 0.95
-        grooves = 0.0012 * perlin.noise(Vector((a * 9.0, p.z * 3.0, 2.2)))
+        if perlin.noise(Vector((a * 8.0, p.z * 45.0, 5.0))) > 0.1 + 20.0 * edge:  # thin: the skin shows through
+            return p * 0.95
+        fringe = smooth(edge / 0.02)  # thinning to almost nothing at the edge
+        grooves = 0.0018 * perlin.noise(Vector((a * 9.0, p.z * 3.0, 2.2))) * fringe
         part = 0.0015 * bump(p.x, 0.0025) * smooth((p.z - 0.06) / 0.02) * (1.0 if p.y < 0.04 else 0.0)  # the parting
-        return p + d * (0.0042 * smooth(edge / 0.008) + grooves - part)
+        return p + d * (0.0007 + 0.0042 * fringe + grooves - part)
     bm = new_bmesh()
     grid(bm, rows(offset, 96, 64), 0)
     obj = to_object("hair_shell", bm, [hair_material()])
@@ -433,11 +444,12 @@ def comb(p: Vector) -> Vector:
 
 
 def strand(root: Vector, pose: Matrix, length: float, colliders: list, seed: float, plastered: Vector | None = None,
-           combed: float = 1.4) -> list:
+           combed: float = 1.4, kink: float = 0.006) -> list:
     """The path of one clump: (model-space point, outward normal) pairs from its root. It runs down the scalp (head
     space) the way gravity and the comb take it, until the head curves away beneath it, then hangs free (model space),
     kept out of the colliders [(a, b, radius)], capsules. plastered: a comb direction of its own, for strands stuck
-    across the face. combed: how strongly the parting holds the hair against gravity."""
+    across the face (it wanders a little as it goes). combed: how strongly the parting holds the hair against gravity.
+    kink: how far the free part wanders, per segment."""
     rot = pose.to_3x3()
     g = (rot.inverted() @ Vector((0, 0, -1))).normalized()  # gravity in head space
     d = root.normalized()
@@ -449,7 +461,8 @@ def strand(root: Vector, pose: Matrix, length: float, colliders: list, seed: flo
         if n.dot(g) > 0.3 and s > 0.01:
             break
         tangent = g - n * g.dot(n)
-        c = plastered if plastered is not None else comb(p)
+        wander = Vector([perlin.noise(p * 45.0 + Vector((seed, j, 0.0))) for j in (0.0, 3.0, 6.0)])
+        c = comb(p) if plastered is None else plastered + wander * 0.7
         c = c - n * c.dot(n)
         w = combed if plastered is None else 1.6 * math.exp(-s / 0.09)
         step = tangent * (1.0 if tangent.length > 1e-4 else 0.0) + c * w
@@ -463,7 +476,7 @@ def strand(root: Vector, pose: Matrix, length: float, colliders: list, seed: flo
     seg = 0.034
     while s < length:
         k = s * 7.0
-        q = q + Vector((0, 0, -seg)) + Vector((perlin.noise(Vector((k, seed, 0.3))), perlin.noise(Vector((k, seed, 5.1))), 0)) * 0.006
+        q = q + Vector((0, 0, -seg)) + Vector((perlin.noise(Vector((k, seed, 0.3))), perlin.noise(Vector((k, seed, 5.1))), 0)) * kink
         for a, b, r in colliders:
             ab = b - a
             t = min(max((q - a).dot(ab) / ab.length_squared, 0.0), 1.0)
@@ -477,9 +490,9 @@ def strand(root: Vector, pose: Matrix, length: float, colliders: list, seed: flo
     return path
 
 
-def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat: bool = False) -> None:
-    """A clump of wet hair along path [(point, normal)]: a strip with a raised middle, narrowing to a point. flat: barely
-    raised, a few hairs stuck to the skin."""
+def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat: bool = False, seed: float = 0.0) -> None:
+    """A clump of wet hair along path [(point, normal)]: a strip with a raised middle, wider and narrower along its
+    length (seed) and narrowing to a point. flat: barely raised, a few hairs stuck to the skin."""
     n = len(path)
     if n < 2:
         return
@@ -488,7 +501,7 @@ def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat:
         t = (path[min(i + 1, n - 1)][0] - path[max(i - 1, 0)][0]).normalized()
         side = t.cross(nrm).normalized()
         u = i / (n - 1)
-        w = width * (1.0 - u ** 1.6) ** 0.8 + 0.0008
+        w = width * (1.0 + 0.45 * perlin.noise(Vector((u * 6.0, seed, 3.3)))) * (1.0 - u ** 1.3) ** 0.8 + 0.0006
         lift = nrm * ((0.0005 + 0.08 * w) if flat else (0.0012 + 0.25 * w))
         ringset.append([bm.verts.new(p - side * w / 2), bm.verts.new(p + lift), bm.verts.new(p + side * w / 2)])
     faces = []
@@ -510,9 +523,14 @@ def hair(pose: Matrix, count: int, length: tuple, colliders: list, shell_tris: i
         p = surface(d)
         if parting and abs(p.x) < 0.012 and p.y < 0.03 and p.z > 0.05:  # nothing grows out of the parting itself
             continue
-        ribbon(bm, strand(d, pose, rng.uniform(*length), colliders, i * 1.7, combed=combed), rng.uniform(0.01, 0.019), 0)
-    for i, (d, c) in enumerate(plastered):
-        ribbon(bm, strand(d, pose, rng.uniform(*length), colliders, 50 + i, plastered=c), 0.0045, 0, flat=True)
+        ribbon(bm, strand(d, pose, rng.uniform(*length), colliders, i * 1.7, combed=combed), rng.uniform(0.01, 0.019), 0,
+               seed=i * 1.7)
+    for i, (d, c) in enumerate(plastered):  # each splits into a thicker and a thinner strand that drift apart
+        for k, (turn, width, short) in enumerate(((0.0, 0.0042, 1.0), (0.35 if i % 2 else -0.35, 0.0026, 0.7))):
+            cc = Matrix.Rotation(turn, 3, d.normalized()) @ c
+            seed = 50.0 + i * 3.0 + k * 1.3
+            ribbon(bm, strand(d, pose, rng.uniform(*length) * short, colliders, seed, plastered=cc, kink=0.011), width, 0,
+                   flat=True, seed=seed)
     clumps = to_object("hair", bm, [hair_material()])
     return [shell(shell_tris, pose), clumps]
 
@@ -543,10 +561,17 @@ def skin_material() -> bpy.types.Material:
 
 
 def plain_skin_material() -> bpy.types.Material:
-    """"skin" without the texture: its average colour, for where her face is never seen."""
+    """"skin" without the texture (no blood, nothing to ship), coloured per vertex: for where her face is barely seen.
+    Its albedo is white, so it must not be the model's first primitive (Godot's importer never colours that one from
+    its vertices; tests/integration/test_models.gd checks)."""
+    if bpy.data.materials.get("skin"):
+        return bpy.data.materials["skin"]
     mat = _material("skin")
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = (*(c ** 2.2 for c in SKIN), 1.0)
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    attr = nt.nodes.new("ShaderNodeVertexColor")
+    attr.layer_name = "Color"
+    nt.links.new(attr.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 0.5
     return mat
 
@@ -572,7 +597,7 @@ def hair_material() -> bpy.types.Material:
     mat.use_backface_culling = False
     bsdf = mat.node_tree.nodes["Principled BSDF"]
     bsdf.inputs["Base Color"].default_value = (*HAIR, 1.0)
-    bsdf.inputs["Roughness"].default_value = 0.3
+    bsdf.inputs["Roughness"].default_value = 0.45
     return mat
 
 
@@ -586,50 +611,65 @@ def texture() -> bpy.types.Image:
                          TEX_X[0] + (np.arange(TEX_W) + 0.5) / TEX_W * (TEX_X[1] - TEX_X[0]), indexing="ij")  # rows bottom first
     ax = np.abs(xx)
     colour = np.broadcast_to(np.array(SKIN), xx.shape + (3,)).copy()
-    blotch = _fbm(rng, xx, zz, 60.0, 4)
+    blotch = fbm(rng, xx, zz, 60.0, 4)
     colour *= (0.93 + 0.12 * blotch)[..., None]
-    colour = _over(colour, (0.5, 0.5, 0.52), 0.25 * _smooth((_fbm(rng, xx, zz, 25.0) - 0.45) / 0.2))  # grey, bloodless
+    colour = over(colour, (0.5, 0.5, 0.52), 0.25 * smoothstep((fbm(rng, xx, zz, 25.0) - 0.45) / 0.2))  # grey, bloodless
     # veins: faint blue-grey threads at the temples, round the eyes and on the throat
-    vein = np.abs(_fbm(rng, xx * 1.3, zz, 70.0, 3) - 0.5)
+    vein = np.abs(fbm(rng, xx * 1.3, zz, 70.0, 3) - 0.5)
     where = np.exp(-((ax - 0.06) / 0.02) ** 2 - ((zz - 0.03) / 0.03) ** 2) + np.exp(-((ax - 0.04) / 0.02) ** 2 - ((zz + 0.01) / 0.012) ** 2) \
-        + 0.8 * _smooth((-0.12 - zz) / 0.03)
-    colour = _over(colour, (0.36, 0.4, 0.48), 0.5 * where * _smooth((0.035 - vein) / 0.03))
+        + 0.8 * smoothstep((-0.12 - zz) / 0.03)
+    colour = over(colour, (0.36, 0.4, 0.48), 0.5 * where * smoothstep((0.035 - vein) / 0.03))
     # sunken, bruised hollows: round the eyes, under the cheekbones
     e = np.vectorize(almond)(xx, zz)
-    colour = _over(colour, (0.34, 0.27, 0.29), 0.75 * _smooth((0.016 - e) / 0.014) * (0.8 + 0.4 * blotch))
-    colour = _over(colour, (0.42, 0.36, 0.36), 0.35 * np.exp(-((ax - 0.046) / 0.016) ** 2 - ((zz + 0.062) / 0.02) ** 2))
+    colour = over(colour, (0.34, 0.27, 0.29), 0.75 * smoothstep((0.016 - e) / 0.014) * (0.8 + 0.4 * blotch))
+    colour = over(colour, (0.42, 0.36, 0.36), 0.35 * np.exp(-((ax - 0.046) / 0.016) ** 2 - ((zz + 0.062) / 0.02) ** 2))
     # the lid margins, wet and reddened, and the eyes' corners
-    colour = _over(colour, (0.5, 0.28, 0.28), 0.8 * np.exp(-(e / 0.0009) ** 2))
-    colour = _over(colour, (0.45, 0.22, 0.22), 0.8 * np.exp(-((ax - MEDIAL[0] - 0.002) / 0.003) ** 2 - ((zz - MEDIAL[1]) / 0.003) ** 2))
+    colour = over(colour, (0.5, 0.28, 0.28), 0.8 * np.exp(-(e / 0.0009) ** 2))
+    colour = over(colour, (0.45, 0.22, 0.22), 0.8 * np.exp(-((ax - MEDIAL[0] - 0.002) / 0.003) ** 2 - ((zz - MEDIAL[1]) / 0.003) ** 2))
+    # the hairline: the skin darkens into it under fine wet hairs, so where the shell thins out it is not a clean edge
+    hl = np.vectorize(hairline)(np.arcsin(np.clip(xx / 0.072, -1.0, 1.0)))
+    wisps = smoothstep((fbm(rng, xx * 4.0, zz * 0.25, 260.0, 2) - 0.42) / 0.16)
+    colour = over(colour, (0.035, 0.032, 0.033), smoothstep((zz - hl + 0.013) / 0.013) * (0.3 + 0.65 * wisps))
     # thin dark brows, sparse
     t = np.clip((ax - 0.013) / 0.045, 0, 1)
     brow_z = 0.0105 + 0.0065 * np.sin(np.pi * (0.2 + 0.7 * t)) - 0.002 * t
-    brow = np.exp(-((zz - brow_z) / (0.003 * (1.25 - 0.6 * t))) ** 2) * _smooth((ax - 0.012) / 0.004) * _smooth((0.06 - ax) / 0.008)
-    hairs = _smooth((_fbm(rng, xx * 0.25, zz * 4.0, 300.0, 2) - 0.35) / 0.3)
-    colour = _over(colour, (0.13, 0.11, 0.105), 0.7 * brow * (0.55 + 0.45 * hairs))
+    brow = np.exp(-((zz - brow_z) / (0.003 * (1.25 - 0.6 * t))) ** 2) * smoothstep((ax - 0.012) / 0.004) * smoothstep((0.06 - ax) / 0.008)
+    hairs = smoothstep((fbm(rng, xx * 0.25, zz * 4.0, 300.0, 2) - 0.35) / 0.3)
+    colour = over(colour, (0.13, 0.11, 0.105), 0.7 * brow * (0.55 + 0.45 * hairs))
     # the nose: shade at its wings, the nostrils dark beneath it
-    colour = _over(colour, (0.4, 0.33, 0.33), 0.5 * np.exp(-((ax - 0.0195) / 0.003) ** 2 - ((zz + 0.045) / 0.006) ** 2))
-    colour = _over(colour, (0.07, 0.04, 0.04), 0.95 * np.exp(-((ax - 0.008) / 0.0035) ** 2 - ((zz + 0.049) / 0.0022) ** 2))
+    colour = over(colour, (0.4, 0.33, 0.33), 0.5 * np.exp(-((ax - 0.0195) / 0.003) ** 2 - ((zz + 0.045) / 0.006) ** 2))
+    colour = over(colour, (0.07, 0.04, 0.04), 0.95 * np.exp(-((ax - 0.008) / 0.0035) ** 2 - ((zz + 0.049) / 0.0022) ** 2))
     # the lips: dry, grey-mauve, cracked; the gap between them black
     mz = MOUTH_Z - 0.0035 * np.clip(ax / MOUTH_W, 0, 1) ** 2
-    lips = np.exp(-((zz + 0.0695) / 0.0032) ** 2) * _smooth((0.022 - ax) / 0.004) + np.exp(-((zz + 0.079) / 0.0042) ** 2) * _smooth((0.021 - ax) / 0.004)
-    colour = _over(colour, (0.42, 0.3, 0.33), 0.8 * lips)
-    cracks = _smooth((0.04 - np.abs(_fbm(rng, xx * 6.0, zz * 0.3, 400.0, 2) - 0.5)) / 0.03)
-    colour = _over(colour, (0.25, 0.14, 0.15), 0.6 * lips * cracks)
+    lips = np.exp(-((zz + 0.0695) / 0.0032) ** 2) * smoothstep((0.022 - ax) / 0.004) + np.exp(-((zz + 0.079) / 0.0042) ** 2) * smoothstep((0.021 - ax) / 0.004)
+    colour = over(colour, (0.42, 0.3, 0.33), 0.8 * lips)
+    cracks = smoothstep((0.04 - np.abs(fbm(rng, xx * 6.0, zz * 0.3, 400.0, 2) - 0.5)) / 0.03)
+    colour = over(colour, (0.25, 0.14, 0.15), 0.6 * lips * cracks)
     gap = MOUTH_OPEN * np.clip(1 - (ax / MOUTH_W) ** 2, 0, 1) ** 0.7
-    colour = _over(colour, (0.03, 0.015, 0.015), _smooth((gap / 2 + 0.0012 - np.abs(zz - mz)) / 0.0012) * (ax < MOUTH_W + 0.001))
-    # blood: at the corners of the mouth and the lower lip, run down the chin and the throat
-    blood = np.exp(-((ax - 0.021) / 0.003) ** 2 - ((zz - mz) / 0.004) ** 2) + 0.7 * np.exp(-((zz + 0.081) / 0.003) ** 2) * _smooth((0.012 - ax) / 0.006)
-    wobble = 0.006 * (_fbm(rng, xx * 0.1, zz, 18.0) - 0.5)
-    for cx, top, length, w in ((0.021, -0.076, 0.085, 0.0026), (-0.019, -0.077, 0.045, 0.002), (-0.002, -0.084, 0.15, 0.0032)):
+    colour = over(colour, (0.03, 0.015, 0.015), smoothstep((gap / 2 + 0.0012 - np.abs(zz - mz)) / 0.0012) * (ax < MOUTH_W + 0.001))
+    # blood: at the corners of the mouth and on the lower lip, pooled under it, and run down the chin in a few drips of
+    # different widths and lengths, following the chin in, broken where it dried in drops; dried darker as it ran
+    blood = np.exp(-((ax - 0.021) / 0.003) ** 2 - ((zz - mz) / 0.004) ** 2) + 0.7 * np.exp(-((zz + 0.081) / 0.003) ** 2) * smoothstep((0.012 - ax) / 0.006)
+    pool = 0.8 * blood + np.exp(-((xx - 0.004) / 0.011) ** 2 - ((zz + 0.087) / 0.005) ** 2) * smoothstep((fbm(rng, xx, zz, 90.0) - 0.3) / 0.15)
+    wobble = 0.008 * (fbm(rng, xx * 0.1, zz, 25.0) - 0.5)
+    thick = fbm(rng, xx, zz, 40.0, 2)
+    gaps = smoothstep((fbm(rng, xx, zz, 60.0, 2) - 0.3) / 0.12)
+    for cx, top, length, w in ((0.021, -0.077, 0.09, 0.0028), (-0.019, -0.078, 0.032, 0.0018), (0.007, -0.088, 0.058, 0.0042),
+                               (-0.005, -0.09, 0.024, 0.0016)):
         along = np.clip((top - zz) / length, 0, 1)
-        run = _smooth((top - zz) / 0.004) * _smooth((zz - top + length) / 0.015) * np.exp(-((xx - cx - wobble * along) / (w * (1 - 0.45 * along))) ** 2)
-        blood = blood + run
-    blood = blood + 0.35 * np.exp(-((xx - 0.004) / 0.016) ** 2 - ((zz + 0.105) / 0.014) ** 2) * _smooth((_fbm(rng, xx, zz, 70.0) - 0.4) / 0.2)  # smeared on the chin
-    colour = _over(colour, (0.22, 0.025, 0.035), 0.9 * np.clip(blood, 0, 1) * (0.75 + 0.3 * blotch))
-    # the throat: bruised purple and grey where it tore, smeared with blood
-    colour = _over(colour, (0.3, 0.2, 0.25), 0.8 * _smooth((-0.128 - zz) / 0.03) * (0.6 + 0.6 * blotch))
-    colour = _over(colour, (0.2, 0.03, 0.04), 0.8 * _smooth((-0.19 - zz) / 0.02) * _smooth((_fbm(rng, xx * 0.4, zz, 50.0) - 0.3) / 0.25))
+        across = np.exp(-((xx - cx + 0.25 * cx * along - wobble * along) / (w * (1 - 0.5 * along) * (0.5 + thick))) ** 2)
+        run = smoothstep((top - zz) / 0.004) * smoothstep((zz - top + length) / 0.006) * across
+        blood = blood + run * (gaps if length > 0.04 else 1.0)
+        pool = pool + np.exp(-((zz - top + length - 0.003) / 0.0035) ** 2) * across  # the bead at its end
+    smear = np.exp(-((xx - 0.004) / 0.016) ** 2 - ((zz + 0.105) / 0.014) ** 2) * smoothstep((fbm(rng, xx, zz, 70.0) - 0.4) / 0.2)
+    blood = blood + 0.3 * smear + pool  # wiped across the chin
+    colour = over(colour, (0.15, 0.035, 0.03), 0.85 * np.clip(blood, 0, 1) * (0.7 + 0.35 * blotch))  # dried, browner
+    colour = over(colour, (0.07, 0.008, 0.011), 0.9 * np.clip(pool, 0, 1))  # pooled, nearly black
+    # the throat: bruised purple-grey from under the jaw, then bloodied unevenly, darker to where it tore
+    colour = over(colour, (0.24, 0.15, 0.19), 0.85 * smoothstep((-0.112 - zz) / 0.03) * (0.6 + 0.6 * blotch))
+    torn = smoothstep((-0.132 - zz) / 0.025) * smoothstep((fbm(rng, xx * 0.4, zz, 50.0) - 0.25) / 0.25)
+    colour = over(colour, (0.13, 0.025, 0.025), 0.9 * torn)
+    colour = over(colour, (0.06, 0.008, 0.01), 0.85 * torn * smoothstep((-0.15 - zz) / 0.015))
     path = os.path.join(HERE, "Her_skin.png")
     img = bpy.data.images.get("Her_skin") or bpy.data.images.new("Her_skin", TEX_W, TEX_H)
     img.pixels.foreach_set(np.concatenate([np.clip(colour, 0, 1), np.ones(xx.shape + (1,))], axis=-1).astype(np.float32).ravel())

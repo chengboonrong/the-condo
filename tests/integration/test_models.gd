@@ -67,6 +67,25 @@ func test_every_model_is_within_budget() -> bool:
 	return true
 
 
+func test_surfaces_coloured_per_vertex_use_their_colours() -> bool:
+	# Godot's glTF importer never sets vertex_color_use_as_albedo on a mesh's first primitive (4.7.2). A surface coloured
+	# only per vertex (vertex colours, no albedo texture, a white albedo) then draws white, and nothing else would notice.
+	# Put first a surface that needs no vertex colours.
+	for file in DirAccess.get_files_at("res://assets/models"):
+		if file.get_extension() != "glb":
+			continue
+		var node := ApartmentBuilder.model(StringName(file.get_basename()))
+		for m: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			for s in m.mesh.get_surface_count():
+				var mat := m.get_active_material(s) as BaseMaterial3D
+				if mat == null or mat.albedo_texture != null or not mat.albedo_color.is_equal_approx(Color.WHITE):
+					continue
+				if m.mesh.surface_get_arrays(s)[Mesh.ARRAY_COLOR] is PackedColorArray:
+					check(mat.vertex_color_use_as_albedo, "%s: %s surface %d (%s) is coloured per vertex but draws white" % [file, m.name, s, mat.resource_name])
+		node.free()
+	return true
+
+
 func test_models_stand_where_they_collide() -> bool:
 	var main := await _main()
 	for name: StringName in FOOTPRINTS:

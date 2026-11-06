@@ -111,7 +111,7 @@ def _noise(rng: np.random.Generator, u: np.ndarray, v: np.ndarray, scale: float)
     return top * (1 - fy) + bottom * fy
 
 
-def _fbm(rng, u, v, scale: float, octaves: int = 3) -> np.ndarray:
+def fbm(rng, u, v, scale: float, octaves: int = 3) -> np.ndarray:
     total, norm, amp = 0.0, 0.0, 1.0
     for _ in range(octaves):
         total = total + amp * _noise(rng, u, v, scale)
@@ -121,12 +121,12 @@ def _fbm(rng, u, v, scale: float, octaves: int = 3) -> np.ndarray:
     return total / norm
 
 
-def _smooth(t):
+def smoothstep(t):
     t = np.clip(t, 0.0, 1.0)
     return t * t * (3 - 2 * t)
 
 
-def _over(colour: np.ndarray, stain, alpha: np.ndarray) -> np.ndarray:
+def over(colour: np.ndarray, stain, alpha: np.ndarray) -> np.ndarray:
     """colour with stain laid over it at alpha (0..1 per pixel)."""
     return colour + (np.asarray(stain)[None, None, :] - colour) * np.clip(alpha, 0.0, 1.0)[..., None]
 
@@ -150,61 +150,61 @@ def texture() -> bpy.types.Image:
     v = (t - PANEL_UV[1]) / K
     canvas = np.array([0.85, 0.83, 0.77])
     colour = np.broadcast_to(canvas, u.shape + (3,)).copy()
-    colour *= (0.96 + 0.08 * _fbm(rng, u, v, 5.0))[..., None]  # washed unevenly
-    colour = _over(colour, (0.8, 0.75, 0.62), 0.3 * _smooth(1 - v / 0.5) * _fbm(rng, u, v, 3.0))  # yellowed low down
-    blot = _fbm(rng, u, v, 14.0)  # what gives every stain its ragged outline
-    patch = _fbm(rng, u, v, 9.0)
+    colour *= (0.96 + 0.08 * fbm(rng, u, v, 5.0))[..., None]  # washed unevenly
+    colour = over(colour, (0.8, 0.75, 0.62), 0.3 * smoothstep(1 - v / 0.5) * fbm(rng, u, v, 3.0))  # yellowed low down
+    blot = fbm(rng, u, v, 14.0)  # what gives every stain its ragged outline
+    patch = fbm(rng, u, v, 9.0)
     # leaning on the counter, and wiping the hands on the hips
-    colour = _over(colour, (0.56, 0.52, 0.44), 0.3 * np.exp(-((v - 0.34) / 0.045) ** 2) * _smooth((0.22 - abs(u)) / 0.08) * (0.5 + patch))
+    colour = over(colour, (0.56, 0.52, 0.44), 0.3 * np.exp(-((v - 0.34) / 0.045) ** 2) * smoothstep((0.22 - abs(u)) / 0.08) * (0.5 + patch))
     for side in (-1, 1):
         du, dv = u - side * 0.17, v - 0.3
         dv = dv + 0.6 * du * side  # drawn down and in, the way a hand wipes
-        colour = _over(colour, (0.5, 0.46, 0.39), 0.42 * np.exp(-(du / 0.045) ** 2 - (dv / 0.08) ** 2) * (0.4 + patch))
+        colour = over(colour, (0.5, 0.46, 0.39), 0.42 * np.exp(-(du / 0.045) ** 2 - (dv / 0.08) ** 2) * (0.4 + patch))
     # the pocket: its seams, a grubby opening and the shade beneath it
     u0, v0, u1, v1 = POCKET
     inside = (u > u0) & (u < u1) & (v > v0) & (v < v1)
-    colour = _over(colour, (0.6, 0.56, 0.48), 0.22 * inside * _smooth((v - (v1 - 0.03)) / 0.03))
+    colour = over(colour, (0.6, 0.56, 0.48), 0.22 * inside * smoothstep((v - (v1 - 0.03)) / 0.03))
     seam = np.minimum(np.minimum(abs(u - u0), abs(u - u1)), abs(v - v0))
-    colour = _over(colour, (0.55, 0.52, 0.46), 0.5 * inside * np.exp(-(seam / 0.0025) ** 2))
-    colour = _over(colour, (0.5, 0.47, 0.41), 0.55 * np.exp(-((v - v1) / 0.0035) ** 2) * ((u > u0) & (u < u1)))
+    colour = over(colour, (0.55, 0.52, 0.46), 0.5 * inside * np.exp(-(seam / 0.0025) ** 2))
+    colour = over(colour, (0.5, 0.47, 0.41), 0.55 * np.exp(-((v - v1) / 0.0035) ** 2) * ((u > u0) & (u < u1)))
     # tea: old soaks, then splashes, each a pale brown cloud dried darker at its broken edge, with runs below
-    fine = _fbm(rng, u, v, 30.0)
+    fine = fbm(rng, u, v, 30.0)
     for cu, cv, r, alpha in SOAK:
         d = np.hypot(u - cu, v - cv) / r + 0.8 * (patch - 0.5)
-        colour = _over(colour, (0.72, 0.6, 0.45), alpha * _smooth((1 - d) / 0.5))
+        colour = over(colour, (0.72, 0.6, 0.45), alpha * smoothstep((1 - d) / 0.5))
     for cu, cv, r, alpha, stretch in TEA:
         d = np.hypot(u - cu, np.minimum(v - cv, (v - cv) / stretch)) / r + 0.9 * (blot - 0.5) + 0.4 * (fine - 0.5)
-        colour = _over(colour, (0.74, 0.58, 0.4), alpha * _smooth((1 - d) / 0.35))
-        colour = _over(colour, (0.62, 0.45, 0.28), 0.7 * alpha * np.exp(-((d - 0.95) / 0.1) ** 2) * _smooth((fine - 0.35) / 0.2))
+        colour = over(colour, (0.74, 0.58, 0.4), alpha * smoothstep((1 - d) / 0.35))
+        colour = over(colour, (0.62, 0.45, 0.28), 0.7 * alpha * np.exp(-((d - 0.95) / 0.1) ** 2) * smoothstep((fine - 0.35) / 0.2))
     for cu, cv, length in DRIPS:
-        down = _smooth((cv - v) / 0.01) * _smooth((v - cv + length) / length)
-        colour = _over(colour, (0.68, 0.53, 0.36), 0.28 * down * np.exp(-((u - cu - 0.004 * np.sin(v * 90)) / 0.0035) ** 2))
+        down = smoothstep((cv - v) / 0.01) * smoothstep((v - cv + length) / length)
+        colour = over(colour, (0.68, 0.53, 0.36), 0.28 * down * np.exp(-((u - cu - 0.004 * np.sin(v * 90)) / 0.0035) ** 2))
     # oil: a greyed, yellowish soak with no edge to speak of
     for cu, cv, r, alpha in OIL:
         d = np.hypot(u - cu, (v - cv) * 1.3) / r + 0.7 * (blot - 0.5)
-        colour = _over(colour, (0.6, 0.58, 0.45), alpha * _smooth((1 - d) / 0.5))
+        colour = over(colour, (0.6, 0.58, 0.45), alpha * smoothstep((1 - d) / 0.5))
     # the edges: hems stitched in, the bottom one dragged grey and frayed, the top of the bib handled
     side = np.array([half_width(x) for x in np.clip(v[:, 0], 0.0, LENGTH)])[:, None] - abs(u)
-    colour = _over(colour, (0.62, 0.59, 0.52), 0.35 * np.exp(-((side - 0.012) / 0.0022) ** 2))
-    colour = _over(colour, (0.62, 0.59, 0.52), 0.35 * np.exp(-((v - 0.018) / 0.0022) ** 2))
-    colour = _over(colour, (0.5, 0.48, 0.43), 0.5 * _smooth(1 - v / 0.045) * (0.5 + 0.5 * patch))
-    colour = _over(colour, (0.42, 0.4, 0.36), 0.6 * _smooth(1 - v / 0.006) * _fbm(rng, u * 8.0, v, 40.0))
-    colour = _over(colour, (0.6, 0.57, 0.5), 0.3 * _smooth(1 - (LENGTH - v) / 0.025))
+    colour = over(colour, (0.62, 0.59, 0.52), 0.35 * np.exp(-((side - 0.012) / 0.0022) ** 2))
+    colour = over(colour, (0.62, 0.59, 0.52), 0.35 * np.exp(-((v - 0.018) / 0.0022) ** 2))
+    colour = over(colour, (0.5, 0.48, 0.43), 0.5 * smoothstep(1 - v / 0.045) * (0.5 + 0.5 * patch))
+    colour = over(colour, (0.42, 0.4, 0.36), 0.6 * smoothstep(1 - v / 0.006) * fbm(rng, u * 8.0, v, 40.0))
+    colour = over(colour, (0.6, 0.57, 0.5), 0.3 * smoothstep(1 - (LENGTH - v) / 0.025))
     # the straps
     for which, (s0, t0) in STRAPS_UV.items():
         a = (s - s0) / K  # across, 0..STRAP_W
         along = (t - t0) / K
         cell = (a > -0.004) & (a < STRAP_W + 0.004) & (along > -0.01) & (along < STRAP_LEN[which] + 0.01)
-        tone = np.broadcast_to(canvas, u.shape + (3,)) * (0.95 + 0.08 * _fbm(rng, a * 3.0, along, 6.0))[..., None]
+        tone = np.broadcast_to(canvas, u.shape + (3,)) * (0.95 + 0.08 * fbm(rng, a * 3.0, along, 6.0))[..., None]
         edge = np.minimum(abs(a - 0.003), abs(a - STRAP_W + 0.003))
-        tone = _over(tone, (0.6, 0.57, 0.5), 0.35 * np.exp(-(edge / 0.0015) ** 2))
+        tone = over(tone, (0.6, 0.57, 0.5), 0.35 * np.exp(-(edge / 0.0015) ** 2))
         if which == "neck":  # the middle lies on the back of the neck all shift
             mid = abs(along - NECK_LEN / 2)
-            tone = _over(tone, (0.62, 0.55, 0.4), 0.6 * _smooth((0.13 - mid) / 0.06) * (0.6 + 0.6 * patch))
+            tone = over(tone, (0.62, 0.55, 0.4), 0.6 * smoothstep((0.13 - mid) / 0.06) * (0.6 + 0.6 * patch))
         else:  # handled every time they are tied; frayed at the ends
             end = STRAP_LEN[which] - along
-            tone = _over(tone, (0.56, 0.53, 0.46), 0.45 * _smooth(1 - end / 0.12))
-            tone = _over(tone, (0.45, 0.43, 0.38), 0.55 * _smooth(1 - end / 0.012))
+            tone = over(tone, (0.56, 0.53, 0.46), 0.45 * smoothstep(1 - end / 0.12))
+            tone = over(tone, (0.45, 0.43, 0.38), 0.55 * smoothstep(1 - end / 0.012))
         colour = np.where(cell[..., None], tone, colour)
     path = os.path.join(HERE, "Apron_color.png")
     img = bpy.data.images.get("Apron_color") or bpy.data.images.new("Apron_color", SIZE, SIZE)

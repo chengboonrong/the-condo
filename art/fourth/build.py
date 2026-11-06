@@ -6,8 +6,9 @@ soaked through: the long loose top to below the hips, its sleeves to the wrists,
 her bare feet, the cotton clinging, darker where it is wettest, a little mud at the hem.
 
 The body is Skin-modifier tubes on a vertex skeleton, then Subdivision and drape folds from noise, like art/figure.
-Materials, so code can tell them apart: "skin" (the face, the neck, the hands and the feet: her painted texture),
-"eyes", "hair" (seen from both sides) and "cloth" (the baju kurung, coloured per vertex: the attribute "Color").
+Materials, so code can tell them apart: "skin" (the face, the neck, the hands and the feet: her plain skin, no texture
+and no blood, the hands and feet a darker, greyer grey than her face), "eyes", "hair" (seen from both sides) and
+"cloth" (the baju kurung). Skin, eyes and cloth are coloured per vertex: the attribute "Color".
 The origin is the H-point, the centre of her hip joint as she sits (the cushion 0.10 m below it, the seatback 0.13 m
 behind it); her thighs run forward along -Y, which is the game's +Z.
 """
@@ -32,7 +33,8 @@ BOW = math.radians(52)  # how far her head hangs forward
 NECK = Vector((0.0, 0.035, 0.575))  # where her head turns on her neck (model space)
 PIVOT = Vector((0.0, 0.012, -0.072))  # the same point in head space, below and a little behind the skull's centre
 POSE = Matrix.Translation(NECK) @ Matrix.Rotation(BOW, 4, "X") @ Matrix.Translation(-PIVOT)
-SKIN_UV = (0.5, 0.82)  # a plain patch of her texture (the forehead), for the skin below the head
+FACE = (*(c ** 2.2 for c in her.SKIN), 1.0)  # linear
+LIMBS = (0.1, 0.094, 0.09, 1.0)  # the hands and the feet: darker and greyer, so they never draw the eye
 CLOTH = (0.15, 0.17, 0.19)  # linear: a faded grey-blue cotton
 
 # Skeletons for the Skin modifier: chains of (x, y, z, radius, radius) for her left side (+X) or the middle.
@@ -52,8 +54,8 @@ SKIN_PARTS = [
     # the neck, up into the bowed head
     [(0, 0.05, 0.455, 0.05, 0.05), (0, 0.042, 0.53, 0.047, 0.047), (0, 0.035, 0.585, 0.045, 0.045)],
     # the hands, limp on her thighs, palms down (flattened after), the fingers hanging over and the thumbs inside
-    [(0.118, -0.15, 0.1, 0.024, 0.024), (0.11, -0.2, 0.1, 0.03, 0.03), (0.1, -0.245, 0.097, 0.03, 0.03)],
-    [(0.104, -0.19, 0.095, 0.01, 0.01), (0.088, -0.222, 0.088, 0.009, 0.009), (0.08, -0.248, 0.08, 0.008, 0.008)],
+    [(0.118, -0.15, 0.1, 0.02, 0.02), (0.11, -0.2, 0.1, 0.024, 0.024), (0.1, -0.245, 0.097, 0.024, 0.024)],
+    [(0.104, -0.19, 0.095, 0.0075, 0.0075), (0.088, -0.222, 0.088, 0.0068, 0.0068), (0.08, -0.248, 0.08, 0.006, 0.006)],
     # the bare feet, flat on the floor
     [(0.055, -0.48, -0.27, 0.032, 0.032), (0.06, -0.5, -0.31, 0.034, 0.034), (0.066, -0.58, -0.32, 0.033, 0.033),
      (0.07, -0.68, -0.325, 0.03, 0.03)],
@@ -65,13 +67,13 @@ def fingers() -> list:
     out = []
     for dx, reach in ((0.016, 0.82), (0.005, 0.97), (-0.006, 1.0), (-0.017, 0.9)):  # little finger outside
         x, y, z = 0.1 + dx, -0.245, 0.097
-        chain = [(x, y, z, 0.009, 0.009)]
+        chain = [(x, y, z, 0.007, 0.007)]
         for seg, down in ((0.04, 0.25), (0.026, 0.75), (0.02, 1.15)):
             seg *= reach
             x += dx * 0.15
             y -= seg * math.cos(down)
             z -= seg * math.sin(down)
-            chain.append((x, y, z, 0.0085 - 0.0007 * len(chain), 0.0085 - 0.0007 * len(chain)))
+            chain.append((x, y, z, 0.0066 - 0.0006 * len(chain), 0.0066 - 0.0006 * len(chain)))
         out.append(chain)
     return out
 
@@ -135,7 +137,7 @@ def dress(obj: bpy.types.Object) -> None:
         v.co = p + v.normal * (folds + creases)
     layer = bm.loops.layers.float_color.new("Color")
     for f in bm.faces:
-        f.material_index = 3
+        f.material_index = 0
         f.smooth = True
         for loop in f.loops:
             p = loop.vert.co
@@ -150,17 +152,14 @@ def dress(obj: bpy.types.Object) -> None:
 
 
 def skin_below_head(obj: bpy.types.Object) -> None:
-    """The neck, the hands and the feet: her skin material, one plain patch of the texture."""
+    """The neck, the hands and the feet: her plain skin, the neck her face's colour, the hands and feet greyer."""
     me = obj.data
     for p in me.polygons:
         p.material_index = 0
         p.use_smooth = True
-    uv = me.uv_layers.new(name="UVMap")
-    for d in uv.data:
-        d.uv = SKIN_UV
     attr = me.color_attributes.new("Color", "FLOAT_COLOR", "CORNER")
-    for d in attr.data:
-        d.color = her.WHITE
+    for loop, d in zip(me.loops, attr.data):
+        d.color = FACE if me.vertices[loop.vertex_index].co.z > 0.3 else LIMBS
 
 
 def triangles(obj: bpy.types.Object) -> int:
@@ -168,30 +167,27 @@ def triangles(obj: bpy.types.Object) -> int:
 
 
 common.reset()
-skin_mat, eyes_mat, hair_mat, cloth_mat = her.skin_material(), her.eyes_material(), her.hair_material(), cloth_material()
-head = her.head("head", 1600, POSE)
+skin_mat, cloth_mat = her.plain_skin_material(), cloth_material()
+head = her.head("head", 1600, POSE, FACE)
 eyes = her.eyes("eyes", POSE)
 # the hair hangs off her face onto her chest and lap
 colliders = [(Vector((0.0, 0.05, 0.05)), Vector((0.0, 0.064, 0.38)), 0.12),
              (Vector((0.0, -0.05, -0.01)), Vector((0.0, -0.39, 0.012)), 0.1)]
 hair_parts = her.hair(POSE, 42, (0.5, 0.62), colliders, 400, combed=0.25, parting=False)
 body = skin("body", BODY, levels=1)
-for o in (body,):
-    o.data.materials.append(skin_mat)
-    o.data.materials.append(eyes_mat)
-    o.data.materials.append(hair_mat)
-    o.data.materials.append(cloth_mat)
+body.data.materials.append(cloth_mat)
 dress(body)
-body.data.uv_layers.new(name="UVMap")
 bare = skin("bare", SKIN_PARTS + fingers(), levels=1)
 for v in bare.data.vertices:  # flat hands
     if v.co.y < -0.14 and v.co.z > 0.03:
-        v.co.z = 0.097 + (v.co.z - 0.097) * 0.55
+        v.co.z = 0.097 + (v.co.z - 0.097) * 0.45
 bare.data.materials.append(skin_mat)
 skin_below_head(bare)
 for o in (body, bare):
     her.decimate(o, 1300 if o is body else 700)
-parts = [head, eyes] + hair_parts + [body, bare]
+# the hair first: Godot's importer never colours a model's first primitive from its vertices, and the hair is the
+# one part not coloured per vertex (tests/integration/test_models.gd checks)
+parts = hair_parts + [head, eyes, body, bare]
 for o in parts:
     print("PART", o.name, triangles(o))
 common.select(parts)

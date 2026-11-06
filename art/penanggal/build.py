@@ -4,8 +4,9 @@ Her head and hair are the shared ones (art/shared/her), the same as the fourth p
 wide and dark, the mouth a little open, the long black hair wet and hanging in clumps. Below the torn neck hang what
 came out with her, as the anatomy has them: the windpipe (ringed, the voice box at its top, splitting into the two
 bronchi) and the gullet behind it; two dark, spongy, lobed lungs; the heart between them with the stubs of its great
-vessels; the stomach at the end of the gullet; and three ropes of intestine (two of the small one, one of the large),
-1.2 to 1.6 m, looped and torn; and strands of blood that drip. Everything is muted and wet: dark crimson, bruise
+vessels; the stomach at the end of the gullet; and three ropes of intestine, looped and torn: the small one bunched in
+loops under the stomach and then hanging free (2.7 m along it, about 1.15 m of that hanging), a second small one of
+1.2 m and the large one of 1.5 m; everything ends about 2.05 m below the skull. And strands of blood that drip. Everything is muted and wet: dark crimson, bruise
 purple and grey-pink, coloured per vertex.
 
 Materials, so code can tell them apart: "skin" (the face and the neck, the painted texture), "eyes", "hair" (black,
@@ -142,91 +143,110 @@ ENTRAILS = 3  # material index: skin, eyes, hair, entrails
 
 
 def neck(bm: bmesh.types.BMesh) -> None:
-    """The neck, torn off a few cm under the jaw: skin above (material 0, the painted texture), a ragged edge with flaps
-    and, inside it, the torn flesh, a ring of fat under the skin and dark muscle (entrails)."""
-    sides = 22
+    """The neck, torn off a few cm under the jaw. Skin above (material 0, the painted texture), never a clean cylinder,
+    torn along a line that dips and rises round the neck, with a ragged lip of skin below the tear and a few long flaps
+    hanging from it, curling in, raw on their insides (entrails). Within the tear, the torn flesh: a ring of yellow fat
+    under the skin, then dark, lumpy muscle."""
+    sides, upper, lower = 26, 7, 4  # rings: down to the tear, then down the lip and the flaps
     top, bottom = Vector((0.0, 0.016, -0.04)), Vector((0.0, -0.002, -0.165))
-    rings, levels = [], 9
-    for i in range(levels):
-        u = i / (levels - 1)
-        c = top.lerp(bottom, u)
-        ring = []
-        for k in range(sides):
-            a = math.tau * k / sides
-            rx, ry = 0.045 + 0.002 * u, 0.048 + 0.003 * u
-            p = c + Vector((rx * math.sin(a), -ry * math.cos(a), 0.0))
-            if i == levels - 1:  # the torn edge: ragged, two flaps of skin hanging lower
-                p.z += 0.012 * n3(Vector((a, 0.0, 0.0)), 1.3, 2.0) - 0.022 * bump(math.remainder(a - 0.9, math.tau), 0.18) \
-                    - 0.016 * bump(math.remainder(a + 2.3, math.tau), 0.14)
-            ring.append(p)
-        rings.append(ring)
-    verts = [[bm.verts.new(p) for p in ring] for ring in rings]
-    skin = []
-    for a_, b_ in zip(verts, verts[1:]):
-        for k in range(sides):
-            j = (k + 1) % sides
-            skin.append(bm.faces.new([a_[k], a_[j], b_[j], b_[k]]))
-    # inside the edge: the skin curls in, the fat, then the muscle up to the middle, sunk and lumpy
-    edge = verts[-1]
+    flaps = ((0.75, 0.32, 0.05), (2.4, 0.24, 0.032), (-1.2, 0.36, 0.06), (-2.65, 0.22, 0.028))  # (angle, width, length)
+
+    def at(k: int, z: float, hang: float) -> Vector:
+        """The skin at the angle of column k and height z, hang metres below the tear."""
+        a = math.tau * k / sides
+        u = (top.z - z) / (top.z - bottom.z)
+        out = Vector((math.sin(a), -math.cos(a), 0.0))
+        k_ = (1.0 + 0.05 * n3(Vector((out.x, out.y, z * 6.0)), 2.2, 4.0)) * (1.0 - 0.2 * smooth(hang / 0.05))
+        return top.lerp(bottom, u) + Vector((out.x * (0.045 + 0.002 * u) * k_, out.y * (0.048 + 0.003 * u) * k_, 0.0))
+
+    columns = []
+    for k in range(sides):
+        a = math.tau * k / sides
+        ring = Vector((math.cos(a), math.sin(a), 0.0))  # noise round the neck, with no seam
+        cut = -0.158 + 0.007 * n3(ring, 1.6, 2.0)
+        drop = 0.004 + 0.006 * abs(n3(ring, 3.0, 5.0)) + sum(l * bump(math.remainder(a - fa, math.tau), w) for fa, w, l in flaps)
+        columns.append([at(k, top.z + (cut - top.z) * i / (upper - 1), 0.0) for i in range(upper)]
+                       + [at(k, cut - drop * j / lower, drop * j / lower) for j in range(1, lower + 1)])
+    verts = [[bm.verts.new(columns[k][i]) for k in range(sides)] for i in range(upper + lower)]
+
+    def band(rings: list, out: bool) -> list:
+        """Quads between rings (each running round the neck the same way); out: facing away from the neck's middle
+        (or, for rings going inwards, down)."""
+        faces = []
+        for a_, b_ in zip(rings, rings[1:]):
+            for k in range(sides):
+                j = (k + 1) % sides
+                quad = [a_[k], a_[j], b_[j], b_[k]]
+                faces.append(bm.faces.new(quad[::-1] if out else quad))
+        return faces
+
+    def middle(p: Vector) -> Vector:
+        return top.lerp(bottom, (top.z - p.z) / (top.z - bottom.z))
+    skin = band(verts, True)
+    # the torn skin's raw inside: the lip and the flaps again, a mm in from the skin, facing in
+    raw_rings = [[bm.verts.new(v.co.lerp(middle(v.co), 0.025)) for v in ring] for ring in verts[upper - 1:]]
+    raw = band(raw_rings, False)
+    # inside the tear: the fat, then the muscle up to the middle, sunk and lumpy
     inner = []
     for depth, inset, lumps in ((0.004, 0.003, 0.0), (0.008, 0.008, 0.002), (0.014, 0.02, 0.004), (0.02, 0.034, 0.005)):
         ring = []
-        for k, v in enumerate(edge):
+        for k, v in enumerate(verts[upper - 1]):
             a = math.tau * k / sides
             p = v.co.copy()
-            dx, dy = p.x - bottom.x, p.y - bottom.y
-            s = max(0.0, 1.0 - inset / math.hypot(dx, dy))
-            p.x, p.y = bottom.x + dx * s, bottom.y + dy * s
-            p.z += depth * 0.4 + lumps * n3(Vector((a, depth * 30, 0)), 2.0, 7.0)
+            c = middle(p)
+            f = max(0.0, 1.0 - inset / (p - c).length)
+            p = c + (p - c) * f
+            p.z += depth * 0.4 + lumps * n3(Vector((math.cos(a), math.sin(a), depth * 30)), 2.0, 7.0)
             ring.append(bm.verts.new(p))
         inner.append(ring)
-    flesh = []
-    for a_, b_ in zip([edge] + inner, inner):
-        for k in range(sides):
-            j = (k + 1) % sides
-            flesh.append(bm.faces.new([a_[k], a_[j], b_[j], b_[k]]))
-    c = bm.verts.new(bottom + Vector((0.0, 0.0, 0.012)))
-    for k in range(sides):
-        flesh.append(bm.faces.new([inner[-1][k], inner[-1][(k + 1) % sides], c]))
-    bmesh.ops.recalc_face_normals(bm, faces=skin + flesh)
-    # the top ring lies inside the head; its faces must point out, like the rest
+    flesh = band([verts[upper - 1]] + inner, True)
+    centre = bm.verts.new(bottom + Vector((0.0, 0.0, 0.006)))
+    flesh += [bm.faces.new([inner[-1][(k + 1) % sides], inner[-1][k], centre]) for k in range(sides)]
     her.paint(bm, skin, 0)
-    rim = {v: 0 for v in edge}
-    rim.update({v: i + 1 for i, ring in enumerate(inner) for v in ring})
-    rim[c] = 5
+    layers = {v: i + 1 for i, ring in enumerate(inner) for v in ring}
+    layers[centre] = 5
+    span = {v: j / lower for j, ring in enumerate(raw_rings) for v in ring}
 
-    def colour(p: Vector, layer: int) -> tuple:
-        if layer == 0:
-            return rgba(mix(BRUISE, CRIMSON, 0.5))
-        if layer == 1:
-            return rgba(mix((0.24, 0.17, 0.12), FAT, 0.5 + 0.5 * n3(p, 90)))  # fat under the skin
-        return rgba(mix(CRIMSON, BLOOD, 0.4 + 0.5 * n3(p, 60, 3.0)))
-    her.paint(bm, flesh, ENTRAILS, lambda p: rgba(BLOOD))
-    layer = bm.loops.layers.float_color["Color"]
-    for f in flesh:
+    def colour(v: bmesh.types.BMVert) -> tuple:
+        q = v.co
+        if v in span:  # raw flesh with fat in it, bloodier to the torn end
+            return mix(mix(CRIMSON, (0.22, 0.13, 0.09), 0.35 + 0.35 * n3(q, 70, 1.0)), BLOOD, 0.3 + 0.6 * span[v])
+        layer = layers.get(v, 0)
+        if layer <= 1:  # where the skin tore, then the fat under it
+            return mix(mix(BRUISE, CRIMSON, 0.5), mix((0.24, 0.17, 0.12), FAT, 0.5 + 0.5 * n3(q, 90)), layer)
+        return mix(CRIMSON, BLOOD, 0.4 + 0.5 * n3(q, 60, 3.0))
+    colours = bm.loops.layers.float_color["Color"]
+    for f in flesh + raw:
+        f.material_index = ENTRAILS
+        f.smooth = True
         for loop in f.loops:
-            loop[layer] = colour(loop.vert.co, rim.get(loop.vert, 3))
+            loop[colours] = rgba(colour(loop.vert))
 
 
 def windpipe(bm: bmesh.types.BMesh) -> None:
-    """The voice box, the ringed windpipe below it, and its two bronchi turning down into the lungs."""
-    path = resample([Vector((0.0, -0.02, -0.15)), Vector((0.0, -0.022, -0.2)), Vector((0.0, -0.019, -0.26)),
-                     Vector((0.0, -0.014, -0.315))], 0.0045)
+    """The voice box, the windpipe below it, its cartilage rings faint and uneven under the blood, and its two bronchi
+    turning down into the lungs."""
+    path = resample([Vector((0.0, -0.02, -0.15)), Vector((0.003, -0.024, -0.2)), Vector((-0.002, -0.021, -0.26)),
+                     Vector((0.002, -0.014, -0.315))], 0.0055)
     total = length(path)
+
+    def rings(s: float) -> float:
+        """-1..1 round the cartilage rings at s along it: uneven in spacing."""
+        return math.cos(math.tau * s / 0.0135 + 2.5 * n3(Vector((s * 25.0, 0.0, 1.0)), 1.0))
 
     def radius(u: float, a: float) -> tuple:
         s = u * total
         box = smooth((0.045 - s) / 0.015)  # the voice box, wider, its front a blunt ridge
         r = 0.0098 + 0.007 * box * (1.0 + 0.35 * max(math.cos(a), 0.0) ** 3)
-        ring = 0.0008 * (1.0 - box) * (1.0 if int(s / 0.0045) % 2 == 0 else -0.6)  # cartilage rings
-        return r + ring, (r + ring) * (0.92 + 0.08 * box)
+        r += 0.0004 * (1.0 - box) * rings(s)
+        return r, r * (0.92 + 0.08 * box)
 
     def colour(p: Vector, u: float, a: float) -> tuple:
         s = u * total
-        pale = mix((0.36, 0.25, 0.23), GREY_PINK, 0.5 + 0.5 * n3(p, 80))
-        ring = 1.0 if int(s / 0.0045) % 2 == 0 else 0.0
-        c = mix(pale, (0.2, 0.08, 0.08), 0.35 * (1 - ring))
-        return mix(c, CRIMSON, 0.6 * smooth((0.012 - s) / 0.01) + 0.4 * max(0.0, n3(p, 30, 5.0)))
+        pale = mix((0.24, 0.14, 0.13), GREY_PINK, 0.3 + 0.5 * n3(p, 80))
+        c = mix(pale, (0.2, 0.08, 0.08), 0.12 * (0.5 - 0.5 * rings(s)))
+        c = mix(c, CRIMSON, 0.6 * smooth((0.012 - s) / 0.01) + 0.75 * smooth((n3(p, 30, 5.0) + 0.25) / 0.5))  # smeared
+        return mix(c, BLOOD, 0.7 * smooth((n3(p, 55, 2.0) - 0.1) / 0.3))  # clotted
     tube(bm, path, radius, 7, colour, caps=(True, False))
     for side in (1, -1):
         branch = resample([path[-1], Vector((side * 0.02, -0.012, -0.335)), Vector((side * 0.042, -0.006, -0.355)),
@@ -271,7 +291,7 @@ def lungs(bm: bmesh.types.BMesh) -> None:
             c = mix(c, (0.012, 0.01, 0.012), smooth((n3(p, 260, 4 + side) - 0.42) / 0.08))  # black specks
             c = mix(c, (0.02, 0.008, 0.016), 0.7 * smooth((0.05 - abs(n3(p, 70, 6 + side))) / 0.04))  # the lobules' web
             return mix(c, BLOOD, 0.5 * smooth((u - 0.85) / 0.15))
-        tube(bm, path, radius, 13, colour, caps=(True, True), lumps=(0.09, 28.0))
+        tube(bm, path, radius, 11, colour, caps=(True, True), lumps=(0.09, 28.0))
 
 
 def heart(bm: bmesh.types.BMesh) -> None:
@@ -400,13 +420,13 @@ def organs(bm: bmesh.types.BMesh) -> None:
     bunch = coils(pylorus, root, [(-1.9, 0.075, 0.13), (-0.6, 0.085, 0.17), (0.7, 0.07, 0.12), (2.0, 0.08, 0.16), (3.1, 0.06, 0.11)])
     ends = [gut(bm, bunch + [Vector(k) for k in [(-0.03, -0.03, -0.96), (-0.04, -0.035, -1.12), (-0.02, -0.035, -1.3),
                                                   (-0.035, -0.03, -1.5), (-0.02, -0.03, -1.7), (-0.03, -0.025, -1.9),
-                                                  (-0.02, -0.025, -2.0)]], 0.0125, False, 7, 0.03, 1.0)]
+                                                  (-0.02, -0.025, -2.0)]], 0.0125, False, 6, 0.03, 1.0)]
     ends.append(gut(bm, hanging(curve + Vector((0.01, 0.0, -0.01)), [(0.08, 0.025, -0.86), (0.085, 0.035, -1.0),
                                                                     (0.06, 0.04, -1.2), (0.02, 0.04, -1.32),
                                                                     (-0.02, 0.035, -1.24), (-0.03, 0.03, -1.08),
                                                                     (-0.06, 0.03, -1.12), (-0.075, 0.025, -1.35),
                                                                     (-0.07, 0.02, -1.55), (-0.08, 0.015, -1.7)]),
-                    0.019, True, 8, 0.028, 5.0))
+                    0.019, True, 7, 0.028, 5.0))
     ends.append(gut(bm, hanging(root + Vector((0.03, 0.03, -0.08)), [(0.05, 0.03, -1.0), (0.045, 0.02, -1.15),
                                                                     (0.085, 0.01, -1.27), (0.08, 0.0, -1.4),
                                                                     (0.035, -0.005, -1.37), (0.03, 0.0, -1.5),
@@ -446,7 +466,7 @@ colliders = [(Vector((0.0, 0.004, -0.05)), Vector((0.0, -0.002, -0.2)), 0.056)]
 colliders += [(Vector((s * 0.06, 0.004, -0.38)), Vector((s * 0.078, 0.008, -0.6)), 0.062) for s in (1, -1)]
 plastered = [(Vector((0.62, -0.62, 0.42)), Vector((0.15, 0.0, -1.0))), (Vector((-0.3, -0.72, 0.62)), Vector((-0.12, 0.0, -1.0))),
              (Vector((-0.12, -0.7, 0.7)), Vector((0.05, 0.0, -1.0)))]
-hair_parts = her.hair(Matrix(), 44, (0.6, 0.78), colliders, 800, plastered)
+hair_parts = her.hair(Matrix(), 44, (0.6, 0.78), colliders, 600, plastered)
 bm = her.new_bmesh()
 organs(bm)
 body = her.to_object("organs", bm, [skin, eyes_mat, hair_mat, entrails_material()])
