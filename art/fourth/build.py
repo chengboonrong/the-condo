@@ -33,9 +33,11 @@ BOW = math.radians(52)  # how far her head hangs forward
 NECK = Vector((0.0, 0.035, 0.575))  # where her head turns on her neck (model space)
 PIVOT = Vector((0.0, 0.012, -0.072))  # the same point in head space, below and a little behind the skull's centre
 POSE = Matrix.Translation(NECK) @ Matrix.Rotation(BOW, 4, "X") @ Matrix.Translation(-PIVOT)
-FACE = (*(c ** 2.2 for c in her.SKIN), 1.0)  # linear
-LIMBS = (0.1, 0.094, 0.09, 1.0)  # the hands and the feet: darker and greyer, so they never draw the eye
-CLOTH = (0.15, 0.17, 0.19)  # linear: a faded grey-blue cotton
+# Her vertex colours are written as display (sRGB) values, not glTF's linear ones: Godot's Compatibility renderer runs
+# material code in sRGB and decodes ALBEDO after it, so a linear vertex colour is decoded twice and shows far too dark.
+FACE = (*her.SKIN, 1.0)
+LIMBS = (0.35, 0.34, 0.33, 1.0)  # the hands and the feet: darker and greyer, so they never draw the eye
+CLOTH = (0.15, 0.17, 0.19)  # linear: a faded grey-blue cotton (dress() writes it as sRGB)
 
 # Skeletons for the Skin modifier: chains of (x, y, z, radius, radius) for her left side (+X) or the middle.
 BODY = [
@@ -146,7 +148,7 @@ def dress(obj: bpy.types.Object) -> None:
             c = [x * k for x in CLOTH]
             mud = smooth((-0.2 - p.z) / 0.07) * (0.5 + 0.5 * perlin.noise(p * 25.0))
             c = [x + (m - x) * mud * 0.7 for x, m in zip(c, (0.06, 0.045, 0.03))]
-            loop[layer] = (*c, 1.0)
+            loop[layer] = (*(x ** (1 / 2.2) for x in c), 1.0)  # as sRGB: see FACE
     bm.to_mesh(obj.data)
     bm.free()
 

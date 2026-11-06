@@ -18,8 +18,10 @@ const FILL := Vector3(0.3, 0.75, 0.95)
 ## In her seat's space: where her wet hair and back lay against the backrest (its face is 0.13 m behind the H-point
 ## and leans back 22 degrees). The mirror can't see down to the cushion.
 const WET := Vector3(0.0, 0.42, -0.3)
+const ENERGY := 1.4  # her fill: her dark hair over her paler skin and baju kurung, noticeable, not obvious
 const SHINE := 0.05  # her fill's specular on her: low, so her crown has no hotspot, only streaks down her wet hair
-const WET_SHINE := 1.0  # and on the wet seat once she is gone: its sheen is all that shows of the wet
+const WET_ENERGY := 3.0  # and once she is gone, on the wet seat: brighter, or its sheen doesn't show
+const WET_SHINE := 1.0  # the wet seat's sheen is all that shows of the wet
 const GLIMPSE := 0.3  # seconds the player's camera sees her when he turns round to her
 
 var viewport: SubViewport
@@ -75,7 +77,7 @@ func _ready() -> void:
 	_seat.add_child(fourth)
 	fill = OmniLight3D.new()
 	fill.light_color = Color(0.75, 0.8, 0.9)  # the fog's grey through the glass
-	fill.light_energy = 3.0
+	fill.light_energy = ENERGY
 	fill.omni_range = 2.2
 	fill.light_cull_mask = LAYER
 	fill.light_specular = SHINE
@@ -125,6 +127,7 @@ func set_on(on: bool) -> void:
 	_glass.visible = on
 	fourth.visible = on
 	fill.visible = on
+	fill.light_energy = ENERGY
 	fill.light_specular = SHINE
 	wet.visible = false
 	set_process(on)
@@ -142,6 +145,7 @@ func glimpse() -> void:
 func empty() -> void:
 	fourth.visible = false
 	wet.visible = true
+	fill.light_energy = WET_ENERGY
 	fill.light_specular = WET_SHINE
 
 

@@ -101,7 +101,7 @@ func test_the_mirror_renders_only_in_mission_3() -> bool:
 			gone = true
 			eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_ALWAYS, "(Hafiz brakes, the mirror still on)")
 			check(not mirror.fourth.visible and mirror.wet.visible, "the seat in the mirror is empty, and wet")
-			eq(mirror.fill.light_specular, Mirror.WET_SHINE, "its sheen in her light")
+			eq([mirror.fill.light_energy, mirror.fill.light_specular], [Mirror.WET_ENERGY, Mirror.WET_SHINE], "its sheen in her light")
 	check(gone, "(the seat was seen empty)")
 	check(d.mission_index != at, "(mission 3 is over)")
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "and after mirror_off it doesn't")
