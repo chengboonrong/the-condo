@@ -10,6 +10,9 @@ const SOUNDS := {
 	&"car_door_close": preload("res://assets/audio/car_door_close.wav"),
 	&"lorry_pass": preload("res://assets/audio/lorry_pass.wav"),
 	&"rev": preload("res://assets/audio/rev.wav"),  # the hatchback, opened up for the overtake
+	&"wet_flap": preload("res://assets/audio/wet_flap.wav"),  # her
+	&"drip": preload("res://assets/audio/drip.wav"),
+	&"rattle": preload("res://assets/audio/rattle.wav"),  # her breath
 }
 const STEPS := [
 	preload("res://assets/audio/road_step_1.wav"), preload("res://assets/audio/road_step_2.wav"),

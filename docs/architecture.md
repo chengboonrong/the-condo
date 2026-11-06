@@ -271,8 +271,8 @@ The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prin
 Their file levels are measured from the files. "Played at" is what `RoadAudio` uses: so far the engine (seated;
 outside it falls off as 1/distance), the insects, both car doors, the lorry, the asphalt steps, the slow car's old
 engine (from 10 m away it falls off as 1/distance, and its pitch drops as it stops), the indicator (while Hafiz
-signals) and the rev (as he pulls out) play at these levels, and the rest are proposals until their missions play
-them. Their "Heard at" is that level's result, not a measurement of the game. None is louder than the single knock
+signals), the rev (as he pulls out) and her wet flap, drip and breath (from where she is, falling off past 3 m)
+play at these levels, and the rest are proposals until their missions play them. Their "Heard at" is that level's result, not a measurement of the game. None is louder than the single knock
 (−14.6) and none is a sting. Five of them are seamless loops, imported with `edit/loop_mode=2` and only ever started
 and stopped with `RoadAudio.set_loop`: the three `_loop` files, the indicator (one flash, 0.667 s, 90 flashes a
 minute) and the phone (one ring, 2.1 s, ending in a pause). The rest play once. Eight of them (both engine loops,

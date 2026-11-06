@@ -19,6 +19,7 @@ var couple: Couple
 var lorry: Lorry
 var slow_car: SlowCar
 var audio: RoadAudio
+var her: Penanggal
 var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
@@ -52,6 +53,10 @@ func _ready() -> void:
 	audio.name = "Audio"
 	add_child(audio)
 	director = RoadDirector.new(RoadGameStage.new(player, car), Main.SEED)
+	her = Penanggal.new()
+	her.name = "Her"
+	her.director = director
+	add_child(her)
 	EventBus.choices_requested.connect(hud.show_choices)
 	EventBus.choices_closed.connect(hud.close_choices)
 	EventBus.road_cue.connect(_on_cue)
@@ -126,6 +131,8 @@ func _on_cue(cue: StringName) -> void:
 			car.mirror.glimpse()  # no sting: he only sees her
 		&"fourth_gone":
 			car.mirror.empty()
+		&"her_glimpse":
+			her.show_glimpse()
 
 
 func _physics_process(delta: float) -> void:
