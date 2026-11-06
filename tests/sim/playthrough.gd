@@ -9,7 +9,7 @@ extends RefCounted
 ##             once it has been stuck on it for a while; runs for the lift
 ##   passive   waits; every minute takes one step towards the objective; rarely interacts
 ##
-## run(profile, seed) returns the record the brief asks for: event sequence and count, director scores,
+## run(profile, seed, road_ending) returns the record the brief asks for: event sequence and count, director scores,
 ## progression, completion and the errors/warnings logged during the run.
 
 const DT := 0.1
@@ -52,9 +52,15 @@ var _next_turn := 8.0
 var _passive_next := PASSIVE_STEP
 
 
-static func run(profile_name: String, seed_value: int) -> Dictionary:
-	var bot := Playthrough.new()
-	return bot._run(profile_name, seed_value)
+## `road_ending` is how the road ended (&"" = the flat opened directly). Journey carries it for the run, because the
+## story reads it as it is created; the old value is put back afterwards.
+static func run(profile_name: String, seed_value: int, road_ending: StringName = &"") -> Dictionary:
+	var was := Journey.road_ending
+	Journey.road_ending = road_ending
+	var result := Playthrough.new()._run(profile_name, seed_value)
+	Journey.road_ending = was
+	result["road"] = road_ending
+	return result
 
 
 func _run(profile_name: String, seed_value: int) -> Dictionary:

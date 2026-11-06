@@ -35,6 +35,7 @@ func _initialize() -> void:
 	md.append("Worst director eval is the slowest single evaluation in the run (a maximum, not an average).")
 	for r in runs:
 		md.append_array(_section(r))
+	md.append_array(_after_road(harness, seed_value))
 	md.append_array(_road(seed_value))
 	var f := FileAccess.open(OUT, FileAccess.WRITE)
 	f.store_string("\n".join(md) + "\n")
@@ -64,6 +65,18 @@ func _section(r: Dictionary) -> PackedStringArray:
 			signals.append("%s %.2f" % [k, b[k]])
 	out.append_array(["", "Behaviour at the end: %s. Room avoidance: %s." % [", ".join(signals), str(b["room_avoidance"])]])
 	out.append_array(["", "Errors: %s. Warnings: %s. Entity in the player's room: %s." % [_list(r["errors"]), _list(r["warnings"]), _list(r["violations"])]])
+	return out
+
+
+## The flat as the road leaves it: the same three bots, each after every ending of the road, on the same seed.
+func _after_road(harness: GDScript, seed_value: int) -> PackedStringArray:
+	var out := PackedStringArray(["", "## After the road", "",
+		"The same three bots (bots, not people) on the flat's simulation core after each ending of the road, on the same seed. The road's ending is set for the run, not played: the story opens with a quiet 20 s and a question, the wall knocks like the roof and the last call points back. The core has no scene, so the red earth and the ending cards are not part of these runs.",
+		"", "| Bot | Road ending | Flat ending | Sim time | Errors | Warnings |", "|---|---|---|---|---|---|"])
+	for road: StringName in [&"alive", &"saved", &"caught"]:
+		for profile: String in ["explorer", "avoider", "passive"]:
+			var r: Dictionary = harness.run(profile, seed_value, road)
+			out.append("| %s | %s | %s | %s | %d | %d |" % [profile, road, r["ending"] if r["ending"] != &"" else "**none**", _mmss(r["time"]), r["errors"].size(), r["warnings"].size()])
 	return out
 
 

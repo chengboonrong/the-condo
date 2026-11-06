@@ -1,13 +1,16 @@
 # Renders the trailer's stills, one PNG per shot, plus a contact sheet (needs a window, not --headless).
-#   godot --path . --script res://tools/stills.gd -- --out=/tmp/condo-stills/after [--before=/tmp/condo-stills/before] [--act=2]
+#   godot --path . --script res://tools/stills.gd -- --out=/tmp/condo-stills/after [--before=/tmp/condo-stills/before] [--act=2] [--road=caught]
 # With --before, each cell of sheet.png pairs the same still from that directory (left) with the new one (right).
 # --act=N shoots every still in act N (default 1), so in that act's colour grade; each shot settles the grade first.
 # door_feet and peephole are the visitor's, an act 2 event: they are meant for --act=2.
+# --road=alive|saved|caught shoots the flat as that road ending leaves it: the red earth by the front door is built, and
+# the wake card is waited out. footprints is meant for it (without it, the same view of a bare floor).
 extends SceneTree
 
 # [name, x, z, yaw, pitch, lights on, variants, figure or null, phone light, fov or 0 for the default, faces away]
 const SHOTS := [
 	["living", 6.5, 8.4, 0.0, 0.15, [], {}, null, false, 0.0, false],
+	["footprints", 6.5, 8.4, 1.88, -0.35, [], {}, null, true, 0.0, false],
 	["entrance", 2.75, 7.25, 2.24, -0.1, [&"entrance"], {}, null, false, 0.0, false],
 	["bedroom_wall", 7.2, 2.1, 0.149, -0.12, [], {}, null, true, 0.0, false],
 	["shoes", 2.7, 9.6, 0.7, -0.5, [&"entrance"], {}, null, false, 0.0, false],
@@ -32,6 +35,7 @@ func _initialize() -> void:
 	var out := "/tmp/condo-stills/after"
 	var before := ""
 	var act := 1
+	var road := &""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			out = arg.trim_prefix("--out=")
@@ -39,7 +43,10 @@ func _initialize() -> void:
 			before = arg.trim_prefix("--before=")
 		elif arg.begins_with("--act="):
 			act = arg.trim_prefix("--act=").to_int()
+		elif arg.begins_with("--road="):
+			road = StringName(arg.trim_prefix("--road="))
 	DirAccess.make_dir_recursive_absolute(out)
+	root.get_node("Journey").road_ending = road  # before main loads: the flat builds the red earth only after a road ending
 	var main: Node3D = load("res://scenes/main.tscn").instantiate()
 	root.add_child(main)
 	while not main.loaded:  # the shader warm-up moves its own camera around first
@@ -65,6 +72,8 @@ func _initialize() -> void:
 	hud._crosshair.visible = false
 	hud._prompt.visible = false
 	hud._clock.visible = false
+	while hud.is_card_shown():  # after a road ending main shows "11:47 PM" and fades it out over 1.5 s
+		await process_frame
 	var fov: float = player.camera.fov
 	var paired := before != ""
 	var cell_w := CELL.x * (2 if paired else 1)
