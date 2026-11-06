@@ -55,8 +55,12 @@ func test_behind_keeps_her_distance() -> bool:
 
 
 ## Mission 2 shows her as the car, back in its lane after the overtake, comes on at 14 m/s: at s 523 the valley is on
-## the left, at s 740 on the right.
+## the left, at s 740 on the right. One overtake brings her to 22.6 m; a third to 11.8, where the car passes her.
 func test_glimpse_is_brief_and_off_the_road() -> bool:
+	near(Penanggal.glimpse_distance(0.0), 28.0, 0.001, "28 m ahead with no rule broken")
+	near(Penanggal.glimpse_distance(0.12), 22.6, 0.001, "22.6 m after one overtake")
+	near(Penanggal.glimpse_distance(0.4), 10.0, 0.001, "10 m at her nearest")
+	near(Penanggal.glimpse_distance(1.0), 10.0, 0.001, "and no nearer")
 	var builder := RoadBuilder.new()
 	tree.root.add_child(builder)
 	var car := CarRig.new()
@@ -64,51 +68,52 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 	var her := _her()
 	her.builder = builder
 	her.director.car_speed = 14.0
-	her.director.her_near = 0.12  # after one overtake
 	var lines := []
 	var on_line := func(text: String, _seconds: float) -> void: lines.append(text)
 	EventBus.line_requested.connect(on_line)
-	for car_s: float in [523.0, 740.0]:
+	for at: Vector2 in [Vector2(523.0, 0.12), Vector2(740.0, 0.12), Vector2(523.0, 0.36)]:
+		var car_s := at.x
+		var what := "at %.0f, her_near %.2f" % [car_s, at.y]
+		her.director.her_near = at.y
 		her.director.car_s = car_s
 		car.place(car_s, her.director.lane)
 		her.show_glimpse()
 		var s := RoadLayout.closest_s(her.global_position)
-		check(s - car_s >= 25.0 and s - car_s <= 35.0, "at %.0f: 25-35 m ahead of the car (%.1f)" % [car_s, s - car_s])
+		near(s - car_s, Penanggal.glimpse_distance(at.y), 0.5, "%s: glimpse_distance ahead of the car" % what)
 		var shown := 0
 		var off := INF  # her nearest to the road's middle, while seen
 		var valley := true
 		var lit := 0
-		var view := Vector2(-INF, INF)  # her bearing from his seat, most to the left and most to the right (+ left)
-		var ground := 0.0
+		var last := NAN  # her bearing from his seat as she goes (+ left)
+		var ground := INF
 		for i in 120:
 			if her.visible:
 				shown += 1
-				var at := her.global_position
-				var across := _across(at)
+				var pos := her.global_position
+				var across := _across(pos)
 				off = minf(off, absf(across))
-				var here := RoadLayout.closest_s(at)
+				var here := RoadLayout.closest_s(pos)
 				valley = valley and builder.ground_at(here, across) < builder.ground_at(here, -across)
 				for spot: SpotLight3D in car.headlights:
-					var to := at - spot.global_position
+					var to := pos - spot.global_position
 					if to.length() < spot.spot_range and rad_to_deg(to.angle_to(-spot.global_basis.z)) < spot.spot_angle:
 						lit += 1
 						break
-				var seat := car.global_transform.affine_inverse() * at - Vector3(Penanggal.SEAT, 1.15, -0.78)
-				var bearing := rad_to_deg(atan2(seat.x, seat.z))
-				view = Vector2(maxf(view.x, bearing), minf(view.y, bearing))
-				if i == 60:  # set by her own frame before this one
+				var seat := car.global_transform.affine_inverse() * pos - Penanggal.SEAT
+				last = rad_to_deg(atan2(seat.x, seat.z))
+				if i == 20:  # set by her own frame before this one
 					var floor_y: float = her.materials()[0].get_shader_parameter(&"floor_y")
-					ground = at.y + floor_y - 0.02 - (RoadLayout.point(here).y + builder.ground_at(here, across))
+					ground = pos.y + floor_y - 0.02 - (RoadLayout.point(here).y + builder.ground_at(here, across))
 			await tree.process_frame
 			her.director.car_s += 14.0 / 60.0  # the car comes on
 			car.place(her.director.car_s, her.director.lane)
-		check(shown > 60 and shown <= 78, "at %.0f: seen for over 1 s and at most 1.3 s (%.2f s)" % [car_s, shown / 60.0])
-		check(off >= 5.2, "at %.0f: past the rail all the while (%.2f m out at the nearest)" % [car_s, off])
-		check(valley, "at %.0f: on the valley side" % car_s)
-		check(lit > 0, "at %.0f: her head in a headlight's beam for part of it (%d frames)" % [car_s, lit])
-		# the windscreen from his seat: its left pillar's edge at 12.4 degrees at her height, Hafiz's head from 30 right
-		check(view.x < 12.4 and view.y > -30.0, "at %.0f: in the windscreen all the while (%.1f to %.1f degrees)" % [car_s, view.y, view.x])
-		near(ground, 0.0, 0.01, "at %.0f: what hangs from her lies on the real ground there, not the road's plane" % car_s)
+		check(shown > 0 and shown <= 78, "%s: seen, for at most 1.3 s (%.2f s)" % [what, shown / 60.0])
+		check(off >= 5.2, "%s: past the rail all the while (%.2f m out at the nearest)" % [what, off])
+		check(valley, "%s: on the valley side" % what)
+		check(lit > 0, "%s: her head in a headlight's beam for part of it (%d frames)" % [what, lit])
+		check(Penanggal.CLEAR.any(func(band: Vector2) -> bool: return last >= band.x and last <= band.y),
+			"%s: gone where he sees her, not behind a pillar or a head (%.1f degrees)" % [what, last])
+		near(ground, 0.0, 0.01, "%s: what hangs from her lies on the real ground there, not the road's plane" % what)
 	EventBus.line_requested.disconnect(on_line)
 	eq(lines, [Penanggal.SMELL], "the smell, after her first glimpse only")
 	return true

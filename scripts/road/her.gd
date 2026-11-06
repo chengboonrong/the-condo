@@ -10,15 +10,19 @@ extends Node3D
 signal reached
 
 const SMELL := "[A sour smell, like vinegar.]"  # after her first glimpse: the folklore's vinegar, unexplained
-const GLIMPSE := 1.2  # seconds she is seen at the roadside
-const GLIMPSE_AHEAD := Vector2(25.0, 35.0)  # metres along the road she may show at
+const GLIMPSE := 1.2  # seconds she is seen at the roadside, at the most
+## Metres along the road ahead of the car she shows at, from no rule broken to her nearest (RoadDirector.her_near
+## NEAREST and over): each overtake brings her closer, so the car passes her in the glimpse.
+const GLIMPSE_AHEAD := Vector2(28.0, 10.0)
+const NEAREST := 0.4
 const GLIMPSE_OUT := Vector2(5.3, 5.6)  # across, on the valley side: past the rail and its posts, drifting out
 ## Her skull above the road there, rising 0.15 m: her face in the dipped beam's top, her insides hanging into the drop.
 const GLIMPSE_UP := 1.8
-const SEAT := 0.37  # his seat, left of the car's middle
-## Degrees left and right of the car's way she stays within, from his seat: inside the windscreen's left pillar (its
-## edge is at 12.4 at her height), short of Hafiz's head on the right.
-const SEEN := Vector2(11.5, 24.0)
+const SEAT := Vector3(0.37, 1.15, -0.78)  # his eyes in the car's space (+X its left, +Z its forward)
+## Bearings from his seat at her height, in degrees (+ left), where nothing in the car hides her: the windscreen
+## between its left pillar and Mei's head, the front door's window past that pillar, and the windscreen between Mei's
+## head and its right pillar, short of Hafiz. She may pass behind the pillar or a head, but not as she goes.
+const CLEAR := [Vector2(8.0, 12.0), Vector2(16.5, 25.5), Vector2(-35.0, -7.5)]
 const FADE := 0.25  # seconds she takes to come out of the fog, and to go back into it
 const ABOVE_ROAD := 2.45  # her skull above the road behind a walker: the ends of her insides just clear it
 const BEHIND := Vector2(18.0, 4.0)  # metres behind a walker along the road, from no rule broken to her nearest
@@ -160,6 +164,7 @@ var _target: Node3D  # the walker, the victim, the camera or the car
 var _drop := DROP  # catch: seconds she takes to drop onto him
 var _from := Vector3.ZERO
 var _to := Vector3.ZERO
+var _until := GLIMPSE  # glimpse: seconds she is seen for
 var _fall := Vector3.ZERO  # the way the victim falls
 var _victim_at := Transform3D.IDENTITY  # where he stood
 var _arrived := false
@@ -214,12 +219,18 @@ func _ready() -> void:
 
 ## Ahead of the car, past the guard rail on the valley side, half in the fog: her face at the top of the dipped beam
 ## and her insides hanging into the drop. She drifts out over it, and the car closing on her carries her across the
-## beam's edge; she is gone in GLIMPSE seconds. Her first glimpse leaves a smell behind.
+## beam's edge and, nearer, past the windscreen's pillar into the door's window; she is gone in GLIMPSE seconds or
+## less, where he can still see her. Her first glimpse leaves a smell behind.
 ## ponytail: never in the tunnel's 80 m (Mission 2 shows her from s 387 on), where she would stand in its wall.
 func show_glimpse() -> void:
 	var path := _glimpse_path(_glimpse_s())
 	_from = path[0]
 	_to = path[1]
+	_until = GLIMPSE
+	while _until > 0.0 and not _clear(_until):
+		_until -= 0.05
+	if _until <= 0.0:  # ponytail: never clear, at a few spots by switchback 2 (s 856-870); a place search would fix it
+		_until = GLIMPSE
 	_begin(&"glimpse", _from)
 	_set_fade(0.0)
 
@@ -309,8 +320,8 @@ func _process(delta: float) -> void:
 		&"glimpse":
 			_base = _from.lerp(_to, smoothstep(0.0, GLIMPSE, _t))
 			_face(RoadLayout.point(director.car_s, director.lane))
-			_set_fade(clampf(minf(_t, GLIMPSE - _t) / FADE, 0.0, 1.0))
-			if _t >= GLIMPSE:
+			_set_fade(clampf(minf(_t, _until - _t) / minf(FADE, _until / 3.0), 0.0, 1.0))
+			if _t >= _until:
 				hide_her()
 				if not _smelt:
 					_smelt = true
@@ -373,27 +384,27 @@ func _behind_point() -> Vector3:
 	return RoadLayout.point(s - back, _across(at, s)) + Vector3.UP * ABOVE_ROAD
 
 
-## Where along the road the glimpse is: the nearest place GLIMPSE_AHEAD on that keeps her in his view for the whole
-## glimpse, from where the car is to where it will be when she is gone (on a bend she swings across the windscreen);
-## failing that, the place she strays least from it.
+## How far ahead of the car, along the road, her glimpse is.
+static func glimpse_distance(her_near: float) -> float:
+	return lerpf(GLIMPSE_AHEAD.x, GLIMPSE_AHEAD.y, clampf(her_near / NEAREST, 0.0, 1.0))
+
+
+## Where along the road the glimpse is: glimpse_distance ahead of the car, or the nearest place to it clear of a sign.
 func _glimpse_s() -> float:
-	var best := Vector2(INF, director.car_s + GLIMPSE_AHEAD.y)  # (how far out of view, s)
-	for ahead in range(int(GLIMPSE_AHEAD.x), int(GLIMPSE_AHEAD.y) + 1):
-		var s := director.car_s + ahead
-		if _by_a_sign(s):
-			continue
-		var path := _glimpse_path(s)
-		var stray := 0.0
-		for k: float in [0.0, 0.5, 1.0]:
-			var car := director.car_s + director.car_speed * GLIMPSE * k
-			var to := (path[0].lerp(path[1], k) - RoadLayout.point(car, director.lane + SEAT)).slide(Vector3.UP)
-			var bearing := rad_to_deg(RoadLayout.tangent(car).slide(Vector3.UP).signed_angle_to(to, Vector3.UP))
-			stray = maxf(stray, maxf(bearing / SEEN.x, -bearing / SEEN.y))
-		if stray <= 1.0:
-			return s
-		if stray < best.x:
-			best = Vector2(stray, s)
-	return best.y
+	var s := director.car_s + glimpse_distance(director.her_near)
+	for k: float in [0.0, -1.0, 1.0, -2.0, 2.0, -3.0, 3.0]:
+		if not _by_a_sign(s + k):
+			return s + k
+	return s
+
+
+## Whether, `t` seconds into the glimpse, he sees her from his seat through the glass (CLEAR). ponytail: the car is
+## taken to keep its speed; it slows after the pass, so a glimpse cut short ends a little early.
+func _clear(t: float) -> bool:
+	var car := CarRig.on_road(director.car_s + director.car_speed * t, director.lane)
+	var at := car.affine_inverse() * _from.lerp(_to, smoothstep(0.0, GLIMPSE, t)) - SEAT
+	var bearing := rad_to_deg(atan2(at.x, at.z))
+	return CLEAR.any(func(band: Vector2) -> bool: return bearing >= band.x and bearing <= band.y)
 
 
 ## Whether a roadside sign stands within 3 m of s: its board would hide her face.
