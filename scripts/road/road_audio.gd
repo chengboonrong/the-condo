@@ -9,6 +9,7 @@ const SOUNDS := {
 	&"car_door_open": preload("res://assets/audio/car_door_open.wav"),
 	&"car_door_close": preload("res://assets/audio/car_door_close.wav"),
 	&"lorry_pass": preload("res://assets/audio/lorry_pass.wav"),
+	&"rev": preload("res://assets/audio/rev.wav"),  # the hatchback, opened up for the overtake
 }
 const STEPS := [
 	preload("res://assets/audio/road_step_1.wav"), preload("res://assets/audio/road_step_2.wav"),

@@ -16,10 +16,12 @@ var builder: RoadBuilder
 var look: Look
 var car: CarRig
 var lorry: Lorry
+var slow_car: SlowCar
 var audio: RoadAudio
 var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
+var _signalling := false  # the dashboard indicator ticks: from the signal to the pull out
 
 
 func _ready() -> void:
@@ -39,6 +41,9 @@ func _ready() -> void:
 	lorry = Lorry.new()
 	lorry.name = "Lorry"
 	add_child(lorry)
+	slow_car = SlowCar.new()
+	slow_car.name = "SlowCar"
+	add_child(slow_car)
 	audio = RoadAudio.new()
 	audio.name = "Audio"
 	add_child(audio)
@@ -102,6 +107,13 @@ func _on_cue(cue: StringName) -> void:
 		&"lorry_passes":
 			lorry.pass_by()
 			EventBus.sound_requested.emit(&"lorry_pass", player.camera.global_position, 0.0)  # its pass is in the file
+		&"indicator":
+			_signalling = true
+		&"overtake":
+			_signalling = false
+			EventBus.sound_requested.emit(&"rev", player.camera.global_position, -2.0)
+		&"slow_car_gone":
+			slow_car.pull_in()
 
 
 func _physics_process(delta: float) -> void:
@@ -117,15 +129,17 @@ func _process(delta: float) -> void:
 	pause.guard(delta, _playing(), OS.has_feature("web"))
 
 
-## The car, his seat and the ride's loops follow the core. The car stands out of sight up the road, hidden and not
-## solid, until it comes for him; it is solid only standing still or with him in it (CarRig.set_solid). The engine's
-## pitch follows the car's speed; outside, it fades with distance.
+## The car, the slow car, his seat and the ride's loops follow the core. The car stands out of sight up the road,
+## hidden and not solid, until it comes for him; it is solid only standing still or with him in it (CarRig.set_solid).
+## The engine's pitch follows the car's speed; outside, it fades with distance, as does the slow car's old engine from
+## 10 m.
 func _ride() -> void:
 	var shown := director.seated or director.car_speed > 0.0 or director.car_s > LiftMission.CAR_FROM
 	car.visible = shown
 	car.process_mode = Node.PROCESS_MODE_INHERIT if shown else Node.PROCESS_MODE_DISABLED
 	car.place(director.car_s, director.lane)
 	car.set_solid(director.car_speed == 0.0, player.is_seated(), player.global_position)
+	slow_car.place(director.car_s, director.slow_gap)
 	if director.seated != player.is_seated():
 		if director.seated:
 			player.sit(car.seat_rear_left)
@@ -136,6 +150,10 @@ func _ride() -> void:
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
 	audio.set_loop(&"engine_loop", shown, -12.0 + away, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
 	audio.set_loop(&"insects_loop", true, -12.0 if inside else -6.0)  # the windows are up
+	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)
+	audio.set_loop(&"old_engine_loop", slow_car.visible and slow_car.speed > 0.0, -12.0 + linear_to_db(1.0 / maxf(slow_away / 10.0, 1.0)),
+		lerpf(0.6, 1.0, slow_car.speed / SlowCarMission.SLOW_SPEED))
+	audio.set_loop(&"indicator", _signalling and slow_car.visible, 0.0)
 
 
 func _notification(what: int) -> void:

@@ -23,11 +23,10 @@ class Idle extends RoadMission:
 func _setup(then_idle := false) -> void:
 	stage = RoadStage.new()
 	stage.position = RoadLayout.EXIT
+	var list: Array[RoadMission] = [LiftMission.new()]  # the lift alone: the other missions have their own tests
 	if then_idle:
-		var list: Array[RoadMission] = [LiftMission.new(), Idle.new()]
-		d = RoadDirector.new(stage, 1147, list)
-	else:
-		d = RoadDirector.new(stage, 1147)
+		list.append(Idle.new())
+	d = RoadDirector.new(stage, 1147, list)
 	cues.clear()
 	captions.clear()
 	ended.clear()

@@ -102,7 +102,10 @@ func test_f10_skips_a_road_mission() -> bool:
 	f10.physical_keycode = KEY_F10
 	f10.pressed = true
 	tree.root.push_input(f10)
-	eq([road.director.mission_index, ended], [1, [&"alive"]], "the lift is skipped, and with it the road")
+	eq([road.director.mission_index, ended], [1, []], "the lift is skipped, and the next mission starts")
+	for i in road.director.missions.size() - 1:
+		tree.root.push_input(f10)
+	eq([road.director.mission_index, ended], [road.director.missions.size(), [&"alive"]], "skipping the last one ends the road")
 	road.queue_free()
 	_end()
 	return true

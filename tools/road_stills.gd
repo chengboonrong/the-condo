@@ -18,6 +18,8 @@ const SHOTS := [
 	["road_city", 0, 360.0, 1.8, 0.0, 0.0, 0.0, false],  # down the road towards KL's glow, in the clearest fog
 	["car_arrives", 0, 2.0, 3.4, PI - 0.15, -0.03, 0.0, false, {"car_s": -10.0, "car_speed": 9.0}],  # from the stop
 	["back_seat", 0, 615.0, 0.0, -0.25, -0.04, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # chevrons 20-40 m on
+	["slow_car", 1, 0.0, 0.0, 0.0, -0.03, 0.0, false, {"seated": true, "car_s": 140.0, "car_speed": 4.0, "slow_gap": 12.0}],  # behind it, in the headlights
+	["overtake", 1, 0.0, 0.0, 1.1, -0.05, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 10.0, "lane": -1.8, "slow_gap": 3.0}],  # passing it in the other lane, looking left
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2

@@ -9,7 +9,8 @@ extends RefCounted
 ##   breaker  breaks most of them
 ##
 ## Each follows the policy table in the plan's Task 10, one row per mission as the missions are added. Mission 1 has
-## no rule to break, so all three play it alike: walk down to the stop, wait, get in.
+## no rule to break, so all three play it alike: walk down to the stop, wait, get in. In mission 2 the keeper follows
+## the slow car all three times, the wobbly one overtakes at the third, and the breaker says nothing: Hafiz overtakes.
 ##
 ## run(profile, seed) returns the ending, the time it took, the score, the rules broken, every beat, and the errors
 ## and warnings logged during the run.
@@ -21,7 +22,11 @@ const LIMIT := 40.0 * 60.0  # sim seconds before we call it stuck
 const ANSWER_AFTER := 1.0  # seconds after a choice opens
 const USE_AFTER := 0.5  # seconds after a prompt appears
 ## Each profile's answer, by choice id; -1 stays silent. The rows come with their missions.
-const ANSWERS := {"keeper": {}, "wobbly": {}, "breaker": {}}
+const ANSWERS := {
+	"keeper": {&"overtake_1": 0, &"overtake_2": 0, &"overtake_3": 0},
+	"wobbly": {&"overtake_1": 0, &"overtake_2": 0, &"overtake_3": 2},
+	"breaker": {&"overtake_1": -1, &"overtake_2": -1, &"overtake_3": -1},
+}
 
 var profile: String
 var d: RoadDirector

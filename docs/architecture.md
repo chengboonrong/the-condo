@@ -269,14 +269,16 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 
 The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prints each file's level as it makes it).
 Their file levels are measured from the files. "Played at" is what `RoadAudio` uses: so far the engine (seated;
-outside it falls off as 1/distance), the insects, both car doors, the lorry and the asphalt steps play at these levels,
-and the rest are proposals until their missions play them. Their "Heard at" is that level's result, not a measurement
-of the game. None is louder than the single knock (−14.6) and none is a sting. Five of them are seamless loops, imported
-with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
-indicator (one flash, 0.667 s, 90 flashes a minute) and the phone (one ring, 2.1 s, ending in a pause). The rest play
-once. Eight of them (both engine loops, the rev, the lorry, the sputter, the crank, her breath and the phone) are saved
-at 22.05 kHz, because the pack is charged by the second of audio: at 44.1 kHz less than 0.05% of the power of all but
-the lorry is above 8 kHz, and the lorry loses about 1.3% of its power above 11 kHz (its tyre hiss).
+outside it falls off as 1/distance), the insects, both car doors, the lorry, the asphalt steps, the slow car's old
+engine (from 10 m away it falls off as 1/distance, and its pitch drops as it stops), the indicator (while Hafiz
+signals) and the rev (as he pulls out) play at these levels, and the rest are proposals until their missions play
+them. Their "Heard at" is that level's result, not a measurement of the game. None is louder than the single knock
+(−14.6) and none is a sting. Five of them are seamless loops, imported with `edit/loop_mode=2` and only ever started
+and stopped with `RoadAudio.set_loop`: the three `_loop` files, the indicator (one flash, 0.667 s, 90 flashes a
+minute) and the phone (one ring, 2.1 s, ending in a pause). The rest play once. Eight of them (both engine loops,
+the rev, the lorry, the sputter, the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is
+charged by the second of audio: at 44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the
+lorry loses about 1.3% of its power above 11 kHz (its tyre hiss).
 The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.
 
 The three home beds stop one at a time, the TV when act 2 begins, the fridge 75 s into act 2 (or at act 3) and
