@@ -452,12 +452,24 @@ func test_the_last_call_stays_pending_when_he_leaves_the_entrance() -> bool:
 	check(_until(func() -> bool: return story._lines.is_empty() and story._line_left <= 0.0, 30.0), "her call is over")
 	_wait(30.0)
 	eq(_last_calls(), 0, "nothing plays while he is away from the entrance")
-	_place(ENTRANCE)
+	_place(ENTRANCE)  # and back, with nobody speaking
+	_wait(5.0)
+	eq(_last_calls(), 0, "nor when he walks back in: it waits for his press")
+	eq(lines.count(mei), 0, "no road line either")
 	EventBus.object_interacted.emit(&"intercom")  # his next press, with nobody speaking
 	eq(_last_calls(), 1, "it plays at the press")
 	_wait(10.0)
 	eq(_last_calls(), 1, "once")
 	eq(lines.count(mei), 1, "with Mei's line, once")
+	return _done()
+
+
+func test_a_pending_last_call_never_plays_after_an_ending() -> bool:
+	_rosnah_answers(&"caught", ENTRANCE)
+	EventBus.object_interacted.emit(&"intercom")  # while she talks: pending
+	WorldState.set_ending(&"downstairs")
+	_wait(40.0)
+	eq(_last_calls(), 0, "the story is over: no last call")
 	return _done()
 
 

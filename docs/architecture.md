@@ -125,7 +125,7 @@ After the road (`Journey.road_ending` is `alive`, `saved` or `caught`) the same 
 opening with a question, the road's smell and look-back lines (always shown), and roof thumps in place of the bedroom
 knocks. Inspecting the intercom after Rosnah's call plays the last call once for `caught` and `saved` (wind and an
 idling engine, then Mei's or Hafiz's first line); pressed while someone is still speaking, it waits and plays by itself
-when the lines are done if he is still in the entrance, or at his next press if he has left. The look-back line comes
+when the lines are done if he stays in the entrance; once he leaves, it takes his next press. The look-back line comes
 the first time he notices something a shift has moved. `StoryDirector.ending_card(ending, road)` gives the last card its
 text: `caught` adds to or edits today's text, `saved` and `alive` have their own. With no road (the flat opened
 directly) every line is as before.

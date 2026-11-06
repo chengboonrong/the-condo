@@ -136,7 +136,9 @@ func tick(delta: float) -> void:
 		_go(&"home")
 		_asking = road != &""
 		WorldState.set_objective("How did you get home?" if _asking else "You're home from your shift at the mamak. " + HOME_OBJECTIVE)
-	if _call_pending and WorldState.player_room == &"entrance":
+	if WorldState.player_room != &"entrance":
+		_call_pending = false  # he has left: the wait is over, only his next press asks again
+	elif _call_pending:
 		_play_last_call()  # he waited by the intercom: it comes once Rosnah has finished
 	if road != &"":
 		for i in OPENING_LINES.size():
@@ -422,7 +424,7 @@ func _on_interacted(object_id: StringName) -> void:
 
 ## Once, after the road: the last call plays back, with the road's wind and engine and the one who is lost. Not over
 ## another voice: a press while Rosnah (or any line) is still speaking shows the inspect text and leaves the call pending.
-## It then plays by itself once the lines are done, if he is still in the entrance; if he has gone, at his next press.
+## It then plays by itself once the lines are done, if he stays in the entrance; once he leaves, it takes his next press.
 func _last_call() -> void:
 	if LAST_CALL.has(road) and not _ever.has("last_call"):
 		_call_pending = true
@@ -430,7 +432,7 @@ func _last_call() -> void:
 
 
 func _play_last_call() -> void:
-	if _lines.is_empty() and _line_left <= 0.0 and _once_ever("last_call"):
+	if WorldState.ending == &"" and _lines.is_empty() and _line_left <= 0.0 and _once_ever("last_call"):
 		_call_pending = false
 		EventBus.sound_requested.emit(&"intercom_road", ApartmentLayout.ANCHORS[&"phone_intercom"]["pos"], 0.0)
 		say("[The speaker crackles. Wind, and an engine idling.]", 3.0)  # a sound's caption: follows the setting

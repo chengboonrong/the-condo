@@ -65,7 +65,8 @@ today's flat). Each test sets the ending itself and puts it back.
 | `test_ending_cards_follow_the_road` | `tests/unit/test_story.gd` | every road has its card text per flat ending (titles kept); no road keeps today's cards; caught adds "You never got home." or its notice |
 | `test_the_last_call_points_back_once` | `tests/unit/test_story.gd` | the intercom's last call plays the road's wind and engine once, with its crackle as a sound caption and Mei's line (caught) or Hafiz's (saved) as a story line |
 | `test_the_last_call_waits_for_rosnah_to_finish` | `tests/unit/test_story.gd` | no wind or engine over Rosnah's voice or her last line; a press then leaves the call pending, and it plays once by itself when her call is done and he is still in the entrance |
-| `test_the_last_call_stays_pending_when_he_leaves_the_entrance` | `tests/unit/test_story.gd` | he walks out before her call ends: nothing plays while he is away; his next press plays it once |
+| `test_the_last_call_stays_pending_when_he_leaves_the_entrance` | `tests/unit/test_story.gd` | he walks out before her call ends: nothing plays while he is away or when he walks back in; his next press plays it once |
+| `test_a_pending_last_call_never_plays_after_an_ending` | `tests/unit/test_story.gd` | a pending last call does not play once the story has ended |
 | `test_a_road_without_a_last_call_never_leaves_one_pending` | `tests/unit/test_story.gd` | roads `alive` and none: pressing the intercom during and after her call never plays a last call or its crackle |
 | `test_the_quiet_starts_on_the_first_tick_whatever_came_first` | `tests/unit/test_story.gd` | road `caught`, F10 before the first tick: the quiet still ends 20 s after that tick |
 
