@@ -2,7 +2,8 @@ class_name Lorry
 extends Node3D
 ## A lorry, built in code: a dark cargo box on a dark cab, red and white reflective strips, and two headlights.
 ## pass_by() drives it up the road past the bus stop in the other lane; at the road's end it comes down the walkers'
-## lane and pulls up, behind them or past them at the fruit stall (pull_up). The rest of the time it is not on the road.
+## lane and pulls up, behind them or past them at the fruit stall (pull_up), yielding to anyone in its way. The rest of
+## the time it is not on the road.
 ## Like the car, it faces +Z with its origin on the ground.
 
 const SECONDS := 3.0
@@ -13,15 +14,25 @@ const PULL_FROM := 30.0  # metres up the road it comes from, pulling up...
 const PULLING := 5.0  # ...braking evenly to a stop over this many seconds (from 12 m/s)
 const CRUISE := 2.0 * PULL_FROM / PULLING  # m/s it comes at from further off, before it brakes
 const BRAKE := CRUISE / PULLING  # m/s², however it slows
-const PASS := 3.0  # m/s at the most it passes people on the road at, its side 0.3 m from their line
+const PASS := 3.0  # m/s at the most it passes people on the road at
+## Metres off the centreline it comes down the walkers' lane on: wholly in it (its far side 0.28 m inside the
+## centreline), and its near side 0.58 m from their line on it (3.3 m) as it passes them.
+const LINE := 1.5
+## pull_up: it yields to anyone ahead of its tail and less than CLEAR metres from its side (or in its way): it comes
+## no faster than it can still stop SHORT_OF metres short of them, holds there, idling, while they stay, and drives on
+## once the way is clear, pulling away no harder than it brakes.
+const CLEAR := 0.5
+const SHORT_OF := 1.5
 const BRAKES := Vector3(0.0, 0.6, -1.0)  # its air brakes, under the cargo box
 
 var speed := 0.0  # m/s, down the road, pulling up
+var yields_to: Array[Node3D] = []  # pull_up: who it yields to (RoadMain: him, Mei and Hafiz), while they are seen
 var _t := INF
 var _stop_s := NAN  # pull_up: where it stops; NAN when passing
 var _short := 0.0  # pull_up: metres short of its stop
 var _crawl := 0.0  # pull_up: metres short of its stop it comes no faster than PASS within
 var _materials: Array[Material] = []
+var _body := AABB()  # every box it is built of, in its own space
 
 
 func _ready() -> void:
@@ -63,6 +74,7 @@ func pull_up(s: float, from := PULL_FROM, crawl := 0.0) -> void:
 	_stop_s = s
 	_short = from
 	_crawl = crawl
+	speed = CRUISE  # as it comes from further off
 	visible = true
 	set_process(true)
 	_process(0.0)
@@ -75,9 +87,9 @@ func materials() -> Array[Material]:
 func _process(delta: float) -> void:
 	_t += delta
 	if not is_nan(_stop_s):
-		_short = maxf(_short - _speed(_short) * delta, 0.0)
-		speed = _speed(_short)
-		global_transform = CarRig.on_road(_stop_s - _short, RoadLayout.LANE)
+		_short = maxf(_short - speed * delta, 0.0)
+		global_transform = CarRig.on_road(_stop_s - _short, LINE)
+		speed = minf(_speed(_short), speed + BRAKE * delta)
 		if _short == 0.0:
 			set_process(false)
 			EventBus.sound_requested.emit(&"lorry_brake", global_transform * BRAKES, 0.0)
@@ -89,13 +101,21 @@ func _process(delta: float) -> void:
 	global_transform = CarRig.on_road(lerpf(FROM, TO, _t / SECONDS), -RoadLayout.LANE, true)
 
 
-## m/s it comes at, `short` metres short of its stop: as fast as it can still brake to a stop there, and to PASS by
-## the time it is `_crawl` short of it.
+## m/s it may come at, `short` metres short of its stop: as fast as it can still brake to a stop there, to PASS by
+## the time it is `_crawl` short of it, and SHORT_OF anyone in its way.
 func _speed(short: float) -> float:
 	var v := minf(CRUISE, sqrt(2.0 * BRAKE * short))
 	if short <= _crawl:
-		return minf(v, PASS)
-	return minf(v, sqrt(PASS * PASS + 2.0 * BRAKE * (short - _crawl)))
+		v = minf(v, PASS)
+	else:
+		v = minf(v, sqrt(PASS * PASS + 2.0 * BRAKE * (short - _crawl)))
+	for who in yields_to:
+		var s := RoadLayout.closest_s(who.global_position)
+		var ahead := s - (_stop_s - short)  # metres down the road from its origin
+		if who.is_visible_in_tree() and ahead > _body.position.z \
+				and absf(RoadLayout.across(who.global_position, s) - LINE) < _body.end.x + CLEAR:
+			v = minf(v, sqrt(2.0 * BRAKE * maxf(ahead - _body.end.z - SHORT_OF, 0.0)))
+	return v
 
 
 func _box(at: Vector3, size: Vector3, material: Material) -> void:
@@ -106,6 +126,8 @@ func _box(at: Vector3, size: Vector3, material: Material) -> void:
 	box.material_override = material
 	box.position = at
 	add_child(box)
+	var part := AABB(at - size / 2.0, size)
+	_body = part if _body.size == Vector3.ZERO else _body.merge(part)
 
 
 func _material(color: Color, glow: float) -> StandardMaterial3D:

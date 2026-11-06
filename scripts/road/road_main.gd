@@ -60,6 +60,7 @@ func _ready() -> void:
 	car.add_child(couple)
 	lorry = Lorry.new()
 	lorry.name = "Lorry"
+	lorry.yields_to.assign([player, couple.mei_out, couple.hafiz_out])
 	add_child(lorry)
 	slow_car = SlowCar.new()
 	slow_car.name = "SlowCar"

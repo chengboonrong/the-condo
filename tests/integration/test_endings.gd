@@ -55,9 +55,9 @@ func _looping(road: RoadMain, id: StringName) -> bool:
 	return p != null and p.playing
 
 
-## He stands at `s` on the verge, facing down the road.
-func _put(road: RoadMain, s: float) -> void:
-	road.player.stand(Transform3D(Basis.looking_at(RoadLayout.tangent(s).slide(Vector3.UP).normalized()), RoadLayout.point(s, 3.3)))
+## He stands at `s`, on his line down the road unless `across` says otherwise, facing down the road.
+func _put(road: RoadMain, s: float, across := 3.3) -> void:
+	road.player.stand(Transform3D(Basis.looking_at(RoadLayout.tangent(s).slide(Vector3.UP).normalized()), RoadLayout.point(s, across)))
 
 
 ## The walk is over 4 m short of the light: he walks on to `s`, `across`, over 2 s, and Mei stays where she stopped,
@@ -204,26 +204,29 @@ func test_alive_hafiz_flags_a_lorry_down() -> bool:
 	check(not road.her.visible, "and she is gone")
 	check(_looping(road, &"lorry_idle"), "its diesel heard")
 	var mei := road.couple.mei_out
-	var clear := {p: INF, mei: INF, hafiz: INF}  # metres between each and the lorry's side, while beside it, at the least
+	var clear := {p: INF, mei: INF, hafiz: INF}  # metres from the lorry's side to each one's line, while beside it, at the least
 	var passing := 0.0  # m/s, its fastest beside any of them
-	var lane := 0.0  # metres off its lane's centre, at the most
+	var line := 0.0  # metres off the line it comes down, at the most
+	var inside := INF  # metres its far side is inside the centreline, at the least
 	for i in roundi(LightMission.ALIVE_HAFIZ * 60.0) - 1:
 		await tree.process_frame
 		torch_on.call(walk + 2 + i)
 		var ls := RoadLayout.closest_s(lorry.global_position)
-		lane = maxf(lane, absf(RoadLayout.across(lorry.global_position, ls) - RoadLayout.LANE))
+		var la := RoadLayout.across(lorry.global_position, ls)
+		line = maxf(line, absf(la - Lorry.LINE))
+		inside = minf(inside, la - box.end.x)
 		for who: Node3D in clear:
 			var local := lorry.global_transform.affine_inverse() * who.global_position
 			if local.z > box.position.z - 0.25 and local.z < box.end.z + 0.25:  # a person is about 0.5 m across
-				clear[who] = minf(clear[who], absf(local.x) - box.end.x - 0.25)
+				clear[who] = minf(clear[who], absf(local.x) - box.end.x)
 				passing = maxf(passing, lorry.speed)
 	check(lit[2] < Couple.TORCH_NEAR and lit[2] > Couple.TORCH_NEAR - 1.0, "he puts his torch on once he is near them (%.1f m)" % lit[2])
 	near((lit[1] - lit[0]) / 60.0, Couple.TORCH_FADE, 0.05, "and it comes on over about 2 s")
 	check(clear[p] < INF and clear[mei] < INF, "it passes them")
 	check(passing <= Lorry.PASS + 0.001, "slowly (%.1f m/s at the most)" % passing)
-	check(clear[p] > 0.0 and clear[mei] > 0.0 and clear[hafiz] > 0.0, "clear of him, Mei and Hafiz (%.2f, %.2f, %.2f m)" % [clear[p], clear[mei], clear[hafiz]])
-	check(lane < 0.01, "in its lane (%.2f m off)" % lane)
-	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, RoadLayout.LANE).origin), 0.0, 0.01, "it has pulled up just past the stall, facing down the road, where Hafiz flagged it")
+	check(clear[p] >= 0.5 and clear[mei] >= 0.5 and clear[hafiz] >= 0.5, "its side half a metre clear of his line, Mei's and Hafiz's at the least (%.2f, %.2f, %.2f m)" % [clear[p], clear[mei], clear[hafiz]])
+	check(line < 0.01 and inside >= 0.0, "wholly in their lane (%.2f m off its line, its far side %.2f m inside the centreline)" % [line, inside])
+	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, Lorry.LINE).origin), 0.0, 0.01, "it has pulled up just past the stall, facing down the road, where Hafiz flagged it")
 	check(lorry.speed == 0.0 and _sounds.has(&"lorry_brake") and _looping(road, &"lorry_idle"), "its brakes hiss, and it idles")
 	var hs := RoadLayout.closest_s(hafiz.global_position)
 	check(hs > light_s + 1.0 and hs < light_s + 2.5, "Hafiz is at the stall's far side (%.1f m past the light)" % (hs - light_s))
@@ -238,6 +241,50 @@ func test_alive_hafiz_flags_a_lorry_down() -> bool:
 	EventBus.road_cue.emit(&"card_on")
 	await _frames(2)
 	check(road.hud.is_card_shown() and not _looping(road, &"lorry_idle"), "the card, and the diesel is left behind")
+	_done(road)
+	return true
+
+
+## He is free to walk: once they are there he steps out into the middle of its lane at the stall, and the lorry he
+## flagged down holds short of him, idling, and goes on to its stop once he steps to the edge.
+func test_alive_the_lorry_holds_for_him_in_its_lane() -> bool:
+	var road := await _road()
+	road.director.start_at(_light_index(road))
+	await _frames(3)
+	var light_s := road.director.light_s
+	var p := road.player
+	_put(road, light_s - LightMission.THERE)
+	await _frames(2)
+	EventBus.road_cue.emit(&"walk_over")  # they are there, as the core says: Mei stops beside him
+	EventBus.road_cue.emit(&"lorry_flagged")
+	_put(road, light_s, RoadLayout.LANE)
+	await _frames(1)
+	var lorry := road.lorry
+	var box := _lorry_box(lorry)
+	var r := (p.shape.shape as CapsuleShape3D).radius
+	var nearest := INF  # metres from its nose to his line ahead, while he is across its width, at the least
+	var touched := false
+	for i in roundi(LightMission.ALIVE_HAFIZ * 60.0):
+		await tree.process_frame
+		var local := lorry.global_transform.affine_inverse() * p.global_position
+		if absf(local.x) < box.end.x + r:
+			nearest = minf(nearest, local.z - box.end.z)
+			touched = touched or (local.z > box.position.z - r and local.z < box.end.z + r)
+	check(not touched and nearest > r, "it comes up behind him and never touches him (its nose %.2f m short of him)" % nearest)
+	var held := lorry.global_position
+	await _frames(60)
+	check(lorry.speed == 0.0 and lorry.global_position.distance_to(held) < 0.001, "it holds there while he stands in its way")
+	check(not _sounds.has(&"lorry_brake") and _looping(road, &"lorry_idle"), "idling, short of its stop")
+	_put(road, light_s, RoadBuilder.EDGE - 0.4)  # he steps to the edge
+	var clear := INF  # metres from its side to his line, while beside him, at the least
+	for i in 10 * 60:
+		await tree.process_frame
+		var local := lorry.global_transform.affine_inverse() * p.global_position
+		if local.z > box.position.z - r and local.z < box.end.z + r:
+			clear = minf(clear, absf(local.x) - box.end.x)
+	check(clear >= 0.5 and clear < INF, "once the way is clear it drives on past him (%.2f m from his line)" % clear)
+	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, Lorry.LINE).origin), 0.0, 0.01, "to its stop past the stall")
+	check(lorry.speed == 0.0 and _sounds.has(&"lorry_brake"), "and pulls up there, its brakes hissing")
 	_done(road)
 	return true
 
@@ -266,7 +313,7 @@ func test_saved_his_phone_and_a_lorry_behind_them() -> bool:
 	check(lorry.speed > 0.0 and RoadLayout.closest_s(lorry.global_position) > first, "down the road")
 	await _frames(roundi(Lorry.PULLING * 60.0))
 	var at := RoadLayout.closest_s(road.player.global_position) - Endings.LORRY_BEHIND
-	near(lorry.global_position.distance_to(CarRig.on_road(at, RoadLayout.LANE).origin), 0.0, 0.05, "and pulls up behind them")
+	near(lorry.global_position.distance_to(CarRig.on_road(at, Lorry.LINE).origin), 0.0, 0.05, "and pulls up behind them")
 	check(_sounds.has(&"lorry_brake") and _looping(road, &"lorry_idle"), "its brakes hiss, and it idles")
 	EventBus.road_cue.emit(&"card_on")
 	await _frames(2)
