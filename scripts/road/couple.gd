@@ -6,6 +6,7 @@ extends Node3D
 
 const TURN := 0.5  # seconds to turn, and to turn back
 const GLANCE := 1.2  # seconds Hafiz takes his eyes off the road for the mirror
+const DOOR_LAYER := 2  # visual layer 2's bit: his door is drawn on it alone, so her screen's glow can leave it out
 ## Mei's turn to the back seat, over her left shoulder: her chest twists left and leans in towards the middle of the
 ## car, and her head turns on round, so from his seat her eyes show over her headrest, on him. rotation.y > 0 is to her
 ## left.
@@ -23,7 +24,7 @@ shader_type spatial;
 render_mode diffuse_lambert;
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap;
 uniform float roughness = 0.8;
-uniform float halo = 0.5;  // a dim outline: more, and the edges clip to white
+uniform float halo = 0.45;  // a dim outline: more, and the edges clip to white
 uniform vec3 tint : source_color = vec3(0.65, 0.4, 0.25);  // her dark brown, which the light takes on coming through
 
 void fragment() {
@@ -77,17 +78,20 @@ func _ready() -> void:
 				m.set_surface_override_material(i, lit)
 	var to := _his_head.global_transform.affine_inverse() * _car.mirror_mount.global_position
 	_mirror = Vector3(-atan2(to.y, Vector2(to.x, to.z).length()), atan2(to.x, to.z), 0.0)
-	# Her screen's glow lights her face from below and, past her, the roof over the front seats. It has no shadow, like
-	# every light but his phone's, so it is a wide, dim glow that can pass her head unnoticed, not a beam. It turns with
-	# her head, as if she brings the phone round with her: from his seat her seat hides the phone, and her face is what
-	# shows.
+	# Her screen's glow lights her face from below and, past her, the roof over the front seats: the headliner, the sun
+	# visors and the dome lamp. It has no shadow, like every light but his phone's, so it is a wide, dim glow that can
+	# pass her head unnoticed, not a beam. It turns with her head, as if she brings the phone round with her: from his
+	# seat her seat hides the phone, and her face is what shows. It leaves out his door, on a visual layer of its own:
+	# from his seat its glass would catch the glow as a bright spot, like a lamp out in the fog.
 	var screen := SpotLight3D.new()
 	screen.light_color = Color(0.88, 0.9, 0.95)
 	screen.light_energy = 0.3
-	screen.spot_range = 0.7  # her face and the roof over the front seats, not the side glass behind her
+	screen.spot_range = 0.95
 	screen.spot_angle = 60.0
 	screen.shadow_enabled = false
 	screen.transform = Transform3D(Basis.looking_at(SCREEN_FACING), SCREEN)
+	(_car.door_rear_left.get_node("door_rear_left") as MeshInstance3D).layers = DOOR_LAYER
+	screen.light_cull_mask &= ~DOOR_LAYER
 	_her_head.add_child(screen)
 	EventBus.road_line.connect(turn_to)
 

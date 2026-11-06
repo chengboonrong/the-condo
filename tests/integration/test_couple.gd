@@ -102,6 +102,7 @@ func _source_problems(path: String) -> Array[String]:
 	var literals: Array = []  # [prefix, text, line]
 	var masked := ""
 	var at := 0
+	var swaps: Array = []  # [offset in masked, offset in source] after each swap, to find a say('s line in the source
 	for m in token.search_all(source):
 		masked += source.substr(at, m.get_start() - at)
 		at = m.get_end()
@@ -111,12 +112,17 @@ func _source_problems(path: String) -> Array[String]:
 			masked += "«%d»" % literals.size()
 			var text := quoted.substr(q, quoted.length() - 2 * q).c_unescape()
 			literals.append([m.get_string(1), text, source.substr(0, m.get_start()).count("\n") + 1])
+		swaps.append([masked.length(), at])
 	masked += source.substr(at)
 	var problems: Array[String] = []
 	var in_say := {}
 	for call in RegEx.create_from_string("\\bsay\\(").search_all(masked):
 		var args := _args(masked, call.get_end())
-		var where := "%s:%d" % [file, masked.substr(0, call.get_start()).count("\n") + 1]
+		var from := call.get_start()  # in the source: past the last swap before it, the two texts run alike
+		for swap: Array in swaps:
+			if swap[0] <= call.get_start():
+				from = swap[1] + call.get_start() - swap[0]
+		var where := "%s:%d" % [file, source.substr(0, from).count("\n") + 1]
 		var line := marker.search(args[0])
 		var i := int(line.get_string(1)) if line else -1
 		if i >= 0 and literals[i][0] == "":
