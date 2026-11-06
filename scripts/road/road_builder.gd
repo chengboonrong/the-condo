@@ -48,8 +48,11 @@ const LIGHT_SIZE := 36.0  # metres across its haze, at the bulb, seen from the c
 ## Metres from the bulb within which the haze shrinks as he nears it, keeping the size in his view it had from the car
 ## (about 14 degrees), until it fades out into the bulb's own light (from 40 m to 10 m).
 const LIGHT_FROM := 150.0
-const CORE_SIZE := 0.02  # the bulb's glow in the haze, at a fixed size in his view: about 15 px across at 1080p
+## The bulb's glow in the haze, at a fixed size in his view (about 15 px across at 1080p), and still at the bulb when he
+## is there, so its glass reads as lit.
+const CORE_SIZE := 0.02
 const CORE_ALPHA := 0.7  # its strength in the clearest fog: under the grade, brighter reads white, not warm
+const CORE_OUT := 0.05  # metres it is drawn towards the camera from the bulb's centre: clear of the glass round it
 const LAMPS := [[-170.0, -1.0], [-110.0, -1.0], [5.0, 1.0], [70.0, -1.0], [130.0, 1.0]]  # [s, side]: +1 left
 
 ## The ground beside the road, as (metres out from the centreline, metres up), each point a [valley, hill] pair lerped
@@ -235,7 +238,7 @@ func _process(_delta: float) -> void:
 			var k := minf(1.0, LIGHT_AWAY / maxf(to.length(), 0.01))
 			far_light.global_position = camera.global_position + to * k
 			far_light.scale = Vector3.ONE * k * minf(1.0, to.length() / LIGHT_FROM)
-			far_core.global_position = far_light.global_position
+			far_core.global_position = far_light.global_position - to.normalized() * CORE_OUT
 
 
 ## Every material the road made, for the start card's warm-up. The signs' lines (Label3D) draw with the engine's own.
@@ -642,7 +645,8 @@ func _build_city() -> void:
 
 ## The light far down the road (Mission 4): a warm haze, as a bare bulb makes in the fog, and at its heart the bulb's
 ## glow, a few pixels at any distance. Both ignore the fog, which would hide them at that distance, and draw inside
-## the camera's far plane (see _process). Near the bulb they give way to the stall's own (Endings).
+## the camera's far plane (see _process). Near the bulb the haze gives way to the stall's own light (Endings), and
+## the glow stays on its glass.
 func _build_far_light() -> void:
 	far_light = MeshInstance3D.new()
 	far_light.name = "FarLight"
@@ -867,8 +871,9 @@ func _build_materials() -> void:
 	var city := _haze(Color(1.0, 0.55, 0.22, CITY_ALPHA), 0.0, 0.0)
 	city.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED  # it is always CITY_AWAY off
 	_add_material(&"city", city)
-	_add_material(&"far_light", _haze(Color(1.0, 0.78, 0.5, LIGHT_ALPHA), 40.0, 10.0))  # gone close to its bulb
-	var core := _haze(Color(1.0, 0.62, 0.32, CORE_ALPHA), 6.0, 2.5)  # gone at the bulb, where its own glass shows
+	_add_material(&"far_light", _haze(Color(1.0, 0.6, 0.3, LIGHT_ALPHA), 40.0, 10.0))  # warm, and gone close to its bulb
+	var core := _haze(Color(1.0, 0.62, 0.32, CORE_ALPHA), 0.0, 0.0)
+	core.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED  # at any distance, the bulb's glass lit
 	core.fixed_size = true
 	_add_material(&"far_core", core)
 

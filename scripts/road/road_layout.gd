@@ -70,6 +70,12 @@ static func closest_s(pos: Vector3) -> float:
 	return _road().get_closest_offset(pos) + START_S
 
 
+## Metres to the left of the centreline at s that pos is (point's `across`).
+static func across(pos: Vector3, s: float) -> float:
+	var t := tangent(s)
+	return (pos - point(s)).dot(Vector3(t.z, 0.0, -t.x).normalized())
+
+
 static func min_radius() -> float:
 	var r := INF
 	for seg: Array in SEGMENTS:

@@ -17,9 +17,7 @@ func _frames(n: int) -> void:
 
 ## Metres to the left of the road's centreline.
 static func _across(pos: Vector3) -> float:
-	var s := RoadLayout.closest_s(pos)
-	var t := RoadLayout.tangent(s)
-	return (pos - RoadLayout.point(s)).dot(Vector3(t.z, 0.0, -t.x).normalized())
+	return RoadLayout.across(pos, RoadLayout.closest_s(pos))
 
 
 ## Switchback 1 (s 631 to 726) turns the road round, so along the road is not a straight line.

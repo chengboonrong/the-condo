@@ -213,7 +213,7 @@ func _sound(id: StringName, at: Vector3, volume_db: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_to_the_light()
+	to_the_light()
 	# As in the flat: time and the choices' timers stand still on the start card and while paused (the pause menu
 	# pauses the whole tree), so no rule can break then. They keep running while he reads something.
 	if player.input_enabled or hud.is_inspecting():
@@ -231,7 +231,7 @@ func _process(delta: float) -> void:
 ## Mission 4 left is set, before the walk begins. The car is dead and dark, the insects quiet, Hafiz gone and the light
 ## on; she is off the roof (the walk puts her behind them); Mei's next line has no pose left over from her door. If the
 ## skip has him on his feet, he stands beside his door with Mei beside him.
-func _to_the_light() -> void:
+func to_the_light() -> void:
 	var at_light := director.mission_index < director.missions.size() and director.missions[director.mission_index] is LightMission
 	if at_light and not _at_light:
 		_dead = true
@@ -245,13 +245,13 @@ func _to_the_light() -> void:
 		if not director.seated:
 			if not player.is_seated():
 				car.place(director.car_s, director.lane)
-				player.stand(_beside_door())
+				player.stand(beside_door())
 			couple.walk_beside(player)
 	_at_light = at_light
 
 
 ## Beside his door, facing the way the car faces: where he stands when he gets out.
-func _beside_door() -> Transform3D:
+func beside_door() -> Transform3D:
 	return car.global_transform.translated_local(Vector3(1.5, 0.0, -0.5)).rotated_local(Vector3.UP, PI)
 
 
@@ -279,7 +279,7 @@ func _ride() -> void:
 		if director.seated:
 			player.sit(car.seat_rear_left)
 		else:  # beside his door, facing the way the car faces
-			player.stand(_beside_door())
+			player.stand(beside_door())
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))

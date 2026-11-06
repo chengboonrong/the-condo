@@ -5,6 +5,7 @@ extends TestCase
 
 const RECALL := "[Bang Din: \"When it goes quiet, walk to the light. Whatever is behind you, don't look back.\"]"
 const VOICE := "[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]"
+const LOOKS := "[Mei looks back.]"
 const OPTIONS := ["\"Don't look. Hold my hand.\"", "\"Maybe it's him.\""]
 const BESIDE := 3.3  # metres across: where he stands up beside his door (the car in its lane, 1.5 m to its left)
 const WALK := 2.2  # m/s
@@ -138,7 +139,7 @@ func test_getting_out_and_keeping_every_rule() -> bool:
 		near(asked_s[1] - (d.car_s - 0.5), 0.65 * way, 0.5, "the second 65 %")
 	eq(lines.filter(func(l: Array) -> bool: return l == [VOICE, &""]).size(), 2, "the voice behind them each time, with no speaker turn")
 	check(not cues.has(&"mei_looks"), "she never looks")
-	check(cues.has(&"hafiz_at_stall") and not cues.has(&"light_out") and not cues.has(&"phone_rings"), "Hafiz waits at the stall")
+	check(cues.has(&"hafiz_at_stall") and not cues.has(&"light_out") and not cues.has(&"phone_rings"), "Hafiz comes to the stall")
 	check(lines.any(func(l: Array) -> bool: return l == ["Hafiz: \"Eh! Found this uncle, he's going down. Jom.\"", &"hafiz"]), "and says so")
 	check(cues.find(&"card_on") > cues.find(&"hafiz_at_stall"), "then the card")
 	check(lines.back() == ["[The lorry takes the three of you down the mountain.]", &""], "and how it ends, last")
@@ -177,6 +178,7 @@ func test_silence_lets_mei_look() -> bool:
 	_play({})
 	eq(_rules(), [[&"mei_looked", 1], [&"mei_looked", 1]], "both unanswered: she looks back twice")
 	eq(cues.count(&"mei_looks"), 2, "and is seen to")
+	eq(lines.filter(func(l: Array) -> bool: return l == [LOOKS, &""]).size(), 2, "and told, with no speaker: she is out of his view ahead")
 	_teardown()
 	_setup()
 	_play({&"mei_look_1": 1, &"mei_look_2": 0})
@@ -189,6 +191,8 @@ func test_reaching_the_light_ends_the_road() -> bool:
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0})
 	near(walk_ended_s, d.light_s - 4.0, WALK * 0.1 + 0.01, "the walk is done 4 m short of the light")
+	eq(cues.count(&"walk_over"), 1, "said once")
+	near(cue_s.get(&"walk_over", INF), d.light_s - 4.0, WALK * 0.1 + 0.01, "there")
 	near(cue_s[&"hafiz_at_stall"], d.light_s - 30.0, WALK * 0.1 + 0.01, "decided 30 m short: Hafiz is there, waiting")
 	eq(ended, [&"alive"], "the road ends, alive, once")
 	_teardown()
@@ -215,6 +219,8 @@ func test_caught_ends_before_the_light() -> bool:
 	_play({&"mei_look_1": 0, &"mei_look_2": 0})
 	near(cue_s[&"light_out"], d.light_s - 30.0, WALK * 0.1 + 0.01, "the light dies 30 m short")
 	near(walk_ended_s, d.light_s - 30.0, WALK * 0.1 + 0.01, "and the walk is over there")
+	near(cue_s.get(&"walk_over", INF), d.light_s - 30.0, WALK * 0.1 + 0.01, "said there")
+	eq(cues.count(&"walk_over"), 1, "once")
 	check(lines.any(func(l: Array) -> bool: return l == ["Hafiz: \"Mei? Bro?\"", &"hafiz"]), "Hafiz, out of the fog ahead")
 	var order := [&"light_out", &"her_catches_hafiz", &"her_comes"].map(func(c: StringName) -> int: return cues.find(c))
 	check(order[0] >= 0 and order[0] < order[1] and order[1] < order[2], "she catches Hafiz, then comes for them (%s)" % [order])

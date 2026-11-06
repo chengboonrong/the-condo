@@ -60,6 +60,27 @@ func _put(road: RoadMain, s: float) -> void:
 	road.player.stand(Transform3D(Basis.looking_at(RoadLayout.tangent(s).slide(Vector3.UP).normalized()), RoadLayout.point(s, 3.3)))
 
 
+## The walk is over 4 m short of the light: he walks on to `s`, `across`, over 2 s, and Mei stays where she stopped,
+## clear of the stall's box by her own width. Returns the least clearance, in metres.
+func _walk_on(road: RoadMain, s: float, across: float) -> float:
+	var light_s := road.director.light_s
+	var p := road.player
+	var mei := road.couple.mei_out
+	EventBus.road_cue.emit(&"walk_over")
+	var from := RoadLayout.closest_s(p.global_position)
+	var from_across := RoadLayout.across(p.global_position, from)
+	var clear := INF
+	for i in 120:
+		var k := (i + 1) / 120.0
+		var at := lerpf(from, s, k)
+		p.global_position = RoadLayout.point(at, lerpf(from_across, across, k))
+		await tree.process_frame
+		var local := road.endings.stall.global_transform.affine_inverse() * mei.global_position - Endings.BOX_AT
+		clear = minf(clear, maxf(absf(local.x) - Endings.BOX.x / 2.0, absf(local.z) - Endings.BOX.z / 2.0) - 0.25)
+	near(RoadLayout.closest_s(mei.global_position), light_s - 4.0, 0.1, "Mei stays where the walk ended")
+	return clear
+
+
 func test_a_skip_to_the_walk_sets_the_scene() -> bool:
 	var road := await _road()
 	road.couple.mei_faces(&"door")  # left over from Mission 4: she was saying her line to her door
@@ -68,12 +89,12 @@ func test_a_skip_to_the_walk_sets_the_scene() -> bool:
 	var d := road.director
 	var p := road.player
 	check(not p.is_seated(), "he is out of the car")
-	near(p.global_position.distance_to(road._beside_door().origin), 0.0, 0.05, "standing beside his door")
+	near(p.global_position.distance_to(road.beside_door().origin), 0.0, 0.05, "standing beside his door")
 	var mei := road.couple.mei_out
 	var s := RoadLayout.closest_s(p.global_position)
 	check(mei.visible and not road.couple.mei.visible, "Mei is out too")
 	near(RoadLayout.closest_s(mei.global_position), s, 0.05, "level with him")
-	near(Couple.across(mei.global_position, s) - Couple.across(p.global_position, s), 1.0, 0.05, "a metre to his left")
+	near(RoadLayout.across(mei.global_position, s) - RoadLayout.across(p.global_position, s), 1.0, 0.05, "a metre to his left")
 	check(road.car.headlights.all(func(spot: SpotLight3D) -> bool: return not spot.visible or spot.light_energy == 0.0), "the car is dark")
 	check(not _looping(road, &"engine_loop") and not _looping(road, &"insects_loop"), "and dead, and the insects quiet")
 	check(not road.couple.hafiz.visible and not road.couple.hafiz_out.visible, "Hafiz is gone")
@@ -116,7 +137,7 @@ func test_getting_out_and_walking_beside_him() -> bool:
 		await tree.process_frame
 		swing = maxf(swing, absf(legs.rotation.x))
 	var s := RoadLayout.closest_s(p.global_position)
-	near(Couple.across(mei.global_position, s) - Couple.across(p.global_position, s), 1.0, 0.05, "Mei walks a metre to his left")
+	near(RoadLayout.across(mei.global_position, s) - RoadLayout.across(p.global_position, s), 1.0, 0.05, "Mei walks a metre to his left")
 	near(RoadLayout.closest_s(mei.global_position), s, 0.1, "level with him")
 	check(swing > 0.1, "in her stride (%.2f rad)" % swing)
 	var ahead := mei.global_basis.z.slide(Vector3.UP).normalized()
@@ -144,13 +165,14 @@ func test_alive_hafiz_and_a_lorry_at_the_stall() -> bool:
 	EventBus.road_cue.emit(&"hafiz_at_stall")
 	await _frames(2)
 	var lorry := road.lorry
-	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, RoadLayout.LANE).origin), 0.0, 0.01, "a lorry stands past the stall")
-	check(_looping(road, &"lorry_idle"), "idling")
+	var first := RoadLayout.closest_s(lorry.global_position)
+	check(lorry.visible and first > light_s + Endings.LORRY_AHEAD + 20.0, "a lorry comes up the road out of the fog (%.0f m past the light)" % (first - light_s))
+	check(_looping(road, &"lorry_idle"), "its diesel heard")
 	check(not road.endings.phone.visible, "his phone is not on the table")
 	var hafiz := road.couple.hafiz_out
-	check(hafiz.visible, "Hafiz walks up from beside it")
+	check(hafiz.visible and RoadLayout.closest_s(hafiz.global_position) > light_s + 15.0, "Hafiz walks up out of the fog below")
 	var closest := INF  # metres between him and the lorry's side, at the least
-	for i in 60 * 11:
+	for i in 60 * 14:
 		if i == 300:
 			_put(road, light_s - 4.0)  # they are there
 		await tree.process_frame
@@ -158,14 +180,18 @@ func test_alive_hafiz_and_a_lorry_at_the_stall() -> bool:
 		if absf(side.z) < 4.3:
 			closest = minf(closest, absf(side.x) - 1.2)
 	check(closest > 0.3, "clear of the lorry's side (%.2f m)" % closest)
+	near(lorry.global_position.distance_to(CarRig.on_road(light_s + Endings.LORRY_AHEAD, -RoadLayout.LANE, true).origin), 0.0, 0.01, "the lorry has pulled up past the stall in the other lane, facing them")
+	check(_sounds.has(&"lorry_brake") and _looping(road, &"lorry_idle"), "its brakes hiss, and it idles")
 	var hs := RoadLayout.closest_s(hafiz.global_position)
 	check(hs > light_s + 1.0 and hs < light_s + 2.5, "to the stall's far side (%.1f m past the light)" % (hs - light_s))
 	var faces := hafiz.global_basis.z.slide(Vector3.UP).normalized().dot(-RoadLayout.tangent(hs).slide(Vector3.UP).normalized())
 	check(faces > 0.95, "facing up the road to them")
 	near((hafiz.get_node("LegL") as Node3D).rotation.x, 0.0, 0.01, "standing still")
 	var e := road.endings
-	var lit := e.bulb.global_position.distance_to(hafiz.global_position + Vector3.UP * 1.6)
-	check(lit < e.bulb.omni_range * 0.5, "under the bulb (%.1f m from his face)" % lit)
+	var off := absf(RoadLayout.across(hafiz.global_position, hs) - RoadLayout.across(e.bulb.global_position, hs))
+	check(off < 1.5, "under the bulb (%.1f m across the road from it)" % off)
+	var clear := await _walk_on(road, hs - 1.0, 3.0)
+	check(clear > 0.0, "he walks on to Hafiz, and Mei is never in the stall (%.2f m clear)" % clear)
 	EventBus.road_cue.emit(&"card_on")
 	await _frames(2)
 	check(road.hud.is_card_shown() and not _looping(road, &"lorry_idle"), "the card, and the diesel is left behind")
@@ -181,10 +207,13 @@ func test_saved_his_phone_and_a_lorry_behind_them() -> bool:
 	_put(road, light_s - 4.0)
 	EventBus.road_cue.emit(&"her_behind")
 	var e := road.endings
-	check(e.phone.visible and e._screen.emission_energy_multiplier == 0.0, "a phone lies on the table, dark")
+	check(e.phone.visible and e.screen.emission_energy_multiplier == 0.0 and e.ring_light.light_energy == 0.0, "a phone lies on the table, dark")
 	EventBus.road_cue.emit(&"phone_rings")
 	await _frames(2)
-	check(_looping(road, &"phone_ring_mobile") and e._screen.emission_energy_multiplier > 0.5, "it rings, and lights up")
+	check(_looping(road, &"phone_ring_mobile") and e.screen.emission_energy_multiplier > 0.5, "it rings, and lights up")
+	check(e.ring_light.visible and e.ring_light.light_energy > 0.0 and not e.ring_light.shadow_enabled, "and the table round it")
+	var clear := await _walk_on(road, light_s + Endings.PHONE.x, RoadBuilder.EDGE - 0.4)
+	check(clear > 0.0, "he walks on to the phone, and Mei is never in the stall (%.2f m clear)" % clear)
 	EventBus.road_cue.emit(&"lorry_stops")
 	await _frames(2)
 	var lorry := road.lorry
@@ -218,13 +247,18 @@ func test_caught_the_light_dies_and_she_takes_hafiz() -> bool:
 	var e := road.endings
 	EventBus.road_cue.emit(&"light_out")
 	await _frames(roundi(Endings.DIE * 60.0) + 2)
-	check(not e.bulb.visible and not road.builder.far_light.visible and not road.builder.far_core.visible, "the light dies, haze and all")
+	check(e.bulb.light_energy == 0.0 and not road.builder.far_light.visible and not road.builder.far_core.visible, "the light dies, haze and all")
 	var hafiz := road.couple.hafiz_out
 	var hs := RoadLayout.closest_s(hafiz.global_position)
-	check(hafiz.visible and hs > light_s - 30.0 + 12.0, "Hafiz is out of the fog ahead (%.1f m)" % (hs - light_s + 30.0))
+	check(hafiz.visible and hs > light_s - 30.0 + Endings.HAFIZ_AHEAD - 1.0, "Hafiz is out of the fog ahead (%.1f m)" % (hs - light_s + 30.0))
+	var torch := road.couple.torch
+	var at_them := (p.camera.global_position - torch.global_position).normalized()
+	check(torch.light_energy > 0.0 and rad_to_deg(at_them.angle_to(-torch.global_basis.z)) < torch.spot_angle, "his torch on, and on them")
 	await _frames(roundi(LightMission.CAUGHT_CATCH * 60.0))
 	var walked := hs - RoadLayout.closest_s(hafiz.global_position)
 	check(walked > 3.0, "coming up the road to them (%.1f m)" % walked)
+	var meet := hafiz.global_position.distance_to(p.global_position)
+	check(meet > 3.5 and meet < 4.5, "to about 4 m from him, in his phone light's reach (%.1f m)" % meet)
 	EventBus.road_cue.emit(&"her_catches_hafiz")
 	var her := road.her
 	var heads: Array[Node3D] = [p.camera, road.couple.mei_out.get_node("Head")]
@@ -250,6 +284,12 @@ func test_caught_the_light_dies_and_she_takes_hafiz() -> bool:
 	check(clear > 0.3, "she flies up and over them (%.2f m clear)" % clear)
 	eq(lit, 0, "out of his phone light")
 	check(down > 0, "she takes Hafiz, and once he is down Mei screams (%.1f s)" % (down / 60.0))
+	var lamp := e.dropped_light
+	var chest := hafiz.global_transform * Vector3(0.0, 1.2, 0.0)
+	check(e.dropped.visible and lamp.light_energy > 0.0 and torch.light_energy == 0.0, "his phone falls from his hand, its torch on")
+	check(absf(lamp.global_position.y - RoadLayout.point(RoadLayout.closest_s(lamp.global_position)).y) < 0.6, "on the road")
+	var reach := maxf(lamp.global_position.distance_to(chest), lamp.global_position.distance_to(road.her.pool.global_position))
+	check(reach < lamp.omni_range * 0.5, "lighting him and the pool (%.1f m)" % reach)
 	EventBus.road_cue.emit(&"her_comes")
 	var reached := -1
 	for i in 600:

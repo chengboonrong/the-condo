@@ -1,8 +1,9 @@
 class_name Lorry
 extends Node3D
 ## A lorry, built in code: a dark cargo box on a dark cab, red and white reflective strips, and two headlights.
-## pass_by() drives it up the road past the bus stop in the other lane; at the road's end it stands at the fruit
-## stall (stand) or comes down and pulls up behind the walkers (pull_up). The rest of the time it is not on the road.
+## pass_by() drives it up the road past the bus stop in the other lane; at the road's end it comes up the other lane and
+## pulls up past the fruit stall, or comes down and pulls up behind the walkers (pull_up). The rest of the time it is
+## not on the road.
 ## Like the car, it faces +Z with its origin on the ground.
 
 const SECONDS := 3.0
@@ -11,11 +12,14 @@ const TO := -30.0  # ...and gone into it above
 const DARK := Color(0.05, 0.05, 0.055)
 const PULL_FROM := 30.0  # metres up the road it comes from, pulling up...
 const PULLING := 5.0  # ...braking evenly to a stop over this many seconds (from 12 m/s)
+const CRUISE := 2.0 * PULL_FROM / PULLING  # m/s it comes at from further off, before it brakes
 const BRAKES := Vector3(0.0, 0.6, -1.0)  # its air brakes, under the cargo box
 
 var speed := 0.0  # m/s, down the road, pulling up
 var _t := INF
 var _stop_s := NAN  # pull_up: where it stops; NAN when passing
+var _uphill := false  # pull_up: coming up the other lane
+var _from := PULL_FROM  # pull_up: metres short of where it stops it comes from
 var _materials: Array[Material] = []
 
 
@@ -50,20 +54,14 @@ func pass_by() -> void:
 	set_process(true)
 
 
-## It stands at s in the couple's lane, facing down the road, its lamps on.
-func stand(s: float) -> void:
-	_t = INF
-	speed = 0.0
-	set_process(false)
-	global_transform = CarRig.on_road(s, RoadLayout.LANE)
-	visible = true
-
-
-## It comes down the couple's lane out of the fog and pulls up at s, braking evenly, and its air brakes hiss as it
-## stops.
-func pull_up(s: float) -> void:
+## It comes out of the fog and pulls up at s, braking evenly over the last PULL_FROM metres, and its air brakes hiss as
+## it stops: down the couple's lane from up the road, or `uphill`, up the other lane from down it, its lamps on whoever
+## is up the road. From further off than PULL_FROM (`from`), it comes at CRUISE until it brakes.
+func pull_up(s: float, uphill := false, from := PULL_FROM) -> void:
 	_t = 0.0
 	_stop_s = s
+	_uphill = uphill
+	_from = maxf(from, PULL_FROM)
 	visible = true
 	set_process(true)
 	_process(0.0)
@@ -76,9 +74,14 @@ func materials() -> Array[Material]:
 func _process(delta: float) -> void:
 	_t += delta
 	if not is_nan(_stop_s):
-		var k := minf(_t / PULLING, 1.0)
-		speed = 2.0 * PULL_FROM / PULLING * (1.0 - k)
-		global_transform = CarRig.on_road(_stop_s - PULL_FROM * (1.0 - k) * (1.0 - k), RoadLayout.LANE)
+		var cruising := (_from - PULL_FROM) / CRUISE  # seconds before it brakes
+		var k := clampf((_t - cruising) / PULLING, 0.0, 1.0)
+		speed = CRUISE * (1.0 - k)
+		var short := PULL_FROM * (1.0 - k) * (1.0 - k) + maxf(cruising - _t, 0.0) * CRUISE  # metres short of its stop
+		if _uphill:
+			global_transform = CarRig.on_road(_stop_s + short, -RoadLayout.LANE, true)
+		else:
+			global_transform = CarRig.on_road(_stop_s - short, RoadLayout.LANE)
 		if k >= 1.0:
 			set_process(false)
 			EventBus.sound_requested.emit(&"lorry_brake", global_transform * BRAKES, 0.0)

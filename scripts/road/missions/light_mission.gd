@@ -4,10 +4,12 @@ extends RoadMission
 ## He gets out, and he and Mei walk down the road to it while something follows them, calling in Hafiz's voice. The
 ## rules: don't look back, and keep Mei from looking. 30 m short of the light the count of every rule broken on the
 ## road decides how it ends, once; that ending plays, and the road is over:
-##   alive   Hafiz waits under the bulb with a lorry that will take the three of them down
+##   alive   a lorry comes up and pulls up idling past the stall, and Hafiz walks up to the bulb out of the fog below:
+##           it will take the three of them down
 ##   saved   nobody is there but his ringing phone, and a lorry takes the two of them down
 ##   caught  the bulb dies there, Hafiz walks out of the fog ahead, she catches him and comes for the two of them
-## Every beat is timed here, never by the presentation: the bots play it with none.
+## The walk is over (walk_over) 4 m short of the light, or where the light dies. Every beat is timed here, never by the
+## presentation: the bots play it with none.
 ##
 ## Beats: get_out, walk, then alive, saved or caught.
 
@@ -15,6 +17,7 @@ const DOOR := &"car_door_inside"
 const RECALL := "[Bang Din: \"When it goes quiet, walk to the light. Whatever is behind you, don't look back.\"]"
 const OBJECTIVE := "Walk to the light. Don't look back."
 const VOICE := "[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]"
+const LOOKS := "[Mei looks back.]"  # seen or not: she is at his side, out of his view ahead
 const ASKS := [[&"mei_look_1", 0.3], [&"mei_look_2", 0.65]]  # [choice, share of the way]: the voice, and Mei wants to look
 const ASK_SECONDS := 5.0
 const DECIDE := 30.0  # metres short of the light: the ending is decided
@@ -122,6 +125,7 @@ func _walking() -> void:
 	if _asking != &"" and d.answer(_asking) != RoadDirector.NONE:
 		if d.answer(_asking) != 0:
 			EventBus.road_cue.emit(&"mei_looks")  # she looks back
+			d.say(LOOKS, 2.5)
 		_asking = &""
 	if _asking == &"" and _asked < ASKS.size() and s - _from_s >= ASKS[_asked][1] * (d.light_s - _from_s):
 		_asking = ASKS[_asked][0]
@@ -134,11 +138,13 @@ func _walking() -> void:
 		match _decided:
 			&"caught":
 				EventBus.road_cue.emit(&"light_out")
+				EventBus.road_cue.emit(&"walk_over")
 				go(&"caught")
 				return
 			&"alive":
-				EventBus.road_cue.emit(&"hafiz_at_stall")  # under the bulb as they come up to it, a lorry idling
+				EventBus.road_cue.emit(&"hafiz_at_stall")  # walking up to the bulb as they come to it, a lorry idling
 	if _decided != &"" and s >= d.light_s - THERE:
+		EventBus.road_cue.emit(&"walk_over")
 		go(_decided)
 		match _decided:
 			&"alive":

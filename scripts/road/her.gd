@@ -183,7 +183,8 @@ var _mode := &""  # where she is: &"glimpse", &"behind", &"catch", &"fly", &"com
 var _t := 0.0  # seconds there
 var _target: Node3D  # the walker, the victim, the camera or the car
 var _drop := DROP  # catch: seconds she takes to drop onto him
-var _from := Vector3.ZERO  # catch: where she drops from; fly: where she flies to
+var _from := Vector3.ZERO  # catch: where she drops from
+var _to := Vector3.ZERO  # fly: where she flies to
 var _ahead := 0.0  # glimpse: metres ahead of the car she keeps pace at
 var _out := 0.0  # glimpse: metres across
 var _pace := 0.0  # glimpse: seconds she keeps pace for, before she stops dead
@@ -329,7 +330,7 @@ func catch(victim: Node3D) -> void:
 ## She flies straight to `at` at SWOOP, facing the way she goes, and hangs there: `arrived`. The caller picks a point
 ## whose line clears whoever is in the way, by more than what hangs from her.
 func fly_to(at: Vector3) -> void:
-	_from = at
+	_to = at
 	_arrived = false
 	_begin(&"fly", global_position if visible else at)
 
@@ -399,10 +400,10 @@ func _process(delta: float) -> void:
 			_feed(delta)
 			bob = 0.02
 		&"fly":
-			_face(_from)
-			_base = _base.move_toward(_from, SWOOP * delta)
+			_face(_to)
+			_base = _base.move_toward(_to, SWOOP * delta)
 			bob = 0.0
-			if _base.is_equal_approx(_from) and not _arrived:
+			if _base.is_equal_approx(_to) and not _arrived:
 				_arrived = true
 				arrived.emit()
 		&"come_for":
@@ -455,7 +456,7 @@ func _behind_point() -> Vector3:
 	var at := _target.global_position
 	var s := RoadLayout.closest_s(at)
 	var back := lerpf(BEHIND.x, BEHIND.y, director.her_near)
-	return RoadLayout.point(s - back, _across(at, s)) + Vector3.UP * ABOVE_ROAD
+	return RoadLayout.point(s - back, RoadLayout.across(at, s)) + Vector3.UP * ABOVE_ROAD
 
 
 ## How far ahead of the car, along the road, her glimpse is.
@@ -533,7 +534,7 @@ func _sway(delta: float) -> void:
 func _ground_under(at: Vector3) -> float:
 	var s := RoadLayout.closest_s(at)
 	var road := RoadLayout.point(s).y
-	return road + builder.ground_at(s, _across(at, s)) if builder != null else road
+	return road + builder.ground_at(s, RoadLayout.across(at, s)) if builder != null else road
 
 
 func _set_fade(amount: float) -> void:
@@ -555,9 +556,3 @@ func _passed(at: float, delta: float) -> bool:
 
 func _play(sound: StringName) -> void:
 	EventBus.sound_requested.emit(sound, global_position, 0.0)
-
-
-## Metres to the left of the road's centreline at s.
-static func _across(at: Vector3, s: float) -> float:
-	var t := RoadLayout.tangent(s)
-	return (at - RoadLayout.point(s)).dot(Vector3(t.z, 0.0, -t.x).normalized())

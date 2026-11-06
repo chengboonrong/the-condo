@@ -2,12 +2,16 @@ class_name Endings
 extends Node3D
 ## The end of the road, as the core cues it (LightMission): the closed fruit stall at the light, with its bare bulb and
 ## Hafiz's phone on its table, the lorry, and each ending's moments.
-##   alive   hafiz_at_stall: a lorry stands idling past the stall, and Hafiz walks up from beside it to the stall
+##   alive   hafiz_at_stall: a lorry comes up the mountain and pulls up idling past the stall, and Hafiz walks up out
+##           of the fog to the stall
 ##   saved   phone_rings: his phone rings on the table; lorry_stops: a lorry pulls up behind the two of them
-##   caught  light_out: the bulb dies, and Hafiz walks out of the fog ahead; her_catches_hafiz: she flies up and over
-##           the two of them and drops onto him, and Mei screams once he is down; her_comes: she comes for the camera,
-##           and the black card cuts in the moment she reaches it, with no caption
-## The stall stands wherever the core puts the light (RoadDirector.light_s), so a skip to the walk finds it there.
+##   caught  light_out: the bulb dies, and Hafiz walks out of the fog ahead, his torch on them; her_catches_hafiz: she
+##           flies up and over the two of them and drops onto him, his phone falls lit on the road beside him, and Mei
+##           screams once he is down; her_comes: she comes for the camera, and the black card cuts in the moment she
+##           reaches it, with no caption
+## Once the walk is over (walk_over) Mei stands where she stopped. The stall stands wherever the core puts the light
+## (RoadDirector.light_s), so a skip to the walk finds it there. Every light here is switched by its energy alone, never
+## hidden or shown: a light coming or going on a surface would compile a new shader for it mid-game.
 
 const BULB := Vector3(0.12, 1.8, -0.7)  # the bulb's centre in the stall's own space (the model's "bulb" empty)
 ## The bulb's glass and its light: a warm bare bulb under the road's grade (an emission of 1 reads neutral, 3 cool
@@ -16,15 +20,24 @@ const BULB_COLOR := Color(1.0, 0.6, 0.28)
 const BULB_GLOW := 0.8
 const BULB_ENERGY := 3.0
 const BULB_RANGE := 10.0
+## The stall's solid box, in its own space: he can't walk in under its tarp, and Mei never stands in it.
+const BOX := Vector3(2.4, 2.2, 1.8)
+const BOX_AT := Vector3(0.0, 1.1, -0.85)
 const DIE := 0.25  # seconds the bulb takes to die: once, never a flicker
 const PHONE := Vector3(0.7, 0.783, -0.3)  # Hafiz's phone on the table, face up, in the stall's space
-const LORRY_AHEAD := 9.0  # metres past the light the lorry stands, idling (alive): its tail 4.9 m past it
-## alive: Hafiz walks up the asphalt's edge, clear of the lorry's side, from past its cab to the stall's far post.
-const HAFIZ_FROM := 14.0  # metres past the light
+## alive: metres past the light the lorry pulls up, come up the mountain out of the fog in the other lane, facing them,
+## its cab 4.8 m past the light, idling; it comes from LORRY_FROM metres below that, past the camera's far plane from
+## where it is decided, so it is never seen to appear.
+const LORRY_AHEAD := 9.0
+const LORRY_FROM := 100.0
+## alive: Hafiz walks up the asphalt's edge out of the fog below, past the lorry, to the stall's far post.
+const HAFIZ_FROM := 18.0  # metres past the light: 48 m on from where it is decided, about as long a walk as theirs
 const HAFIZ_STOP := 1.6
 const HAFIZ_ACROSS := 3.6
 const LORRY_BEHIND := 11.0  # metres behind him it pulls up (saved)
-const HAFIZ_AHEAD := 14.0  # metres down the road from him Hafiz walks out of the fog (caught), into his phone light
+## caught: metres down the road from him Hafiz walks out of the fog, to stop Couple.MEET short of him before she comes
+## for him (LightMission.CAUGHT_CATCH), into his phone light.
+const HAFIZ_AHEAD := 11.0
 ## Where she flies to before she drops onto Hafiz: metres short of him towards the walkers (so he falls away from
 ## them), and up. Her line there from behind them passes over their heads by more than what hangs from her, and she
 ## stays out of his phone light (40 degrees round his view, 11 m long): 10 m up is past its reach or above its cone
@@ -32,6 +45,15 @@ const HAFIZ_AHEAD := 14.0  # metres down the road from him Hafiz walks out of th
 const OVER := Vector2(0.5, 10.0)
 const SCREAM := "[Mei screams.]"  # always shown: nobody's voice is heard
 const SCREEN_GLOW := 1.2  # his phone's screen, lit as it rings
+const RING_LIGHT := 1.5  # and the light it throws on the table round it, seen from where the walk ends
+const RING_RANGE := 0.9
+## caught: his phone, fallen on the road at his right side as he goes down (metres to his right and back from where
+## he stood), its torch still on, lighting him, the pool and her over him.
+const DROPPED := Vector2(0.45, 1.1)
+const DROPPED_UP := 0.5  # metres over the road the torch's glow is lit from: over his chest as he lies
+const DROPPED_LIGHT := 2.5
+const DROPPED_RANGE := 3.0
+const PHONE_COLOR := Color(0.92, 0.95, 1.0)  # a phone's white LED
 const RING_DB := 0.0  # the phone, within 3 m; it falls off as 1/distance past that
 const IDLE_DB := -4.0  # the lorry's diesel, within 6 m
 
@@ -46,10 +68,14 @@ var player: PlayerController
 var stall: Node3D
 var bulb: OmniLight3D
 var phone: MeshInstance3D
+var screen := StandardMaterial3D.new()  # his phone's screen on the table
+var ring_light: OmniLight3D  # what the ringing screen throws on the table
+var dropped: MeshInstance3D  # caught: his phone, on the road beside him
+var dropped_light: OmniLight3D
 
 var _glass: StandardMaterial3D
-var _screen := StandardMaterial3D.new()
 var _phone_body := StandardMaterial3D.new()
+var _hafiz_at := Transform3D.IDENTITY  # caught: where Hafiz stood as she dropped onto him
 var _at_s := NAN  # where the stall stands
 var _ringing := false
 var _idling := false
@@ -90,32 +116,38 @@ func _ready() -> void:
 	var solid := StaticBody3D.new()  # closed: he can't walk in under its tarp
 	var box := CollisionShape3D.new()
 	box.shape = BoxShape3D.new()
-	(box.shape as BoxShape3D).size = Vector3(2.4, 2.2, 1.8)
-	box.position = Vector3(0.0, 1.1, -0.85)
+	(box.shape as BoxShape3D).size = BOX
+	box.position = BOX_AT
 	solid.add_child(box)
 	stall.add_child(solid)
 	_phone_body.albedo_color = Color(0.02, 0.02, 0.022)
 	_phone_body.roughness = 0.4
-	_screen.albedo_color = Color(0.01, 0.012, 0.015)
-	_screen.roughness = 0.1
-	_screen.emission_enabled = true  # always: switching it on would compile a new shader mid-game
-	_screen.emission = Color(0.75, 0.85, 1.0)
-	_screen.emission_energy_multiplier = 0.0  # dark until it rings
-	phone = MeshInstance3D.new()
-	var case := BoxMesh.new()
-	case.size = Vector3(0.075, 0.009, 0.155)
-	phone.mesh = case
-	phone.material_override = _phone_body
+	screen.albedo_color = Color(0.01, 0.012, 0.015)
+	screen.roughness = 0.1
+	screen.emission_enabled = true  # always: switching it on would compile a new shader mid-game
+	screen.emission = Color(0.75, 0.85, 1.0)
+	screen.emission_energy_multiplier = 0.0  # dark until it rings
+	phone = _phone()
 	phone.position = PHONE
 	phone.rotation.y = 0.4
-	var screen := MeshInstance3D.new()
+	var lit := MeshInstance3D.new()
 	var glass := PlaneMesh.new()
 	glass.size = Vector2(0.068, 0.145)
-	screen.mesh = glass
-	screen.material_override = _screen
-	screen.position.y = 0.0046
-	phone.add_child(screen)
+	lit.mesh = glass
+	lit.material_override = screen
+	lit.position.y = 0.0046
+	phone.add_child(lit)
+	ring_light = _lamp(screen.emission, RING_RANGE)
+	ring_light.position.y = 0.03
+	phone.add_child(ring_light)
 	stall.add_child(phone)
+	dropped = _phone()
+	dropped.top_level = true
+	dropped.visible = false
+	add_child(dropped)
+	dropped_light = _lamp(PHONE_COLOR, DROPPED_RANGE)
+	dropped_light.position.y = DROPPED_UP
+	dropped.add_child(dropped_light)
 	_light(false)
 	EventBus.road_cue.connect(_on_cue)
 	her.caught.connect(_on_caught)
@@ -132,10 +164,10 @@ func light(on: bool) -> void:
 		builder.hide_light()
 
 
-## Every material it draws with, for the start card's warm-up: the stall's, the phone's and the lorry's.
+## Every material it draws with, for the start card's warm-up: the stall's, the phones' and the lorry's.
 func materials() -> Array[Material]:
 	var out: Array[Material] = []
-	for m: MeshInstance3D in stall.find_children("*", "MeshInstance3D", true, false):
+	for m: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
 		for i in m.mesh.get_surface_count():
 			var mat := m.get_active_material(i)
 			if mat != null and not out.has(mat):
@@ -163,15 +195,18 @@ func _on_cue(cue: StringName) -> void:
 		&"hafiz_at_stall":
 			couple.hafiz_comes(player, _at_s + HAFIZ_FROM, HAFIZ_ACROSS, _at_s + HAFIZ_STOP)
 			phone.visible = false  # it is in his hand
-			lorry.stand(_at_s + LORRY_AHEAD)
+			lorry.pull_up(_at_s + LORRY_AHEAD, true, LORRY_FROM)
 			_idling = true
 		&"phone_rings":
 			_ringing = true
-			_screen.emission_energy_multiplier = SCREEN_GLOW
+			screen.emission_energy_multiplier = SCREEN_GLOW
+			ring_light.light_energy = RING_LIGHT
 		&"lorry_stops":  # out of the fog behind them, its lamps on them: she is gone
 			lorry.pull_up(RoadLayout.closest_s(player.global_position) - LORRY_BEHIND)
 			_idling = true
 			her.hide_her()
+		&"walk_over":
+			couple.mei_stops()
 		&"card_on":  # they are on their way down: the phone and the diesel are left behind
 			_ringing = false
 			_idling = false
@@ -183,7 +218,7 @@ func _on_cue(cue: StringName) -> void:
 				_glass.emission_energy_multiplier = BULB_GLOW * k, 1.0, 0.0, DIE)
 			dying.tween_callback(light.bind(false))
 			var s := RoadLayout.closest_s(player.global_position)
-			couple.hafiz_comes(player, s + HAFIZ_AHEAD, Couple.across(player.global_position, s) - 1.0)  # to his right
+			couple.hafiz_comes(player, s + HAFIZ_AHEAD, RoadLayout.across(player.global_position, s) - 1.0)  # to his right
 		&"her_catches_hafiz":
 			couple.hafiz_stops()
 			var hafiz := couple.hafiz_out.global_position
@@ -197,12 +232,22 @@ func _on_cue(cue: StringName) -> void:
 func _on_arrived() -> void:
 	if _catching:
 		_catching = false
+		_hafiz_at = couple.hafiz_out.global_transform
 		her.catch(couple.hafiz_out)
 
 
+## He is down: his torch goes out of his hand and lies lit on the road at his right side, and Mei screams.
 func _on_caught(victim: Node3D) -> void:
-	if victim == couple.hafiz_out:
-		EventBus.line_requested.emit(SCREAM, 2.5)
+	if victim != couple.hafiz_out:
+		return
+	var at := _hafiz_at * Vector3(-DROPPED.x, 0.0, -DROPPED.y)
+	var s := RoadLayout.closest_s(at)
+	var road := CarRig.on_road(s, RoadLayout.across(at, s))
+	dropped.global_transform = Transform3D(road.basis.rotated(road.basis.y, 2.3), road.origin + road.basis.y * 0.005)
+	dropped.visible = true
+	dropped_light.light_energy = DROPPED_LIGHT
+	couple.torch.light_energy = 0.0
+	EventBus.line_requested.emit(SCREAM, 2.5)
 
 
 func _on_reached() -> void:
@@ -212,5 +257,24 @@ func _on_reached() -> void:
 
 func _light(on: bool) -> void:
 	bulb.light_energy = BULB_ENERGY if on else 0.0
-	bulb.visible = on
 	_glass.emission_energy_multiplier = BULB_GLOW if on else 0.0
+
+
+## A phone, face up: its dark case.
+func _phone() -> MeshInstance3D:
+	var case := BoxMesh.new()
+	case.size = Vector3(0.075, 0.009, 0.155)
+	var m := MeshInstance3D.new()
+	m.mesh = case
+	m.material_override = _phone_body
+	return m
+
+
+## A small light with no shadow, dark until its energy is set.
+func _lamp(color: Color, reach: float) -> OmniLight3D:
+	var lamp := OmniLight3D.new()
+	lamp.light_color = color
+	lamp.light_energy = 0.0
+	lamp.omni_range = reach
+	lamp.shadow_enabled = false
+	return lamp

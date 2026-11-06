@@ -62,13 +62,23 @@ const SHOTS := [
 	["walk_light", "LightMission", 2075.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [], "behind"],
 	["walk_near", "LightMission", 2115.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [], "behind"],
 	["stall", "LightMission", 2142.0, 3.3, 0.15, -0.12, 0.0, false],
-	# checking only, never published: each ending
+	# checking only, never published: each ending (saved first: alive takes the phone off the table)
 	["ending_saved", "LightMission", 2146.0, 3.3, 0.35, -0.3, 0.24, false, {}, &"", [&"phone_rings", 0.5]],  # his phone rings on the table
+	# where alive is decided, 30 m short of the light in the clearest fog: just before, and just after the lorry and
+	# Hafiz are put past the stall
+	["alive_before", "LightMission", 2120.0, 3.3, 0.0, 0.0, 0.0, true],
+	["alive_decided", "LightMission", 2120.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [&"hafiz_at_stall", 0.2]],
 	["ending_alive", "LightMission", 2146.0, 3.3, 0.0, 0.0, 0.0, false, {}, &"", [&"hafiz_at_stall", 10.0]],  # Hafiz and the lorry
-	["ending_caught", "LightMission", 2120.0, 3.3, 0.0, 0.12, 0.84, true, {"her_near": 0.84}, &"",
-		[&"her_behind", 1.0, &"light_out", 6.0, &"her_catches_hafiz", 2.9], "cued"],  # the light dies, and she drops onto Hafiz
+	# caught at its thickest fog, the breaker's, at level gaze: she is on Hafiz, the pool spreading; then she comes
+	["ending_caught", "LightMission", 2120.0, 3.3, 0.0, 0.0, 1.0, true, {"her_near": 1.0}, &"",
+		[&"her_behind", 1.0, &"light_out", 6.0, &"her_catches_hafiz", 6.0], "cued"],
+	["her_comes", "LightMission", 2120.0, 3.3, 0.0, 0.0, 1.0, true, {"her_near": 1.0}, &"",
+		[&"her_behind", 1.0, &"light_out", 6.0, &"her_catches_hafiz", 6.5, &"her_comes", 0.15], "cued"],
 ]
+## Checking only: shots whose luminance is measured where Hafiz, the pool and she are, against the road round them.
+const PROBED := [&"ending_caught", &"her_comes"]
 const CELL := Vector2i(640, 360)
+const PATCH := 4  # pixels each side of a probed point
 const COLUMNS := 2
 
 
@@ -120,17 +130,23 @@ func _initialize() -> void:
 		for key: String in ride:
 			if key != "pull_in" and key != "play_out":
 				road.director.set(key, ride[key])
-		road._to_the_light()  # what the walk to the light sets as it begins (the simulation, which does, stands still)
+		road.to_the_light()  # what the walk to the light sets as it begins (the simulation, which does, stands still)
 		await process_frame  # the road follows the core's ride in its _process: the car, and his seat
 		await process_frame
 		if not player.is_seated():
 			player.global_position = layout.point(s[2], s[3])
 			player.set_look(builder.yaw_along(s[2]) + s[4], s[5])
+		var cued: bool = s.size() > 11 and s[11] is String and s[11] == "cued"
+		road.lorry.visible = false  # off the road unless a shot's cues bring it
+		road.lorry.set_process(false)
+		road.her.set_process(true)  # the cues play out with her moving
 		for cue: Variant in (s[10] if s.size() > 10 else []):  # once the car is there: Hafiz gets out of it
 			if cue is float:
 				await create_timer(cue).timeout
 			else:
 				bus.road_cue.emit(cue)
+		if cued:
+			road.her.set_process(false)  # held where the cues left her
 		if ride.has("pull_in"):  # the slow car pulls in and goes dark, and the couple go by it
 			road.slow_car.pull_in()
 			road.director.slow_gap = NAN
@@ -149,14 +165,11 @@ func _initialize() -> void:
 			road.couple.turn_to(s[9], 60.0)
 			await create_timer(1.0).timeout  # the turn takes Couple.TURN
 		var her = road.her
-		var cued: bool = s.size() > 11 and s[11] is String and s[11] == "cued"
 		if not cued:
 			her.hide_her()
-		her.set_process(true)
-		if s.size() > 11:
-			if cued:
-				pass
-			elif s[11] is String and s[11] == "behind":
+			her.set_process(true)
+		if s.size() > 11 and not cued:
+			if s[11] is String and s[11] == "behind":
 				her.behind(player)
 			elif s[11] is String:  # "roof"
 				her.on_roof(road.car)
@@ -185,6 +198,8 @@ func _initialize() -> void:
 			await process_frame
 		var img := root.get_texture().get_image()
 		img.save_png("%s/%s.png" % [out, s[0]])
+		if PROBED.has(StringName(s[0])):
+			_probe(s[0], img, road, layout)
 		if s.size() > 9:  # the line ends, and they face the road again before the next shot
 			road.couple.turn_to(s[9], 0.0)
 			await create_timer(1.0).timeout
@@ -207,3 +222,36 @@ func _initialize() -> void:
 	road.queue_free()
 	await process_frame
 	quit()
+
+
+## Prints the mean luma (0-255, Rec. 709 of the sRGB pixels) of a patch where Hafiz's chest, the pool, she and his
+## fallen phone's light are drawn, and of the road round the pool: 1.6 m to its right (to its left is the edge line),
+## and 2 m nearer and further along the road.
+func _probe(shot: String, img: Image, road: Node3D, layout: Script) -> void:
+	var cam: Camera3D = road.player.camera
+	var pool: Vector3 = road.her.pool.global_position
+	var s: float = layout.closest_s(pool)
+	var across: float = layout.across(pool, s)
+	var points := {
+		"hafiz": road.couple.hafiz_out.global_transform * Vector3(0.0, 1.1, 0.0),
+		"pool": pool,
+		"her": road.her.global_position,
+		"phone": road.endings.dropped_light.global_position,
+		"road_right": layout.point(s, across - 1.6),
+		"road_near": layout.point(s - 2.0, across),
+		"road_far": layout.point(s + 2.0, across),
+	}
+	var line := "probe %s:" % shot
+	var k := img.get_width() / cam.get_viewport().get_visible_rect().size.x  # the window stretches the canvas
+	for key: String in points:
+		var at := Vector2i(cam.unproject_position(points[key]) * k)
+		var sum := 0.0
+		var n := 0
+		for y in range(at.y - PATCH, at.y + PATCH + 1):
+			for x in range(at.x - PATCH, at.x + PATCH + 1):
+				if x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height():
+					var c := img.get_pixel(x, y)
+					sum += 255.0 * (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b)
+					n += 1
+		line += " %s=%.0f@%s" % [key, sum / maxf(n, 1.0), at]
+	print(line)
