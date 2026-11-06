@@ -4,7 +4,8 @@ extends Node
 ## which softens it; the HUD is 2D and stays sharp. The film grain is snapped to the same 3D pixels.
 ## The scale is 1 over a whole number and follows the window height, so the look is the same at any size.
 ## The colour grade is the Environment's own adjustment: warm and full at home, a step colder and greyer each act,
-## and B-11-07 the greyest place in the game. It eases between grades and never cuts.
+## and B-11-07 the greyest place in the game. It eases between grades and never cuts. The road down the mountain has
+## its own grade, grey and cold, set through grade_override.
 
 ## The scale is the window height divided by this, rounded to a whole number (at least 1). So this only moves the
 ## edges between the bands: it is not a sharpness knob. At 450 the filter is off under 675 px, then 450 lines at
@@ -21,10 +22,12 @@ const GRADES := {
 	3: {"saturation": 0.54, "contrast": 1.08, "black": Color(0.0, 0.018, 0.035), "white": Color(0.86, 0.94, 1.0)},
 	4: {"saturation": 0.46, "contrast": 1.08, "black": Color(0.0, 0.02, 0.04), "white": Color(0.84, 0.93, 1.0)},
 	&"mirror_room": {"saturation": 0.34, "contrast": 1.02, "black": Color(0.0, 0.02, 0.04), "white": Color(0.82, 0.92, 1.0)},
+	&"road": {"saturation": 0.5, "contrast": 1.06, "black": Color(0.0, 0.012, 0.02), "white": Color(0.86, 0.9, 0.92)},
 }
 
 var environment: Environment  # the world's; Main sets it before add_child
 var film: ShaderMaterial  # the HUD's grain and vignette; Main sets it before add_child
+var grade_override: StringName = &""  # a key of GRADES that wins over the act and the room (the road sets &"road")
 
 var _ramp := Gradient.new()  # the colour-correction ramp: black at 0, white at 1
 var _shown: Dictionary  # the grade last written to the environment
@@ -52,8 +55,11 @@ func _ready() -> void:
 	settle()
 
 
-## The grade for where the player is: B-11-07's, else the act's (the ending keeps act 4's).
+## The grade for where the player is: the override if there is one, else B-11-07's, else the act's (the ending keeps
+## act 4's).
 func target_grade() -> Dictionary:
+	if grade_override != &"":
+		return GRADES[grade_override]
 	if WorldState.player_room == &"mirror_room":
 		return GRADES[&"mirror_room"]
 	return GRADES[clampi(WorldState.act, 1, 4)]

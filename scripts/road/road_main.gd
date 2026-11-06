@@ -2,7 +2,7 @@ class_name RoadMain
 extends Node3D
 ## The road down the mountain, the first scene of the game: it ends by handing over to the flat (see Journey).
 ## The road's core (RoadDirector) runs the missions; this wires it to the HUD and steps it while he plays. The road
-## itself, the walk and the car come later: for now he stands at the staff exit.
+## itself is RoadBuilder's, in the core's fog; the walk and the car come later: for now he starts at the staff exit.
 
 ## The road is over. `ending` is how it went; Journey carries it into the flat.
 signal finished(ending: StringName)
@@ -11,6 +11,8 @@ signal finished(ending: StringName)
 @onready var hud: Hud = $Hud
 
 var director: RoadDirector
+var builder: RoadBuilder
+var look: Look
 var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
@@ -22,6 +24,11 @@ func _ready() -> void:
 		Journey.arrive(&"")
 		return
 	WorldState.reset()
+	builder = RoadBuilder.new()
+	builder.name = "RoadBuilder"
+	add_child(builder)
+	player.global_position = RoadLayout.EXIT
+	player.set_look(RoadBuilder.yaw_along(RoadLayout.closest_s(RoadLayout.EXIT)))
 	var stage := RoadStage.new()
 	stage.position = RoadLayout.EXIT
 	director = RoadDirector.new(stage, Main.SEED)
@@ -38,6 +45,12 @@ func _ready() -> void:
 	pause.name = "PauseMenu"
 	add_child(pause)
 	hud.bind(player)
+	look = Look.new()
+	look.name = "Look"
+	look.environment = builder.environment
+	look.film = hud.film_material
+	look.grade_override = &"road"
+	add_child(look)
 	_finish_loading.call_deferred()
 
 
@@ -83,6 +96,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	builder.set_fog(director.fog)
 	pause.guard(delta, _playing(), OS.has_feature("web"))
 
 

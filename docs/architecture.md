@@ -309,6 +309,38 @@ active variant's rects), not from Area3D triggers, so it is exact and identical 
 * `scenes/corridor/` and `scenes/entities/` are folded into the builder and `scenes/main.tscn`.
 * Story code lives in `scripts/story/` (not listed in the brief).
 
+## The road: invented names
+
+The resort, the road and the roadside signs were checked before use (web and OpenStreetMap searches, and JKR's
+sign manual, 2026-11-06). OpenStreetMap's place search (Nominatim) is fuzzy, so "0 hits"
+means nothing close is in OSM, not proof that nobody uses the name. Google Maps and the SSM company register were
+not searched.
+
+| Name | What it is | What the search found |
+|---|---|---|
+| **Bukit Selubung** (used) | The resort at the top of the road ("selubung": a shroud, the hill under mist) | OSM: "Bukit Selubung", "Selubung", "Jalan Bukit Selubung", "Selubung Resort": 0 hits. Web: no page; only other hills (Bukit Selambau, Bukit Senaling). |
+| **Jalan Lama Bukit Selubung** (used) | The old road down from it | Follows the real pattern of [Jalan Lama Bukit Putus](https://en.wikipedia.org/wiki/Jalan_Lama_Bukit_Putus) and Jalan Lama Gombak-Bentong. The exact name: OSM 0 hits, web 0 hits. |
+| Bukit Sunyi (rejected) | Was the resort | OSM 0 hits and no resort or company, but it is literally "Silent Hill" in Malay, and the title of a 1988 album and song ([Malay Wikipedia, "Mus Barbarik"](https://ms.wikipedia.org/wiki/Mus_Barbarik)). Rejected for the Silent Hill echo. |
+| Jalan Puncak Lama (rejected) | Was the road | No road of that name, but it is one word off *Jalan Puncak Alam*, a 2015 Malaysian horror film about a lonely road at night ([list of Malaysian films of 2015](https://en.wikipedia.org/wiki/List_of_Malaysian_films_of_2015)), and [Puncak Alam](https://en.wikipedia.org/wiki/Puncak_Alam) is a real Selangor township with roads such as Jalan Puncak Alam Jaya 1. Rejected. |
+
+The signs say only what real Malaysian signs say (`RoadBuilder.SIGN_TEXTS`). The AWAS boards are red with white
+text, every line on the same board; warning diamonds and the chevron boards on the switchbacks are black on yellow;
+posts are banded black and white, as in the photographs (JKR's manual says orange and black).
+
+| Text | Where on the road | What the search found |
+|---|---|---|
+| AWAS | The top line of every red board | JKR Arahan Teknik (Jalan) 2B/85, clause 2B.2.1 ("black symbols and borders on yellow background except for the signs AWAS...") and 3.8.2 ([copy on pdfcoffee](https://pdfcoffee.com/arahan-teknik-jalan-2b-85-traffic-signs-application-pdf-free.html)); [WD17](https://commons.wikimedia.org/wiki/File:Malaysia_road_sign_WD17.svg); red boards with white text in Selangor B23 photographs of 2025-01-25 ([photo C](https://commons.wikimedia.org/wiki/File:B23_%28Jalan_Hulu_Yam_Bharu%E2%80%93Batu_Caves%29,_Hulu_Selangor_20250125_122206.jpg), [photo D](https://commons.wikimedia.org/wiki/File:B23_%28Jalan_Sungai_Tua%29,_Gombak_20250125_120603.jpg)). |
+| SELEKOH MERBAHAYA DI HADAPAN / 200 m / KURANGKAN LAJU | 200 m before switchback 1 | Photo C reads "AWAS / SELEKOH MERBAHAYA DI HADAPAN / 200 m / KURANGKAN LAJU". "MERBAHAYA" is how the boards print it (the standard spelling is "berbahaya"). |
+| SELEKOH MERBAHAYA DI HADAPAN / KURANGKAN LAJU / 40 km/j | 200 m before switchback 4 | Photo D reads "AWAS / SELEKOH MERBAHAYA DI HADAPAN / KURANGKAN LAJU / 40 km/j". |
+| KURANGKAN LAJU | Under AWAS | JKR 2B/85 clause 3.8.2 names it a supplementary sign; photos C and D. |
+| KAWASAN TANAH RUNTUH / PANDU BERHATI-HATI | Under AWAS, by the cut slopes | ["Awas! Kawasan Tanah Runtuh / Pandu berhati-hati", Semporna-Kunak Road, Sabah, 2014-05-22](https://commons.wikimedia.org/wiki/File:Malaysia_Traffic-signs_Warning-sign-04b.jpg). |
+| KAWASAN KEMALANGAN | Under AWAS, at the top of the long straight | Selangor B23 photo B, 2025-01-25; ["Kawasan Kemalangan" with "Kurangkan Laju", near Semporna, Sabah, 2014-05-21](https://commons.wikimedia.org/wiki/File:Malaysia_Traffic-signs_Danger-sign-01.jpg). |
+| (chevron boards, no text) | Every 7 m round the outside of each switchback | JKR 2B/85 clause 3.3.4: "Chevron Delineator" WD.39a/b, black on yellow, on the outside of the curve about 6 m apart; [WD39a](https://commons.wikimedia.org/wiki/File:Malaysia_road_sign_WD39a.svg); [Genting Sempah, Federal Route 68, 2022-07-29](https://commons.wikimedia.org/wiki/File:Genting_Sempah_3.jpg). |
+| (winding-road diamond, no text) | Before each stack of switchbacks | JKR 2B/85, Fig. 10 note 6: "use winding road sign if the road has many curve and turns such as those roads in hill areas". |
+| ~~SELEKOH TAJAM~~ (dropped) | | Not in JKR's text, on Commons or in any photograph found; real boards say SELEKOH MERBAHAYA DI HADAPAN. |
+| ~~GUNAKAN GEAR RENDAH~~ (dropped) | | Community-drawn diagrams on Commons only; no photograph or JKR text. |
+| ~~DILARANG MEMOTONG~~ (dropped) | | The real sign is a red-ringed roundel with no text ([Ranau, 2014](https://commons.wikimedia.org/wiki/File:Malaysia_Traffic-signs_Regulatory-sign-09.jpg)); the text plate is only in drawings. |
+
 ## References consulted
 
 No third-party code or asset files are used; the wall clock's numerals are rendered from Inter (SIL OFL 1.1), the
