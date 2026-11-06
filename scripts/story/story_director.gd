@@ -417,9 +417,10 @@ func _on_interacted(object_id: StringName) -> void:
 				EventBus.inspect_requested.emit("Lift", "LIF ROSAK — DALAM PENYELENGGARAAN\nUNDER MAINTENANCE\n\nThe button doesn't light up.")
 
 
-## Once, after the road: the last call plays back, with the road's wind and engine and the one who is lost.
+## Once, after the road: the last call plays back, with the road's wind and engine and the one who is lost. Not over
+## another voice: a press while Rosnah (or any line) is still speaking shows the inspect text only, and a later press plays it.
 func _last_call() -> void:
-	if LAST_CALL.has(road) and _once_ever("last_call"):
+	if LAST_CALL.has(road) and _lines.is_empty() and _line_left <= 0.0 and _once_ever("last_call"):
 		EventBus.sound_requested.emit(&"intercom_road", ApartmentLayout.ANCHORS[&"phone_intercom"]["pos"], 0.0)
 		say("[The speaker crackles. Wind, and an engine idling.]", 3.0, true)
 		say(LAST_CALL[road], 3.5, true)

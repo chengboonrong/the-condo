@@ -357,5 +357,33 @@ func test_the_last_call_points_back_once() -> bool:
 	return true
 
 
+func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
+	var mei := "\"Eh, you going down ah? Jom, we got space.\""
+	WorldState.reset()
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"caught"
+	_listen()
+	_wait(5.0)
+	EventBus.object_interacted.emit(&"bed")
+	check(_until(func() -> bool: return story.beat == &"ringing" and rt.scheduler.is_running(&"phone_ring"), 40.0), "the intercom rings")
+	EventBus.object_interacted.emit(&"intercom")  # Rosnah's call: about 17 s of lines
+	eq(story.beat, &"complained", "answered the real way")
+	sounds.clear()
+	lines.clear()
+	EventBus.object_interacted.emit(&"intercom")  # pressed again at once, while her lines are queued
+	_wait(5.0)
+	EventBus.object_interacted.emit(&"intercom")  # and again, while she is still talking
+	check(not sounds.any(func(s: Array) -> bool: return s[0] == &"intercom_road"), "no wind and engine over her voice")
+	eq(lines.count(mei), 0, "no last-call line while she talks")
+	_wait(20.0)  # her call is over
+	check(story._lines.is_empty() and story._line_left <= 0.0, "her call is over")
+	EventBus.object_interacted.emit(&"intercom")
+	EventBus.object_interacted.emit(&"intercom")
+	_wait(10.0)
+	eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), 1, "now the last call plays, once")
+	eq(lines.count(mei), 1, "with Mei's line, once")
+	return _done()
+
+
 func _shifts_done() -> int:
 	return WorldState.event_history.filter(func(e: Dictionary) -> bool: return e["id"] == &"shift" and e["result"] == &"completed").size()
