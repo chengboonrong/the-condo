@@ -90,8 +90,9 @@ func test_lines_name_their_speaker() -> bool:
 
 
 ## What is wrong with the say( calls in a mission's source. A line written `Name: "…"` must name its speaker as
-## &"name", Hafiz or Mei; any other line names none. A spoken line anywhere but straight in a say( (a const, a
-## variable, a sum), or a speaker passed in a variable, is a problem too: the scan can't check it.
+## &"name", Hafiz or Mei; any other line names none. A say( of one of the file's consts, or of an entry in it,
+## checks every line in that const by the same rule. A spoken line anywhere else (a var, a sum, a const no say(
+## takes), or a speaker passed in a variable, is a problem too: the scan can't check it.
 func _source_problems(path: String) -> Array[String]:
 	var file := path.get_file()
 	var source := FileAccess.get_file_as_string(path)
@@ -114,6 +115,15 @@ func _source_problems(path: String) -> Array[String]:
 			literals.append([m.get_string(1), text, source.substr(0, m.get_start()).count("\n") + 1])
 		swaps.append([masked.length(), at])
 	masked += source.substr(at)
+	var consts := {}  # each const's name: the indices of the literals in its value, which runs to a line end at depth 0
+	for c in RegEx.create_from_string("(?m)^const\\s+(\\w+)[^=\\n]*=").search_all(masked):
+		var end := c.get_end()
+		var depth := 0
+		while end < masked.length() and (masked[end] != "\n" or depth > 0):
+			depth += 1 if masked[end] in "([{" else (-1 if masked[end] in ")]}" else 0)
+			end += 1
+		consts[c.get_string(1)] = RegEx.create_from_string("«(\\d+)»").search_all(masked.substr(c.get_end(), end - c.get_end())).map(func(n: RegExMatch) -> int: return int(n.get_string(1)))
+	var named_const := RegEx.create_from_string("^(\\w+)(\\[.*\\])?$")  # NAME or NAME[expr]
 	var problems: Array[String] = []
 	var in_say := {}
 	for call in RegEx.create_from_string("\\bsay\\(").search_all(masked):
@@ -124,11 +134,15 @@ func _source_problems(path: String) -> Array[String]:
 				from = swap[1] + call.get_start() - swap[0]
 		var where := "%s:%d" % [file, source.substr(0, from).count("\n") + 1]
 		var line := marker.search(args[0])
-		var i := int(line.get_string(1)) if line else -1
-		if i >= 0 and literals[i][0] == "":
-			in_say[i] = true
-		else:
-			i = -1
+		var name := named_const.search(args[0])
+		var lines: Array = []  # the literals this say( can show, plain strings only
+		if line:
+			lines = [int(line.get_string(1))]
+		elif name and consts.has(name.get_string(1)):
+			lines = consts[name.get_string(1)]
+		lines = lines.filter(func(k: int) -> bool: return literals[k][0] == "")
+		for k: int in lines:
+			in_say[k] = true
 		var speaker := ""
 		if args.size() > 2:
 			var named := marker.search(args[2])
@@ -136,15 +150,13 @@ func _source_problems(path: String) -> Array[String]:
 				problems.append("%s: a speaker not written &\"name\"" % where)
 				continue
 			speaker = literals[int(named.get_string(1))][1]
-		if i < 0:
-			if speaker != "":
-				problems.append("%s: a line in a variable names a speaker, so the two can't be checked" % where)
-			continue
-		var text: String = literals[i][1]
-		var who := spoken.search(text)
-		var want := who.get_string(1).to_lower() if who else ""
-		if speaker != want or want not in ["", "hafiz", "mei"]:
-			problems.append("%s: %s (names &\"%s\")" % [where, text, speaker])
+		if lines.is_empty() and speaker != "":
+			problems.append("%s: a line in a variable names a speaker, so the two can't be checked" % where)
+		for k: int in lines:
+			var who := spoken.search(literals[k][1])
+			var want := who.get_string(1).to_lower() if who else ""
+			if speaker != want or want not in ["", "hafiz", "mei"]:
+				problems.append("%s: %s (names &\"%s\")" % [where, literals[k][1], speaker])
 	for i in literals.size():
 		if not in_say.has(i) and literals[i][0] == "" and spoken.search(literals[i][1]):
 			problems.append("%s:%d: %s is not written straight in a say(, so its speaker can't be checked" % [file, literals[i][2], literals[i][1]])
