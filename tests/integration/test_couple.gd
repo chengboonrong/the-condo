@@ -123,7 +123,7 @@ func _source_problems(path: String) -> Array[String]:
 			depth += 1 if masked[end] in "([{" else (-1 if masked[end] in ")]}" else 0)
 			end += 1
 		consts[c.get_string(1)] = RegEx.create_from_string("«(\\d+)»").search_all(masked.substr(c.get_end(), end - c.get_end())).map(func(n: RegExMatch) -> int: return int(n.get_string(1)))
-	var named_const := RegEx.create_from_string("^(\\w+)(\\[.*\\])?$")  # NAME or NAME[expr]
+	var named_const := RegEx.create_from_string("^(\\w+)(\\[[^\\[\\]]*\\])*$")  # NAME, NAME[i] or NAME[i][j]; never NAME[i] % [x]
 	var problems: Array[String] = []
 	var in_say := {}
 	for call in RegEx.create_from_string("\\bsay\\(").search_all(masked):
