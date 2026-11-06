@@ -132,3 +132,17 @@ func test_choice_box_fits_the_screen() -> bool:
 	tree.root.size = window
 	road.queue_free()
 	return true
+
+
+## Captions off: what anyone on the road says or thinks still shows; only the sound captions go.
+func test_road_lines_show_with_captions_off() -> bool:
+	var road := await _road()
+	var hud := road.hud
+	Settings.values["subtitles"] = false
+	EventBus.subtitle_requested.emit("[A lorry passes]", 3.0)
+	eq(hud._subtitle.text, "", "a sound caption follows the setting")
+	road.director.say("[You laughed. He didn't.]", 3.0)
+	road.director.step(0.1)
+	eq(hud._subtitle.text, "[You laughed. He didn't.]", "a road line always shows")
+	road.queue_free()
+	return true

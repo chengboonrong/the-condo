@@ -14,21 +14,31 @@ var captions: Array[String] = []
 var ended: Array[StringName] = []
 
 
-func _setup() -> void:
+## A mission after the lift that never finishes, so the director stays on it.
+class Idle extends RoadMission:
+	func tick(_delta: float) -> bool:
+		return false
+
+
+func _setup(then_idle := false) -> void:
 	stage = RoadStage.new()
 	stage.position = RoadLayout.EXIT
-	d = RoadDirector.new(stage, 1147)
+	if then_idle:
+		var list: Array[RoadMission] = [LiftMission.new(), Idle.new()]
+		d = RoadDirector.new(stage, 1147, list)
+	else:
+		d = RoadDirector.new(stage, 1147)
 	cues.clear()
 	captions.clear()
 	ended.clear()
 	EventBus.road_cue.connect(_on_cue)
-	EventBus.subtitle_requested.connect(_on_caption)
+	EventBus.line_requested.connect(_on_caption)
 	EventBus.road_ended.connect(_on_ended)
 
 
 func _teardown() -> void:
 	EventBus.road_cue.disconnect(_on_cue)
-	EventBus.subtitle_requested.disconnect(_on_caption)
+	EventBus.line_requested.disconnect(_on_caption)
 	EventBus.road_ended.disconnect(_on_ended)
 
 
@@ -126,5 +136,51 @@ func test_waiting_away_from_the_stop_does_not_bring_the_car() -> bool:
 	check(not cues.has(&"lorry_passes") and not cues.has(&"couple_stops"), "10 m up the road: the wait doesn't count")
 	stage.position = RoadLayout.BUS_STOP
 	check(_until(&"couple_stops", 70.0), "back at the stop, the car comes")
+	_teardown()
+	return true
+
+
+## Walks him to the stop and waits until the couple's car stands there for him.
+func _to_get_in() -> void:
+	_run(14.0)
+	stage.position = RoadLayout.BUS_STOP
+	_until(&"couple_stops", 120.0)
+	_run(0.2)
+
+
+func test_a_skip_during_the_opening_lifts_the_card() -> bool:
+	_setup(true)
+	_run(2.0)
+	eq(cues, [&"card_on"], "on the black card")
+	d.debug_skip()
+	_run(3.0)
+	eq([d.mission_index, cues], [1, [&"card_on", &"card_off"]], "skipped: the card goes, and nothing else comes")
+	_teardown()
+	return true
+
+
+func test_a_skip_at_get_in_leaves_no_prompt_or_objective() -> bool:
+	_setup(true)
+	_to_get_in()
+	eq(_lift().beat, &"get_in", "(at the car door)")
+	eq([WorldState.prompts.get(&"car_door"), WorldState.objective], ["Get in", "Walk down to the bus stop and wait for a lift."], "(the prompt and the wait)")
+	d.debug_skip()
+	eq([WorldState.prompts.get(&"car_door"), WorldState.objective], ["", ""], "skipped: no prompt and no objective left")
+	_teardown()
+	return true
+
+
+func test_a_finished_lift_never_seats_him_again() -> bool:
+	_setup(true)
+	_to_get_in()
+	EventBus.object_interacted.emit(&"car_door")
+	_run(12.0)
+	eq(d.mission_index, 1, "(the lift is over)")
+	var heard := captions.size()
+	d.seated = false  # standing beside the car, later on
+	EventBus.object_interacted.emit(&"car_door")
+	_run(1.0)
+	check(not d.seated, "the car door doesn't seat him")
+	eq([cues.count(&"seated"), captions.size()], [1, heard], "no second seated cue, no second small talk")
 	_teardown()
 	return true

@@ -154,6 +154,7 @@ func _ready() -> void:
 
 	EventBus.objective_changed.connect(func(t: String) -> void: _objective.text = t)
 	EventBus.subtitle_requested.connect(show_subtitle)
+	EventBus.line_requested.connect(show_subtitle.bind(true))
 	EventBus.inspect_requested.connect(show_inspect)
 	EventBus.peephole_requested.connect(show_peephole)
 	EventBus.door_changed.connect(func(id: StringName, open: bool, _source: StringName) -> void:
@@ -384,9 +385,11 @@ func is_choosing() -> bool:
 	return _choices.visible
 
 
-func show_subtitle(text: String, duration: float) -> void:
-	if not Settings.get_value("subtitles") and not text.begins_with("\""):
-		return  # sound captions are optional; dialogue (quoted) always shows
+## `always`: a line someone says or thinks, shown whatever the captions setting. Otherwise sound captions are optional
+## and only dialogue (quoted) always shows.
+func show_subtitle(text: String, duration: float, always := false) -> void:
+	if not always and not Settings.get_value("subtitles") and not text.begins_with("\""):
+		return
 	_subtitle.text = text
 	_subtitle_left = duration
 

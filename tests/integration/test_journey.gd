@@ -89,6 +89,25 @@ func test_the_road_hands_over_on_the_click() -> bool:
 	return true
 
 
+## Debug builds: F10 ends the current road mission, as if kept, as it skips a beat in the flat.
+func test_f10_skips_a_road_mission() -> bool:
+	_begin()
+	check(OS.is_debug_build(), "(the tests run a debug build)")
+	var road := _scene(Journey.ROAD_SCENE) as RoadMain
+	await _loaded(road)
+	road.hud.start()
+	var ended := []
+	road.finished.connect(func(ending: StringName) -> void: ended.append(ending))
+	var f10 := InputEventKey.new()
+	f10.physical_keycode = KEY_F10
+	f10.pressed = true
+	tree.root.push_input(f10)
+	eq([road.director.mission_index, ended], [1, [&"alive"]], "the lift is skipped, and with it the road")
+	road.queue_free()
+	_end()
+	return true
+
+
 ## A real scene change, with the road as the current scene as it is in the game (the runner has none, and a change
 ## only removes the one it has). A real click starts the road, and the road's end hands over: the scene must not be
 ## taken out from under whoever ends it, or their next line runs on a viewport that is gone.

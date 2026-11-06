@@ -115,6 +115,9 @@ func test_choices_silence_and_keeps() -> bool:
 func test_look_rule_needs_a_hold_and_a_return() -> bool:
 	_setup()
 	d.watch_look(&"turned", 2.2, 1.0, 0.4, 1, 1)
+	stage.view_yaw = 1.5  # out of his own window, on a fresh watch
+	_run(5.0)
+	eq(d.score(), 0, "his own window is allowed")
 	stage.view_yaw = -1.2  # towards her side
 	_run(0.3)
 	eq(d.score(), 0, "a glance (0.3 s) is not a break")
@@ -127,9 +130,6 @@ func test_look_rule_needs_a_hold_and_a_return() -> bool:
 	eq(d.score(), 1, "held 10 s: still one")
 	stage.view_yaw = 0.0
 	_run(0.5)
-	stage.view_yaw = 1.5  # out of his own window
-	_run(5.0)
-	eq(d.score(), 1, "his own window is allowed")
 	stage.view_yaw = -1.2
 	_run(1.0)
 	eq(d.score(), 1, "max_count 1: never a second")
@@ -137,6 +137,13 @@ func test_look_rule_needs_a_hold_and_a_return() -> bool:
 	eq(d.look_rule, &"", "stopped")
 	_run(2.0)
 	eq(d.score(), 1, "a stopped rule breaks no more")
+	_teardown()
+
+	_setup()
+	d.watch_look(&"turned", 2.2, 1.0, 0.4, 1, 1)
+	stage.view_yaw = 2.3
+	_run(0.5)
+	eq(d.score(), 1, "past 2.2 on his own side: a break")
 	_teardown()
 
 	_setup()
@@ -196,8 +203,132 @@ func test_road_core_leaves_no_connections() -> bool:
 	var core := RoadDirector.new(RoadStage.new(), 1147)
 	core.step(0.1)
 	check(EventBus.choice_made.get_connections().size() > choice_before, "(the director listens for answers)")
-	check(EventBus.object_interacted.get_connections().size() > used_before, "(the lift listens for the car door)")
+	check(EventBus.object_interacted.get_connections().size() > used_before, "(the director passes the car door on)")
 	core = null
 	eq(EventBus.choice_made.get_connections().size(), choice_before, "choice_made has no road connection left")
 	eq(EventBus.object_interacted.get_connections().size(), used_before, "object_interacted has none either")
+	return true
+
+
+## A mission that records what it hears and when it is left; `done` ends it.
+class Recorder extends RoadMission:
+	var heard: Array[StringName] = []
+	var left := 0
+	var done := false
+
+	func interacted(id: StringName) -> void:
+		heard.append(id)
+
+	func leave() -> void:
+		left += 1
+
+	func tick(_delta: float) -> bool:
+		return done
+
+
+func test_only_the_current_mission_hears_and_it_is_told_when_it_is_left() -> bool:
+	var a := Recorder.new()
+	var b := Recorder.new()
+	var list: Array[RoadMission] = [a, b]
+	var core := RoadDirector.new(RoadStage.new(), 1147, list)
+	EventBus.object_interacted.emit(&"early")
+	core.step(0.1)
+	EventBus.object_interacted.emit(&"x")
+	eq([a.heard, b.heard], [[&"x"], []], "before it begins nobody hears; then only the current one")
+	a.done = true
+	core.step(0.1)
+	eq(a.left, 1, "a finished mission is left")
+	core.step(0.1)
+	EventBus.object_interacted.emit(&"y")
+	core.debug_skip()
+	eq(b.left, 1, "and so is a skipped one")
+	EventBus.object_interacted.emit(&"z")
+	eq([a.heard, b.heard, a.left], [[&"x"], [&"y"], 1], "a mission that is over hears nothing and is left once")
+	return true
+
+
+func test_a_choice_asked_again_is_open_again() -> bool:
+	_setup()
+	var two := PackedStringArray(["one", "two"])
+	d.ask(&"k", two, 5.0, PackedInt32Array([0]))
+	EventBus.choice_made.emit(&"k", 0)
+	eq(d.answer(&"k"), 0, "answered")
+	d.ask(&"k", two, 5.0, PackedInt32Array([0]))
+	eq([d.pending, d.answer(&"k")], [&"k", RoadDirector.NONE], "asked again: open, and no answer yet")
+	_teardown()
+	return true
+
+
+func test_an_overlapping_ask_closes_the_open_one_as_silence() -> bool:
+	_setup()
+	var catch := Playthrough.Catch.new()
+	OS.add_logger(catch)
+	var two := PackedStringArray(["one", "two"])
+	d.ask(&"x", two, 5.0, PackedInt32Array([0]), &"r", 2)
+	d.ask(&"y", two, 5.0, PackedInt32Array([0]))
+	OS.remove_logger(catch)
+	eq(catch.errors.size(), 1, "logged")
+	eq([d.answer(&"x"), closed, d.score()], [-1, [&"x"], 2], "the open one closes as silence, which breaks its rule")
+	eq(d.pending, &"y", "and the new one is open")
+	_teardown()
+	return true
+
+
+func test_a_choice_has_one_to_three_options() -> bool:
+	_setup()
+	var catch := Playthrough.Catch.new()
+	OS.add_logger(catch)
+	d.ask(&"none", PackedStringArray(), 5.0, PackedInt32Array([0]))
+	d.ask(&"four", PackedStringArray(["a", "b", "c", "d"]), 5.0, PackedInt32Array([0]))
+	OS.remove_logger(catch)
+	eq([catch.errors.size(), d.pending], [2, &""], "none or four: logged, and nothing opens")
+	_teardown()
+	return true
+
+
+func test_stop_at_behind_the_car_is_refused() -> bool:
+	_setup()
+	d.car_s = 105.0
+	var catch := Playthrough.Catch.new()
+	OS.add_logger(catch)
+	d.stop_at(100.0)
+	OS.remove_logger(catch)
+	d.step(0.1)
+	eq(catch.errors.size(), 1, "logged")
+	check(d.car_s >= 105.0, "and the car is not pulled back (%.1f)" % d.car_s)
+	_teardown()
+	return true
+
+
+func test_start_at_resets_the_ride_and_the_captions() -> bool:
+	_setup()
+	var lines: Array[String] = []
+	var on_line := func(text: String, _seconds: float) -> void: lines.append(text)
+	EventBus.line_requested.connect(on_line)
+	d.say("a long one", 30.0)
+	d.drive(9.0)
+	d.lane_to(-RoadLayout.LANE)
+	_run(2.0)
+	d.start_at(0)
+	d.say("the next one")
+	_run(10.0)
+	EventBus.line_requested.disconnect(on_line)
+	eq(lines, ["a long one", "the next one"], "the next mission's first line doesn't wait out a skipped one")
+	eq([d.car_speed, d.lane], [0.0, RoadLayout.LANE], "nor does it keep the skipped mission's speed or lane")
+	_teardown()
+	return true
+
+
+func test_end_keeps_a_decided_ending() -> bool:
+	_setup()
+	var ended: Array[StringName] = []
+	var on_end := func(e: StringName) -> void: ended.append(e)
+	EventBus.road_ended.connect(on_end)
+	d.break_rule(&"a", 2)
+	var decided := d.outcome()
+	d.break_rule(&"b")
+	d.end(decided)
+	EventBus.road_ended.disconnect(on_end)
+	eq([d.ending, ended], [&"alive", [&"alive"]], "a break after the ending was decided doesn't change it")
+	_teardown()
 	return true

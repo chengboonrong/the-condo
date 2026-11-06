@@ -20,7 +20,8 @@ signal light_flicker_requested(room_id: StringName, duration: float)
 signal silhouette_requested(anchor_id: StringName, duration: float)
 signal silhouette_seen(anchor_id: StringName)
 signal door_feet_requested(shown: bool)
-signal subtitle_requested(text: String, duration: float)
+signal subtitle_requested(text: String, duration: float)  # sound captions and the flat's lines: follow the captions setting
+signal line_requested(text: String, duration: float)  # what someone on the road says or thinks: always shown
 signal inspect_requested(title: String, text: String)
 signal peephole_requested(view: Camera3D)
 

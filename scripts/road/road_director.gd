@@ -4,7 +4,7 @@ extends RefCounted
 ## which decides how the road ends. Headless and deterministic: no nodes, and randomness only from rng.
 ## Each step, in this order: time, captions, the open choice's timer, the look rule, the current mission, the ride.
 ## The presentation reads the state below each frame; one-off moments go out on EventBus (road_cue, the choices,
-## road_line, road_ended).
+## line_requested and road_line, road_ended).
 
 const ALIVE_MAX := 2  # a score up to this: all three get down alive
 const SAVED_MAX := 6  # up to this: he gets Mei out; above it, all three are caught
@@ -64,6 +64,7 @@ func _init(road_stage: RoadStage, seed_value: int, mission_list: Array[RoadMissi
 	# The clock reads 12:06 AM now: 19 minutes after the 11:47 PM it counts from.
 	WorldState.clock_anchor = WorldState.time - (CLOCK_START + 24 * 60 - (23 * 60 + 47)) * 60.0
 	EventBus.choice_made.connect(_on_choice_made)
+	EventBus.object_interacted.connect(_on_interacted)
 
 
 ## The road's missions in order. Each mission's task appends its own.
@@ -87,25 +88,28 @@ func step(delta: float) -> void:
 			m.begin()
 		m.beat_t += delta
 		if m.tick(delta):
+			_leave()
 			mission_index += 1
-			_begun = false
 			if mission_index >= missions.size():
 				end()
 	_ride(delta)
 
 
-## The state as if every mission before `index` was kept: for tools, stills and `--mission=N`. Past the last
-## mission, the road ends.
+## The state as if every mission before `index` was kept: for tools, stills and `--mission=N`. The current mission is
+## left first. Past the last mission, the road ends.
 func start_at(index: int) -> void:
+	_leave()
 	if pending != &"":
 		var id := pending
 		pending = &""
 		EventBus.choices_closed.emit(id)
 	stop_look()
 	_lines.clear()
+	_line_left = 0.0
+	_target_speed = 0.0
 	_stop_s = NAN
+	_lane_to = RoadLayout.LANE
 	mission_index = index
-	_begun = false
 	if index >= missions.size():
 		end()
 	else:
@@ -117,14 +121,23 @@ func debug_skip() -> void:
 	start_at(mission_index + 1)
 
 
-## A caption, after the ones already queued. Spoken lines name their speaker (&"hafiz", &"mei").
+## A line someone says or thinks, after the ones already queued. It always shows, whatever the captions setting;
+## sound captions go on EventBus.subtitle_requested instead. Spoken lines name their speaker (&"hafiz", &"mei").
 func say(text: String, seconds := 3.5, speaker: StringName = &"") -> void:
 	_lines.append([text, seconds, speaker])
 
 
-## Opens a choice for `seconds`. `keeps` lists the answers that keep `rule` (-1: silence keeps it); any other
-## answer breaks it.
+## Opens a choice of 1 to 3 options for `seconds`. `keeps` lists the answers that keep `rule` (-1: silence keeps it);
+## any other answer breaks it. Asking again forgets the old answer. One choice at a time: an ask while another is open
+## is a mistake, and closes that one as silence.
 func ask(choice_id: StringName, options: PackedStringArray, seconds: float, keeps: PackedInt32Array, rule: StringName = &"", weight := 1) -> void:
+	if options.is_empty() or options.size() > 3:
+		push_error("ask(%s): %d options, but a choice has 1 to 3" % [choice_id, options.size()])
+		return
+	if pending != &"":
+		push_error("ask(%s) while %s is open: that one closes as silence" % [choice_id, pending])
+		_close(-1)
+	_answers.erase(choice_id)
 	pending = choice_id
 	_keeps = keeps
 	_choice_rule = rule
@@ -177,11 +190,12 @@ func outcome() -> StringName:
 	return &"saved" if n <= SAVED_MAX else &"caught"
 
 
-## The road is over. Once only.
-func end() -> void:
+## The road is over, once only. `decided`: an ending already played, kept even if a rule breaks after it was
+## decided; without it, the count decides.
+func end(decided: StringName = &"") -> void:
 	if ending != &"":
 		return
-	ending = outcome()
+	ending = decided if decided != &"" else outcome()
 	EventBus.road_ended.emit(ending)
 
 
@@ -191,8 +205,11 @@ func drive(speed: float) -> void:
 	_stop_s = NAN
 
 
-## The car brakes in time to stand exactly at s.
+## The car brakes in time to stand exactly at s, which must be ahead of it.
 func stop_at(s: float) -> void:
+	if s < car_s:
+		push_error("stop_at(%.1f): the car is already past it, at %.1f" % [s, car_s])
+		return
 	_stop_s = s
 
 
@@ -204,10 +221,23 @@ func _speak(delta: float) -> void:
 	_line_left -= delta
 	if _line_left <= 0.0 and not _lines.is_empty():
 		var line: Array = _lines.pop_front()
-		EventBus.subtitle_requested.emit(line[0], line[1])
+		EventBus.line_requested.emit(line[0], line[1])
 		if line[2] != &"":
 			EventBus.road_line.emit(line[2], line[1])
 		_line_left = float(line[1]) + 0.3
+
+
+## Missions never listen to EventBus themselves: the current one hears what he uses from here.
+func _on_interacted(object_id: StringName) -> void:
+	if _begun:
+		missions[mission_index].interacted(object_id)
+
+
+## The current mission is no longer current: it clears what it put up.
+func _leave() -> void:
+	if _begun:
+		_begun = false
+		missions[mission_index].leave()
 
 
 func _on_choice_made(choice_id: StringName, index: int) -> void:

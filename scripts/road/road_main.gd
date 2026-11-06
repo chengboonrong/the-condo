@@ -101,5 +101,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause") and (player.input_enabled or hud.is_on_start_card()):
 		pause.open(player.input_enabled)  # from the start card: settings (reduced flashing) before playing
 		get_viewport().set_input_as_handled()
+	elif OS.is_debug_build() and event.is_action_pressed("debug_skip_beat"):
+		director.debug_skip()  # F10, as in the flat: the current mission is over, as if kept
+		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and player.input_enabled and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # in case the browser refused the first request

@@ -16,13 +16,11 @@ const CAR_AT := 45.0
 const CAR_FROM := -150.0  # where the couple's car comes down from, out of sight up the road
 const CAR_SPEED := 9.0
 const TALK_SECONDS := 9.0  # the small talk once he is in
+const OBJECTIVE := "Walk down to the bus stop and wait for a lift."
 
 var _waited := 0.0
 var _talk_ends := INF
-
-
-func _init() -> void:
-	EventBus.object_interacted.connect(_on_interacted)
+var _card_on := false
 
 
 ## The road's start: he is not in the car, and the car is up the road, standing.
@@ -37,6 +35,7 @@ func begin() -> void:
 	set_up_skipped()
 	_waited = 0.0
 	_talk_ends = INF
+	_card_on = true
 	EventBus.road_cue.emit(&"card_on")
 	for line: Array in OPENING:
 		d.say(line[0], line[1])
@@ -47,8 +46,9 @@ func tick(delta: float) -> bool:
 	match beat:
 		&"opening":
 			if beat_t >= CARD_OFF:
+				_card_on = false
 				EventBus.road_cue.emit(&"card_off")
-				WorldState.set_objective("Walk down to the bus stop and wait for a lift.")
+				WorldState.set_objective(OBJECTIVE)
 				go(&"walk")
 		&"walk":
 			if _at_stop():
@@ -83,7 +83,17 @@ func _at_stop() -> bool:
 	return d.stage.player_position().distance_to(RoadLayout.BUS_STOP) <= NEAR
 
 
-func _on_interacted(object_id: StringName) -> void:
+## Done or skipped: none of the lift's card, prompt or objective stays up.
+func leave() -> void:
+	if _card_on:
+		_card_on = false
+		EventBus.road_cue.emit(&"card_off")
+	WorldState.set_prompt(&"car_door", "")
+	if WorldState.objective == OBJECTIVE:
+		WorldState.set_objective("")
+
+
+func interacted(object_id: StringName) -> void:
 	if object_id != &"car_door" or beat != &"get_in" or d.seated:
 		return
 	d.seated = true

@@ -7,6 +7,10 @@ extends RefCounted
 ##   tick(delta) -> bool    every step after that; true when it is done
 ##   set_up_skipped()       by start_at(): put the director in the state this mission starts in, as if every
 ##                          earlier mission was kept (seated or not, car_s, light_s and so on)
+##   interacted(id)         he used something (EventBus.object_interacted), passed on only while this is the current
+##                          mission. Missions never connect to EventBus themselves.
+##   leave()                when it stops being the current mission, finished or skipped by start_at(): clear
+##                          whatever presentation it put up (a card, prompts, its objective)
 
 ## The director that runs it. Held weakly: the director holds its missions, and a strong reference back would keep
 ## both, and their EventBus connections, alive for ever.
@@ -29,6 +33,14 @@ func tick(_delta: float) -> bool:
 
 
 func set_up_skipped() -> void:
+	pass
+
+
+func interacted(_id: StringName) -> void:
+	pass
+
+
+func leave() -> void:
 	pass
 
 
