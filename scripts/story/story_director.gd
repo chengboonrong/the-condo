@@ -247,7 +247,7 @@ func _knock(count: int) -> StringName:
 	return StringName(("thump%d" if road != &"" else "knock%d") % count)
 
 
-## Her smell, once in the flat, after the road.
+## Her smell, once in the flat, after the road. Only ever while he is in the bedroom.
 func _smell() -> void:
 	if road != &"" and _once_ever("smell"):
 		say(SMELL, 4.0, true)
@@ -260,9 +260,10 @@ func _reversal() -> void:
 
 
 func _wall_answers() -> void:
-	_smell()  # if he touched the wall before the 4 s were up
 	EventBus.sound_requested.emit(_knock(1), ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
 	say("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
+	if WorldState.player_room == &"bedroom":
+		_smell()  # he touched the wall before the 4 s were up: it follows the answer, never comes first
 	WorldState.set_act(WorldState.Act.DISTURBANCE)
 	WorldState.set_objective("Something in the flat is wrong. Look around.")
 	_last_shift = now()

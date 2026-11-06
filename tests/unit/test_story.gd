@@ -7,6 +7,7 @@ var rt: HorrorRuntime
 var lines: Array[String] = []  # story lines (line_requested): always shown
 var subtitles: Array[String] = []  # sound captions (subtitle_requested): the setting decides
 var sounds: Array = []  # [id, position] of every sound_requested
+var heard: Array[String] = []  # lines and sound captions together, in the order they went out
 
 
 func _setup(pos: Vector3) -> StoryDirector:
@@ -42,10 +43,12 @@ func _listen() -> void:
 
 func _on_line(text: String, _seconds: float) -> void:
 	lines.append(text)
+	heard.append(text)
 
 
 func _on_subtitle(text: String, _seconds: float) -> void:
 	subtitles.append(text)
+	heard.append(text)
 
 
 func _on_sound(id: StringName, pos: Vector3, _db: float) -> void:
@@ -218,17 +221,34 @@ func test_from_the_road_the_bedroom_knocks_sound_like_the_roof() -> bool:
 	return _done()
 
 
-func test_touching_the_wall_early_brings_the_smell_just_before_the_answer() -> bool:
+func test_touching_the_wall_early_brings_the_smell_after_the_answer() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
 	story.road = &"saved"
 	_listen()
 	var wall: Vector3 = ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"]
 	_to_the_first_knock(story, wall, &"thump3")
+	_place(Vector3(8.5, 0, 0.5))
 	EventBus.object_interacted.emit(&"bedroom_wall")  # at once: not 4 s in the bedroom first
 	_wait(9.0)
-	eq(lines.count(StoryDirector.SMELL), 1, "the smell comes before the answer")
-	check(subtitles.has("[The wall is cold. Something on the other side knocks back. Once.]"), "and the answer after it")
+	var answer := heard.find("[The wall is cold. Something on the other side knocks back. Once.]")
+	var smell := heard.find(StoryDirector.SMELL)
+	check(answer >= 0, "the answer's caption shows")
+	check(smell > answer, "and her smell follows it, so the caption is with its sound")
+	eq(lines.count(StoryDirector.SMELL), 1, "once")
 	eq(story.beat, &"disturbance", "the story moved on")
+	return _done()
+
+
+func test_the_fail_safe_answer_brings_no_smell_to_someone_elsewhere() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)  # the living room, all the way
+	story.road = &"caught"
+	_listen()
+	var wall: Vector3 = ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"]
+	_to_the_first_knock(story, wall, &"thump3")
+	check(_until(func() -> bool: return story.beat == &"disturbance", 125.0), "the wall answers by itself at 120 s")
+	_wait(10.0)
+	check(sounds.has([&"thump1", wall]), "the answer sounds")
+	eq(lines.count(StoryDirector.SMELL), 0, "but no smell: he is not by the bedroom wall")
 	return _done()
 
 
