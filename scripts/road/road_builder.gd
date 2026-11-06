@@ -780,6 +780,9 @@ func _build_materials() -> void:
 	var faces := StandardMaterial3D.new()
 	faces.albedo_texture = _sign_texture()
 	faces.roughness = 0.5
+	faces.emission_enabled = true  # a stand-in for retroreflective sheeting, so the chevrons show in the headlights
+	faces.emission_texture = faces.albedo_texture
+	faces.emission_energy_multiplier = 0.35
 	_add_material(&"sign_faces", faces)
 	var trees := StandardMaterial3D.new()
 	trees.albedo_texture = _tree_texture()

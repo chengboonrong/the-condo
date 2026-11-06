@@ -260,7 +260,7 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Tap running (loop) | −19.4 | −8 | −27.4 |
 | Hatchback engine from the back seat (loop, pitch 0.7× to 1.6× with speed) | −16.0 | −12 | −28.0 |
 | Slow car's old engine (loop) | −20.0 | −12 | −32.0 |
-| Night insects (loop, stop when the car dies) | −27.0 | −6 | −33.0 |
+| Night insects (loop, stop when the car dies; windows up in the car) | −27.0 | −6 / −12 seated | −33.0 / −39.0 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
 | Ceiling fan (loop) | −17.3 | −18.5 | −35.8 |
 | Fridge (loop) | −11.9 | −26 | −37.9 |
@@ -268,9 +268,10 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
 
 The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prints each file's level as it makes it).
-Their file levels are measured from the files. "Played at" is what `RoadAudio` should use: it is proposed here,
-because `RoadAudio` is built after the sounds, so their "Heard at" is that proposal's result, not a measurement of
-the game. None is louder than the single knock (−14.6) and none is a sting. Five of them are seamless loops, imported
+Their file levels are measured from the files. "Played at" is what `RoadAudio` uses: so far the engine (seated;
+outside it falls off as 1/distance), the insects, both car doors, the lorry and the asphalt steps play at these levels,
+and the rest are proposals until their missions play them. Their "Heard at" is that level's result, not a measurement
+of the game. None is louder than the single knock (−14.6) and none is a sting. Five of them are seamless loops, imported
 with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute) and the phone (one ring, 2.1 s, ending in a pause). The rest play
 once. Eight of them (both engine loops, the rev, the lorry, the sputter, the crank, her breath and the phone) are saved

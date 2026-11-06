@@ -2,7 +2,8 @@ class_name RoadMain
 extends Node3D
 ## The road down the mountain, the first scene of the game: it ends by handing over to the flat (see Journey).
 ## The road's core (RoadDirector) runs the missions; this wires it to the HUD and steps it while he plays. The road
-## itself is RoadBuilder's, in the core's fog; the walk and the car come later: for now he starts at the staff exit.
+## itself is RoadBuilder's, in the core's fog. He starts at the staff exit; the couple's car (CarRig) follows the core's
+## ride each frame, and he rides in its back seat once the core seats him.
 
 ## The road is over. `ending` is how it went; Journey carries it into the flat.
 signal finished(ending: StringName)
@@ -13,6 +14,9 @@ signal finished(ending: StringName)
 var director: RoadDirector
 var builder: RoadBuilder
 var look: Look
+var car: CarRig
+var lorry: Lorry
+var audio: RoadAudio
 var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
@@ -29,18 +33,25 @@ func _ready() -> void:
 	add_child(builder)
 	player.global_position = RoadLayout.EXIT
 	player.set_look(RoadBuilder.yaw_along(RoadLayout.closest_s(RoadLayout.EXIT)))
-	var stage := RoadStage.new()
-	stage.position = RoadLayout.EXIT
-	director = RoadDirector.new(stage, Main.SEED)
+	car = CarRig.new()
+	car.name = "Car"
+	add_child(car)
+	lorry = Lorry.new()
+	lorry.name = "Lorry"
+	add_child(lorry)
+	audio = RoadAudio.new()
+	audio.name = "Audio"
+	add_child(audio)
+	director = RoadDirector.new(RoadGameStage.new(player, car), Main.SEED)
 	EventBus.choices_requested.connect(hud.show_choices)
 	EventBus.choices_closed.connect(hud.close_choices)
 	EventBus.road_cue.connect(_on_cue)
 	EventBus.road_ended.connect(finish)
 	# `-- --mission=N` / `?mission=N`: start at mission N (1 is the lift, and past the last is the last), as if every
-	# earlier one was kept.
+	# earlier one was kept. Without it, mission 1: the car and his seat are then where the road starts them, even on
+	# the start card, before the first mission begins.
 	var mission := Main.flag_value("mission")
-	if mission.is_valid_int():
-		director.start_at(clampi(int(mission) - 1, 0, director.missions.size() - 1))
+	director.start_at(clampi(int(mission) - 1, 0, director.missions.size() - 1) if mission.is_valid_int() else 0)
 	pause = PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)
@@ -86,6 +97,11 @@ func _on_cue(cue: StringName) -> void:
 			hud.show_card("")
 		&"card_off":
 			hud.hide_card(1.0)
+		&"seated":
+			car.swing_door()
+		&"lorry_passes":
+			lorry.pass_by()
+			EventBus.sound_requested.emit(&"lorry_pass", player.camera.global_position, 0.0)  # its pass is in the file
 
 
 func _physics_process(delta: float) -> void:
@@ -97,7 +113,27 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	builder.set_fog(director.fog)
+	_ride()
 	pause.guard(delta, _playing(), OS.has_feature("web"))
+
+
+## The car, his seat and the ride's loops follow the core. The car stands out of sight up the road, hidden and not
+## solid, until it comes for him. The engine's pitch follows the car's speed; outside, it fades with distance.
+func _ride() -> void:
+	var shown := director.seated or director.car_speed > 0.0 or director.car_s > LiftMission.CAR_FROM
+	car.visible = shown
+	car.process_mode = Node.PROCESS_MODE_INHERIT if shown else Node.PROCESS_MODE_DISABLED
+	car.place(director.car_s, director.lane)
+	if director.seated != player.is_seated():
+		if director.seated:
+			player.sit(car.seat_rear_left)
+		else:  # beside his door, facing the way the car faces
+			player.stand(car.global_transform.translated_local(Vector3(1.5, 0.0, -0.5)).rotated_local(Vector3.UP, PI))
+		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
+	var inside := player.is_seated()
+	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
+	audio.set_loop(&"engine_loop", shown, -12.0 + away, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
+	audio.set_loop(&"insects_loop", true, -12.0 if inside else -6.0)  # the windows are up
 
 
 func _notification(what: int) -> void:

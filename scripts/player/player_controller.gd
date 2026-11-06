@@ -1,6 +1,7 @@
 class_name PlayerController
 extends CharacterBody3D
-## First-person movement: walk, sprint, crouch, mouse look, phone light, footsteps.
+## First-person movement: walk, sprint, crouch, mouse look, phone light, footsteps. Seated (sit), he rides with the
+## seat: no collision, no movement, only the look.
 
 const WALK_SPEED := 2.2
 const SPRINT_SPEED := 3.8
@@ -11,6 +12,7 @@ const STAND_HEIGHT := 1.75
 const CROUCH_HEIGHT := 1.0
 const EYE_DROP := 0.13  # eyes sit this far below the top of the capsule
 const STEP_LENGTH := 0.65
+const SEAT_EYE := 0.64  # seated: his eyes this far above the seat's H-point
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -28,6 +30,7 @@ var pitch := 0.0
 var _height := STAND_HEIGHT
 var _stride := 0.0
 var _bob := 0.0
+var _stood_in: Node  # where he stood before he sat; null while he stands
 
 
 func _ready() -> void:
@@ -70,7 +73,40 @@ func is_phone_light_on() -> bool:
 	return phone_light.visible
 
 
+## Sits him in `seat` (its H-point), looking ahead along its +Z, the way the car models face, and he rides with it.
+## The look still turns, its yaw now relative to the seat.
+func sit(seat: Node3D) -> void:
+	if _stood_in == null:
+		_stood_in = get_parent()
+	reparent(seat, false)
+	position = Vector3.ZERO
+	velocity = Vector3.ZERO
+	shape.disabled = true
+	crouching = false
+	_bob = 0.0
+	camera.position.y = 0.0
+	head.position.y = SEAT_EYE
+	set_look(PI)
+
+
+## Stands him up at `at`'s origin, back where he stood before he sat, facing at's -Z.
+func stand(at: Transform3D) -> void:
+	if _stood_in != null:
+		reparent(_stood_in, false)
+		_stood_in = null
+	global_position = at.origin
+	shape.disabled = false
+	_apply_height(STAND_HEIGHT)
+	set_look(at.basis.get_euler().y, pitch)
+
+
+func is_seated() -> bool:
+	return _stood_in != null
+
+
 func _physics_process(delta: float) -> void:
+	if is_seated():
+		return
 	var move := scripted_move if use_scripted_move else Vector2.ZERO
 	var wants_crouch := false
 	var wants_sprint := false
