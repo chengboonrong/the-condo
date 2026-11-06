@@ -24,7 +24,7 @@ const SHOTS := [
 	["overtake", 1, 0.0, 0.0, 0.16, -0.03, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 8.0, "lane": 0.0, "slow_gap": 8.0}],  # pulling out, level with its tail, in the headlights
 	["lay_by", 1, 0.0, 0.0, 0.45, -0.03, 0.0, false, {"seated": true, "car_s": 634.0, "car_speed": 9.0, "lane": 0.9, "slow_gap": 12.0, "pull_in": {"car_s": 647.0, "lane": 0.9}}],  # it has pulled in, dark: they edge by (the keeper's, in switchback 1)
 	["couple", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # Hafiz and Mei from his seat
-	["mei_turns", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}, &"mei"],  # last: she stays turned
+	["mei_turns", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}, &"mei"],  # Mei turns to him
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -99,6 +99,9 @@ func _initialize() -> void:
 			await process_frame
 		var img := root.get_texture().get_image()
 		img.save_png("%s/%s.png" % [out, s[0]])
+		if s.size() > 9:  # the line ends, and they face the road again before the next shot
+			road.couple.turn_to(s[9], 0.0)
+			await create_timer(1.0).timeout
 		img.convert(Image.FORMAT_RGB8)
 		img.resize(CELL.x, CELL.y)
 		var at := Vector2i((i % COLUMNS) * cell_w, (i / COLUMNS) * CELL.y)

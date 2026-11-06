@@ -13,6 +13,7 @@ const NONE := -2  # answer(): the choice is still open, or was never asked
 const ACCEL := 2.5  # m/s², the car speeding up, slowing down and braking for a stop
 const LANE_SPEED := 1.5  # m/s across, changing lanes
 const CENTRE := 0.8  # rad: a look must come back this close to forward before it can break again
+const LINE_GAP := 0.3  # seconds between one line ending and the next showing
 
 var stage: RoadStage
 var rng := RandomNumberGenerator.new()
@@ -224,7 +225,7 @@ func _speak(delta: float) -> void:
 		EventBus.line_requested.emit(line[0], line[1])
 		if line[2] != &"":
 			EventBus.road_line.emit(line[2], line[1])
-		_line_left = float(line[1]) + 0.3
+		_line_left = float(line[1]) + LINE_GAP
 
 
 ## Missions never listen to EventBus themselves: the current one hears what he uses from here.
