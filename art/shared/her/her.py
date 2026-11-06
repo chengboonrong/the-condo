@@ -315,7 +315,8 @@ def front_uv(obj: bpy.types.Object, head: Matrix = Matrix()) -> None:
 
 def head(name: str, tris: int, pose: Matrix = Matrix(), colour: tuple | None = None) -> bpy.types.Object:
     """Her skin, about tris triangles, posed into model space by pose. Material 0 is "skin": the painted texture, or
-    with colour (linear RGBA) the plain skin, that colour per vertex."""
+    with colour the plain skin, that colour per vertex, as the caller gives it (the fourth passenger's build passes
+    display sRGB on purpose)."""
     bm = new_bmesh()
     grid(bm, rows(), 0, (lambda p: colour) if colour else None)
     obj = to_object(name, bm, [plain_skin_material() if colour else skin_material()])

@@ -302,7 +302,7 @@ the fog, places the car, seats him and drives the loops.
 | `Mirror` (on the car) | `scripts/road/mirror.gd` | The rear-view mirror and the fourth passenger. A 320×112 picture, 42° across (keeping the width), drawn only while the mirror is on. It is 42° across rather than the plan's 30° vertical so that his own seat stays out of it. Her own fill light lights layer 11 alone. Its camera uses the player camera's shaders: its environment keeps the colour adjustment switched on but neutral. |
 | `Couple` (on the car) | `scripts/road/couple.gd` | Hafiz and Mei in the front seats, turning when they speak; Hafiz walks off and back, and Mei walks beside him. |
 | `Lorry` | `scripts/road/lorry.gd` | Passes in Mission 1; in the endings it comes down the walkers' lane and pulls up, yielding to anyone in its way. |
-| `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`. |
+| `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`, 1 m in from the lane's centre towards the line so that it shows past Mei's head. |
 | `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, and the six loops. |
 | `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, flying, catching someone, or coming for the camera. Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Her sounds are wet, and none is a sting. |
 | `Endings` | `scripts/road/endings.gd` | The fruit stall, its bulb, the phones, Hafiz's walk and each ending's moments. |

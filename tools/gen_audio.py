@@ -161,7 +161,7 @@ HALF_FIR = [h / sum(HALF_FIR) for h in HALF_FIR]
 
 def halve(x, loop=False):
     """Halves the sample rate (low-pass, then every other sample). A loop is filtered round its join so it stays
-    seamless. Everything in the road that has nothing above 8 kHz is saved this way: QOA costs bytes per second."""
+    seamless. The caller halves a road sound that has nothing above 8 kHz (save_db's half): QOA costs bytes per second."""
     n, half = len(x), HALF_TAPS // 2
     if loop:
         return [sum(h * x[(i + m - half) % n] for m, h in enumerate(HALF_FIR)) for i in range(0, n, 2)]

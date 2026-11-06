@@ -10,7 +10,7 @@ extends RoadMission
 ## after "Four.": Mei counts heads for herself), empty.
 
 const CRUISE_SPEED := 9.0
-const START_S := 900.0  # where set_up_skipped puts the car: after the slow car, which ends anywhere from s 680 to 1650
+const START_S := 900.0  # where set_up_skipped puts the car: after the slow car, which ends anywhere from s 680 to 1420
 const BRAKE_SPEED := 3.0  # Hafiz brakes when Mei sees the seat
 const RULE := &"turned_round"
 const OBJECTIVE := "Don't turn round. Don't count her."

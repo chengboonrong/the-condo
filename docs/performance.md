@@ -239,7 +239,7 @@ did not cause a hitch over 25 ms in the final runs.
 Measured 2026-11-06 on the same machine (Apple M1 Max, 64 GB, macOS 27.0, Godot 4.7.2, Compatibility renderer), desktop
 only: the debug build from the project, `godot --path . -- --perf`, 1600×900, 3D scale 0.50, vsync off. **The web runs
 (WebKit and Chromium, the perf route and the plain smoke) have not been done yet, so no web figures are recorded
-here.**
+here.** Three early headless WebKit runs were made on earlier code; they are not recorded as results.
 
 ### How it was measured
 

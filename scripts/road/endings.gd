@@ -14,7 +14,7 @@ extends Node3D
 ## Once the walk is over (walk_over) Mei stands where she stopped. The stall stands wherever the core puts the light
 ## (RoadDirector.light_s), so a skip to the walk finds it there. Its lights come on and go out by their energy, but
 ## some are shown late: the bulb and the ring light with the stall, once the light is placed, and Hafiz's torch with
-## him. Neither compiles a shader mid-game: the start card's warm-up (RoadMain._compile_shaders) has drawn everything
+## him. None compiles a shader mid-game: the start card's warm-up (RoadMain._compile_shaders) has drawn everything
 ## under each kind of light already.
 
 const BULB := Vector3(0.12, 1.8, -0.7)  # the bulb's centre in the stall's own space (the model's "bulb" empty)
