@@ -8,6 +8,7 @@ const COUNT := [
 	"Hafiz: \"Four people in this small car, also nobody talk.\"",
 ]
 const THREE := "Mei: \"Three? Then who's sitting—\""
+const COUNTING := "Mei: \"Four meh? Wait, I count. One, two...\""
 const OBJECTIVE := "Don't turn round. Don't count her."
 
 var stage: RoadStage
@@ -110,6 +111,7 @@ func test_keeping_breaks_nothing() -> bool:
 	var asking := captions.find(COUNT[0])
 	check(asking > recall and captions.find(COUNT[1]) == asking + 1, "Mei asks how many, and Hafiz counts four")
 	check(captions.find(THREE) > asking, "then Mei: three?")
+	check(not captions.has(COUNTING), "with no counting first")
 	eq(asked, [&"count"], "asked once")
 	eq(cues, [&"mirror_on", &"brake", &"fourth_gone", &"mirror_off"], "the cues in order")
 	eq(d.score(), 0, "nothing broken")
@@ -154,6 +156,7 @@ func test_why_asks_again_and_silence_keeps() -> bool:
 	eq(asked, [&"count", &"count_again"], "asked again")
 	check(d.progress.any(func(p: Dictionary) -> bool: return p["beat"] == &"asked_again"), "the asked_again beat")
 	eq(d.answer(&"count_again"), -1, "he says nothing")
+	check(not captions.has(COUNTING), "so Mei doesn't count")
 	eq(d.score(), 0, "which keeps the rule")
 	eq(cues.slice(-2), [&"fourth_gone", &"mirror_off"], "and the mission ends as kept")
 	_teardown()
@@ -165,6 +168,9 @@ func test_four_counts_her() -> bool:
 	_finish()
 	eq(_rules(), [&"counted_her"], "\"Four.\" counts her")
 	eq(asked, [&"count"], "and isn't asked again")
+	var counting := captions.find(COUNTING)
+	check(counting > 0 and captions.find(THREE) == counting + 1, "Mei counts heads, then: three?")
+	check(d.progress.any(func(p: Dictionary) -> bool: return p["beat"] == &"counting"), "the counting beat")
 	check(not d.progress.any(func(p: Dictionary) -> bool: return p["beat"] == &"asked_again"), "no asked_again")
 	eq(cues.slice(-3), [&"brake", &"fourth_gone", &"mirror_off"], "the seat is still empty after")
 	_teardown()

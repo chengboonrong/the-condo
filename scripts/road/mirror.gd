@@ -3,16 +3,18 @@ extends Node3D
 ## The hatchback's rear-view mirror, on its mirror_mount (local +Z towards the back seat), and the fourth passenger
 ## that only it shows. Its own camera looks back at the rear seats into a small SubViewport, drawn on the glass and
 ## flipped left to right as a mirror is. She sits in the rear right seat on render layer 11, which the player's camera
-## leaves out; her own short fill light lights layer 11 alone. The viewport renders only while the mirror is on, from
-## mirror_on to mirror_off (Mission 3).
+## leaves out; her own fill light lights layer 11 alone. The viewport renders only while the mirror is on, from
+## mirror_on to mirror_off (Mission 3). It shows her side of the back seat only, not his: no reflection of him to miss.
 
 const SIZE := Vector2i(320, 112)
-const FOV := 30.0
+const FOV := 42.0  # degrees across (KEEP_WIDTH): her seat and her door, and his seat stays out of it
 const LAYER := 1 << 10  # render layer 11: the mirror only
 const GLASS := Vector2(0.24, 0.064)  # the model's mirror_glass, 2 mm behind the mount
 const EYE := Vector3(0.0, 0.0, 0.01)  # the camera, just in front of the glass, so the glass is behind it
 const AIM := Vector3(0.08, 0.55, 0.1)  # in her seat's space: what the camera looks at, her bowed head
-const FILL := Vector3(0.1, 0.9, 0.45)  # in her seat's space: her fill light, above and in front of her head
+## In her seat's space: her fill light, between the front seats and towards the mirror. Far enough that it falls
+## evenly across her: her crown, the nearest of her to it, no longer glows.
+const FILL := Vector3(0.3, 0.75, 0.95)
 ## In her seat's space: where her wet hair and back lay against the backrest (its face is 0.13 m behind the H-point
 ## and leans back 22 degrees). The mirror can't see down to the cushion.
 const WET := Vector3(0.0, 0.42, -0.3)
@@ -22,11 +24,12 @@ var viewport: SubViewport
 var camera: Camera3D
 var fourth: Node3D
 var fill: OmniLight3D
+var wet: MeshInstance3D  # the wet patch she leaves on her backrest
 
 var _seat: Node3D
+var _world: Environment  # the road's, for its fog
 var _aim: Transform3D  # the camera, in the mirror's space
 var _glass: MeshInstance3D
-var _wet: MeshInstance3D
 
 
 func _init(seat: Node3D) -> void:
@@ -37,8 +40,10 @@ func _ready() -> void:
 	viewport = SubViewport.new()
 	viewport.size = SIZE
 	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	viewport.positional_shadow_atlas_size = 0  # no shadow maps drawn twice: none show at 320x112
 	add_child(viewport)
 	camera = Camera3D.new()
+	camera.keep_aspect = Camera3D.KEEP_WIDTH
 	camera.fov = FOV
 	camera.near = 0.02
 	camera.far = 60.0
@@ -69,9 +74,9 @@ func _ready() -> void:
 	fill = OmniLight3D.new()
 	fill.light_color = Color(0.75, 0.8, 0.9)  # the fog's grey through the glass
 	fill.light_energy = 3.0
-	fill.omni_range = 1.2
+	fill.omni_range = 2.2
 	fill.light_cull_mask = LAYER
-	fill.light_specular = 0.3
+	fill.light_specular = 0.05  # low: no hotspot on her crown, only streaks down her wet hair
 	fill.position = FILL
 	fill.visible = false
 	_seat.add_child(fill)
@@ -81,20 +86,35 @@ func _ready() -> void:
 	patch.height = 0.004
 	patch.radial_segments = 14
 	patch.rings = 1
-	var wet := StandardMaterial3D.new()
-	wet.albedo_color = Color(0.02, 0.022, 0.026)
-	wet.roughness = 0.22  # a broad sheen from her fill light: dark cloth alone reads as nothing in the mirror
-	_wet = _mesh(patch, wet)
-	_wet.layers = LAYER
-	_wet.position = WET
-	_wet.rotation.x = deg_to_rad(68.0)  # flat on the backrest
-	_wet.scale = Vector3(1.0, 1.0, 1.6)  # longer down the backrest, as it ran
-	_wet.visible = false
-	_seat.add_child(_wet)
+	var soaked := StandardMaterial3D.new()
+	soaked.albedo_color = Color(0.02, 0.022, 0.026)
+	soaked.roughness = 0.22  # a broad sheen from her fill light: dark cloth alone reads as nothing in the mirror
+	wet = _mesh(patch, soaked)
+	wet.layers = LAYER
+	wet.position = WET
+	wet.rotation.x = deg_to_rad(68.0)  # flat on the backrest
+	wet.scale = Vector3(1.0, 1.0, 1.6)  # longer down the backrest, as it ran
+	wet.visible = false
+	_seat.add_child(wet)
+	set_process(false)  # it follows the car only while on
 
 
 func _process(_delta: float) -> void:
 	_follow()
+	if _world != null:
+		camera.environment.fog_density = _world.fog_density
+
+
+## The road's environment, for the mirror's own copy: the same fog and ambient light, but none of its grade (exposure,
+## tonemap, glow, colour adjustment). The player's camera grades the glass with everything else, so the picture is
+## graded once, and the Brightness setting scales it once.
+func use_environment(world: Environment) -> void:
+	_world = world
+	camera.environment = world.duplicate()
+	camera.environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	camera.environment.tonemap_exposure = 1.0
+	camera.environment.glow_enabled = false
+	camera.environment.adjustment_enabled = false
 
 
 ## On: the viewport renders every frame, the glass shows it, and she sits in it. Off: none of them.
@@ -103,7 +123,7 @@ func set_on(on: bool) -> void:
 	_glass.visible = on
 	fourth.visible = on
 	fill.visible = on
-	_wet.visible = false
+	wet.visible = false
 	set_process(on)
 	if on:
 		_follow()
@@ -118,12 +138,12 @@ func glimpse() -> void:
 ## She is gone: the mirror shows her seat empty, and wet.
 func empty() -> void:
 	fourth.visible = false
-	_wet.visible = true
+	wet.visible = true
 
 
 ## Every material it draws with, hers and the wet seat's included, for the warm-up.
 func materials() -> Array[Material]:
-	var out: Array[Material] = [_glass.material_override, _wet.material_override]
+	var out: Array[Material] = [_glass.material_override, wet.material_override]
 	for m: MeshInstance3D in fourth.find_children("*", "MeshInstance3D", true, false):
 		for i in m.mesh.get_surface_count():
 			var mat := m.get_active_material(i)

@@ -6,7 +6,8 @@ extends RoadMission
 ## counts her, "Three." or saying nothing keeps it, and "Why you ask?" has her ask once more. Whatever he says, Mei
 ## counts three for herself, Hafiz brakes, and the seat in the mirror is empty, and wet.
 ##
-## Beats: quiet (the mirror on, their talk, the rule), asked, asked_again (only after "Why you ask?"), empty.
+## Beats: quiet (the mirror on, their talk, the rule), asked, asked_again (only after "Why you ask?"), counting (only
+## after "Four.": Mei counts heads for herself), empty.
 
 const CRUISE_SPEED := 9.0
 const START_S := 900.0  # where set_up_skipped puts the car: after the slow car, which ends anywhere from s 680 to 1650
@@ -28,6 +29,7 @@ const COUNT := [
 const ASK_AT := 30.0  # once both have spoken
 const AGAIN := "Mei: \"Just answer lah. How many?\""
 const THREE := "Mei: \"Three? Then who's sitting—\""
+const COUNTING_SECONDS := 3.0  # Mei counts heads after "Four.", before THREE
 const BRAKE_AT := 2.5  # seconds into the empty beat, as Mei breaks off
 const EMPTY_SECONDS := 7.0  # the mirror shows the empty seat, then goes off (leave)
 
@@ -87,9 +89,13 @@ func tick(_delta: float) -> bool:
 				d.ask(&"count_again", PackedStringArray(["\"Three.\"", "\"Four.\""]), 5.0, PackedInt32Array([0, -1]), &"counted_her")
 				go(&"asked_again")
 			elif answer != RoadDirector.NONE:
-				_empty()
+				_answered(answer)
 		&"asked_again":
-			if d.answer(&"count_again") != RoadDirector.NONE:
+			var answer := d.answer(&"count_again")
+			if answer != RoadDirector.NONE:
+				_answered(answer)
+		&"counting":
+			if beat_t >= COUNTING_SECONDS:
 				_empty()
 		&"empty":
 			if not _braked and beat_t >= BRAKE_AT:
@@ -110,6 +116,15 @@ func leave() -> void:
 		d.stop_look()
 	if WorldState.objective == OBJECTIVE:
 		WorldState.set_objective("")
+
+
+## "Four." (answer 1 in both choices) has Mei count heads first; anything else goes straight to the empty seat.
+func _answered(answer: int) -> void:
+	if answer == 1:
+		d.say("Mei: \"Four meh? Wait, I count. One, two...\"", COUNTING_SECONDS, &"mei")
+		go(&"counting")
+	else:
+		_empty()
 
 
 ## Mei counts for herself.

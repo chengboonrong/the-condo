@@ -42,7 +42,9 @@ func test_only_the_mirror_sees_her() -> bool:
 	tree.root.add_child(player)
 	eq(player.camera.cull_mask & MIRROR_ONLY, 0, "the player's camera leaves layer 11 out")
 	check(mirror.camera.cull_mask & MIRROR_ONLY != 0, "the mirror's camera draws it")
-	eq([mirror.viewport.size, mirror.camera.fov], [Vector2i(320, 112), 30.0], "a 320x112 picture at fov 30")
+	eq([mirror.viewport.size, mirror.camera.fov, mirror.camera.keep_aspect], [Vector2i(320, 112), 42.0, Camera3D.KEEP_WIDTH],
+		"a 320x112 picture, 42 degrees across")
+	eq(mirror.viewport.positional_shadow_atlas_size, 0, "drawing no shadow maps of its own")
 	eq(mirror.fill.light_cull_mask, MIRROR_ONLY, "her own fill light lights nothing the player's camera sees")
 	var listed := mirror.materials()
 	for m: MeshInstance3D in mirror.fourth.find_children("*", "MeshInstance3D", true, false):
@@ -52,6 +54,8 @@ func test_only_the_mirror_sees_her() -> bool:
 	await tree.process_frame
 	var face := mirror.fourth.global_position + car.global_basis.y * 0.55
 	check(mirror.camera.is_position_in_frustum(face), "the mirror looks back at her")
+	var his := car.seat_rear_left.global_position + car.global_basis.y * 0.55
+	check(not mirror.camera.is_position_in_frustum(his), "and not at his own seat: no reflection of him to miss")
 	mirror.glimpse()
 	check(hers.all(func(v: VisualInstance3D) -> bool: return v.layers & 1 != 0), "turning to her, the player's camera sees her too")
 	for i in 12:  # 0.2 s
@@ -71,18 +75,32 @@ func test_the_mirror_renders_only_in_mission_3() -> bool:
 	var mirror := road.car.mirror
 	var at := d.missions.find_custom(func(m: RoadMission) -> bool: return m is CountMission)
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "at the road's start it doesn't render")
+	check(not mirror.is_processing(), "nor follow the car")
+	var env := mirror.camera.environment
+	eq([env.tonemap_mode, env.tonemap_exposure, env.glow_enabled, env.adjustment_enabled, env.fog_enabled],
+		[Environment.TONE_MAPPER_LINEAR, 1.0, false, false, true], "its picture keeps the fog, ungraded: the player's camera grades it")
 	d.start_at(at)
 	await tree.process_frame
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "set up for mission 3, not yet begun: still not")
 	d.step(0.1)
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_ALWAYS, "mission 3 begins: it renders")
 	check(mirror.fourth.visible, "with her in it")
+	d.fog = 1.0
+	await tree.process_frame
+	eq(env.fog_density, road.builder.environment.fog_density, "in the road's fog as it thickens")
+	var m: CountMission = d.missions[at]
+	var gone := false
 	for i in 1200:
 		if d.mission_index != at:
 			break
 		d.step(0.1)
 		if d.pending == &"count":
 			EventBus.choice_made.emit(&"count", 0)
+		if not gone and m.beat == &"empty" and m.beat_t >= CountMission.BRAKE_AT:
+			gone = true
+			eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_ALWAYS, "(Hafiz brakes, the mirror still on)")
+			check(not mirror.fourth.visible and mirror.wet.visible, "the seat in the mirror is empty, and wet")
+	check(gone, "(the seat was seen empty)")
 	check(d.mission_index != at, "(mission 3 is over)")
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "and after mirror_off it doesn't")
 	check(not mirror.fourth.visible, "and she is gone")

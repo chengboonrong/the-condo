@@ -39,6 +39,7 @@ func _ready() -> void:
 	car = CarRig.new()
 	car.name = "Car"
 	add_child(car)
+	car.mirror.use_environment(builder.environment)
 	couple = Couple.new(car)
 	car.add_child(couple)
 	lorry = Lorry.new()
