@@ -363,6 +363,9 @@ func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
 	story.road = &"caught"
 	_listen()
+	var inspected: Array[String] = []
+	var on_inspect := func(_title: String, text: String) -> void: inspected.append(text)
+	EventBus.inspect_requested.connect(on_inspect)
 	_wait(5.0)
 	EventBus.object_interacted.emit(&"bed")
 	check(_until(func() -> bool: return story.beat == &"ringing" and rt.scheduler.is_running(&"phone_ring"), 40.0), "the intercom rings")
@@ -375,6 +378,12 @@ func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
 	EventBus.object_interacted.emit(&"intercom")  # and again, while she is still talking
 	check(not sounds.any(func(s: Array) -> bool: return s[0] == &"intercom_road"), "no wind and engine over her voice")
 	eq(lines.count(mei), 0, "no last-call line while she talks")
+	check(_until(func() -> bool: return story._lines.is_empty() and story._line_left > 0.0, 30.0), "her last line is on screen, the queue empty")
+	inspected.clear()
+	EventBus.object_interacted.emit(&"intercom")  # pressed while her last line is still showing
+	check(not sounds.any(func(s: Array) -> bool: return s[0] == &"intercom_road"), "nor over her last line")
+	eq(lines.count(mei), 0, "no last-call line over her last line")
+	check(inspected.size() == 1 and inspected[0].begins_with("LAST CALL  23:47"), "an early press still shows the inspect text")
 	_wait(20.0)  # her call is over
 	check(story._lines.is_empty() and story._line_left <= 0.0, "her call is over")
 	EventBus.object_interacted.emit(&"intercom")
@@ -382,6 +391,7 @@ func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
 	_wait(10.0)
 	eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), 1, "now the last call plays, once")
 	eq(lines.count(mei), 1, "with Mei's line, once")
+	EventBus.inspect_requested.disconnect(on_inspect)
 	return _done()
 
 

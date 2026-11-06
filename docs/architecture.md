@@ -149,8 +149,8 @@ the flat's: headless, deterministic, and talking to the presentation only throug
   comes from inside the scene it replaces.
 * The flat sees `road_ending != &""`: it shows a black card, "11:47 PM", while it builds, skips its start card and lets
   the card go over 1.5 s. The clock is 11:47 PM however the road ended. The flat runs the same beats after every road
-  ending. `StoryDirector` reads `road_ending` for the quiet opening, the knocks, the last call and the ending cards (see
-  [Story](#story)); separate flats for each ending (part 2) are not built.
+  ending. `StoryDirector` reads `road_ending` for the quiet opening, the knocks and the last call, and the HUD for the ending
+  cards (see [Story](#story)); separate flats for each ending (part 2) are not built.
 * A restart (the pause menu's Restart, or a click on the flat's ending card) calls `Journey.restart()`, which clears
   `road_ending` and loads the road again. The game never restarts into the flat.
 * `-- --flat` / `?flat`: the road hands straight over with `Journey.arrive(&"")`, so the flat shows its own start card
