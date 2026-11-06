@@ -60,6 +60,8 @@ var headlights: Array[SpotLight3D] = []
 var _model: Node3D
 var _footprint: AABB  # the body and the shut door, in the car's own space
 var _colliders: Array[CollisionShape3D] = []
+var _still := false  # it stood still at the last set_solid
+var _on_him := false  # it stopped where he stood, and he has not yet stepped clear of it
 
 
 ## Where a vehicle stands at s, `across` metres left of the centreline, nose along the road (or up it), pitched with
@@ -105,12 +107,21 @@ func place(s: float, across: float) -> void:
 	global_transform = on_road(s, across)
 
 
-## Solid only while it stands still and `him` (his feet) is clear of it: moving, or stopped where he stands, it must not
-## shove him or shut him in. Its door can then only be used once he has stepped out of it.
-func set_solid(still: bool, him: Vector3) -> void:
+## Solid while he sits in it (his own collision is off then) and while it stands still, but never while it moves, so
+## it can't shove him. If it stops where he stands (`him`, his feet), it stays not solid until he has stepped clear,
+## so it can't shut him in; walking up to a car that already stands there never makes it not solid.
+func set_solid(still: bool, seated: bool, him: Vector3) -> void:
 	var at := global_transform.affine_inverse() * him
 	at.y = _footprint.get_center().y
-	var on := still and not _footprint.grow(CLEAR).has_point(at)
+	var over := _footprint.grow(CLEAR).has_point(at)
+	if seated:
+		_on_him = false
+	elif still and not _still:  # it has just stopped
+		_on_him = over
+	elif not over:
+		_on_him = false
+	_still = still
+	var on := seated or (still and not _on_him)
 	for c in _colliders:
 		c.disabled = not on
 

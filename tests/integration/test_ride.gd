@@ -44,9 +44,9 @@ func _until(cond: Callable, seconds: float) -> bool:
 	return cond.call()
 
 
-## Turns him to look at `point`.
+## Turns him to look at `point`. His look is in his parent's frame: the seat's, while he sits.
 func _face(p: PlayerController, point: Vector3) -> void:
-	var to := point - p.camera.global_position
+	var to: Vector3 = (p.get_parent() as Node3D).global_basis.inverse() * (point - p.camera.global_position)
 	p.set_look(atan2(-to.x, -to.z), atan2(to.y, Vector2(to.x, to.z).length()))
 
 
@@ -171,6 +171,33 @@ func test_the_car_does_not_stop_on_him() -> bool:
 	return true
 
 
+## The car standing at the stop is solid to him: he walks up to its door but not into it, and "Get in" holds while he
+## stands against it.
+func test_the_stopped_car_is_solid_to_him() -> bool:
+	var road: RoadMain = await _road()
+	var p := road.player
+	p.global_position = RoadLayout.point(RoadLayout.BUS_STOP_S, 4.0) + Vector3.UP * 0.05
+	var came := await _until(func() -> bool: return WorldState.prompts.get(&"car_door", "") == "Get in", 120.0)
+	check(came, "the couple stop for him")
+	var door := road.car.door_rear_left
+	p.use_scripted_move = true
+	p.scripted_move = Vector2(0.0, 1.0)
+	var closest := INF
+	var held := 0
+	for i in 120:  # 2 s of walking at its door
+		_face(p, door.global_transform * (door.get_child(-1) as CollisionShape3D).position)
+		await tree.physics_frame
+		closest = minf(closest, absf(road.car.to_local(p.global_position).x))
+		if i >= 90 and p.interaction.target == door:
+			held += 1
+	p.scripted_move = Vector2.ZERO
+	check(closest >= 0.78 + 0.3 - 0.01, "he stays outside its body (%.2f m from its centre line)" % closest)
+	eq(held, 30, "and its door stays the thing he looks at, while he stands against it")
+	eq(WorldState.prompts.get(&"car_door", ""), "Get in", "with its Get in")
+	_done(road)
+	return true
+
+
 func test_the_slice_plays_through() -> bool:
 	var road: RoadMain = await _road()
 	var p := road.player
@@ -196,6 +223,12 @@ func test_the_slice_plays_through() -> bool:
 	await tree.process_frame
 	eq([road.director.seated, p.is_seated()], [true, true], "seated in the back")
 	eq(door.object_id, &"car_door_inside", "the door is now the one beside him")
+	WorldState.set_prompt(&"car_door_inside", "Open the door")  # as a later mission prompts it
+	_face(p, door.global_transform * (door.get_child(-1) as CollisionShape3D).position)
+	await tree.physics_frame
+	await tree.physics_frame
+	eq(p.interaction.target, door, "seated, he can look at that door and use it")
+	WorldState.prompts.erase(&"car_door_inside")
 	for i in road.director.missions.size() + 1:
 		if road.director.ending != &"":
 			break
