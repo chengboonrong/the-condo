@@ -87,6 +87,20 @@ func test_surfaces_coloured_per_vertex_use_their_colours() -> bool:
 	return true
 
 
+func test_the_penanggals_neck_skin_keeps_its_bruising() -> bool:
+	# art/penanggal/build.py makes her skin material use the colour attribute; without that the exporter writes it white
+	var node := ApartmentBuilder.model(&"penanggal")
+	var m: MeshInstance3D = node.get_node("Penanggal")
+	var bruised := 0
+	for s in m.mesh.get_surface_count():
+		if m.mesh.surface_get_material(s).resource_name == "skin":
+			for c: Color in m.mesh.surface_get_arrays(s)[Mesh.ARRAY_COLOR]:
+				bruised += int(c.r < 0.9)
+	check(bruised > 0, "her skin's colours below the jaw are not all white (%d darker)" % bruised)
+	node.free()
+	return true
+
+
 func test_models_stand_where_they_collide() -> bool:
 	var main := await _main()
 	for name: StringName in FOOTPRINTS:
