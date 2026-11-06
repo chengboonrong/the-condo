@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="The Condo: 11:47 PM"
+config/name="11:47PM"
 config/description="First-person psychological horror prototype."
 run/main_scene="res://scenes/road.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")

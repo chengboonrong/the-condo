@@ -7,8 +7,7 @@ const SIZE := Vector2i(630, 500)
 const RED := Color(0.95, 0.4, 0.35)  # the HUD clock's red, as on the trailer's 11:47 PM card
 ## [text, font size, colour, top in pixels]
 const LINES := [
-	["THE CONDO", 76, Color(1, 1, 1), 18],
-	["11:47 PM", 44, RED, 98],
+	["11:47PM", 76, RED, 18],
 ]
 
 

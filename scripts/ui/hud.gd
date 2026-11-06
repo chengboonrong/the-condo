@@ -255,7 +255,7 @@ func _build_start(root: Control) -> void:
 	box.add_theme_constant_override("separation", 18)
 	_start.add_child(box)
 	var title := _label(box, 46, HORIZONTAL_ALIGNMENT_CENTER)
-	title.text = "THE CONDO: 11:47 PM"
+	title.text = "11:47PM"
 	var body := _label(box, 18, HORIZONTAL_ALIGNMENT_CENTER)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.text = "Headphones recommended. Contains blood and gore, flickering lights, sudden sounds and themes of isolation.\nReduced flashing and brightness: press Esc now or at any time."

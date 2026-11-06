@@ -1,4 +1,4 @@
-# The Condo: 11:47 PM
+# 11:47PM
 
 First-person psychological horror, made in Godot 4.7 for **GitHub Game Off 2026** (theme: **SHIFT**).
 

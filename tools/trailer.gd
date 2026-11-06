@@ -92,7 +92,7 @@ const SHOTS: Array[Dictionary] = [
 	{"name": "title", "at": 57.0, "len": 5.0, "act": 2, "pos": Vector3(5.3, 0, 5.6), "yaw": 0.0, "pitch": 0.28,
 		"lights_on": [], "lights_off": [], "variants": {}, "phone": false, "fov": 0.0, "clock": false, "black": true,
 		"walk": Vector2.ZERO, "creep": 0.0,
-		"cues": [[0.4, "card", "title", "THE CONDO: 11:47 PM", 4.6],
+		"cues": [[0.4, "card", "title", "11:47PM", 4.6],
 			[1.6, "card", "small", "Play free in your browser. GitHub Game Off 2026.", 4.6]]},
 ]
 

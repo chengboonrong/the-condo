@@ -32,7 +32,7 @@ on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, every ending (`en
 
 ## Title and tagline
 
-* **Title:** THE CONDO: 11:47 PM
+* **Title:** 11:47PM
 * **Short description or tagline:** The last bus has gone. The road down has rules.
 
 ## Description
@@ -51,7 +51,7 @@ on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, every ending (`en
 >
 > Then three knocks come from your bedroom.
 >
-> THE CONDO: 11:47 PM is a short first-person horror game: a night drive down a mountain in Malaysia, then an ordinary
+> 11:47PM is a short first-person horror game: a night drive down a mountain in Malaysia, then an ordinary
 > condo at night, with grilles on the windows, laundry drying by the window and the corridor light under the front door.
 > On the road you choose what to say and where to look. In the flat, small things move while you aren't looking. Notice
 > what moved. And the clock keeps going back to 11:47.

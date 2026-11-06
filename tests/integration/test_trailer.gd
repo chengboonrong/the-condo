@@ -27,7 +27,7 @@ func test_trailer_runs_55_to_65_seconds() -> bool:
 
 func test_trailer_cards_are_the_approved_words() -> bool:
 	eq(_cues("card").map(func(c: Array) -> String: return c[3]), ["11:47 PM", "Home from the night shift at the mamak.",
-		"You haven't made a sound.", "And it's always 11:47.", "THE CONDO: 11:47 PM",
+		"You haven't made a sound.", "And it's always 11:47.", "11:47PM",
 		"Play free in your browser. GitHub Game Off 2026."], "card texts")
 	return true
 

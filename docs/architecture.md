@@ -1,6 +1,6 @@
 # Architecture
 
-The Condo is split into a **deterministic simulation core** and a **presentation layer**.
+11:47PM is split into a **deterministic simulation core** and a **presentation layer**.
 The core decides *what happens*; the presentation layer decides *how it looks and sounds*.
 The core never touches cameras, meshes or audio players, so it runs headless at any speed,
 which is what makes seeded replays and simulated playthroughs possible.

@@ -14,7 +14,7 @@ light (the only light that casts shadows) is on in every other room. 40 s of pla
 
 ```sh
 tools/export.sh                                    # builds/ (needs GODOT=/path/to/Godot)
-"builds/…/The Condo- 11-47 PM.app/Contents/MacOS/The Condo- 11-47 PM" -- --perf   # after unzipping
+"builds/…/11-47PM.app/Contents/MacOS/11-47PM" -- --perf   # after unzipping
 node tools/web_smoke.mjs builds/web --perf         # Chromium and WebKit, visible windows
 node tools/web_smoke.mjs builds/web --perf --headless --webkit
 node tools/web_smoke.mjs builds/web --perf --headless --webkit --nofilter   # filter off; -- --perf --nofilter on the desktop
