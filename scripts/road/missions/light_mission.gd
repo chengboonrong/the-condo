@@ -58,6 +58,8 @@ func begin() -> void:
 	_asking = &""
 	_asked = 0
 	_decided = &""
+	d.say(RECALL, 6.0)  # seated, this is all that tells him the door is the way on now
+	WorldState.set_objective(OBJECTIVE)
 	if d.seated:
 		WorldState.set_prompt(DOOR, "Get out")
 		go(&"get_out")
@@ -112,8 +114,6 @@ func leave() -> void:
 
 
 func _walk() -> void:
-	d.say(RECALL, 6.0)
-	WorldState.set_objective(OBJECTIVE)
 	d.watch_look(&"looked_back", 1.9, 1.9, 0.25, 3, 2)
 	EventBus.road_cue.emit(&"her_behind")
 	go(&"walk")

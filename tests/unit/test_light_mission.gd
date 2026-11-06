@@ -159,6 +159,18 @@ func test_getting_out_and_keeping_every_rule() -> bool:
 	return true
 
 
+## Seated in the dead car, he is told where to go before he gets out: nothing else says the door is the way on now.
+func test_from_his_seat_he_is_told_to_walk_to_the_light() -> bool:
+	_setup()
+	d.step(0.1)
+	d.step(0.1)
+	eq(_mission().beat, &"get_out", "he has not got out yet")
+	eq(WorldState.objective, LightMission.OBJECTIVE, "the objective is up")
+	check(said_t.has(RECALL), "and Bang Din's rule comes back to him")
+	_teardown()
+	return true
+
+
 func test_skipped_to_he_stands_beside_the_car() -> bool:
 	_setup(false)
 	eq([d.seated, d.car_s, d.car_speed, d.light_s], [false, 2000.0, 0.0, 2150.0], "skipped to: standing, the car at 2000, the light at 2150")
