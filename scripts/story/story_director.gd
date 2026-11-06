@@ -75,6 +75,7 @@ var _bedroom_since := -1.0
 var _next_beacon := INF
 var _t0 := -1.0  # when the first tick came
 var _asking := false  # the "How did you get home?" objective is showing
+var _call_pending := false  # he pressed the intercom while someone was speaking: the last call waits
 
 
 func _init(event_scheduler: EventScheduler, room_transformer: RoomTransformer) -> void:
@@ -129,11 +130,14 @@ func hint_room() -> StringName:
 
 func tick(delta: float) -> void:
 	_speak(delta)
+	if _t0 < 0.0:
+		_t0 = now()
 	if beat == &"":
 		_go(&"home")
-		_t0 = now()
 		_asking = road != &""
 		WorldState.set_objective("How did you get home?" if _asking else "You're home from your shift at the mamak. " + HOME_OBJECTIVE)
+	if _call_pending and WorldState.player_room == &"entrance":
+		_play_last_call()  # he waited by the intercom: it comes once Rosnah has finished
 	if road != &"":
 		for i in OPENING_LINES.size():
 			if now() - _t0 >= float(OPENING_LINES[i][0]) and _once_ever("opening%d" % i):
@@ -279,7 +283,7 @@ func _knock(count: int) -> StringName:
 
 ## Her smell, once in the flat, after the road. Only ever while he is in the bedroom.
 func _smell() -> void:
-	if road != &"" and _once_ever("smell"):
+	if road != &"" and WorldState.player_room == &"bedroom" and _once_ever("smell"):
 		say(SMELL, 4.0, true)
 
 
@@ -292,8 +296,7 @@ func _reversal() -> void:
 func _wall_answers() -> void:
 	EventBus.sound_requested.emit(_knock(1), ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
 	say("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
-	if WorldState.player_room == &"bedroom":
-		_smell()  # he touched the wall before the 4 s were up: it follows the answer, never comes first
+	_smell()  # he touched the wall before the 4 s were up: it follows the answer, never comes first
 	WorldState.set_act(WorldState.Act.DISTURBANCE)
 	WorldState.set_objective("Something in the flat is wrong. Look around.")
 	_last_shift = now()
@@ -364,11 +367,11 @@ func _on_interacted(object_id: StringName) -> void:
 		var area: StringName = NOTICE[object_id][0]
 		if WorldState.get_variant(area) != &"default":
 			say(NOTICE[object_id][1], 4.0)
+			_reversal()  # he has seen that something moved
 			WorldState.set_variant(area, &"default", false)  # the player puts it back; not a shift
 			noticed += 1
 			if beat == &"disturbance" and signs() < SIGNS_NEEDED:
 				WorldState.set_objective("Things move when you aren't looking. Keep looking.")
-				_reversal()
 	match object_id:
 		&"sink":
 			if not WorldState.has_flag(&"washed"):
@@ -418,11 +421,19 @@ func _on_interacted(object_id: StringName) -> void:
 
 
 ## Once, after the road: the last call plays back, with the road's wind and engine and the one who is lost. Not over
-## another voice: a press while Rosnah (or any line) is still speaking shows the inspect text only, and a later press plays it.
+## another voice: a press while Rosnah (or any line) is still speaking shows the inspect text and leaves the call pending.
+## It then plays by itself once the lines are done, if he is still in the entrance; if he has gone, at his next press.
 func _last_call() -> void:
-	if LAST_CALL.has(road) and _lines.is_empty() and _line_left <= 0.0 and _once_ever("last_call"):
+	if LAST_CALL.has(road) and not _ever.has("last_call"):
+		_call_pending = true
+		_play_last_call()
+
+
+func _play_last_call() -> void:
+	if _lines.is_empty() and _line_left <= 0.0 and _once_ever("last_call"):
+		_call_pending = false
 		EventBus.sound_requested.emit(&"intercom_road", ApartmentLayout.ANCHORS[&"phone_intercom"]["pos"], 0.0)
-		say("[The speaker crackles. Wind, and an engine idling.]", 3.0, true)
+		say("[The speaker crackles. Wind, and an engine idling.]", 3.0)  # a sound's caption: follows the setting
 		say(LAST_CALL[road], 3.5, true)
 
 
@@ -475,5 +486,3 @@ func _on_variant_changed(area_id: StringName, variant: StringName) -> void:
 func _on_run_finished(run: Dictionary) -> void:
 	if run["id"] == &"shift" and run["state"] == EventScheduler.State.COMPLETED:
 		_last_shift = now()
-		if beat == &"disturbance":
-			_reversal()

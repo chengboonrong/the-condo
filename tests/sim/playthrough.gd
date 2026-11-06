@@ -48,6 +48,8 @@ var sound_at := -INF
 var events: Array[Dictionary] = []
 var decisions: Array[Dictionary] = []
 var violations: Array[String] = []
+var heard_last_call := false  # the intercom's last call went out (only after some roads of the road)
+var heard_look_back := false  # the look-back line was said
 var _next_turn := 8.0
 var _passive_next := PASSIVE_STEP
 
@@ -82,6 +84,8 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 		events.append({"t": snappedf(WorldState.time, 0.1), "id": r["id"], "room": r["room"], "result": RESULT_NAMES[r["state"]], "priority": r["priority"]}))
 	rt.director.decided.connect(func(d: Dictionary) -> void: decisions.append(d))
 	rt.start_story()
+	EventBus.sound_requested.connect(_on_sound)
+	EventBus.line_requested.connect(_on_line)
 
 	var max_eval := 0
 	while WorldState.ending == &"" and WorldState.time < LIMIT:
@@ -91,11 +95,14 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 		if WorldState.entity_room != &"" and WorldState.entity_room == WorldState.player_room and WorldState.entity_state != &"retreating":
 			violations.append("entity in the player's room at %.1fs" % WorldState.time)
 	OS.remove_logger(catch)
+	EventBus.sound_requested.disconnect(_on_sound)
+	EventBus.line_requested.disconnect(_on_line)
 	var result := {
 		"profile": profile, "seed": seed_value, "ending": WorldState.ending, "time": snappedf(WorldState.time, 0.1),
 		"events": events, "decisions": decisions, "progress": rt.story.progress, "signs": rt.story.signs(),
 		"clues": WorldState.clues.keys(), "errors": catch.errors, "warnings": catch.warnings,
 		"violations": violations, "max_eval_usec": max_eval, "behavior": rt.profiler.summary(),
+		"last_call": heard_last_call, "look_back": heard_look_back,
 	}
 	rt.free()
 	return result
@@ -185,6 +192,14 @@ func _use(id: StringName) -> void:
 
 func _exists(id: StringName) -> bool:
 	return ApartmentLayout.requires_met(objects[id][1], WorldState.variants)
+
+
+func _on_sound(id: StringName, _pos: Vector3, _db: float) -> void:
+	heard_last_call = heard_last_call or id == &"intercom_road"
+
+
+func _on_line(text: String, _seconds: float) -> void:
+	heard_look_back = heard_look_back or text == StoryDirector.REVERSAL
 
 
 func _on_run_started(run: Dictionary) -> void:

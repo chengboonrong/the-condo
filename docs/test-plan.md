@@ -58,12 +58,16 @@ today's flat). Each test sets the ending itself and puts it back.
 | `test_touching_the_wall_early_brings_the_smell_after_the_answer` | `tests/unit/test_story.gd` | touching the wall early: the smell follows the answer's caption, once |
 | `test_the_fail_safe_answer_brings_no_smell_to_someone_elsewhere` | `tests/unit/test_story.gd` | the wall answers by itself at 120 s, but there is no smell unless he is by the bedroom wall |
 | `test_opened_directly_the_knocks_are_knocks` | `tests/unit/test_story.gd` | no road: knuckle knocks, no thump, no smell line |
-| `test_the_look_back_line_plays_once` | `tests/unit/test_story.gd` | "On the road you weren't allowed to look back. Here, you can't look away." with the first "Keep looking", never twice |
-| `test_the_look_back_line_comes_with_the_first_shift_too` | `tests/unit/test_story.gd` | the line also comes with the first shift on its own (road `saved`), and never when the flat is opened directly |
+| `test_the_look_back_line_plays_once_when_he_notices_something_moved` | `tests/unit/test_story.gd` | a shift moves an object and says nothing; the first time he notices a moved object, "On the road you weren't allowed to look back. Here, you can't look away." follows the notice line, never twice |
+| `test_the_look_back_line_comes_with_the_first_notice_even_after_enough_signs` | `tests/unit/test_story.gd` | the first notice brings the line even when he already has enough signs (no "Keep looking" objective) |
+| `test_opened_directly_nothing_is_said_when_he_notices` | `tests/unit/test_story.gd` | no road: noticing a moved object says no look-back line and no new line at all |
 | `test_the_downstairs_knock_back_follows_the_road` | `tests/unit/test_story.gd` | the knock back at the mirror wall (the B-11-07 side) is a thump after a road and a knuckle knock without one, never both |
 | `test_ending_cards_follow_the_road` | `tests/unit/test_story.gd` | every road has its card text per flat ending (titles kept); no road keeps today's cards; caught adds "You never got home." or its notice |
-| `test_the_last_call_points_back_once` | `tests/unit/test_story.gd` | the intercom's last call plays the road's wind and engine once, with Mei's line (caught) or Hafiz's (saved) |
-| `test_the_last_call_waits_for_rosnah_to_finish` | `tests/unit/test_story.gd` | no wind or engine over Rosnah's voice or her last line; the last call plays once she is done |
+| `test_the_last_call_points_back_once` | `tests/unit/test_story.gd` | the intercom's last call plays the road's wind and engine once, with its crackle as a sound caption and Mei's line (caught) or Hafiz's (saved) as a story line |
+| `test_the_last_call_waits_for_rosnah_to_finish` | `tests/unit/test_story.gd` | no wind or engine over Rosnah's voice or her last line; a press then leaves the call pending, and it plays once by itself when her call is done and he is still in the entrance |
+| `test_the_last_call_stays_pending_when_he_leaves_the_entrance` | `tests/unit/test_story.gd` | he walks out before her call ends: nothing plays while he is away; his next press plays it once |
+| `test_a_road_without_a_last_call_never_leaves_one_pending` | `tests/unit/test_story.gd` | roads `alive` and none: pressing the intercom during and after her call never plays a last call or its crackle |
+| `test_the_quiet_starts_on_the_first_tick_whatever_came_first` | `tests/unit/test_story.gd` | road `caught`, F10 before the first tick: the quiet still ends 20 s after that tick |
 
 ## Builds
 
@@ -81,7 +85,7 @@ see [performance.md](performance.md).
 * The road's stills: `GODOT=<Godot 4.7.2> tools/road_stills.sh <dir>` renders 44 of them at 1920×1080 and a contact sheet.
   Look at each at full size against the four anti-goals (a ghost that looks fake, cheap jump scares, not Malaysian
   enough, boring missions).
-* The flat after the road: `GODOT=<Godot 4.7.2> $GODOT --path . --script res://tools/stills.gd -- --out=<dir> --road=caught`
+* The flat after the road: `"<Godot 4.7.2>" --path . --script res://tools/stills.gd -- --out=<dir> --road=caught`
   (needs a window; `alive` and `saved` too) shoots the stills with the red earth built. Look at `footprints.png`
   (from where he stands, towards the front door, phone light on) and `living.png`.
 * The start card's text and its wrap at the window sizes players use.

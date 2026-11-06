@@ -71,12 +71,19 @@ func _section(r: Dictionary) -> PackedStringArray:
 ## The flat as the road leaves it: the same three bots, each after every ending of the road, on the same seed.
 func _after_road(harness: GDScript, seed_value: int) -> PackedStringArray:
 	var out := PackedStringArray(["", "## After the road", "",
-		"The same three bots (bots, not people) on the flat's simulation core after each ending of the road, on the same seed. The road's ending is set for the run, not played: the story opens with a quiet 20 s and a question, the wall knocks like the roof and the last call points back. The core has no scene, so the red earth and the ending cards are not part of these runs.",
+		"The same three bots (bots, not people) on the flat's simulation core after each ending of the road, on the same seed. The road's ending is set for the run, not played: the story opens with a quiet 20 s and a question, the wall knocks like the roof, the last call (after `saved` and `caught` only) waits for Rosnah to finish and plays if he is still in the entrance or presses the intercom again, and the look-back line comes the first time he notices something that has moved. Whether a bot hears them depends on where it stands and what it looks at: the line under the table says which did. The core has no scene, so the red earth and the ending cards are not part of these runs.",
 		"", "| Bot | Road ending | Flat ending | Sim time | Errors | Warnings |", "|---|---|---|---|---|---|"])
+	var calls: Array[String] = []
+	var looks: Array[String] = []
 	for road: StringName in [&"alive", &"saved", &"caught"]:
 		for profile: String in ["explorer", "avoider", "passive"]:
 			var r: Dictionary = harness.run(profile, seed_value, road)
 			out.append("| %s | %s | %s | %s | %d | %d |" % [profile, road, r["ending"] if r["ending"] != &"" else "**none**", _mmss(r["time"]), r["errors"].size(), r["warnings"].size()])
+			if r["last_call"]:
+				calls.append("%s after %s" % [profile, road])
+			if r["look_back"]:
+				looks.append("%s after %s" % [profile, road])
+	out.append_array(["", "Heard in these runs. The last call: %s. The look-back line: %s." % [_list(calls), _list(looks)]])
 	return out
 
 

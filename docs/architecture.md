@@ -124,7 +124,9 @@ switches to its waiting beat *before* asking for it. Noticing a moved object put
 After the road (`Journey.road_ending` is `alive`, `saved` or `caught`) the same beats run with a few changes: a quiet
 opening with a question, the road's smell and look-back lines (always shown), and roof thumps in place of the bedroom
 knocks. Inspecting the intercom after Rosnah's call plays the last call once for `caught` and `saved` (wind and an
-idling engine, then Mei's or Hafiz's first line). `StoryDirector.ending_card(ending, road)` gives the last card its
+idling engine, then Mei's or Hafiz's first line); pressed while someone is still speaking, it waits and plays by itself
+when the lines are done if he is still in the entrance, or at his next press if he has left. The look-back line comes
+the first time he notices something a shift has moved. `StoryDirector.ending_card(ending, road)` gives the last card its
 text: `caught` adds to or edits today's text, `saved` and `alive` have their own. With no road (the flat opened
 directly) every line is as before.
 
@@ -149,7 +151,8 @@ the flat's: headless, deterministic, and talking to the presentation only throug
   comes from inside the scene it replaces.
 * The flat sees `road_ending != &""`: it shows a black card, "11:47 PM", while it builds, skips its start card and lets
   the card go over 1.5 s. The clock is 11:47 PM however the road ended. The flat runs the same beats after every road
-  ending. `StoryDirector` reads `road_ending` for the quiet opening, the knocks and the last call, and the HUD for the ending
+  ending. `StoryDirector` reads `road_ending` for the quiet opening, the knocks and the last call, `ApartmentBuilder` for the
+  footprints (flat red-earth quads from the front door, built only after the road), and the HUD for the ending
   cards (see [Story](#story)); separate flats for each ending (part 2) are not built.
 * A restart (the pause menu's Restart, or a click on the flat's ending card) calls `Journey.restart()`, which clears
   `road_ending` and loads the road again. The game never restarts into the flat.

@@ -2,6 +2,9 @@ extends TestCase
 ## Phase 5: the story on the simulation core. Every beat moves on by itself if the player does nothing,
 ## the reveal never happens in front of the player, and both endings come from the player's choice.
 
+const ENTRANCE := Vector3(1.5, 0, 8.5)  # by the intercom
+const CRACKLE := "[The speaker crackles. Wind, and an engine idling.]"
+
 var stage: HorrorStage
 var rt: HorrorRuntime
 var lines: Array[String] = []  # story lines (line_requested): always shown
@@ -216,7 +219,7 @@ func test_from_the_road_the_bedroom_knocks_sound_like_the_roof() -> bool:
 	check(sounds.has([&"thump1", wall]), "the wall answers like the roof")
 	check(not sounds.has([&"knock1", wall]), "and not with a knuckle")
 	_wait(10.0)
-	eq(lines.count(StoryDirector.SMELL), 1, "and the smell is not said again before the answer")
+	eq(lines.count(StoryDirector.SMELL), 1, "and the smell is not said again with the answer")
 	eq(StoryDirector.SMELL, Penanggal.SMELL, "the road's own line")
 	return _done()
 
@@ -268,39 +271,65 @@ func test_opened_directly_the_knocks_are_knocks() -> bool:
 	return _done()
 
 
-func test_the_look_back_line_plays_once() -> bool:
+## The thing a shift has moved that he can notice (&"" = none yet).
+func _moved_object() -> StringName:
+	for id: StringName in StoryDirector.NOTICE:
+		if WorldState.get_variant(StoryDirector.NOTICE[id][0]) != &"default":
+			return id
+	return &""
+
+
+func test_the_look_back_line_plays_once_when_he_notices_something_moved() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
 	story.road = &"alive"
 	_listen()
 	story.debug_skip()  # act 2
-	WorldState.set_variant(&"entrance_shoes", &"moved")
-	EventBus.object_interacted.emit(&"shoes_moved")
-	eq(WorldState.objective, "Things move when you aren't looking. Keep looking.", "the objective")
-	_wait(20.0)  # the queue: her smell, the wall, the shoes, then this
-	eq(_shifts_done(), 0, "before any shift")
-	eq(lines.count(StoryDirector.REVERSAL), 1, "with the first 'Keep looking'")
+	check(_until(func() -> bool: return _moved_object() != &"" and _shifts_done() > 0, 400.0), "a shift moves something while he is not looking")
+	_wait(12.0)  # long enough for a queued line to be said
+	eq(lines.count(StoryDirector.REVERSAL), 0, "the shift itself says nothing: nothing visible happened")
+	var moved := _moved_object()
+	check(moved != &"", "and the thing is still moved")
+	EventBus.object_interacted.emit(moved)
+	eq(WorldState.get_variant(StoryDirector.NOTICE[moved][0]), &"default", "he puts it back")
+	_wait(12.0)
+	eq(lines.count(StoryDirector.REVERSAL), 1, "the look-back line comes with his first notice")
 	check(not subtitles.has(StoryDirector.REVERSAL), "a story line, not a sound caption")
-	var done_before := _shifts_done()
-	check(_until(func() -> bool: return _shifts_done() > done_before, 120.0), "a shift completes")
-	_wait(1.0)
+	var notice := heard.find(StoryDirector.NOTICE[moved][1])
+	check(notice >= 0 and heard.find(StoryDirector.REVERSAL) > notice, "after the notice line")
+	for id: StringName in StoryDirector.NOTICE:  # a second notice, whatever the signs
+		if id != moved:
+			WorldState.set_variant(StoryDirector.NOTICE[id][0], &"moved")
+			EventBus.object_interacted.emit(id)
+			break
+	_wait(12.0)
 	eq(lines.count(StoryDirector.REVERSAL), 1, "never twice")
 	return _done()
 
 
-func test_the_look_back_line_comes_with_the_first_shift_too() -> bool:
-	for road: StringName in [&"saved", &""]:
-		WorldState.reset()
-		sounds.clear()
-		lines.clear()
-		var story := _setup(ApartmentLayout.SPAWN)
-		story.road = road
-		_listen()
-		story.debug_skip()  # act 2
-		check(_until(func() -> bool: return _shifts_done() > 0, 120.0), "a shift completes for %s" % road)
-		_wait(1.0)
-		eq(lines.count(StoryDirector.REVERSAL), 1 if road != &"" else 0, "the reversal for road %s" % road)
-		_done()
-	return true
+func test_the_look_back_line_comes_with_the_first_notice_even_after_enough_signs() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"saved"
+	_listen()
+	story.debug_skip()  # act 2
+	story.noticed = StoryDirector.SIGNS_NEEDED  # no "Keep looking" objective any more
+	WorldState.set_variant(&"entrance_shoes", &"moved")
+	EventBus.object_interacted.emit(&"shoes_moved")
+	_wait(10.0)
+	eq(lines.count(StoryDirector.REVERSAL), 1, "the notice is what brings it, not the objective")
+	return _done()
+
+
+func test_opened_directly_nothing_is_said_when_he_notices() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &""
+	_listen()
+	story.debug_skip()  # act 2
+	check(_until(func() -> bool: return _moved_object() != &"", 400.0), "a shift moves something")
+	EventBus.object_interacted.emit(_moved_object())
+	_wait(12.0)
+	eq(lines.count(StoryDirector.REVERSAL), 0, "no look-back line without the road")
+	eq(lines, [], "no new lines at all")
+	return _done()
 
 
 func test_the_downstairs_knock_back_follows_the_road() -> bool:
@@ -341,6 +370,7 @@ func test_the_last_call_points_back_once() -> bool:
 		WorldState.reset()
 		sounds.clear()
 		lines.clear()
+		subtitles.clear()
 		var story := _setup(ApartmentLayout.SPAWN)
 		story.road = road
 		_listen()
@@ -350,48 +380,106 @@ func test_the_last_call_points_back_once() -> bool:
 		_wait(10.0)
 		var calls := 1 if road in [&"caught", &"saved"] else 0
 		eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), calls, "the wind and the engine, road %s" % road)
-		eq(lines.count("[The speaker crackles. Wind, and an engine idling.]"), calls, "the crackle goes with the sound, road %s" % road)
+		eq(subtitles.count(CRACKLE), calls, "the crackle goes with the sound, as a sound caption, road %s" % road)
+		eq(lines.count(CRACKLE), 0, "so it follows the captions setting, road %s" % road)
 		eq(lines.count(mei), 1 if road == &"caught" else 0, "Mei's line, road %s" % road)
 		eq(lines.count(hafiz), 1 if road == &"saved" else 0, "Hafiz's line, road %s" % road)
 		_done()
 	return true
 
 
-func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
-	var mei := "\"Eh, you going down ah? Jom, we got space.\""
+## The flat from the road, he stands in the entrance, lies down, answers the ringing intercom: Rosnah's call is
+## about 17 s of lines. Returns the story with the sounds, lines and subtitles cleared.
+func _rosnah_answers(road: StringName, at: Vector3) -> StoryDirector:
 	WorldState.reset()
-	var story := _setup(ApartmentLayout.SPAWN)
-	story.road = &"caught"
+	var story := _setup(at)
+	story.road = road
 	_listen()
-	var inspected: Array[String] = []
-	var on_inspect := func(_title: String, text: String) -> void: inspected.append(text)
-	EventBus.inspect_requested.connect(on_inspect)
 	_wait(5.0)
 	EventBus.object_interacted.emit(&"bed")
 	check(_until(func() -> bool: return story.beat == &"ringing" and rt.scheduler.is_running(&"phone_ring"), 40.0), "the intercom rings")
-	EventBus.object_interacted.emit(&"intercom")  # Rosnah's call: about 17 s of lines
+	EventBus.object_interacted.emit(&"intercom")
 	eq(story.beat, &"complained", "answered the real way")
 	sounds.clear()
 	lines.clear()
+	subtitles.clear()
+	heard.clear()
+	return story
+
+
+func _last_calls() -> int:
+	return sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size()
+
+
+func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
+	var mei := "\"Eh, you going down ah? Jom, we got space.\""
+	var story := _rosnah_answers(&"caught", ENTRANCE)
+	eq(WorldState.player_room, &"entrance", "he stands by the intercom")
+	var inspected: Array[String] = []
+	var on_inspect := func(_title: String, text: String) -> void: inspected.append(text)
+	EventBus.inspect_requested.connect(on_inspect)
 	EventBus.object_interacted.emit(&"intercom")  # pressed again at once, while her lines are queued
 	_wait(5.0)
 	EventBus.object_interacted.emit(&"intercom")  # and again, while she is still talking
-	check(not sounds.any(func(s: Array) -> bool: return s[0] == &"intercom_road"), "no wind and engine over her voice")
+	eq(_last_calls(), 0, "no wind and engine over her voice")
 	eq(lines.count(mei), 0, "no last-call line while she talks")
 	check(_until(func() -> bool: return story._lines.is_empty() and story._line_left > 0.0, 30.0), "her last line is on screen, the queue empty")
 	inspected.clear()
 	EventBus.object_interacted.emit(&"intercom")  # pressed while her last line is still showing
-	check(not sounds.any(func(s: Array) -> bool: return s[0] == &"intercom_road"), "nor over her last line")
+	eq(_last_calls(), 0, "nor over her last line")
 	eq(lines.count(mei), 0, "no last-call line over her last line")
 	check(inspected.size() == 1 and inspected[0].begins_with("LAST CALL  23:47"), "an early press still shows the inspect text")
-	_wait(20.0)  # her call is over
-	check(story._lines.is_empty() and story._line_left <= 0.0, "her call is over")
-	EventBus.object_interacted.emit(&"intercom")
-	EventBus.object_interacted.emit(&"intercom")
+	check(_until(func() -> bool: return _last_calls() > 0, 10.0), "he waits in the entrance: the last call plays by itself")
+	check(heard.has("[The line goes dead.]") and story._lines.size() == 2 and story._line_left <= 0.0, "once her last line has gone")
 	_wait(10.0)
-	eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), 1, "now the last call plays, once")
+	eq(_last_calls(), 1, "once")
+	eq(subtitles.count(CRACKLE), 1, "with the crackle, once")
 	eq(lines.count(mei), 1, "with Mei's line, once")
+	check(heard.find("[The line goes dead.]") < heard.find(CRACKLE) and heard.find(CRACKLE) < heard.find(mei), "in order: her call, the crackle, Mei")
+	EventBus.object_interacted.emit(&"intercom")  # and never again
+	_wait(10.0)
+	eq(_last_calls(), 1, "pressing again plays nothing more")
 	EventBus.inspect_requested.disconnect(on_inspect)
+	return _done()
+
+
+func test_the_last_call_stays_pending_when_he_leaves_the_entrance() -> bool:
+	var mei := "\"Eh, you going down ah? Jom, we got space.\""
+	var story := _rosnah_answers(&"caught", ENTRANCE)
+	EventBus.object_interacted.emit(&"intercom")  # while she talks
+	_wait(2.0)
+	_place(ApartmentLayout.SPAWN)  # he walks out of the entrance, to the living room
+	check(_until(func() -> bool: return story._lines.is_empty() and story._line_left <= 0.0, 30.0), "her call is over")
+	_wait(30.0)
+	eq(_last_calls(), 0, "nothing plays while he is away from the entrance")
+	_place(ENTRANCE)
+	EventBus.object_interacted.emit(&"intercom")  # his next press, with nobody speaking
+	eq(_last_calls(), 1, "it plays at the press")
+	_wait(10.0)
+	eq(_last_calls(), 1, "once")
+	eq(lines.count(mei), 1, "with Mei's line, once")
+	return _done()
+
+
+func test_a_road_without_a_last_call_never_leaves_one_pending() -> bool:
+	for road: StringName in [&"alive", &""]:
+		_rosnah_answers(road, ENTRANCE)
+		EventBus.object_interacted.emit(&"intercom")  # while she talks
+		_wait(40.0)
+		EventBus.object_interacted.emit(&"intercom")
+		_wait(10.0)
+		eq(_last_calls(), 0, "no last call for road %s" % road)
+		eq(subtitles.count(CRACKLE) + lines.count(CRACKLE), 0, "no crackle for road %s" % road)
+		_done()
+	return true
+
+
+func test_the_quiet_starts_on_the_first_tick_whatever_came_first() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	story.road = &"caught"
+	story.debug_skip()  # before any tick
+	_wait(25.0)
+	check(not story.quiet(), "the quiet ends 20 s after the first tick")
 	return _done()
 
 
