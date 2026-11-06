@@ -242,13 +242,33 @@ func _ready() -> void:
 ## slope among its bushes. She keeps pace with the car at glimpse_distance, her face lit by the near headlight between
 ## the windscreen's pillar and Mei's head; then she stops dead and hangs there as the car passes her, out of the
 ## windscreen, behind the pillar, into the front door's window, where she is gone: GLIMPSE seconds or less, ending where
-## he can see her. Her first glimpse leaves a smell behind.
+## he can see her. Her first glimpse leaves a smell behind. Where her pace, from where she shows to where she stops and
+## hangs, crosses a change of the hill's side, she keeps between the rail's line and the bushes, right for either.
 ## ponytail: never in the tunnel's 80 m (Mission 2 shows her from s 387 on), where she would stand in its wall.
 func show_glimpse() -> void:
+	var span := _verge(director.car_s + glimpse_distance(director.her_near))
+	_plan(span)
+	if _verge(director.car_s + _ahead) != span or _verge(director.car_s + _travel(_pace) + _ahead) != span:
+		_plan(Vector2(VALLEY_OUT.x, HILL_OUT.y))  # her pace crosses a change of the hill's side: right for either
+	_until = GLIMPSE
+	while _until > 0.0 and not _clear(_bearing(_until, _ahead, _out, _pace)):
+		_until -= 0.05
+	if _until <= 0.0:  # ponytail: never clear (none on Mission 2's spots, sampled); a place search would fix one
+		_until = GLIMPSE
+	_stop_s = director.car_s + _ahead
+	_begin(&"glimpse", RoadLayout.point(_stop_s, _out) + Vector3.UP * GLIMPSE_UP)
+	_set_fade(0.0)
+
+
+## The metres across she may hang at, at s: past the rail where the valley is on the left, short of the bushes where
+## the hill is.
+func _verge(s: float) -> Vector2:
+	return HILL_OUT if builder != null and builder.ground_at(s, 7.0) >= 0.0 else VALLEY_OUT
+
+
+## Her glimpse on `span`: how far ahead and across she keeps pace, and for how long.
+func _plan(span: Vector2) -> void:
 	_ahead = glimpse_distance(director.her_near)
-	var span := VALLEY_OUT
-	if builder != null and builder.ground_at(director.car_s + _ahead, 7.0) >= 0.0:
-		span = HILL_OUT
 	while _bearing(0.0, _ahead, span.x, 0.0) > CLEAR[0].y and _ahead < GLIMPSE_AHEAD.x:
 		_ahead += 0.5  # past the rail, this near, the pillar would hide her: as near as he can see her from
 	var sign := _sign_from(director.car_s + _ahead)
@@ -265,14 +285,6 @@ func show_glimpse() -> void:
 		_pace -= 0.05
 	while _pace > 0.0 and director.car_s + _travel(_pace) + _ahead > sign - 3.0:
 		_pace -= 0.05  # she stops short of a sign's board
-	_until = GLIMPSE
-	while _until > 0.0 and not _clear(_bearing(_until, _ahead, _out, _pace)):
-		_until -= 0.05
-	if _until <= 0.0:  # ponytail: never clear (none on Mission 2's spots, sampled); a place search would fix one
-		_until = GLIMPSE
-	_stop_s = director.car_s + _ahead
-	_begin(&"glimpse", RoadLayout.point(_stop_s, _out) + Vector3.UP * GLIMPSE_UP)
-	_set_fade(0.0)
 
 
 ## On the car's roof, over the edge on his side: her insides hang past his window (Task 9).

@@ -56,7 +56,8 @@ func test_behind_keeps_her_distance() -> bool:
 
 
 ## Mission 2 shows her as the car, back in its lane after the overtake at 14 m/s, slows to its cruise: at s 523 the
-## valley is on the left, at s 740 the hill. One overtake brings her to 22.6 m, a second to 17.2, a third to 11.8.
+## valley is on the left, at s 740 the hill; from s 608.4 she hangs in switchback 1's change-over (s 631, the hill
+## coming round to the left over 12 m either side). One overtake brings her to 22.6 m, a second to 17.2, a third to 11.8.
 func test_glimpse_is_brief_and_off_the_road() -> bool:
 	near(Penanggal.glimpse_distance(0.0), 28.0, 0.001, "28 m ahead with no rule broken")
 	near(Penanggal.glimpse_distance(0.12), 22.6, 0.001, "22.6 m after one overtake")
@@ -74,7 +75,7 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 	EventBus.line_requested.connect(on_line)
 	var linear := RoadBuilder.FOG_COLOR.srgb_to_linear()
 	var fog_color := Vector3(linear.r, linear.g, linear.b)
-	for car_s: float in [523.0, 740.0]:
+	for car_s: float in [523.0, 740.0, 608.4]:
 		for her_near: float in [0.12, 0.24, 0.36]:
 			var what := "at %.0f, her_near %.2f" % [car_s, her_near]
 			her.director.her_near = her_near
@@ -83,7 +84,6 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 			car.place(car_s, her.director.lane)
 			her.show_glimpse()
 			var ahead := RoadLayout.closest_s(her.global_position) - car_s
-			var valley := builder.ground_at(car_s + ahead, 7.0) < 0.0
 			check(ahead > Penanggal.glimpse_distance(her_near) - 0.5 and ahead < Penanggal.glimpse_distance(her_near) + 3.0,
 				"%s: glimpse_distance ahead, or as near past it as he can see her from (%.1f m)" % [what, ahead])
 			var shown := 0
@@ -93,6 +93,8 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 			var lit := 0
 			var last := NAN  # her bearing from his seat as she goes (+ left)
 			var ground := INF
+			var far := 0.0  # and her furthest from it
+			var hangs := NAN  # where along the road she hangs as she goes
 			var fog := true  # her four surfaces take GLIMPSE_FOG of the road's own fog
 			for i in 120:
 				if her.visible:
@@ -100,6 +102,8 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 					var pos := her.global_position
 					var across := _across(pos)
 					off = minf(off, absf(across))
+					far = maxf(far, absf(across))
+					hangs = RoadLayout.closest_s(pos)
 					left = left and across > 0.0
 					for spot: SpotLight3D in car.headlights:
 						var to := pos - spot.global_position
@@ -124,8 +128,10 @@ func test_glimpse_is_brief_and_off_the_road() -> bool:
 				car.place(her.director.car_s, her.director.lane)
 			check(shown > 0 and shown <= 78, "%s: seen, for at most 1.3 s (%.2f s)" % [what, shown / 60.0])
 			check(left, "%s: on the left verge, his side" % what)
-			check(off >= (Penanggal.VALLEY_OUT.x if valley else Penanggal.HILL_OUT.x) - 0.1,
-				"%s: never on the road, past the rail where the valley is (%.2f m out at the nearest)" % [what, off])
+			var valley := builder.ground_at(hangs, 7.0) < 0.0  # the verge where she hangs
+			var span := Penanggal.VALLEY_OUT if valley else Penanggal.HILL_OUT
+			check(off >= span.x - 0.1, "%s: never on the road, past the rail where the valley is (%.2f m out at the nearest)" % [what, off])
+			check(far <= span.y + 0.1, "%s: short of the bushes where the hill is (%.2f m out at the furthest)" % [what, far])
 			check(lit > 0, "%s: her head in a headlight's beam for part of it (%d frames)" % [what, lit])
 			check(Penanggal.CLEAR.any(func(band: Vector2) -> bool: return last >= band.x and last <= band.y),
 				"%s: gone where he sees her, not behind a pillar or a head (%.1f degrees)" % [what, last])
