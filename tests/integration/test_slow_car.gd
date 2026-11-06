@@ -44,10 +44,10 @@ func test_it_follows_the_gap_in_the_couples_lane() -> bool:
 	check(not car.visible, "hidden when there is no slow car")
 	car.place(100.0, 12.0)
 	check(car.visible, "shown when there is")
-	near(car.global_position.distance_to(RoadLayout.point(112.0, RoadLayout.LANE)), 0.0, 0.01, "12 m ahead, in the couple's lane")
+	near(car.global_position.distance_to(RoadLayout.point(112.0, SlowCar.ACROSS)), 0.0, 0.01, "12 m ahead, in the couple's lane, edged towards the line")
 	near(car.global_basis.z.dot(RoadLayout.tangent(112.0)), 1.0, 0.01, "facing down the road")
 	car.place(100.0, -30.0)
-	near(car.global_position.distance_to(RoadLayout.point(70.0, RoadLayout.LANE)), 0.0, 0.01, "and behind, once he is past it")
+	near(car.global_position.distance_to(RoadLayout.point(70.0, SlowCar.ACROSS)), 0.0, 0.01, "and behind, once he is past it")
 	car.queue_free()
 	return true
 
@@ -80,6 +80,9 @@ func test_it_pulls_into_the_lay_by_and_goes_dark() -> bool:
 	check(car.visible and car.global_position == parked, "it stays where it stopped")
 	car.place(400.0, NAN)
 	check(not car.visible, "out of sight once the road has left it far behind")
+	car.place(400.0, 12.0)  # the tools and set-ups reuse it: a new gap from the core
+	check(car.visible and car.global_position.distance_to(RoadLayout.point(412.0, SlowCar.ACROSS)) < 0.01, "a new slow car follows the gap again")
+	near(dim.emission_energy_multiplier, SlowCar.TAIL_ENERGY, 0.001, "with its light on")
 	car.queue_free()
 	return true
 
@@ -130,6 +133,31 @@ func test_the_couple_go_by_the_parked_car_clear_of_it_and_of_the_rail() -> bool:
 		closest = minf(closest, _apart(parked, _plan(couple, "hatchback")))
 		s += 0.25
 	check(closest >= 0.3, "and the couple's car goes by it %.2f m clear" % closest)
+	couple.queue_free()
+	slow.queue_free()
+	return true
+
+
+## And while it pulls in: the couple come on as the core drives them (RoadDirector._ride), speeding up and edging over
+## to PASSING_LANE from the cue, while it crosses from its line near the centre to the lay-by ahead of them.
+func test_the_couple_edge_by_it_clear_while_it_pulls_in() -> bool:
+	var couple := CarRig.new()
+	tree.root.add_child(couple)
+	var slow := _car()
+	var s := 640.0
+	var speed := SlowCarMission.SLOW_SPEED
+	var lane := RoadLayout.LANE
+	slow.place(s, SlowCarMission.FOLLOW_GAP)
+	slow.pull_in()
+	var closest := INF
+	for i in roundi((SlowCarMission.PULL_SECONDS + 3.0) / 0.02):
+		slow._process(0.02)
+		speed = move_toward(speed, SlowCarMission.CRUISE_SPEED, RoadDirector.ACCEL * 0.02)
+		s += speed * 0.02
+		lane = move_toward(lane, SlowCarMission.PASSING_LANE, RoadDirector.LANE_SPEED * 0.02)
+		couple.place(s, lane)
+		closest = minf(closest, _apart(_plan(slow, "old_sedan"), _plan(couple, "hatchback")))
+	check(closest >= 0.3, "the couple's car stays %.2f m clear of it" % closest)
 	couple.queue_free()
 	slow.queue_free()
 	return true

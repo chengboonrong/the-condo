@@ -8,6 +8,9 @@ extends Node3D
 const FAR := 150.0  # a parked car is hidden this far from the couple's car
 const TAIL := Color(0.8, 0.05, 0.03)
 const TAIL_ENERGY := 1.0  # dim: the hatchback's are 1.5 and its lamps are whole
+## Metres left of the centreline it crawls at: in the couple's lane but edged towards the line, as a slow car wanders,
+## so that from his seat behind Mei it shows between her and Hafiz. Presentation only: the core keeps it in the lane.
+const ACROSS := RoadLayout.LANE - 1.0
 
 var speed := 0.0  # m/s along the road: the engine runs while it moves
 
@@ -34,12 +37,15 @@ func _ready() -> void:
 
 ## Each frame: where the couple's car is and the core's gap to the slow car (NAN when there is none).
 func place(car_s: float, gap: float) -> void:
+	if _pull >= 0.0 and not is_nan(gap):  # pulled in, and the core has a slow car again (the tools reuse this one)
+		_pull = -1.0
+		_lamp.emission_energy_multiplier = TAIL_ENERGY
 	if _pull < 0.0:
 		visible = not is_nan(gap)
 		if visible:
 			_s = car_s + gap
 			speed = SlowCarMission.SLOW_SPEED
-			global_transform = CarRig.on_road(_s, RoadLayout.LANE)
+			global_transform = CarRig.on_road(_s, ACROSS)
 	else:
 		visible = absf(car_s - _s) < FAR
 
@@ -57,7 +63,8 @@ func _process(delta: float) -> void:
 	var k := _pull / SlowCarMission.PULL_SECONDS
 	speed = SlowCarMission.SLOW_SPEED * (1.0 - k)
 	_s = _from_s + SlowCarMission.PULL_DISTANCE * (2.0 - k) * k  # slowing evenly to a stop
-	global_transform = CarRig.on_road(_s, lerpf(RoadLayout.LANE, SlowCarMission.LAY_BY, smoothstep(0.0, 1.0, k)))
+	# Across first, in 70 % of the time: the couple edge over towards its old line as they come on, and reach it then.
+	global_transform = CarRig.on_road(_s, lerpf(ACROSS, SlowCarMission.LAY_BY, smoothstep(0.0, 0.7, k)))
 	if _pull >= SlowCarMission.PULL_SECONDS:
 		_lamp.emission_energy_multiplier = 0.0  # dark, not switched off: no new shader mid-game
 
