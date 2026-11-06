@@ -3,7 +3,8 @@ extends Node3D
 ## Hafiz and Mei in the front seats of the couple's car (CarRig): Hafiz drives with one hand on the wheel, and Mei sits
 ## beside him with her phone, its screen lighting her face from below. They turn when they speak (EventBus.road_line):
 ## Mei turns her head and shoulders to him in the back seat, and Hafiz glances up at the mirror. When the car dies,
-## Hafiz gets out and walks off down the road with his phone as a torch (hafiz_leaves).
+## Hafiz gets out and walks off down the road with his phone as a torch (hafiz_leaves). On the walk to the light Mei
+## is on her feet beside him (walk_beside), and Hafiz is where the road's ending puts him: waiting, or coming back.
 
 const TURN := 0.5  # seconds to turn, and to turn back
 const GLANCE := 1.2  # seconds Hafiz takes his eyes off the road for the mirror
@@ -18,6 +19,12 @@ const STRIDE := 0.7  # metres a step takes
 const SWING := 0.4  # radians each leg swings, forward and back
 const GONE := 60.0  # metres he walks before he is lost in the fog, torch and all
 const TORCH := Vector3(-0.12, 1.08, 0.33)  # his phone in his right hand, in his own space (measured on the model)
+const BESIDE := 1.0  # metres to his left Mei walks, level with him along the road
+const MEI_WALL := 5.2  # metres across at the most: short of the drain on the long straight's hill side
+## Mei looking back (mei_looks_back): her body and her head turn to her right, to him and on past him, behind them.
+const MEI_BACK := Vector2(deg_to_rad(-30.0), deg_to_rad(-85.0))
+const LOOK_BACK := 2.5  # seconds she looks back for, then she turns ahead again
+const MEET := 6.0  # metres short of them Hafiz stops, coming back up the road
 ## Mei's turn to the back seat, over her left shoulder: her chest twists left and leans in towards the middle of the
 ## car, and her head turns on round, so from his seat her eyes show over her headrest, on him. rotation.y > 0 is to her
 ## left, x > 0 forward and z > 0 to her right.
@@ -64,6 +71,7 @@ void light() {
 var hafiz: Node3D
 var hafiz_out: Node3D  # on his feet, his phone up as a torch: hidden until he gets out
 var mei: Node3D
+var mei_out: Node3D  # on her feet beside him on the walk: hidden until they get out
 
 var _car: CarRig
 var _his_head: Node3D
@@ -80,6 +88,19 @@ var _out_t := -1.0  # seconds since his door opened, as he gets out; -1 unless h
 var _out_s := 0.0  # where along the road he sets off from
 var _out_across := 0.0
 var _legs: Array[Node3D] = []
+var _walker: Node3D  # who Mei walks beside, once they are out
+var _mei_head: Node3D
+var _mei_legs: Array[Node3D] = []
+var _mei_walked := 0.0  # metres, for her stride
+var _mei_stride := 0.0  # 0 standing still, 1 in her stride
+var _mei_back := 0.0  # seconds left of her look back
+var _mei_turn := 0.0  # 0 facing ahead, 1 looking back
+var _towards: Node3D  # who Hafiz walks back up the road to (hafiz_comes), or null
+var _hafiz_s := 0.0  # where he is along the road, coming back
+var _hafiz_across := 0.0
+var _hafiz_stop := -INF  # where along the road he stops at the latest
+var _hafiz_walked := 0.0
+var _hafiz_stride := 0.0
 
 
 func _init(car: CarRig) -> void:
@@ -105,6 +126,12 @@ func _ready() -> void:
 	torch.shadow_enabled = false  # only his own phone light casts shadows
 	torch.transform = Transform3D(Basis.looking_at(Vector3(0.0, -0.35, 1.0)), TORCH)  # ahead of him and down
 	hafiz_out.add_child(torch)
+	mei_out = ApartmentBuilder.model(&"mei_standing")
+	mei_out.top_level = true  # she walks beside him, not with the car
+	mei_out.visible = false
+	add_child(mei_out)
+	_mei_head = mei_out.get_node("Head")
+	_mei_legs.assign([mei_out.get_node("LegL"), mei_out.get_node("LegR")])
 	_her_chest = mei.get_node("Chest")
 	_her_head = _her_chest.get_node("Head")
 	var hair_shader := Shader.new()
@@ -166,6 +193,53 @@ func hafiz_leaves() -> void:
 	_out_t = 0.0
 
 
+## They are out of the car: Mei is on her feet BESIDE metres to `walker`'s left and level with him along the road,
+## facing down it, and walks when he does.
+func walk_beside(walker: Node3D) -> void:
+	_walker = walker
+	mei.visible = false
+	mei_out.visible = true
+	_mei_walked = 0.0
+	_mei_stride = 0.0
+	_mei_back = 0.0
+	_mei_turn = 0.0
+	_walk_beside(0.0)
+
+
+## Mei looks back over her right shoulder, past him, and turns ahead again.
+func mei_looks_back() -> void:
+	_mei_back = LOOK_BACK
+
+
+## He is out of the car and gone: neither in his seat nor on the road (a skip past his leaving, or before he is seen
+## again).
+func hafiz_gone() -> void:
+	hafiz.visible = false
+	hafiz_out.visible = false
+	_out_t = -1.0
+	_towards = null
+
+
+## Hafiz walks up the road towards `walker`, `across` metres left of its centreline, from `from_s`, his phone held up
+## as a torch, and stops at `stop_s` or MEET metres short of him, whichever he comes to first.
+func hafiz_comes(walker: Node3D, from_s: float, across: float, stop_s := -INF) -> void:
+	hafiz_gone()
+	_towards = walker
+	_hafiz_s = from_s
+	_hafiz_across = across
+	_hafiz_stop = stop_s
+	_hafiz_walked = 0.0
+	_hafiz_stride = 1.0
+	hafiz_out.visible = true
+	_walk_back(0.0)
+
+
+## He stops where he is, and stays (what catches him moves him from there).
+func hafiz_stops() -> void:
+	_towards = null
+	_stride(_legs, 0.0, 0.0)
+
+
 ## Every material they draw with, for the start card's warm-up.
 func materials() -> Array[Material]:
 	var out: Array[Material] = []
@@ -188,6 +262,10 @@ func _process(delta: float) -> void:
 	_her_head.rotation = _her_to[1] * k
 	if _out_t >= 0.0:
 		_walk_off(delta)
+	if _walker != null:
+		_walk_beside(delta)
+	if _towards != null:
+		_walk_back(delta)
 
 
 ## Hafiz out of his seat and on his feet beside his door, then walking off down the road's right edge. From the back
@@ -205,14 +283,56 @@ func _walk_off(delta: float) -> void:
 	var at := _path(walked)
 	var ahead := (_path(walked + 0.5) - at).slide(Vector3.UP).normalized()
 	hafiz_out.global_transform = Transform3D(Basis.looking_at(ahead, Vector3.UP, true), at)
-	var swing := sin(walked / STRIDE * PI) * SWING * minf(walked / STRIDE, 1.0)  # his first step from a standstill
-	_legs[0].rotation.x = swing
-	_legs[1].rotation.x = -swing
+	_stride(_legs, walked, minf(walked / STRIDE, 1.0))  # his first step from a standstill
 
 
 ## Where he is once he has walked `walked` metres.
 func _path(walked: float) -> Vector3:
 	return RoadLayout.point(_out_s + walked, lerpf(_out_across, EDGE, smoothstep(0.0, CROSS, walked)))
+
+
+## Mei beside the walker, level with him, her legs in her stride while he moves; and her look back, if she looks.
+func _walk_beside(delta: float) -> void:
+	var at := _walker.global_position
+	var s := RoadLayout.closest_s(at)
+	var to := RoadLayout.point(s, minf(across(at, s) + BESIDE, MEI_WALL))
+	var moved := to.distance_to(mei_out.global_position)
+	if moved > 5.0 * delta:  # faster than anyone walks: she is put there (as he stands up out of the car), not walking
+		moved = 0.0
+	_mei_walked += moved
+	_mei_stride = move_toward(_mei_stride, 1.0 if moved > 0.3 * delta else 0.0, delta / TURN)
+	_stride(_mei_legs, _mei_walked, _mei_stride)
+	_mei_back -= delta
+	_mei_turn = move_toward(_mei_turn, 1.0 if _mei_back > 0.0 else 0.0, delta / TURN)
+	var k := smoothstep(0.0, 1.0, _mei_turn)
+	var ahead := Basis.looking_at(RoadLayout.tangent(s).slide(Vector3.UP).normalized(), Vector3.UP, true)
+	mei_out.global_transform = Transform3D(ahead.rotated(Vector3.UP, MEI_BACK.x * k), to)
+	_mei_head.rotation.y = MEI_BACK.y * k
+
+
+## Hafiz coming back up the road to the walker, until MEET short of him or at his stop.
+func _walk_back(delta: float) -> void:
+	var gap := minf(_hafiz_s - RoadLayout.closest_s(_towards.global_position) - MEET, _hafiz_s - _hafiz_stop)
+	var step := clampf(gap, 0.0, WALK * delta)
+	_hafiz_s -= step
+	_hafiz_walked += step
+	_hafiz_stride = move_toward(_hafiz_stride, 1.0 if gap > 0.0 else 0.0, delta / TURN)
+	_stride(_legs, _hafiz_walked, _hafiz_stride)
+	var up := -RoadLayout.tangent(_hafiz_s).slide(Vector3.UP).normalized()
+	hafiz_out.global_transform = Transform3D(Basis.looking_at(up, Vector3.UP, true), RoadLayout.point(_hafiz_s, _hafiz_across))
+
+
+## A walker's legs `walked` metres into a walk, swinging by `amount` of a stride (0: standing still).
+static func _stride(legs: Array[Node3D], walked: float, amount: float) -> void:
+	var swing := sin(walked / STRIDE * PI) * SWING * amount
+	legs[0].rotation.x = swing
+	legs[1].rotation.x = -swing
+
+
+## Metres to the left of the road's centreline at s.
+static func across(at: Vector3, s: float) -> float:
+	var t := RoadLayout.tangent(s)
+	return (at - RoadLayout.point(s)).dot(Vector3(t.z, 0.0, -t.x).normalized())
 
 
 func _seat(id: StringName, seat: Node3D) -> Node3D:

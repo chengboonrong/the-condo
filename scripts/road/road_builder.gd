@@ -43,9 +43,13 @@ const STRIP := Vector2(2.6, 5.72)  # the tunnel's light strips: out and up, just
 const CITY_AWAY := 100.0  # metres from the camera to KL's glow: inside its 120 m far plane
 const CITY_ALPHA := 0.3  # the glow's strength in the clearest fog; the thickest takes it away
 const LIGHT_AWAY := 90.0  # metres from the camera, at the most, that the light far down the road is drawn at
-const LIGHT_UP := 2.6  # its bulb, above the road
 const LIGHT_ALPHA := 0.8  # its strength in the clearest fog; the thickest takes most of it away
-const LIGHT_SIZE := 36.0  # metres across its haze, at the bulb: wide enough to spill past Mei from his seat
+const LIGHT_SIZE := 36.0  # metres across its haze, at the bulb, seen from the car: wide enough to spill past Mei
+## Metres from the bulb within which the haze shrinks as he nears it, keeping the size in his view it had from the car
+## (about 14 degrees), until it fades out into the bulb's own light (from 40 m to 10 m).
+const LIGHT_FROM := 150.0
+const CORE_SIZE := 0.02  # the bulb's glow in the haze, at a fixed size in his view: about 15 px across at 1080p
+const CORE_ALPHA := 0.7  # its strength in the clearest fog: under the grade, brighter reads white, not warm
 const LAMPS := [[-170.0, -1.0], [-110.0, -1.0], [5.0, 1.0], [70.0, -1.0], [130.0, 1.0]]  # [s, side]: +1 left
 
 ## The ground beside the road, as (metres out from the centreline, metres up), each point a [valley, hill] pair lerped
@@ -95,7 +99,8 @@ const FONT_PX := 64
 var environment: Environment
 var city_dir: Vector3  # where KL lies, level: the way the whole road goes down
 var signs: Array[GeometryInstance3D] = []  # every part of every sign: the boards, their posts and their lines
-var far_light: MeshInstance3D  # the light far down the road, once the car has died there (show_light)
+var far_light: MeshInstance3D  # the light far down the road, once the car has died there (show_light): its haze
+var far_core: MeshInstance3D  # and the bulb's glow in it, which never shrinks below a few pixels
 var _materials: Array[Material] = []
 var _mats := {}  # mesh kind -> its material
 var _spans: Array = []  # [s_from, s_to, segment], one per RoadLayout.SEGMENTS
@@ -200,12 +205,23 @@ func set_fog(amount: float) -> void:
 	alpha = LIGHT_ALPHA * (1.0 - 0.6 * clampf(amount, 0.0, 1.0))
 	if not is_equal_approx(far.albedo_color.a, alpha):
 		far.albedo_color.a = alpha
+	far = far_core.material_override as StandardMaterial3D
+	alpha *= CORE_ALPHA / LIGHT_ALPHA  # the bulb's glow, as dimmed by the same fog
+	if not is_equal_approx(far.albedo_color.a, alpha):
+		far.albedo_color.a = alpha
 
 
-## The light far down the road comes on: a bulb over the road at s.
-func show_light(s: float) -> void:
-	_far_at = RoadLayout.point(s) + Vector3.UP * LIGHT_UP
+## The light far down the road comes on: a bare bulb at `at`.
+func show_light(at: Vector3) -> void:
+	_far_at = at
 	far_light.visible = true
+	far_core.visible = true
+
+
+## It dies.
+func hide_light() -> void:
+	far_light.visible = false
+	far_core.visible = false
 
 
 ## KL's glow stays CITY_AWAY down the valley from wherever the camera is, so it reads as far below. The far light is
@@ -218,7 +234,8 @@ func _process(_delta: float) -> void:
 			var to := _far_at - camera.global_position
 			var k := minf(1.0, LIGHT_AWAY / maxf(to.length(), 0.01))
 			far_light.global_position = camera.global_position + to * k
-			far_light.scale = Vector3.ONE * k
+			far_light.scale = Vector3.ONE * k * minf(1.0, to.length() / LIGHT_FROM)
+			far_core.global_position = far_light.global_position
 
 
 ## Every material the road made, for the start card's warm-up. The signs' lines (Label3D) draw with the engine's own.
@@ -623,8 +640,9 @@ func _build_city() -> void:
 	add_child(_city)
 
 
-## The light far down the road (Mission 4): a warm haze, as a bare bulb makes in the fog. It ignores the fog, which
-## would hide it at that distance, and draws inside the camera's far plane (see _process).
+## The light far down the road (Mission 4): a warm haze, as a bare bulb makes in the fog, and at its heart the bulb's
+## glow, a few pixels at any distance. Both ignore the fog, which would hide them at that distance, and draw inside
+## the camera's far plane (see _process). Near the bulb they give way to the stall's own (Endings).
 func _build_far_light() -> void:
 	far_light = MeshInstance3D.new()
 	far_light.name = "FarLight"
@@ -635,6 +653,15 @@ func _build_far_light() -> void:
 	far_light.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	far_light.visible = false
 	add_child(far_light)
+	far_core = MeshInstance3D.new()
+	far_core.name = "FarCore"
+	quad = QuadMesh.new()
+	quad.size = Vector2(CORE_SIZE, CORE_SIZE)
+	far_core.mesh = quad
+	far_core.material_override = _mats[&"far_core"]
+	far_core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	far_core.visible = false
+	add_child(far_core)
 
 
 ## The bus stop on the left verge: a metal roof on two posts at the back, a concrete bench under it, and the timetable
@@ -841,6 +868,9 @@ func _build_materials() -> void:
 	city.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED  # it is always CITY_AWAY off
 	_add_material(&"city", city)
 	_add_material(&"far_light", _haze(Color(1.0, 0.78, 0.5, LIGHT_ALPHA), 40.0, 10.0))  # gone close to its bulb
+	var core := _haze(Color(1.0, 0.62, 0.32, CORE_ALPHA), 6.0, 2.5)  # gone at the bulb, where its own glass shows
+	core.fixed_size = true
+	_add_material(&"far_core", core)
 
 
 func _glow(color: Color, energy: float) -> StandardMaterial3D:

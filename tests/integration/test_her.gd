@@ -205,6 +205,39 @@ func test_catch_says_when_he_is_down() -> bool:
 	return true
 
 
+func test_fly_to_goes_straight_there_once() -> bool:
+	var her := _her()
+	var walker := Node3D.new()
+	tree.root.add_child(walker)
+	walker.global_position = RoadLayout.point(2100.0, 3.3)
+	her.behind(walker)
+	await _frames(2)
+	var from := her.global_position
+	var to := RoadLayout.point(2120.0, 2.3) + Vector3.UP * 8.0
+	var arrived := [0]
+	her.arrived.connect(func() -> void: arrived[0] += 1)
+	her.fly_to(to)
+	var worst := 0.0  # metres off the straight line, at the most
+	var frames := 0
+	while arrived[0] == 0 and frames < 600:
+		await tree.process_frame
+		frames += 1
+		var on := Geometry3D.get_closest_point_to_segment(her.global_position, from, to)
+		worst = maxf(worst, on.distance_to(her.global_position))
+	eq(arrived[0], 1, "she gets there")
+	near(frames / 60.0, from.distance_to(to) / Penanggal.SWOOP, 0.1, "at SWOOP")
+	check(worst < 0.01, "in a straight line (%.3f m off it)" % worst)
+	near(her.global_position.distance_to(to), 0.0, 0.001, "and hangs there")
+	var ahead := her.global_basis.z.slide(Vector3.UP).normalized()
+	check(ahead.dot((to - from).slide(Vector3.UP).normalized()) > 0.99, "facing the way she went")
+	await _frames(30)
+	eq(arrived[0], 1, "arrived once")
+	near(her.global_position.distance_to(to), 0.0, 0.001, "still there")
+	her.queue_free()
+	walker.queue_free()
+	return true
+
+
 func test_come_for_stops_short_of_the_camera() -> bool:
 	var her := _her()
 	var camera := Camera3D.new()

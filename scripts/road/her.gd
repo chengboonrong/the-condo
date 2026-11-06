@@ -3,13 +3,15 @@ extends Node3D
 ## Her: the penanggal of Malay folklore, a woman's head flown loose of her body with her insides hanging beneath it
 ## (assets/models/penanggal.glb: its origin is the centre of her skull, and she faces +Z). Hidden until the road calls
 ## for her, then in one place at a time: glimpsed at the roadside ahead of the car, on the car's roof, behind a
-## walker, catching someone, or coming for the camera. She is lit only by the scene's own lights, she always hangs
-## upright, and she is quiet: her sounds are wet, and none of them is a sting.
+## walker, flying somewhere, catching someone, or coming for the camera. She is lit only by the scene's own lights,
+## she always hangs upright, and she is quiet: her sounds are wet, and none of them is a sting.
 
 ## come_for: she is as close to the camera as she comes.
 signal reached
 ## catch: he is down and the pool begins to spread, once per catch (a drop from afar takes as long as its distance).
 signal caught(victim: Node3D)
+## fly_to: she hangs where she was sent.
+signal arrived
 
 const SMELL := "[A sour smell, like vinegar.]"  # after her first glimpse: the folklore's vinegar, unexplained
 const GLIMPSE := 1.2  # seconds she is seen at the roadside, at the most
@@ -56,6 +58,7 @@ const NOISES := {
 	&"behind": [[&"wet_flap", 3.0, 6.0], [&"drip", 1.5, 4.0]],
 	&"catch": [[&"drip", 0.8, 2.0]],
 	&"come_for": [[&"wet_flap", 0.5, 0.9]],
+	&"fly": [[&"wet_flap", 0.5, 0.9]],
 	&"roof": [[&"drip", 2.0, 5.0], [&"rattle", 6.0, 11.0]],
 }
 const NOISE := """
@@ -176,11 +179,11 @@ var pool: MeshInstance3D  # catch: what spreads under him
 
 var _skin: Array[ShaderMaterial] = []  # her four surfaces
 var _pool_material := ShaderMaterial.new()
-var _mode := &""  # where she is: &"glimpse", &"behind", &"catch", &"come_for", &"roof", or nowhere
+var _mode := &""  # where she is: &"glimpse", &"behind", &"catch", &"fly", &"come_for", &"roof", or nowhere
 var _t := 0.0  # seconds there
 var _target: Node3D  # the walker, the victim, the camera or the car
 var _drop := DROP  # catch: seconds she takes to drop onto him
-var _from := Vector3.ZERO  # catch: where she drops from
+var _from := Vector3.ZERO  # catch: where she drops from; fly: where she flies to
 var _ahead := 0.0  # glimpse: metres ahead of the car she keeps pace at
 var _out := 0.0  # glimpse: metres across
 var _pace := 0.0  # glimpse: seconds she keeps pace for, before she stops dead
@@ -323,6 +326,14 @@ func catch(victim: Node3D) -> void:
 	_pool_material.set_shader_parameter(&"spread", 0.0)
 
 
+## She flies straight to `at` at SWOOP, facing the way she goes, and hangs there: `arrived`. The caller picks a point
+## whose line clears whoever is in the way, by more than what hangs from her.
+func fly_to(at: Vector3) -> void:
+	_from = at
+	_arrived = false
+	_begin(&"fly", global_position if visible else at)
+
+
 ## She comes straight at the camera at SPEED from wherever she is (if hidden, out of the fog 15 m ahead of it), high
 ## enough that what hangs from her clears the road, and comes down to its height over the last LOW_IN metres. She
 ## stops CLOSE to it, face to face: `reached`.
@@ -387,6 +398,13 @@ func _process(delta: float) -> void:
 		&"catch":
 			_feed(delta)
 			bob = 0.02
+		&"fly":
+			_face(_from)
+			_base = _base.move_toward(_from, SWOOP * delta)
+			bob = 0.0
+			if _base.is_equal_approx(_from) and not _arrived:
+				_arrived = true
+				arrived.emit()
 		&"come_for":
 			var cam := _target.global_position
 			var flat := (cam - _base).slide(Vector3.UP)

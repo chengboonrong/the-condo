@@ -4,6 +4,7 @@ extends Node3D
 ## The road's core (RoadDirector) runs the missions; this wires it to the HUD and steps it while he plays. The road
 ## itself is RoadBuilder's, in the core's fog. He starts at the staff exit; the couple's car (CarRig), with Hafiz and Mei
 ## in the front (Couple), follows the core's ride each frame, and he rides in its back seat once the core seats him.
+## The road's end, the fruit stall at the light and its endings, is Endings'.
 
 ## The road is over. `ending` is how it went; Journey carries it into the flat.
 signal finished(ending: StringName)
@@ -29,6 +30,7 @@ var lorry: Lorry
 var slow_car: SlowCar
 var audio: RoadAudio
 var her: Penanggal
+var endings: Endings
 var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
@@ -36,6 +38,7 @@ var _signalling := false  # the dashboard indicator ticks: from the signal to th
 var _dead := false  # the car's engine has died (lights_dying), and it never starts again
 var _quiet := false  # the insects have stopped (insects_stop)
 var _shake := 0.0  # seconds left of a thump's shake
+var _at_light := false  # the walk to the light (LightMission) is the core's mission
 
 
 func _ready() -> void:
@@ -70,6 +73,17 @@ func _ready() -> void:
 	her.director = director
 	her.builder = builder
 	add_child(her)
+	endings = Endings.new()
+	endings.name = "Endings"
+	endings.director = director
+	endings.builder = builder
+	endings.couple = couple
+	endings.her = her
+	endings.lorry = lorry
+	endings.audio = audio
+	endings.hud = hud
+	endings.player = player
+	add_child(endings)
 	EventBus.choices_requested.connect(hud.show_choices)
 	EventBus.choices_closed.connect(hud.close_choices)
 	EventBus.road_cue.connect(_on_cue)
@@ -177,9 +191,20 @@ func _on_cue(cue: StringName) -> void:
 		&"knock_window":
 			_sound(&"knock_glass", MEI_WINDOW, 0.0)
 		&"light_on":
-			builder.show_light(director.light_s)
-			couple.mei_faces(&"ahead")  # she leans in to see it, and he sees it past her
+			couple.mei_faces(&"ahead")  # she leans in to see it, and he sees it past her (Endings lights it)
 			her.hide_her()
+		&"get_out":  # his door, and Mei's on her side, heard: it is part of the body and never opens
+			car.swing_door()
+			couple.walk_beside(player)
+			var out := create_tween()
+			out.tween_interval(0.3)
+			out.tween_callback(_sound.bind(&"car_door_open", MEI_DOOR, 0.0))
+			out.tween_interval(1.2)
+			out.tween_callback(_sound.bind(&"car_door_close", MEI_DOOR, 0.0))
+		&"her_behind":
+			her.behind(player)
+		&"mei_looks":
+			couple.mei_looks_back()
 
 
 ## One of the car's sounds, from `at` in the car's own space.
@@ -188,6 +213,7 @@ func _sound(id: StringName, at: Vector3, volume_db: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_to_the_light()
 	# As in the flat: time and the choices' timers stand still on the start card and while paused (the pause menu
 	# pauses the whole tree), so no rule can break then. They keep running while he reads something.
 	if player.input_enabled or hud.is_inspecting():
@@ -199,6 +225,34 @@ func _process(delta: float) -> void:
 	_ride()
 	_shake_view(delta)
 	pause.guard(delta, _playing(), OS.has_feature("web"))
+
+
+## The walk to the light has become the core's mission, by Mission 4 ending or by a skip (`--mission=5`, F10): what
+## Mission 4 left is set, before the walk begins. The car is dead and dark, the insects quiet, Hafiz gone and the light
+## on; she is off the roof (the walk puts her behind them); Mei's next line has no pose left over from her door. If the
+## skip has him on his feet, he stands beside his door with Mei beside him.
+func _to_the_light() -> void:
+	var at_light := director.mission_index < director.missions.size() and director.missions[director.mission_index] is LightMission
+	if at_light and not _at_light:
+		_dead = true
+		_quiet = true
+		car.lights_dead()
+		couple.hafiz_gone()
+		couple.mei_faces(&"him")
+		her.hide_her()
+		if not builder.far_light.visible:
+			endings.light(true)
+		if not director.seated:
+			if not player.is_seated():
+				car.place(director.car_s, director.lane)
+				player.stand(_beside_door())
+			couple.walk_beside(player)
+	_at_light = at_light
+
+
+## Beside his door, facing the way the car faces: where he stands when he gets out.
+func _beside_door() -> Transform3D:
+	return car.global_transform.translated_local(Vector3(1.5, 0.0, -0.5)).rotated_local(Vector3.UP, PI)
 
 
 ## A thump on the roof jolts his view while he sits, a little and briefly (less with less head bob), and it settles.
@@ -225,7 +279,7 @@ func _ride() -> void:
 		if director.seated:
 			player.sit(car.seat_rear_left)
 		else:  # beside his door, facing the way the car faces
-			player.stand(car.global_transform.translated_local(Vector3(1.5, 0.0, -0.5)).rotated_local(Vector3.UP, PI))
+			player.stand(_beside_door())
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))

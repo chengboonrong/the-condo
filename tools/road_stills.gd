@@ -9,12 +9,12 @@ extends SceneTree
 #  1, phone light, optional: the director's ride fields to set after start_at; seated, the yaw is from the car's
 #  forward instead. "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has
 #  stopped; "play_out" in it: seconds the shot's cues play out for before it is taken; optional: who is saying a
-#  line, so the couple turn (&"": no one); optional: road cues to send after the ride's fields, as the mission's
-#  begin() would;
+#  line, so the couple turn (&"": no one); optional: road cues to send after the ride's fields (and once he stands
+#  where the shot has him), as the mission's begin() would, a number among them being seconds to let them play out;
 #  optional: where she is, held still: seconds into a glimpse cued where the car is, played on a frame at a time as
-#  Mission 2 drives (slowing from the car's speed), [metres ahead of the camera, metres up], or "roof": on the car's
-#  roof]
-# Cues stay played (a dead car stays dead), so the shots that send the stall's come last.
+#  Mission 2 drives (slowing from the car's speed), [metres ahead of the camera, metres up], "roof": on the car's
+#  roof, "behind": behind him, or "cued": wherever the cues left her]
+# Cues stay played (a dead car stays dead), so the shots that send the stall's come last, and the walk's after them.
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -55,6 +55,18 @@ const SHOTS := [
 	["light_seen", "StallMission", 0.0, 0.0, 0.0, 0.02, 0.0, false,
 		{"seated": true, "car_s": 2000.0, "car_speed": 0.0, "light_s": 2150.0, "play_out": 8.0}, &"mei",
 		[&"lights_dying", &"hafiz_leaves", &"insects_stop", &"light_on"]],
+	# the walk to the light (Mission 5), the light 150 m on from the car: Mei a metre to his left in his phone's light
+	["walk_mei", "LightMission", 2100.0, 3.3, PI / 2.0, -0.04, 0.0, true, {}, &"", [], "behind"],
+	["walk_mei_looks", "LightMission", 2100.0, 3.3, PI / 2.0, -0.04, 0.0, true, {}, &"", [&"mei_looks", 0.8], "behind"],  # and as she looks back
+	# the light ahead as he walks to it, from 75 m, 35 m and 8 m: the haze gives way to the bulb at the closed stall
+	["walk_light", "LightMission", 2075.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [], "behind"],
+	["walk_near", "LightMission", 2115.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [], "behind"],
+	["stall", "LightMission", 2142.0, 3.3, 0.15, -0.12, 0.0, false],
+	# checking only, never published: each ending
+	["ending_saved", "LightMission", 2146.0, 3.3, 0.35, -0.3, 0.24, false, {}, &"", [&"phone_rings", 0.5]],  # his phone rings on the table
+	["ending_alive", "LightMission", 2146.0, 3.3, 0.0, 0.0, 0.0, false, {}, &"", [&"hafiz_at_stall", 10.0]],  # Hafiz and the lorry
+	["ending_caught", "LightMission", 2120.0, 3.3, 0.0, 0.12, 0.84, true, {"her_near": 0.84}, &"",
+		[&"her_behind", 1.0, &"light_out", 6.0, &"her_catches_hafiz", 2.9], "cued"],  # the light dies, and she drops onto Hafiz
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -108,10 +120,17 @@ func _initialize() -> void:
 		for key: String in ride:
 			if key != "pull_in" and key != "play_out":
 				road.director.set(key, ride[key])
+		road._to_the_light()  # what the walk to the light sets as it begins (the simulation, which does, stands still)
 		await process_frame  # the road follows the core's ride in its _process: the car, and his seat
 		await process_frame
-		for cue: StringName in (s[10] if s.size() > 10 else []):  # once the car is there: Hafiz gets out of it
-			bus.road_cue.emit(cue)
+		if not player.is_seated():
+			player.global_position = layout.point(s[2], s[3])
+			player.set_look(builder.yaw_along(s[2]) + s[4], s[5])
+		for cue: Variant in (s[10] if s.size() > 10 else []):  # once the car is there: Hafiz gets out of it
+			if cue is float:
+				await create_timer(cue).timeout
+			else:
+				bus.road_cue.emit(cue)
 		if ride.has("pull_in"):  # the slow car pulls in and goes dark, and the couple go by it
 			road.slow_car.pull_in()
 			road.director.slow_gap = NAN
@@ -125,18 +144,21 @@ func _initialize() -> void:
 			await create_timer(ride["play_out"]).timeout
 		if player.is_seated():
 			player.set_look(PI + s[4], s[5])
-		else:
-			player.global_position = layout.point(s[2], s[3])
-			player.set_look(builder.yaw_along(s[2]) + s[4], s[5])
 		player.phone_light.visible = s[7]
 		if s.size() > 9:
 			road.couple.turn_to(s[9], 60.0)
 			await create_timer(1.0).timeout  # the turn takes Couple.TURN
 		var her = road.her
-		her.hide_her()
+		var cued: bool = s.size() > 11 and s[11] is String and s[11] == "cued"
+		if not cued:
+			her.hide_her()
 		her.set_process(true)
 		if s.size() > 11:
-			if s[11] is String:  # "roof"
+			if cued:
+				pass
+			elif s[11] is String and s[11] == "behind":
+				her.behind(player)
+			elif s[11] is String:  # "roof"
 				her.on_roof(road.car)
 			elif s[11] is float:
 				her.show_glimpse()

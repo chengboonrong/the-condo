@@ -172,6 +172,13 @@ func lights_dying() -> void:
 	_flicker_left = 0.0
 
 
+## Its lights are dead already (a skip past the car dying): out at once.
+func lights_dead() -> void:
+	_dying = -1.0
+	for dim: Callable in _dimmers:
+		dim.call(0.0)
+
+
 func _process(delta: float) -> void:
 	if _dying < 0.0:
 		return

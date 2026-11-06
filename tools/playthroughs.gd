@@ -1,5 +1,5 @@
 extends SceneTree
-## Writes docs/playthroughs.md: the record of the three simulated players (bots, not people).
+## Writes docs/playthroughs.md: the record of the simulated players (bots, not people), in the flat and on the road.
 ##   godot --headless --path . --script res://tools/playthroughs.gd [-- --seed=1147]
 ## Autoloads only exist once the tree runs, so the harness is loaded at runtime, not by name.
 
@@ -35,6 +35,7 @@ func _initialize() -> void:
 	md.append("Worst director eval is the slowest single evaluation in the run (a maximum, not an average).")
 	for r in runs:
 		md.append_array(_section(r))
+	md.append_array(_road(seed_value))
 	var f := FileAccess.open(OUT, FileAccess.WRITE)
 	f.store_string("\n".join(md) + "\n")
 	f.close()
@@ -63,6 +64,30 @@ func _section(r: Dictionary) -> PackedStringArray:
 			signals.append("%s %.2f" % [k, b[k]])
 	out.append_array(["", "Behaviour at the end: %s. Room avoidance: %s." % [", ".join(signals), str(b["room_avoidance"])]])
 	out.append_array(["", "Errors: %s. Warnings: %s. Entity in the player's room: %s." % [_list(r["errors"]), _list(r["warnings"]), _list(r["violations"])]])
+	return out
+
+
+## The road down: its three bots, on the same seed. Like the flat's, they are bots playing the core, not people.
+func _road(seed_value: int) -> PackedStringArray:
+	var harness: GDScript = load("res://tests/sim/road_playthrough.gd")
+	var styles := {
+		"keeper": "keeps every rule",
+		"wobbly": "says overtake at the third slow car, asks why before counting three, looks back once on the walk",
+		"breaker": "stays silent at the choices, turns to the fourth and counts four, opens the door, looks back twice",
+	}
+	var out := PackedStringArray(["", "# The road", "",
+		"The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/road_playthrough.gd`), not people: they answer a choice a second after it opens, use a prompt half a second after it shows and walk straight down the road at 2.2 m/s, so their times are a lower bound. The ending is decided 30 m short of the light by the road's score (alive up to 2, saved up to 6, caught above).",
+		"", "| Bot | Plays like | Ending | Score | Sim time | Rules broken | Errors | Warnings |", "|---|---|---|---|---|---|---|---|"])
+	var runs: Array[Dictionary] = []
+	for profile: String in ["keeper", "wobbly", "breaker"]:
+		var r: Dictionary = harness.run(profile, seed_value)
+		runs.append(r)
+		var broken: Array = r["broken"].map(func(b: Dictionary) -> String: return "%s %d" % [b["rule"], b["weight"]])
+		out.append("| %s | %s | %s | %d | %s | %s | %d | %d |" % [profile, styles[profile], r["ending"] if r["ending"] != &"" else "**none**", r["score"], _mmss(r["time"]), ", ".join(broken) if not broken.is_empty() else "none", r["errors"].size(), r["warnings"].size()])
+	for r in runs:
+		out.append_array(["", "## %s (the road)" % r["profile"], "", "| Time | Mission | Beat |", "|---|---|---|"])
+		for g: Dictionary in r["progress"]:
+			out.append("| %s | %d | %s |" % [_mmss(g["t"]), g["mission"] + 1, g["beat"]])
 	return out
 
 
