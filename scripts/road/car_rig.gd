@@ -54,6 +54,7 @@ var seat_front: Node3D
 var seat_rear_left: Node3D  # his
 var seat_rear_right: Node3D  # the fourth's
 var mirror_mount: Node3D
+var mirror: Mirror  # on mirror_mount, with the fourth passenger in the rear right seat
 var door_rear_left: Interactable  # car_door from outside; car_door_inside once he sits
 var headlights: Array[SpotLight3D] = []
 
@@ -80,6 +81,9 @@ func _ready() -> void:
 	seat_rear_left = _model.get_node("seat_rear_left")
 	seat_rear_right = _model.get_node("seat_rear_right")
 	mirror_mount = _model.get_node("mirror_mount")
+	mirror = Mirror.new(seat_rear_right)
+	mirror.name = "Mirror"
+	mirror_mount.add_child(mirror)
 	var body: MeshInstance3D = _model.get_node("hatchback")
 	# A box he can't walk through, inside the door's skin so that a look at the door finds the door first.
 	var box := body.get_aabb()

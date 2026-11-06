@@ -291,12 +291,17 @@ drone is not positional.
 Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pass, opening a door
 (−6.9 dB) was the loudest sound in the game, louder than the stinger and the slam.
 
-## Collision layers
+## Collision and render layers
 
 | Layer | Name | Used by |
 |---|---|---|
 | 1 | world | walls, floors, furniture, doors, interactables |
 | 2 | player | the player capsule |
+
+| Render layer | Used by |
+|---|---|
+| 1 | everything the player's camera draws (Godot's default) |
+| 11 | mirror only: the road's fourth passenger and the wet patch she leaves (`Mirror`). The rear-view mirror's camera draws it; the player's camera (`scenes/player/player.tscn`, cull mask 1047551) leaves it out, except for her 0.3 s glimpse when he turns round to her. Her fill light lights layer 11 alone. |
 
 Room membership comes from `ApartmentLayout.room_at(position)` (a point-in-rect test against the
 active variant's rects), not from Area3D triggers, so it is exact and identical in simulation.

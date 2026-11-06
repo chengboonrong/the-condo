@@ -22,6 +22,7 @@ shape = SubResource("capsule")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Head"]
+cull_mask = 1047551
 current = true
 fov = 72.0
 near = 0.04

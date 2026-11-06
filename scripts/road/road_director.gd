@@ -70,7 +70,7 @@ func _init(road_stage: RoadStage, seed_value: int, mission_list: Array[RoadMissi
 
 ## The road's missions in order. Each mission's task appends its own.
 static func default_missions() -> Array[RoadMission]:
-	var list: Array[RoadMission] = [LiftMission.new(), SlowCarMission.new()]
+	var list: Array[RoadMission] = [LiftMission.new(), SlowCarMission.new(), CountMission.new()]
 	return list
 
 

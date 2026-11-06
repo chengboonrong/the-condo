@@ -117,6 +117,14 @@ func _on_cue(cue: StringName) -> void:
 			EventBus.sound_requested.emit(&"rev", player.camera.global_position, -2.0)
 		&"slow_car_gone":
 			slow_car.pull_in()
+		&"mirror_on":
+			car.mirror.set_on(true)
+		&"mirror_off":
+			car.mirror.set_on(false)
+		&"fourth_glimpse":
+			car.mirror.glimpse()  # no sting: he only sees her
+		&"fourth_gone":
+			car.mirror.empty()
 
 
 func _physics_process(delta: float) -> void:

@@ -5,10 +5,11 @@
 # Each shot starts its mission as the road's --mission flag does (RoadDirector.start_at); the simulation stands still.
 extends SceneTree
 
-# [name, mission index, s, metres across (+ left), yaw from down the road (+ left), pitch, fog 0 to 1, phone light,
-#  optional: the director's ride fields to set after start_at; seated, the yaw is from the car's forward instead.
-#  "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has stopped;
-#  optional: who is saying a line, so the couple turn]
+# [name, mission index (or its class name), s, metres across (+ left), yaw from down the road (+ left), pitch, fog 0 to
+#  1, phone light, optional: the director's ride fields to set after start_at; seated, the yaw is from the car's
+#  forward instead. "pull_in" in it: the slow car then pulls into its lay-by, and these fields are set once it has
+#  stopped; optional: who is saying a line, so the couple turn (&"": no one); optional: road cues to send after the
+#  ride's fields, as the mission's begin() would]
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
 	["road_stop", 0, -14.0, -0.5, 0.3, -0.06, 0.0, false],  # the bus stop under its lamp
@@ -25,6 +26,8 @@ const SHOTS := [
 	["lay_by", 1, 0.0, 0.0, 0.45, -0.03, 0.0, false, {"seated": true, "car_s": 634.0, "car_speed": 9.0, "lane": 0.9, "slow_gap": 12.0, "pull_in": {"car_s": 647.0, "lane": 0.9}}],  # it has pulled in, dark: they edge by (the keeper's, in switchback 1)
 	["couple", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # Hafiz and Mei from his seat
 	["mei_turns", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}, &"mei"],  # Mei turns to him
+	["mirror_fourth", "CountMission", 0.0, 0.0, -0.33, 0.07, 0.0, false, {"seated": true, "car_s": 900.0, "car_speed": 9.0},
+		&"", [&"mirror_on"]],  # from his seat, the rear-view mirror and who sits beside him in it
 ]
 const CELL := Vector2i(640, 360)
 const COLUMNS := 2
@@ -66,14 +69,20 @@ func _initialize() -> void:
 	var paired := before != ""
 	var cell_w := CELL.x * (2 if paired else 1)
 	var sheet := Image.create(cell_w * COLUMNS, CELL.y * ceili(shots.size() / float(COLUMNS)), false, Image.FORMAT_RGB8)
+	var bus = root.get_node("EventBus")
 	for i in shots.size():
 		var s: Array = shots[i]
-		road.director.start_at(s[1])
+		var mission: int = s[1] if s[1] is int else road.director.missions.find_custom(
+			func(m: RefCounted) -> bool: return m.get_script().get_global_name() == s[1])
+		road.car.mirror.set_on(false)  # every shot starts with it off; a shot's cues turn it on
+		road.director.start_at(mission)
 		road.director.fog = s[6]
 		var ride: Dictionary = s[8] if s.size() > 8 else {}
 		for key: String in ride:
 			if key != "pull_in":
 				road.director.set(key, ride[key])
+		for cue: StringName in (s[10] if s.size() > 10 else []):
+			bus.road_cue.emit(cue)
 		await process_frame  # the road follows the core's ride in its _process: the car, and his seat
 		await process_frame
 		if ride.has("pull_in"):  # the slow car pulls in and goes dark, and the couple go by it
