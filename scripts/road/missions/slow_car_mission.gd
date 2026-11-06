@@ -49,9 +49,9 @@ const URGE := [
 	"Hafiz: \"Weh, enough already! I potong now, okay?\"",
 ]
 const OPTIONS := [
-	["Don't, bro. Just follow it.", "Eh… got nobody driving that car.", "Ya lah, go."],
-	["Follow it lah. No rush.", "Bang Din says never potong a car like that.", "Faster, go."],
-	["Bro, please. Stay behind it.", "Look properly. Nobody at the wheel.", "Okay, last time. Go."],
+	["\"Don't, bro. Just follow it.\"", "\"Eh… got nobody driving that car.\"", "\"Ya lah, go.\""],
+	["\"Follow it lah. No rush.\"", "\"Bang Din says never potong a car like that.\"", "\"Faster, go.\""],
+	["\"Bro, please. Stay behind it.\"", "\"Look properly. Nobody at the wheel.\"", "\"Okay, last time. Go.\""],
 ]
 const GRUMBLE := [
 	"Hafiz: \"Okay lah, okay lah. Follow only.\"",

@@ -5,9 +5,9 @@ extends TestCase
 const RECALL := "[Bang Din: \"A slow car with nobody driving, you follow it. However long. Never potong.\"]"
 const MEI := "Mei: \"Eh… isn't that the same car?\""
 const OPTIONS := {
-	&"overtake_1": ["Don't, bro. Just follow it.", "Eh… got nobody driving that car.", "Ya lah, go."],
-	&"overtake_2": ["Follow it lah. No rush.", "Bang Din says never potong a car like that.", "Faster, go."],
-	&"overtake_3": ["Bro, please. Stay behind it.", "Look properly. Nobody at the wheel.", "Okay, last time. Go."],
+	&"overtake_1": ["\"Don't, bro. Just follow it.\"", "\"Eh… got nobody driving that car.\"", "\"Ya lah, go.\""],
+	&"overtake_2": ["\"Follow it lah. No rush.\"", "\"Bang Din says never potong a car like that.\"", "\"Faster, go.\""],
+	&"overtake_3": ["\"Bro, please. Stay behind it.\"", "\"Look properly. Nobody at the wheel.\"", "\"Okay, last time. Go.\""],
 }
 
 var stage: RoadStage
