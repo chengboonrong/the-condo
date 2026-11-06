@@ -8,6 +8,8 @@ extends Node3D
 
 ## come_for: she is as close to the camera as she comes.
 signal reached
+## catch: he is down and the pool begins to spread, once per catch (a drop from afar takes as long as its distance).
+signal caught(victim: Node3D)
 
 const SMELL := "[A sour smell, like vinegar.]"  # after her first glimpse: the folklore's vinegar, unexplained
 const GLIMPSE := 1.2  # seconds she is seen at the roadside, at the most
@@ -405,6 +407,8 @@ func _feed(delta: float) -> void:
 	if _t >= _drop + FALL:
 		pool.visible = true
 		_pool_material.set_shader_parameter(&"spread", POOL * (1.0 - exp(-(_t - _drop - FALL) / 1.6)))
+	if _passed(_drop + FALL, delta):
+		caught.emit(_target)
 
 
 func _behind_point() -> Vector3:

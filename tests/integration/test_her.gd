@@ -167,6 +167,29 @@ func test_catch_ends_on_the_ground() -> bool:
 	return true
 
 
+## Task 10 waits on `caught` to go on: from 18 m behind him the drop takes over 2 s, so no timer would do.
+func test_catch_says_when_he_is_down() -> bool:
+	var her := _her()
+	var victim := Node3D.new()
+	tree.root.add_child(victim)
+	victim.global_transform = CarRig.on_road(800.0, 1.0)
+	her.behind(victim)  # 18 m behind him
+	await _frames(2)
+	var heard := []  # per caught: who, his up axis then, and whether the pool showed
+	her.caught.connect(func(who: Node3D) -> void: heard.append([who, victim.global_basis.y.normalized(), her.pool.is_visible_in_tree()]))
+	her.catch(victim)
+	await _frames(300)
+	eq(heard.size(), 1, "caught, once")
+	if heard.size() == 1:
+		check(heard[0][0] == victim, "with him")
+		check(absf((heard[0][1] as Vector3).dot(Vector3.UP)) < sin(deg_to_rad(15.0)), "as he lies on the ground (up %s)" % heard[0][1])
+		check(heard[0][2], "and the pool begins")
+	her.catch(victim)  # again, from over him
+	await _frames(120)
+	eq(heard.size(), 2, "and once more for a second catch")
+	return true
+
+
 func test_come_for_stops_short_of_the_camera() -> bool:
 	var her := _her()
 	var camera := Camera3D.new()
