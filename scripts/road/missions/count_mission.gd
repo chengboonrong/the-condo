@@ -16,16 +16,12 @@ const RULE := &"turned_round"
 const OBJECTIVE := "Don't turn round. Don't count her."
 const RECALL := "[Bang Din: \"If they say there's one more in the car, don't turn to look. And don't count her.\"]"
 ## Their talk once the mirror is on, from which he works out who sits beside him.
-const FRIEND := [
-	["Mei: \"Eh, your friend so quiet one. Shy ah?\"", 3.5, &"mei"],
-	["Hafiz: \"Bro, your friend all wet. Kena rain ah?\"", 3.5, &"hafiz"],
-]
+const MEI_FRIEND := "Mei: \"Eh, your friend so quiet one. Shy ah?\""
+const HAFIZ_FRIEND := "Hafiz: \"Bro, your friend all wet. Kena rain ah?\""
 const RECALL_AT := 9.0  # seconds into the quiet
 const COUNT_AT := 22.0
-const COUNT := [
-	["Mei: \"Eh, how many of us ah? I want to buy drinks at the R&R.\"", 4.0, &"mei"],
-	["Hafiz: \"Four people in this small car, also nobody talk.\"", 3.5, &"hafiz"],
-]
+const MEI_COUNT := "Mei: \"Eh, how many of us ah? I want to buy drinks at the R&R.\""
+const HAFIZ_COUNT := "Hafiz: \"Four people in this small car, also nobody talk.\""
 const ASK_AT := 30.0  # once both have spoken
 const AGAIN := "Mei: \"Just answer lah. How many?\""
 const THREE := "Mei: \"Three? Then who's sitting—\""
@@ -58,8 +54,8 @@ func begin() -> void:
 	_recalled = false
 	_counted = false
 	_braked = false
-	for line: Array in FRIEND:
-		d.say(line[0], line[1], line[2])
+	d.say(MEI_FRIEND, 3.5, &"mei")
+	d.say(HAFIZ_FRIEND, 3.5, &"hafiz")
 	go(&"quiet")
 
 
@@ -77,8 +73,8 @@ func tick(_delta: float) -> bool:
 				WorldState.set_objective(OBJECTIVE)
 			if not _counted and beat_t >= COUNT_AT:
 				_counted = true
-				for line: Array in COUNT:
-					d.say(line[0], line[1], line[2])
+				d.say(MEI_COUNT, 4.0, &"mei")
+				d.say(HAFIZ_COUNT, 3.5, &"hafiz")
 			if beat_t >= ASK_AT:
 				d.ask(&"count", PackedStringArray(["\"Three.\"", "\"Four.\"", "\"Why you ask?\""]), 6.0, PackedInt32Array([0, 2, -1]), &"counted_her")
 				go(&"asked")

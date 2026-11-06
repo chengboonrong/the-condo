@@ -54,8 +54,9 @@ func test_only_the_mirror_sees_her() -> bool:
 	await tree.process_frame
 	var face := mirror.fourth.global_position + car.global_basis.y * 0.55
 	check(mirror.camera.is_position_in_frustum(face), "the mirror looks back at her")
-	var his := car.seat_rear_left.global_position + car.global_basis.y * 0.55
-	check(not mirror.camera.is_position_in_frustum(his), "and not at his own seat: no reflection of him to miss")
+	for towards_her in [0.0, 0.2]:  # his head, and his shoulder on the middle's side
+		var his := car.seat_rear_left.to_global(Vector3(-towards_her, 0.55, 0.0))
+		check(not mirror.camera.is_position_in_frustum(his), "and not at his own seat: no reflection of him to miss")
 	mirror.glimpse()
 	check(hers.all(func(v: VisualInstance3D) -> bool: return v.layers & 1 != 0), "turning to her, the player's camera sees her too")
 	for i in 12:  # 0.2 s
@@ -100,6 +101,7 @@ func test_the_mirror_renders_only_in_mission_3() -> bool:
 			gone = true
 			eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_ALWAYS, "(Hafiz brakes, the mirror still on)")
 			check(not mirror.fourth.visible and mirror.wet.visible, "the seat in the mirror is empty, and wet")
+			eq(mirror.fill.light_specular, Mirror.WET_SHINE, "its sheen in her light")
 	check(gone, "(the seat was seen empty)")
 	check(d.mission_index != at, "(mission 3 is over)")
 	eq(mirror.viewport.render_target_update_mode, SubViewport.UPDATE_DISABLED, "and after mirror_off it doesn't")

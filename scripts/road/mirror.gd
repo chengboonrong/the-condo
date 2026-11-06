@@ -18,6 +18,8 @@ const FILL := Vector3(0.3, 0.75, 0.95)
 ## In her seat's space: where her wet hair and back lay against the backrest (its face is 0.13 m behind the H-point
 ## and leans back 22 degrees). The mirror can't see down to the cushion.
 const WET := Vector3(0.0, 0.42, -0.3)
+const SHINE := 0.05  # her fill's specular on her: low, so her crown has no hotspot, only streaks down her wet hair
+const WET_SHINE := 1.0  # and on the wet seat once she is gone: its sheen is all that shows of the wet
 const GLIMPSE := 0.3  # seconds the player's camera sees her when he turns round to her
 
 var viewport: SubViewport
@@ -76,7 +78,7 @@ func _ready() -> void:
 	fill.light_energy = 3.0
 	fill.omni_range = 2.2
 	fill.light_cull_mask = LAYER
-	fill.light_specular = 0.05  # low: no hotspot on her crown, only streaks down her wet hair
+	fill.light_specular = SHINE
 	fill.position = FILL
 	fill.visible = false
 	_seat.add_child(fill)
@@ -88,7 +90,7 @@ func _ready() -> void:
 	patch.rings = 1
 	var soaked := StandardMaterial3D.new()
 	soaked.albedo_color = Color(0.02, 0.022, 0.026)
-	soaked.roughness = 0.22  # a broad sheen from her fill light: dark cloth alone reads as nothing in the mirror
+	soaked.roughness = 0.22  # a broad sheen from her fill light (WET_SHINE): dark cloth alone reads as nothing
 	wet = _mesh(patch, soaked)
 	wet.layers = LAYER
 	wet.position = WET
@@ -123,6 +125,7 @@ func set_on(on: bool) -> void:
 	_glass.visible = on
 	fourth.visible = on
 	fill.visible = on
+	fill.light_specular = SHINE
 	wet.visible = false
 	set_process(on)
 	if on:
@@ -139,6 +142,7 @@ func glimpse() -> void:
 func empty() -> void:
 	fourth.visible = false
 	wet.visible = true
+	fill.light_specular = WET_SHINE
 
 
 ## Every material it draws with, hers and the wet seat's included, for the warm-up.
