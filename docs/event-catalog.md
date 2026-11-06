@@ -47,3 +47,65 @@ Every event that makes a story-relevant sound also emits a caption ("[Three knoc
 The visitor's are "[A lift chimes down the corridor]", "[Footsteps in the corridor, coming closer]" and
 "[The footsteps stop outside your door]". Nothing is captioned when the feet go: nothing is heard. Captions
 can be turned off in settings; dialogue always shows.
+
+## The road
+
+The road's moments are not `HorrorEvent`s. They have no scheduler, scoring or cooldowns: `RoadDirector` runs five
+missions in a fixed order and sends `EventBus.road_cue` for each one-off moment, in the order a player meets it. The
+cue's effect on screen and in the speakers is in [architecture.md](architecture.md#signals-and-cues). The core is
+deterministic, and a bot sees the same cues a player does.
+
+| Cue | Mission | Sent when |
+|---|---|---|
+| `card_on`, `card_off` | 1 | the opening's black card goes up at once and is taken away 13 s in |
+| `lorry_passes` | 1 | 20 s of waiting at the stop (the wait counts only while he is at the stop) |
+| `couple_stops` | 1 | 45 s of waiting, when the couple's car has stopped for him |
+| `seated` | 1 | he gets in |
+| `slow_car_seen` | 2 | the car has slowed to the slow car's speed behind it |
+| `indicator`, `overtake` | 2 | Hafiz is going to overtake: the indicator, then 2.5 s later the pull out |
+| `her_glimpse` | 2 | he is back in his own lane after an overtake |
+| `slow_car_ahead` | 2 | the same car is ahead again, 40 m on |
+| `slow_car_gone` | 2 | after the third attempt it pulls into a lay-by |
+| `mirror_on`, `mirror_off` | 3 | the mirror starts and stops showing the back seat |
+| `fourth_glimpse` | 3 | he turned round to her |
+| `brake`, `fourth_gone` | 3 | 2.5 s into the empty seat, as Mei breaks off |
+| `lights_dying`, `crank` | 4 | the car dies on the long straight, then Hafiz tries the key twice |
+| `hafiz_leaves` | 4 | 8 s into his going, once his two lines are over |
+| `insects_stop` | 4 | 20 s after Hafiz has gone |
+| `thump`, `her_on_roof` | 4 | three thumps on the roof, she lands at the first |
+| `mei_reaches_door` | 4 | the voice outside has been answered, or not |
+| `mei_door_cracked` | 4 | Mei was not stopped |
+| `door_cracked` | 4 | he opened his door |
+| `knock_window` | 4 | three knocks on Mei's window |
+| `light_on` | 4 | 10 s after the knocks, when it has gone quiet |
+| `get_out`, `her_behind` | 5 | he gets out and the walk begins |
+| `mei_looks` | 5 | Mei was not held and looks back |
+| `hafiz_at_stall` | 5 | `alive` is decided |
+| `walk_over` | 5 | 4 m short of the light; in `caught`, where it is decided |
+| `lorry_flagged` | 5 | `alive`: they are at the stall |
+| `phone_rings`, `lorry_stops` | 5 | `saved`: they are at the stall, then 6.5 s later |
+| `light_out` | 5 | `caught` is decided: 30 m short of the light |
+| `her_catches_hafiz`, `her_comes` | 5 | `caught`: 6 s and 12.5 s after it |
+| `rule_broken` | any | `break_rule` |
+
+### When a rule breaks
+
+A break always does three things, whatever the mission: it adds the rule's weight to the count that decides the ending,
+it thickens the fog (the road's fog runs from density 0.035 to 0.11), and it brings her nearer (her glimpses come closer
+and she follows closer on the walk). It sends `rule_broken`. What each mission adds:
+
+| Mission | Rule (weight) | What else happens |
+|---|---|---|
+| 2 | `overtook` (1) | He says "Okay, hold tight! Potong!", the indicator ticks and the rev sounds, and the car goes round the slow car at 14 m/s in the other lane. She shows at the roadside (`her_glimpse`). About 20 s later the same car is ahead again, round a bend, and Mei says "Eh… isn't that the same car?". Hafiz asks again at once, not after a long follow. A kept rule costs a grumble and a long crawl on. |
+| 3 | `turned_round` (1) | His own camera sees her for 0.3 s, in the seat beside him. |
+| 3 | `counted_her` (1) | "Four." has Mei count heads aloud for 3 s ("Four meh? Wait, I count. One, two...") before she says "Three? Then who's sitting—". Any answer ends the same way: the car brakes and the seat in the mirror is empty and wet. |
+| 4 | `opened_door` (2) | His door opens a hand's width and something slaps it shut. He cannot try again. |
+| 4 | `answered` (1) | Nothing shows but the fog and her. Mei reaches for her door whatever he said. |
+| 4 | `mei_opened` (1) | Mei's door opens a little and is slapped shut. |
+| 5 | `looked_back` (3, at most twice) | Nothing shows but the fog and her, who is nearer behind them. |
+| 5 | `mei_looked` (1) | Mei looks back for 2.5 s: "[Mei looks back.]". |
+
+The count then decides the ending at the light: up to 2 `alive`, 3 to 6 `saved`, more `caught`.
+
+No sound on the road is captioned. What anyone says or thinks (`line_requested`) always shows, whatever the captions
+setting, and so does "[A sour smell, like vinegar.]" after her first glimpse.

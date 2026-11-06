@@ -146,3 +146,20 @@ func test_road_lines_show_with_captions_off() -> bool:
 	eq(hud._subtitle.text, "[You laughed. He didn't.]", "a road line always shows")
 	road.queue_free()
 	return true
+
+
+## Both scenes show the start card before anything is played, so the gore is warned of whichever opens first.
+func test_start_card_warns_of_gore() -> bool:
+	for path in ["res://scenes/road.tscn", "res://scenes/main.tscn"]:
+		var scene: Node3D = load(path).instantiate()
+		tree.root.add_child(scene)
+		await tree.process_frame
+		var texts: Array[String] = []
+		for l: Label in scene.hud._start.find_children("*", "Label", true, false):
+			texts.append(l.text)
+		var card := "\n".join(texts)
+		check(card.contains("blood and gore"), "%s: the start card says blood and gore (%s)" % [path, card])
+		check(card.contains("Reduced flashing and brightness: press Esc"), "%s: and still points to Esc" % path)
+		scene.queue_free()
+		await tree.process_frame
+	return true

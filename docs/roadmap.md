@@ -23,11 +23,23 @@ The entry needs a public GitHub repository and an itch.io submission. Plan to su
 | 4 — Environmental manipulation (shifts) | `feat/environmental-manipulation` | 2 | done |
 | 5 — Narrative and endings | `feat/narrative` | 3 (18–24 Nov) | done |
 | 6 — Polish and release candidate | `feat/polish-release` | 4 (25 Nov–1 Dec) | done; Windows and Linux builds not run |
+| 7 — The road down, part 1 | `feat/the-road-down` | 1 | built: the road, five missions, the penanggal, three endings, then the flat. Part 2 (the alive and the dead flat) is not started; web measurements of the road are not run |
 
 Branches are stacked: each starts from the previous one. Nothing is merged into `main` without approval.
 
 ## Story outline
 
+0. **The Road Down.** The game now starts here, before the flat. 12:06 AM at a mountain resort above KL. The last staff
+   bus has gone, and Bang Din at the stall, the older colleague, has told him the road down has rules. A couple, Hafiz
+   and Mei, stop and give him a lift. He rides in the back seat and never drives. Five missions, each with rules to keep
+   (one weighted count of the broken ones decides the ending): **the lift** (wait for the car), **the slow car**
+   (follow it, never overtake, however long), **the extra passenger** (a fourth in the mirror: don't turn round, don't
+   count her), **the car dies** (stay in, don't open the door, don't answer the voice) and **don't look back** (walk to
+   the light and keep Mei from looking). A penanggal, a flying head with its insides hanging beneath it, follows the
+   car. Breaking a rule costs something he can feel: thicker fog, her nearer, the same car ahead again. Three road
+   endings: all three get down alive, he gets Mei out, or she catches Hafiz and comes for the two of them. Every one
+   wakes him at home at 11:47 PM. Part 1 runs the flat unchanged after every road ending; part 2 will make it differ
+   (see [architecture.md](architecture.md#the-road)).
 1. **The Complaint.** 11:47 PM, just home from a shift at the mamak on the corner. Wash up, lie down (this walks the player
    past the shoes, the tap and the chair that will later move). The intercom rings: Puan Rosnah from
    B-11-07, downstairs, complains about knocking. You have made no noise. Knocks from the bedroom wall;
@@ -48,6 +60,12 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
   levels; the detail pass added furniture, trim, fixtures, contact shadows and grain (see
   [architecture.md](architecture.md#look)). Everything is still built from boxes and cylinders in code,
   and every sound is synthesised.
+* **The road's look.** The penanggal, the people and the road are judged against four things: a ghost that looks fake,
+  cheap jump scares, not Malaysian enough, and boring missions. Its stills were looked at on 2026-11-06
+  (`tools/road_stills.sh`); only bots have played the road, as far as the repository records. Its web performance is not
+  measured (the desktop numbers are in [performance.md](performance.md#the-road)).
+* **Gore on a public repository and itch.io.** Nothing either platform's text bans outright, but the wording is broad:
+  see `docs/research/2026-11-06-gore-rules.md`. Two choices are the owner's at publish time.
 * **Web performance on slower machines.** Measured only on an M1 Max (see
   [performance.md](performance.md)): 120 fps in Chromium, 60 fps in headless WebKit, no frame over 25 ms.
   The detail pass raised draw calls by about a third. Real Safari, integrated graphics and older GPUs are

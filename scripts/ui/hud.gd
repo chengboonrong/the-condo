@@ -258,7 +258,7 @@ func _build_start(root: Control) -> void:
 	title.text = "THE CONDO: 11:47 PM"
 	var body := _label(box, 18, HORIZONTAL_ALIGNMENT_CENTER)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.text = "Headphones recommended. Contains flickering lights, sudden sounds and themes of isolation.\nReduced flashing and brightness: press Esc now or at any time."
+	body.text = "Headphones recommended. Contains blood and gore, flickering lights, sudden sounds and themes of isolation.\nReduced flashing and brightness: press Esc now or at any time."
 	body.modulate = Color(1, 1, 1, 0.7)
 	_click = _label(box, 22, HORIZONTAL_ALIGNMENT_CENTER)
 	_click.text = "Loading…"

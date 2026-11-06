@@ -24,9 +24,10 @@ which is what makes seeded replays and simulated playthroughs possible.
 
 | Module | File | Kind | Responsibility |
 |---|---|---|---|
-| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). |
+| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). Seven are for the road (see [The road](#the-road)). |
 | WorldState | `scripts/core/world_state.gd` | autoload | Authoritative state: act, objective, flags, clues, player room, doors, lights, variants, entity, event history, ending. Mutated only through explicit methods, each of which emits on EventBus. `reset()` for tests. |
 | Settings | `scripts/core/settings.gd` | autoload | Player options in `user://settings.cfg`. |
+| Journey | `scripts/core/journey.gd` | autoload | Carries how the road ended into the flat, and sends a restart back to the road. See [The road](#the-road). |
 | ApartmentLayout | `scripts/world/apartment_layout.gd` | static data | Rooms, walls, doors, lights, anchors, variant areas. The builder, RoomGraph and the tests all read this one file. |
 | RoomGraph | `scripts/world/room_graph.gd` | RefCounted | Room connectivity for any variant set: neighbours, BFS paths, reachability. |
 | PlayerController | `scripts/player/player_controller.gd` | CharacterBody3D | Walk, sprint, crouch (with headroom check), mouse look, phone light, footsteps. `scripted_move` lets tests drive it. |
@@ -39,6 +40,8 @@ which is what makes seeded replays and simulated playthroughs possible.
 | RoomTransformer | `scripts/horror/room_transformer.gd` | RefCounted | Applies predefined variants only after the five safety checks pass. |
 | StoryDirector | `scripts/story/story_director.gd` | RefCounted | Acts, objectives, dialogue, clues, fail-safes, endings. |
 | HorrorRuntime | `scripts/horror/horror_runtime.gd` | Node | Composition root for the core; one seeded RNG; fixed tick order. |
+| RoadDirector | `scripts/road/road_director.gd` | RefCounted | The road's core: runs five missions in order and keeps one weighted count of the rules he breaks. See [The road](#the-road). |
+| RoadMain | `scripts/road/road_main.gd` | Node3D (`scenes/road.tscn`) | The road's composition root, and the game's first scene. |
 
 ## Determinism
 
@@ -121,6 +124,224 @@ switches to its waiting beat *before* asking for it. Noticing a moved object put
 The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
 `tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds.
 
+## The road
+
+The game starts on the road down a mountain, and the flat follows it. The road has its own simulation core, built like
+the flat's: headless, deterministic, and talking to the presentation only through `EventBus`. The design is in
+`docs/superpowers/specs/2026-11-06-the-road-down-design.md`. The core is `scripts/road/road_director.gd`,
+`road_mission.gd`, `road_stage.gd`, `road_layout.gd` and `missions/*`. All of them are `RefCounted` and touch no node.
+
+### Scene order and Journey
+
+* The project's main scene is `scenes/road.tscn` (`RoadMain`). It builds the road behind the start card, which carries
+  the content warning (blood and gore, flickering lights, sudden sounds), the headphones line and the Esc line for
+  reduced flashing and brightness. The flat's own scene, `scenes/main.tscn`, has the same card for when it opens first.
+* When the core ends the road (`RoadDirector.end` emits `EventBus.road_ended`), `RoadMain.finish(ending)` calls
+  `Journey.arrive(ending)`. `Journey` (an autoload) keeps it in `road_ending` (`&"alive"`, `&"saved"` or `&"caught"`;
+  `&""` when the flat was opened directly) and changes to `scenes/main.tscn`. The change is deferred, because the call
+  comes from inside the scene it replaces.
+* The flat sees `road_ending != &""`: it shows a black card, "11:47 PM", while it builds, skips its start card and lets
+  the card go over 1.5 s. The clock is 11:47 PM however the road ended. The flat runs the same story after every road
+  ending: nothing in it reads `road_ending` yet (part 2 of the plan, the alive and dead flats).
+* A restart (the pause menu's Restart, or a click on the flat's ending card) calls `Journey.restart()`, which clears
+  `road_ending` and loads the road again. The game never restarts into the flat.
+* `-- --flat` / `?flat`: the road hands straight over with `Journey.arrive(&"")`, so the flat shows its own start card
+  (the flat's checks use it). `-- --mission=N` / `?mission=N`: the road starts at mission N, as if every earlier one was
+  kept (`RoadDirector.start_at`); F10 in a debug build skips the current mission the same way. `-- --smoke` and
+  `-- --perf` run the road first and then the flat.
+* Tests and tools set `Journey.change_scenes = false` to see the state change without the scene change.
+
+### The core
+
+`RoadDirector` runs five `RoadMission`s in order and keeps one weighted count of the rules he breaks. It holds what the
+presentation reads each frame: the ride (`car_s`, `car_speed`, `lane`, `seated`, `slow_gap`, `light_s`), `fog` and
+`her_near` (both 0 to 1), `broken` (every broken rule, with its weight, time and mission) and `progress` (every beat
+change). One seeded `rng`; no mission draws from it today.
+
+* **Stage.** `RoadStage` says where he is and how far his head has turned from facing the way the car goes (or the walk
+  goes): `relative_yaw`, in radians, positive to his left, wrapped to [−π, π], so a full turn of the mouse is facing
+  forward again. `RoadGameStage` reads the player, against the car's forward while he rides and against the road while
+  he walks, so a hairpin under a player who keeps still is never turning round. Bots set a `RoadStage` directly.
+* **Missions** (`RoadMission`) have five hooks: `begin()`, `tick(delta) -> bool` (true when it is done),
+  `set_up_skipped()` (the state this mission starts in as if every earlier one was kept, for `start_at`),
+  `interacted(id)` (he used something) and `leave()` (clear the card, prompts and objective it put up). Missions never
+  connect to `EventBus`: the director passes on `object_interacted` while the mission is current.
+* **Tick order.** `step(delta)` does these in order:
+  1. time (`WorldState.advance_time`; the clock reads 12:06 AM when the road starts);
+  2. captions (`say()` queues lines; one shows at a time, 0.3 s apart);
+  3. the open choice's timer, which closes it as silence when it runs out;
+  4. the look rule (`watch_look`);
+  5. the current mission (`begin()` once, then `tick`; when it is done it is left, the next starts, and after the last
+     `end()` is called);
+  6. the ride (the car speeds up and slows at 2.5 m/s², brakes in time for `stop_at`, and changes lane at 1.5 m/s).
+* **Pausing.** The game steps the director only while he can play (on the road or reading a note), not on the start card
+  or in the pause menu, so no timer runs and no rule breaks while paused, or when focus or pointer lock is lost.
+* **Breaking a rule** (`break_rule(rule, weight)`) adds it to `broken`, raises `fog` and `her_near` by 0.12 × weight
+  each (to at most 1) and sends the cue `rule_broken`. A rule breaks in three ways:
+  * a choice (`ask(choice_id, options, seconds, keeps, rule, weight)`): one to three options, one open at a time,
+    answered with the keys 1 to 3. The answers in `keeps` (and `-1`, silence, if listed) keep the rule; any other
+    breaks it;
+  * his look (`watch_look(rule, left, right, hold, weight, max_count)`): his look past `left` or `right` radians for
+    `hold` seconds, at most `max_count` times, and it can break again only after it has come back within 0.8 rad of
+    forward;
+  * something he does (opening the car's door in Mission 4).
+
+### Missions
+
+Weights and what keeps each rule, as the code has them. "Silence" is the choice's timer running out. Every rule's
+break also thickens the fog and brings her nearer, as above.
+
+| # | Class | Beats | Rule (weight) | Choices (seconds) and their keeps |
+|---|---|---|---|---|
+| 1 | `LiftMission` | `opening` (his thoughts on a black card), `walk` (to the bus stop), `wait` (counts only at the stop: the lorry passes at 20 s, the couple's car comes at 45 s), `get_in` (he uses the car's rear door; 9 s of small talk) | none | none |
+| 2 | `SlowCarMission` | `cruise`, `seen`; then for each of three attempts `follow`, `urge`, `ask` and either `kept` or `signal`, `pass`, `away`; then `lay_by`, `gone` | `overtook` (1 each, at most 3) | `overtake_1`, `overtake_2`, `overtake_3` (6 s): three options each; the first two keep the rule, the third and silence break it |
+| 3 | `CountMission` | `quiet`, `asked`, `asked_again`, `counting`, `empty` | `turned_round` (1, once: his look past 2.2 rad to his left or 1.0 rad to his right for 0.4 s); `counted_her` (1) | `count` (6 s): "Three." and "Why you ask?" keep it, "Four." breaks it, silence keeps it; "Why you ask?" opens `count_again` (5 s): "Three." and silence keep it, "Four." breaks it |
+| 4 | `StallMission` | `cruise`, `dying`, `cranking`, `hafiz_leaves`, `waiting`, `thumps`, `voice`, `mei`, `knocks`, `quiet`, `light` | `opened_door` (2, once: he uses his door); `answered` (1); `mei_opened` (1) | `answer_voice` (6 s): "Hafiz? That you?" breaks `answered`, "Stay quiet." and silence keep it; `stop_mei` (4 s): "Mei, don't. That's not him." keeps `mei_opened`, "Okay, open." and silence break it |
+| 5 | `LightMission` | `get_out`, `walk`, then `alive`, `saved` or `caught` | `looked_back` (3, at most twice: his look past 1.9 rad either way for 0.25 s); `mei_looked` (1 each) | `mei_look_1` and `mei_look_2` (5 s), 30% and 65% of the way to the light: "Don't look. Hold my hand." keeps `mei_looked`, "Maybe it's him." and silence break it |
+
+The most that can break is 17: 3 (overtakes), 2 (Mission 3), 4 (Mission 4) and 8 (Mission 5, where looking back counts
+most).
+
+* Mission 2: the same car is ahead again about 20 s after each overtake, round a bend. After the third attempt, kept or
+  not, it pulls into a lay-by and goes dark. Each overtake sends `her_glimpse`.
+* Mission 3: whatever he answers, Mei counts three for herself, Hafiz brakes and the seat in the mirror is empty and
+  wet. Turning to her shows her to him for 0.3 s (`fourth_glimpse`).
+* Mission 4: opening his door cracks it a hand's width before something slaps it shut. If Mei is not stopped, her door
+  does the same. The voice outside sounds like Hafiz's. Mei reaches for her door whatever he answers the voice.
+* Mission 5: the light is 150 m on from where the car died. The walk is over 4 m short of it (`alive`, `saved`) or where
+  the bulb dies (`caught`). Every beat is timed by the core, never by the presentation, because the bots play it with
+  none.
+
+### How the road ends
+
+`outcome()` reads the weighted count: up to 2 is `alive` (`ALIVE_MAX`), 3 to 6 is `saved` (`SAVED_MAX`), above 6 is
+`caught`. Two looks back make 6 on their own. `LightMission` decides it once, 30 m short of the light and once no
+choice is open (`DECIDE`), then stops the look rule, so a rule broken after that changes nothing. That ending plays and
+the road is over (`end(decided)`, which emits `road_ended` once):
+
+* `alive`: Hafiz walks up to the bulb out of the fog below, torch on. The lorry he flagged down comes down behind them,
+  slowly past them, and pulls up past the stall. She is gone. A black card says the lorry takes the three of them down.
+* `saved`: nobody is at the stall but his phone, ringing on the table. A lorry pulls up behind the two of them. She is
+  gone. A black card says the lorry takes the two of them down.
+* `caught`: the bulb dies. Hafiz walks out of the fog ahead with his phone as a torch. She flies over the two of them
+  and drops onto him, a dark pool spreads under him, his phone falls lit on the road, and Mei screams (a caption; no
+  voice). Then she comes for the camera, and a black card cuts in the moment she reaches it, with no caption. The core
+  ends the road 18.5 s after the decision as a backstop if the card is late.
+
+### Signals and cues
+
+The road adds seven signals to `EventBus` (`line_requested` sits among the presentation requests):
+
+| Signal | Sent by | Heard by |
+|---|---|---|
+| `line_requested(text, seconds)` | `RoadDirector.say`; `Penanggal` (the vinegar smell); `Endings` (Mei's scream) | the HUD: a line someone says or thinks, always shown whatever the captions setting (sound captions use `subtitle_requested`) |
+| `road_line(speaker, seconds)` | `RoadDirector.say`, for a named speaker (`&"hafiz"`, `&"mei"`) | `Couple`: they turn their heads |
+| `choices_requested(choice_id, options)` | `RoadDirector.ask` | the HUD, through `RoadMain`: it shows the options as "[1] …" and nothing more |
+| `choice_made(choice_id, index)` | the HUD on a key press (once per choice), or a bot | the director |
+| `choices_closed(choice_id)` | the director, when it closes a choice (answered, silent or skipped) | the HUD, through `RoadMain` |
+| `road_cue(cue)` | the director and the missions, for one-off moments | `RoadMain` and `Endings`; tests, bots and stills listen too |
+| `road_ended(ending)` | `RoadDirector.end` | `RoadMain.finish`, which hands over to `Journey` |
+
+Every cue, who sends it and what the presentation does (`RoadMain._on_cue` and `Endings._on_cue`). A cue with no
+effect in the game is still sent: it marks a moment for the tests, the bots and the stills.
+
+| Cue | Sent by | What the presentation does |
+|---|---|---|
+| `card_on`, `card_off` | Mission 1 (the opening card); Mission 5 (the endings' card) | the HUD's black card goes up, or fades over 1 s; `Endings` stops the phone and the lorry's diesel |
+| `lorry_passes` | Mission 1, 20 s into the wait | the lorry passes in the other lane, with its sound |
+| `couple_stops` | Mission 1, 45 s into the wait | nothing: the car is the core's ride |
+| `seated` | Mission 1, when he gets in | his door swings open and shut |
+| `slow_car_seen`, `slow_car_ahead` | Mission 2 | nothing: the slow car follows the core's `slow_gap` |
+| `indicator` | Mission 2, before an overtake | the indicator loop ticks |
+| `overtake` | Mission 2 | the indicator stops, the rev sounds |
+| `her_glimpse` | Mission 2, after an overtake | she shows at the roadside ahead, for 1.2 s at the most |
+| `slow_car_gone` | Mission 2, after the third attempt | the slow car pulls into its lay-by and its lights go out |
+| `mirror_on`, `mirror_off` | Mission 3 | the rear-view mirror starts and stops drawing |
+| `fourth_glimpse` | Mission 3, when he turns to her | his own camera sees her for 0.3 s |
+| `brake`, `fourth_gone` | Mission 3, at the end | `brake`: nothing (the core brakes the car); `fourth_gone`: the mirror shows her seat empty, and wet |
+| `lights_dying` | Mission 4 | the car's lights die over 4 s, the engine sputters and its loop stops |
+| `crank` | Mission 4, twice | the starter cranks |
+| `hafiz_leaves` | Mission 4 | Hafiz gets out and walks off with his phone as a torch |
+| `insects_stop` | Mission 4 | the insects' loop stops |
+| `thump`, `her_on_roof` | Mission 4, three thumps; she lands at the first | the roof thump sounds and his view shakes a little; she hangs over the roof |
+| `mei_reaches_door` | Mission 4, after he answers the voice | Mei turns to her door |
+| `mei_door_cracked` | Mission 4, if he did not stop Mei | her door opens a little and is slapped shut: heard only |
+| `door_cracked` | Mission 4, if he opens his door | his door opens a hand's width and is slapped shut |
+| `knock_window` | Mission 4, three times | a knock on Mei's window |
+| `light_on` | Mission 4, when it goes quiet | the fruit stall's bulb and the far light come on, Mei leans in to see it, she is gone from the roof |
+| `get_out` | Mission 5 | his door swings, Mei's is heard, and Mei gets out and walks beside him |
+| `her_behind` | Mission 5 | she follows him along the road, 18 m behind with no rule broken, 4 m at her nearest |
+| `mei_looks` | Mission 5, if he did not hold her hand | Mei looks back for 2.5 s |
+| `hafiz_at_stall` | Mission 5, `alive` decided | `Endings`: Hafiz walks up to the stall |
+| `walk_over` | Mission 5, 4 m short of the light (`caught`: where it is decided) | `Endings`: Mei stops where she is |
+| `lorry_flagged` | Mission 5, `alive` | `Endings`: the lorry comes down behind them and pulls up past the stall, diesel idling; she is hidden |
+| `phone_rings` | Mission 5, `saved` | `Endings`: the phone rings on the table, its screen and a small light on |
+| `lorry_stops` | Mission 5, `saved` | `Endings`: a lorry pulls up behind them; she is hidden |
+| `light_out` | Mission 5, `caught` | `Endings`: the bulb dies in 0.25 s and Hafiz walks out of the fog |
+| `her_catches_hafiz` | Mission 5, `caught` | `Endings`: she flies over them and drops onto him |
+| `her_comes` | Mission 5, `caught` | she comes for the camera |
+| `rule_broken` | `break_rule` | nothing in the game; the bots and tests count them |
+
+### What the presentation is
+
+`RoadMain` builds these under itself and wires them to the director. Each frame it reads the director's state: it sets
+the fog, places the car, seats him and drives the loops.
+
+| Node | File | What it does |
+|---|---|---|
+| `Player` | `scripts/player/player_controller.gd` | The flat's controller. `sit(seat)` puts him in the car's rear left seat with no collision and only the look; `stand(at)` puts him back on the road. |
+| `Hud` | `scripts/ui/hud.gd` | The flat's HUD, with the black card, the choices and the lines. |
+| `RoadBuilder` | `scripts/road/road_builder.gd` | The road in code from `RoadLayout` (3,200 m, a constant 6% downhill: a tunnel, six switchbacks, a long straight), in 100 m chunks with a visibility range, with the signs, lamps, tunnel, resort wall, bus stop and the far light. `set_fog(director.fog)` runs from density 0.035 (no rule broken) to 0.11. |
+| `Look` | `scripts/world/look.gd` | The flat's grade, held on `&"road"` (`grade_override`). |
+| `Car` (`CarRig`) | `scripts/road/car_rig.gd` | The couple's hatchback: its seats, its rear left door (an interactable: `car_door` outside, `car_door_inside` once he is seated), Hafiz's door, headlights that die with the engine. It is solid only when it stands still or with him in it. |
+| `Mirror` (on the car) | `scripts/road/mirror.gd` | The rear-view mirror and the fourth passenger. A 320×112 picture, 42° across (keeping the width), drawn only while the mirror is on. It is 42° across rather than the plan's 30° vertical so that his own seat stays out of it. Her own fill light lights layer 11 alone. Its camera uses the player camera's shaders: its environment keeps the colour adjustment switched on but neutral. |
+| `Couple` (on the car) | `scripts/road/couple.gd` | Hafiz and Mei in the front seats, turning when they speak; Hafiz walks off and back, and Mei walks beside him. |
+| `Lorry` | `scripts/road/lorry.gd` | Passes in Mission 1; in the endings it comes down the walkers' lane and pulls up, yielding to anyone in its way. |
+| `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`. |
+| `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, and the six loops. |
+| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, flying, catching someone, or coming for the camera. Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Her sounds are wet, and none is a sting. |
+| `Endings` | `scripts/road/endings.gd` | The fruit stall, its bulb, the phones, Hafiz's walk and each ending's moments. |
+| `PauseMenu` | `scripts/ui/pause_menu.gd` | The flat's, with its web guard for a lost pointer lock. |
+
+* **Gore.** She is shown gory: the skull with its hair and wet skin, and her windpipe, lungs, heart, stomach and
+  intestines hanging beneath it (`art/penanggal/`). In the `caught` ending a man is knocked down and a dark pool spreads
+  under him (a shader in `her.gd`). Both stay out of every published image and the README, and the start card, the
+  README and the itch page carry the warning (`docs/research/2026-11-06-gore-rules.md`).
+* **Render layer 11** (see the layers table) is the mirror's alone: the fourth passenger and the wet patch she leaves.
+  The mirror's camera draws it, the player's camera (cull mask 1047551) leaves it out, except for the 0.3 s glimpse.
+  In the warm-up only, a picture of a viewport goes on layer 20 (`PICTURE_LAYER`) so the mirror's camera leaves it
+  out: drawn into its own viewport it would read the texture it writes, which WebGL refuses.
+* **Sounds.** The road's sounds go through `EventBus.sound_requested` like the flat's. The levels are in "Audio levels".
+  The stall's sounds are played now: the lorry idling and braking, the phone ringing as a loop, her wet flap and drip.
+* **Text.** He never speaks: his options are captions he chooses between. Every line is a caption: `Name: "…"`
+  for what is said, `[…]` for a sound or a thought.
+
+### The shader warm-up
+
+No shader may compile mid-game. Behind the start card `RoadMain._compile_shaders` walks the whole road scene for every
+`GeometryInstance3D`, hidden or not (her in the mirror, the signs' lines and the fourth passenger included), copies one
+of each kind (class, shadow mode and materials) onto a board in front of a camera of its own, far above the road, and
+draws it under every mix of the road's lights: an omni light, an unshadowed spot and a copy of his phone light, which
+casts a shadow, in 12 states (`LIGHT_STATES`), one frame each. The mirror's camera draws the board each time as well,
+because its picture has no shadow maps and a pass of its own. `warmed_materials()` lists what was drawn, and
+`test_every_road_material_is_warmed` checks that every material under the road is in it.
+
+The `materials()` methods on `CarRig`, `Couple`, `Lorry`, `SlowCar`, `Penanggal`, `Mirror`, `Endings` and
+`RoadBuilder`, and `Penanggal.warm_up`, are no longer what the warm-up reads. They remain for tests. Adding a material
+to one does nothing for the warm-up: a new material is warmed because the walk finds it, if it exists when the walk
+runs. What is made after the card is clicked is not.
+
+### Bots, stills and tools
+
+* `tests/sim/road_playthrough.gd` (`RoadPlaythrough`) plays the core headless with a `RoadStage`: three bots, on seeds
+  1147, 7 and 2026. `keeper` keeps every rule and ends `alive` with score 0, `wobbly` ends `saved` with 4 and `breaker`
+  ends `caught` with 16. They are bots, not people; the keeper's 7 to 15 sim minutes are a lower bound for a person
+  (about 8 minutes by the missions' beats), not a playtest.
+* `tools/road_stills.sh <dir>` renders 44 stills of the road, one PNG per shot, and a contact sheet. Each starts its
+  mission as `--mission` does and the simulation stands still. Stills made for checking stay out of the repository.
+* `-- --perf` runs `RoadPerf`, about 49 s through the road's heaviest moments, before the flat's tour
+  ([performance.md](performance.md)).
+
 ## Visibility
 
 Room swaps and silhouettes need "can the player see this point?". The core asks a `HorrorStage`:
@@ -138,8 +359,9 @@ The project uses the **Compatibility** (OpenGL 3 / WebGL2) renderer so one proje
 
 The aim is a real Malaysian condo at night, not generic horror: grilles on the windows and gates,
 wall tiles to 1.8 m in the bathroom, laundry drying by the window, a gas cylinder at the end of the counter, a
-tudung saji on the table, the corridor light under the front door. No blood, no red fog, no chromatic
-aberration. The fear comes from the place being ordinary.
+tudung saji on the table, the corridor light under the front door. The flat shows no blood, no red fog and no chromatic
+aberration: the fear comes from the place being ordinary. The road before it is the exception: it shows the penanggal
+gory, and blood (see [The road](#the-road) and `docs/research/2026-11-06-gore-rules.md`).
 
 * `ApartmentBuilder` builds the structure (walls, floors, doors, lights) from `ApartmentLayout`;
   `Decor` (`scripts/world/decor.gd`) adds furniture, trim, door frames, window grilles and fixtures.
@@ -204,8 +426,10 @@ aberration. The fear comes from the place being ordinary.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
   Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are
   `apron_hung`, `basin`, `bed`, `ceiling_fan`, `dining_chair`, `dining_table`, `figure`, `fridge`, `front_door`,
-  `intercom`, `shoe_rack`, `tap_water`, `tv_cabinet`, `wall_clock` and `work_shoes`. No model borrows a file (there
-  is no `art/*/vendor/`, so no credits list); the one outside source is the Inter font, see References consulted.
+  `intercom`, `shoe_rack`, `tap_water`, `tv_cabinet`, `wall_clock` and `work_shoes` for the flat, and `fourth`,
+  `fruit_stall`, `hafiz_seated`, `hafiz_standing`, `hatchback`, `mei_seated`, `mei_standing`, `old_sedan` and
+  `penanggal` for the road. No model borrows a file (there is no `art/*/vendor/`, so no credits list); the one
+  outside source is the Inter font, see References consulted.
 * **The trailer** is filmed in the game: `tools/trailer.gd` plays the shot list through the game's own state,
   signals and nodes and draws the cuts, black and cards itself, and `tools/trailer.sh` records it with Movie
   Maker at 1920×1080 (through a temporary `override.cfg`, removed afterwards), encodes it with ffmpeg at about
@@ -226,8 +450,18 @@ Two rules keep the decor from breaking the game:
 
 ## Audio levels
 
-Measured from the files (`assets/audio/`, the loudest 100 ms) plus the volume each is played at, before
-distance attenuation. Scares sit at the top, the player's own noise near the bottom, beds underneath.
+Measured from the files (`assets/audio/`, the loudest 100 ms) plus the volume each is played at. "Heard at" is the
+level 3 m from him, the players' unit size, where distance adds and takes away nothing. Scares sit at the top, the
+player's own noise near the bottom, beds underneath.
+
+Closer than 3 m a sound gets louder, but not without limit: `AudioStreamPlayer3D` holds its played level plus the gain
+from being close to `max_db`, which is +3 dB, and that cap applies after the played level. So a sound played at 0 dB
+within about 1 m of his head is heard at its file level + 3 dB, whatever the table's arithmetic says. A sound placed at
+his camera, as the lorry passing and the rev are, is at distance 0, so it is capped whatever it is played at. Rows
+marked † are those: the roof thump (0.4 m from his head), the window knock and the car doors (Mei's door and window are
+1.2 m away; his own door is beside him), the lorry passing and the rev. Their "Heard at" is file + 3 dB, worked out from
+that rule and not measured in a running game. Her breath is the same when she comes to his face (0.6 m). The flat's rows
+were not re-checked against this.
 
 | Sound | File | Played at | Heard at |
 |---|---|---|---|
@@ -237,20 +471,20 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Door opening by itself (event) | −6.9 | −4 | −10.9 |
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
+| Hatchback revving for the overtake (the road) † | −16.0 | −2 (no effect: see †) | −13.0 |
+| Car door shut (the road) † | −17.0 | 0 | −14.0 |
+| Lorry passing in the other lane (the road) † | −17.0 | 0 (no effect: see †) | −14.0 |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
-| Roof thump ×3 (the road, something lands on the car) | −15.5 | 0 | −15.5 |
+| Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
+| Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
-| Lorry passing in the other lane (the road) | −17.0 | 0 | −17.0 |
-| Car door shut (the road) | −17.0 | 0 | −17.0 |
 | Door opening (the player) | −6.9 | −11 | −17.9 |
-| Hatchback revving for the overtake (the road) | −16.0 | −2 | −18.0 |
 | Phone ringing on the table (the road, loop: one ring) | −19.0 | 0 | −19.0 |
-| Knock on the car window ×3 (the road) | −19.0 | 0 | −19.0 |
+| Car door opened (the road) † | −23.0 | 0 | −20.0 |
 | Door closing | −20.6 | 0 | −20.6 |
 | Engine dying (the road) | −19.0 | −2 | −21.0 |
 | Lorry's air brakes as it pulls up (the road) | −21.0 | 0 | −21.0 |
 | Starter cranking ×2 (the road) | −19.0 | −2 | −21.0 |
-| Car door opened (the road) | −23.0 | 0 | −23.0 |
 | Indicator (the road, loop: one flash) | −24.0 | 0 | −24.0 |
 | Lorry's diesel idling (the road, loop: 60 firings) | −20.0 | −4 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
@@ -270,14 +504,18 @@ distance attenuation. Scares sit at the top, the player's own noise near the bot
 | Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
 
 The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prints each file's level as it makes it).
-Their file levels are measured from the files. "Played at" is what `RoadAudio` uses: so far the engine (seated;
-outside it falls off as 1/distance), the insects, both car doors, the lorry, the asphalt steps, the slow car's old
-engine (from 10 m away it falls off as 1/distance, and its pitch drops as it stops), the indicator (while Hafiz
-signals), the rev (as he pulls out), her wet flap, drip and breath (from where she is, falling off past 3 m), the
-phone on the stall's table (falling off past 3 m), the lorry's idle (past 6 m) and its air brakes play at these levels,
-and the rest are proposals until their missions play them. Their "Heard at" is that level's result, not a measurement of
-the game. None is louder than the single knock (−14.6) and none is a sting. Six of them are seamless loops, imported
-with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
+Their file levels are measured from the files. "Played at" is what the game plays them at, and all of them are played
+now: the engine (seated; outside it falls off as 1/distance), the insects, the car doors, the lorry passing in
+Mission 1 and, in the endings, its diesel idling (falling off past 6 m) and its air brakes as it pulls up, the asphalt
+steps, the slow car's old engine (from 10 m away it falls off as 1/distance, and its pitch drops as it stops), the
+indicator (while Hafiz signals), the rev (as he pulls out), the stall's sounds (the engine sputtering as the car dies,
+the starter cranking twice, the thump on the roof, the knocks on Mei's window and the slap of her door), her wet flap,
+drip and breath (from where she is, falling off past 3 m), and, in one ending, the phone ringing on the fruit stall's
+table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
+than the single knock (−14.6) and none is a sting. Close to his head the † rows pass it: the rev (−13.0) is 1.6 dB over
+it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump (−15.5) and the window knock (−16.0)
+stay under it. Six of them are seamless loops,
+imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
 (2 s). The rest play once. Ten of them (both engine loops, the rev, the lorry passing, idling and braking, the sputter,
 the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is charged by the second of audio: at

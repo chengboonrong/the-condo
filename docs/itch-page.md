@@ -2,7 +2,8 @@
 
 Everything for the game's itch.io page, ready to paste. Nothing here has been posted: creating the page, uploading
 and publishing are the owner's steps. The page teases only, like the trailer: nothing from the moment the bedroom
-window becomes a door, no B-11-07, and no ending names.
+window becomes a door, no B-11-07, no ending names, nothing of his death and nothing of the penanggal in full. The
+gore is named in the content warning and nowhere else.
 
 ## Images
 
@@ -15,29 +16,50 @@ Run it again whenever the game's look changes.
 | Screenshots | `builds/itch/screenshots/1-hallway.png` … `5-clock.png` (1920×1080), in that order: the figure in the hallway, the bedroom, the tap in the phone light, the front door, the clock at 11:47 |
 | Gameplay video or trailer | The YouTube link, once the trailer is uploaded there (the file is in Drive, "The Condo trailer") |
 
+These are the flat's images, made before the road was added. The page now opens on the road, so the cover, the
+screenshots and the trailer need re-shooting, which is separate work after the road is built. The cover and the
+thumbnail show no gore (itch.io's guidelines ask for no explicit cover image, and shock images can get a page delisted
+from browse and search; see `docs/research/2026-11-06-gore-rules.md`).
+
+`tools/road_stills.sh <dir>` renders the road's 44 stills. Only the ones that show the road, the car and the couple,
+the mirror, the light and the stall belong on this page: `road_exit`, `road_stop`, `road_bend`, `road_tunnel`,
+`road_tunnel_in`, `road_awas40`, `road_awas431`, `road_city`, `car_arrives`, `back_seat`, `slow_car`, `overtake`,
+`lay_by`, `couple`, `mei_turns`, `mirror_fourth`, `light_seen`, `walk_mei`, `walk_mei_looks`, `walk_light`, `walk_near`
+and `stall`, and the ten far, fogged glimpses (every `her_glimpse_*`), where she is a few pixels of dark shape. Never
+on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, every ending (`ending_saved`, `ending_alive`,
+`ending_caught`) and the shots of how `alive` is decided (`alive_before`, `alive_decided`, `alive_2s`, `alive_torch`,
+`alive_pass`).
+
 ## Title and tagline
 
 * **Title:** THE CONDO: 11:47 PM
-* **Short description or tagline:** The neighbour downstairs wants you to stop knocking. You haven't made a sound.
+* **Short description or tagline:** The last bus has gone. The road down has rules.
 
 ## Description
 
-> **11:47 PM.** You've just come home from your shift at the mamak on the corner. The intercom rings: the neighbour
-> downstairs wants you to stop knocking.
+> **12:06 AM.** The last staff bus went down the mountain at eleven. Bang Din at the stall says the road down has
+> rules. He only tells them after midnight. You laughed. He didn't.
 >
-> You live alone. You haven't made a sound.
+> A couple you have never met stop and give you a lift. Hafiz drives and Mei talks. You sit in the back, in the fog, and
+> try to remember the rules. Follow the slow car, however long it takes. If the car dies, stay inside. Whatever follows
+> you, don't look back.
+>
+> Then it is 11:47 PM and you are home. The intercom rings: the neighbour downstairs wants you to stop knocking. You live
+> alone. You haven't made a sound.
 >
 > Then three knocks come from your bedroom.
 >
-> THE CONDO: 11:47 PM is a short first-person horror game set in an ordinary Malaysian condo at night: grilles on
-> the windows, laundry drying by the window, the corridor light under the front door. Small things in the flat
-> move while you aren't looking. Notice what moved. And the clock keeps going back to 11:47.
+> THE CONDO: 11:47 PM is a short first-person horror game: a night drive down a mountain in Malaysia, then an ordinary
+> condo at night, with grilles on the windows, laundry drying by the window and the corridor light under the front door.
+> On the road you choose what to say and where to look. In the flat, small things move while you aren't looking. Notice
+> what moved. And the clock keeps going back to 11:47.
 >
-> A Horror Director watches how you play (the rooms you avoid, how often you look behind you, whether you chase
-> sounds or keep to the light) and picks which frights happen, and when. There are two endings.
+> A Horror Director watches how you play in the flat (the rooms you avoid, how often you look behind you, whether you
+> chase sounds or keep to the light) and picks which frights happen, and when. The road ends in more than one way, and
+> so does the flat.
 >
-> Made for **GitHub Game Off 2026**. The theme is SHIFT: you're home from a shift, and the flat shifts while you
-> aren't looking.
+> Made for **GitHub Game Off 2026**. The theme is SHIFT: you come off a shift, and the flat shifts while you aren't
+> looking.
 >
 > **Play**
 >
@@ -53,17 +75,17 @@ Run it again whenever the game's look changes.
 > * Crouch: hold C
 > * Interact: E or left click
 > * Phone light: F or right click
+> * Answer a choice on the road: 1, 2 or 3
 > * Pause and settings: Esc
 >
 > **Settings:** brightness, field of view, head bob, mouse sensitivity, invert mouse Y, volume, Filter (a soft look),
 > captions for sounds (spoken lines always show), and reduced flashing (flickering lights dim slowly instead).
 >
-> **Content warning:** darkness, a figure that appears suddenly, sudden loud sounds and flickering lights. No blood
-> or gore.
+> **Content warning:** blood and gore, a figure that appears suddenly, sudden loud sounds and flickering lights.
 >
-> **Credits:** made by Chris Cheng in Godot 4.7. The rooms are built in code, the objects in Blender from scripts,
-> and every sound is synthesised in code; no third-party asset files are used. The clock's numerals use the Inter
-> font (SIL Open Font License 1.1). Source code (MIT licence): https://github.com/chengboonrong/the-condo
+> **Credits:** made by Chris Cheng in Godot 4.7. The rooms and the road are built in code, the objects, the car and
+> the people in Blender from scripts, and every sound is synthesised in code; no third-party asset files are used.
+> The clock's numerals use the Inter font (SIL Open Font License 1.1). Source code (MIT licence): https://github.com/chengboonrong/the-condo
 
 The macOS line goes only if the macOS app is uploaded. The Windows and Linux builds have never been run, so they
 stay off the page until someone has run them.
@@ -82,11 +104,13 @@ stay off the page until someone has run them.
 | Release status | Released | The jam build |
 | Pricing | No payments | The trailer says "Play free in your browser" |
 | Genre | Horror | |
-| Tags | horror, psychological-horror, first-person, short, atmospheric, exploration, 3d, godot, malaysia, singleplayer | itch.io allows 10 |
-| Average session | Set after a real playthrough | Only bots have played it (5 to 20 minutes); nobody has timed a person yet |
+| Tags | horror, gore, psychological-horror, first-person, atmospheric, exploration, 3d, godot, malaysia, singleplayer | itch.io allows 10, so `short` made way for `gore`, which is accurate now. The owner can swap. Never `porn`, `adult`, `hentai`, `erotic` or `sex` (itch.io's UK restriction reads them together with the sensitive-content setting) |
+| Average session | Set after a real playthrough | Only bots have played it: the road takes the keeper bot about 8 minutes at the least and the flat 5 to 20 (sim time, `docs/playthroughs.md`). Nobody has timed a person yet |
+| Age rating | None to set | itch.io has no age-rating setting and no blood-and-gore setting. Its quality guidelines and Creator FAQ (read 2026-11-06) mention neither; its admin said in 2018 that the only option is a NSFW toggle, and his 2025 post on the UK law still names one "Has sensitive content" setting. The content warning in the description is how the page says it |
+| Has sensitive content (*Metadata » Classification*) | The owner's call; open | The rule is that a page with "strong adult themes" "must be marked", and the Creator FAQ defines adult content as sexualised material. The game has none, so leaving the box off follows the written text. Ticking it is the cautious choice, and hides the page from visitors who have not turned adult content on. The wording of the checkbox itself was not read: the logged-in edit page was not opened. See `docs/research/2026-11-06-gore-rules.md` |
 | Languages | English | |
 | Inputs | Keyboard, Mouse | No gamepad support |
-| Accessibility | Subtitles | Controls can't be remapped |
+| Accessibility | Subtitles | What anyone says or thinks always shows. In the flat the sounds are captioned (and can be turned off); the road's sounds are not. Controls can't be remapped |
 | Comments | On | |
 | Visibility | Draft until the page is finished | Publish once, when it's ready |
 
@@ -104,6 +128,10 @@ owner's to word. The facts:
 
 ## Before publishing
 
+* Decide the *Has sensitive content* box, and the tags (see the table above). The README already carries the content
+  warning that GitHub's policy asks for, and has no gore image; keep gore out of the repository's social preview and
+  avatar too.
+* Re-shoot the cover, the screenshots and the trailer for the road (see Images above).
 * The public repository is https://github.com/chengboonrong/the-condo. Push the final game to it before
   2026-12-01 13:37 PST (the jam's rule).
 * Upload the trailer to YouTube and paste the link.
