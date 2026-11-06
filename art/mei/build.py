@@ -1,13 +1,15 @@
-"""Mei: Chinese Malaysian, early twenties, beside Hafiz in the front. A cropped oatmeal cardigan, open, over a plain
+"""Mei: Chinese Malaysian, early twenties, beside Hafiz in the front. A cropped camel cardigan, open, over a plain
 navy fit-and-flare dress; a chin-length bob parted on her left; the theme park's lanyard round her neck, its card plain
 (no logo); worn white sneakers; her phone in her right hand, its screen lighting her face from below.
 
 Two models (art/shared/person builds them):
 - mei_seated: the front passenger seat, the origin its H-point; looking down at the phone she holds at her chest, her
-  left hand in her lap. Chest (her upper body, arms, the lanyard and the phone; its origin at her waist) is the parent
+  left hand in her lap, her feet flat on the footwell's mat (0.263 m below the H-point, the toes 0.06 m short of the
+  firewall, 0.81 m ahead of it). Chest (her upper body, arms, the lanyard and the phone; its origin at her waist) is the parent
   of Head, so her head and shoulders turn towards the back seat together.
 - mei_standing: the origin the floor between her feet; the phone in her right hand at her waist, its screen up. LegL
-  and LegR (origins at the hips) swing for walking inside the skirt.
+  and LegR (origins at the hips) swing for walking inside the skirt: it flares from the hips so that each leg can swing
+  up to 25 degrees forward or back (rotation about X) without coming through it, the knees out under the hem.
 Both have Head, its origin the top of the neck. The phone's screen is its own material ("screen"). Run by
 tools/models.sh mei.
 """
@@ -35,20 +37,26 @@ SHOES = (0.5, 0.49, 0.46)
 CASE = (0.36, 0.24, 0.23)  # a dusty pink phone case
 
 FACE = dict(width=0.073, front=0.094, back=0.098, height=0.101, jaw=0.2, chin_fwd=0.008, eye_x=0.031, eye_z=0.004,
-            brow=0.0035, socket=0.0055, lid=0.0, cheekbone=0.004, cheek=0.0045, tip_z=-0.028, root=0.003, tip=0.0145,
-            bridge_w=0.0105, tip_w=0.014, alar=0.0045, alar_x=0.0145, mouth_w=0.022, muzzle=0.004, lip_u=0.0052,
-            lip_l=0.0064, chin_b=0.0035, eye_r=0.0115, eye_set=0.0028, ear_y=0.008, lash_h=0.0036, brow_z=0.0165,
-            brow_t=0.0046, brow_k=0.85, lip_colour=(0.4, 0.17, 0.13))
+            brow=0.005, socket=0.008, lid=0.001, cheekbone=0.004, cheek=0.0045, tip_z=-0.028, root=0.0045, tip=0.017,
+            bridge_w=0.0105, tip_w=0.014, alar=0.0055, alar_x=0.0145, mouth_w=0.022, muzzle=0.004, lip_u=0.0058,
+            lip_l=0.007, chin_b=0.0042, eye_r=0.0115, eye_set=0.003, ear_y=0.008, lash_h=0.0036, brow_z=0.0165,
+            brow_t=0.0046, brow_k=0.85, lip_colour=(0.37, 0.15, 0.12))
 UPPER, FOREARM = 0.28, 0.24
 # The dress about the body's axis from the hip joints: (h, half width, front depth, back depth, centre y, squareness).
 DRESS_ROWS = [(-0.1, 0.155, 0.075, 0.105, 0.02, 2.3), (-0.04, 0.168, 0.088, 0.108, 0.015, 2.4), (0.04, 0.158, 0.085, 0.098, 0.01, 2.3),
               (0.14, 0.13, 0.072, 0.082, 0.005, 2.2), (0.24, 0.135, 0.085, 0.082, 0.0, 2.2), (0.31, 0.142, 0.1, 0.082, 0.0, 2.2),
               (0.38, 0.145, 0.088, 0.08, 0.0, 2.3), (0.45, 0.155, 0.07, 0.075, 0.004, 2.3), (0.49, 0.142, 0.062, 0.068, 0.008, 2.2),
               (0.515, 0.1, 0.055, 0.058, 0.012, 2.2), (0.535, 0.058, 0.048, 0.05, 0.015, 2.0)]
-# The skirt standing, flared so the legs can swing inside it: from the hips to the hem just above the knees.
-SKIRT_ROWS = [(-0.37, 0.235, 0.19, 0.2, 0.01, 2.0), (-0.3, 0.215, 0.165, 0.18, 0.01, 2.1), (-0.2, 0.19, 0.13, 0.148, 0.015, 2.2),
-              (-0.1, 0.166, 0.095, 0.114, 0.02, 2.3), (-0.04, 0.172, 0.096, 0.11, 0.015, 2.4), (0.04, 0.158, 0.085, 0.098, 0.01, 2.3),
+# The skirt standing, from the hips to the hem at the knees. Its front and back run out from the hips at a little more
+# than 25 degrees, so a thigh (0.045 m round at the hip) swung that far stays inside it.
+SKIRT_ROWS = [(-0.37, 0.255, 0.26, 0.26, 0.0, 2.0), (-0.3, 0.235, 0.23, 0.232, 0.0, 2.0), (-0.2, 0.205, 0.185, 0.188, 0.003, 2.1),
+              (-0.1, 0.18, 0.138, 0.14, 0.008, 2.2), (-0.04, 0.172, 0.106, 0.115, 0.012, 2.3), (0.04, 0.158, 0.085, 0.098, 0.01, 2.3),
               (0.14, 0.13, 0.072, 0.082, 0.005, 2.2)]
+
+
+def folds(h: float, x: float, d: float) -> float:
+    """Soft folds round the standing skirt, deeper towards the hem, all outwards (the legs need the room inside)."""
+    return 0.012 * P.smooth((-0.06 - h) / 0.3) * (0.5 + 0.5 * math.sin(7 * math.atan2(x, d)))
 
 
 def hairline(nt, hp, x, z):
@@ -63,7 +71,11 @@ FACE["hairline"] = hairline
 
 
 def blush(nt, colour, hp, x, z):
-    """Her cheeks a little pink from a day in the sun, and darker under the eyes from the long day."""
+    """Her cheeks a little pink from a day in the sun, darker under the eyes from the long day, and the skin unevener
+    than the shared mottling makes it (so it does not read as a doll's)."""
+    vec = common.node(nt, "ShaderNodeAttribute", attribute_name="hp").outputs["Vector"]
+    colour = P.scaled(nt, colour, common.mapped(nt, common.noise(nt, vec, 70.0, 3.0), 0.3, 0.7, 0.9, 1.06))
+
     def blob(cx, cz, wx, wz):
         dx = maths(nt, "DIVIDE", maths(nt, "SUBTRACT", x, cx), wx)
         dz = maths(nt, "DIVIDE", maths(nt, "SUBTRACT", z, cz), wz)
@@ -125,14 +137,15 @@ def bob(p: P.Person, mat: int, centre: Vector, top: int, under: int, steps: int,
                 "Head", rng.random(), 0.7)
 
 
-def head(p: P.Person, s: dict, centre: Vector, pivot: Vector, fine: bool, nod: float, look: Vector) -> None:
-    """Her head at centre, nodded forward by nod (radians) about pivot. fine: seated, seen at arm's length."""
+def head(p: P.Person, s: dict, centre: Vector, pivot: Vector, nod: float, look: Vector) -> None:
+    """Her head at centre, nodded forward by nod (radians) about pivot. Seated and standing alike: standing, she walks
+    a metre from the player."""
     old = set(p.bm.verts)
-    rows = P.head_grid(FACE, None, *((36, 28) if fine else (24, 18)))
+    rows = P.head_grid(FACE, None, 36, 28)
     P.grid_loft(p, rows, centre, s["face"], "Head")
-    P.eyes(p, FACE, centre, s["eye"], "Head", look, *((6, 12) if fine else (4, 8)))
-    P.lids(p, FACE, centre, s["face"], "Head", 11 if fine else 7)
-    bob(p, s["hair"], centre, *((22, 10, 9, 1.0) if fine else (19, 8, 7, 1.15)))
+    P.eyes(p, FACE, centre, s["eye"], "Head", look, 6, 12)
+    P.lids(p, FACE, centre, s["face"], "Head", 11)
+    bob(p, s["hair"], centre, 22, 10, 9, 1.0)
     P.rotate_verts([v for v in p.bm.verts if v not in old], pivot, Matrix.Rotation(nod, 3, "X"))
 
 
@@ -214,8 +227,9 @@ def phone_in_hand(p: P.Person, s: dict, centre: Vector, eye: Vector, up: Vector,
     P.hand(p, s["skin"], part, wrist, fwd, face, -1, 0.17, (0.55, 0.9, 0.6), (0.5, 0.2, 0.1), 0.05)
 
 
-def leg(p: P.Person, s: dict, root: Vector, knee: Vector, ankle: Vector, part: str | None, up: Vector) -> None:
-    P.limb_tube(p, root, knee, ankle, [(0.0, 0.06), (0.35, 0.05), (0.5, 0.044), (0.65, 0.047), (0.8, 0.043), (1.0, 0.031)],
+def leg(p: P.Person, s: dict, root: Vector, knee: Vector, ankle: Vector, part: str | None, up: Vector, top: float = 0.06) -> None:
+    """top: the thigh's radius at root (thinner standing, where it is hidden in the skirt, so it can swing)."""
+    P.limb_tube(p, root, knee, ankle, [(0.0, top), (0.35, 0.05), (0.5, 0.044), (0.65, 0.047), (0.8, 0.043), (1.0, 0.031)],
                 s["skin"], part, up=up, sides=10)
 
 
@@ -250,9 +264,9 @@ def build(seated: bool) -> None:
         p.loft(P.torso_rings(frame, DRESS_ROWS[2:], 0.04, 20, grow=lambda h, x, d: -0.03 * P.smooth((0.15 - h) / 0.08)),
                s["dress"], "Chest", (True, True))
     else:
-        rings = P.torso_rings(frame, SKIRT_ROWS + DRESS_ROWS[4:], 0.045, 22)
+        rings = P.torso_rings(frame, SKIRT_ROWS + DRESS_ROWS[4:], 0.045, 28, grow=folds)
         axis = frame(0, 0.01, SKIRT_ROWS[0][0])
-        hem = [[axis + (q - axis) * k + Vector((0, 0, lift)) for q in rings[0]] for k, lift in ((0.93, 0.03), (0.97, 0.006))]
+        hem = [[axis + (q - axis) * k + Vector((0, 0, lift)) for q in rings[0]] for k, lift in ((0.96, 0.03), (0.985, 0.006))]
         p.loft(hem + rings, s["dress"], None, (False, True))
     cardigan(p, s, frame, upper)
     lanyard(p, s, frame, upper)
@@ -260,35 +274,41 @@ def build(seated: bool) -> None:
     if seated:
         eye = centre + Vector((0, -0.09, 0.0))
         phone_in_hand(p, s, Vector((-0.035, -0.2, 0.38)), eye, Vector((0, -0.75, 0.65)), sh_r, Vector((-0.5, 0.4, -0.8)), upper)
-        wrist = frame(0.06, -0.15, 0.07)
+        wrist = frame(0.06, -0.15, 0.094)
         arm(p, s, sh_l, wrist, Vector((0.5, 0.5, -0.6)), 2.0, upper)
-        P.hand(p, s["skin"], upper, wrist, Vector((-0.75, -0.55, -0.2)), Vector((0, 0.1, -1)), 1, 0.17, (0.3, 0.4, 0.25), (0.3, 0.2, 0.1))
-        # The skirt over her thighs to just above the knees; her legs from under it, her feet on the floor.
-        knee_r, knee_l = Vector((-0.065, -0.4, 0.075)), Vector((0.07, -0.4, 0.075))
+        P.hand(p, s["skin"], upper, wrist, Vector((-0.75, -0.55, 0.1)), Vector((0, 0.1, -1)), 1, 0.17, (0.3, 0.4, 0.25), (0.3, 0.2, 0.1))
+        # Her feet flat on the mat, the toes 0.07 m short of the firewall; the knees where the legs (0.39 and 0.38 m)
+        # put them. The skirt over her thighs to just above the knees; her legs from under it.
+        legs = []
+        for hip, x, side in ((hip_r, -0.08, -1), (hip_l, 0.085, 1)):
+            heel = Vector((x, P.FIREWALL + 0.07 + 0.23, P.MAT_TOP - 0.003))  # the sole is 0.004 above its heel point
+            ankle = heel + Vector((0, -0.04, 0.06))
+            legs.append((hip, P.elbow(hip, ankle, 0.39, 0.38, Vector((-side * 0.1, 0, 1))), ankle, heel, side))
+        knee_r, knee_l = legs[0][1], legs[1][1]
         rings = []
         for t in (0.0, 0.25, 0.5, 0.72, 0.84):
             c = (hip_r.lerp(knee_r, t) + hip_l.lerp(knee_l, t)) / 2 + Vector((0, 0.03 * (1 - t), 0.0))
             hw, top, bottom = 0.165 - 0.03 * t, 0.085 - 0.02 * t, 0.07 - 0.012 * t
             rings.append([c + Vector((x, 0, d)) for x, d in P.section(hw, top, bottom, 2.4, 20)])
-        inner = [c + (q - c) * 0.93 + Vector((0, 0.03, 0)) for q in rings[-1] for c in [sum(rings[-1], Vector()) / 20]]
+        c = sum(rings[-1], Vector()) / len(rings[-1])
+        inner = [c + (q - c) * 0.93 + Vector((0, 0.03, 0)) for q in rings[-1]]
         p.loft(rings + [inner], s["dress"], None)
-        for hip, knee, ankle, side in ((hip_r, knee_r, Vector((-0.08, -0.6, -0.3)), -1), (hip_l, knee_l, Vector((0.085, -0.58, -0.3)), 1)):
+        for hip, knee, ankle, heel, side in legs:
             leg(p, s, hip.lerp(knee, 0.5), knee, ankle, None, Vector((0, 0, 1)))
-            heel = ankle + Vector((0, 0.04, -0.06))
             P.shoe(p, s["shoes"], None, heel, heel + Vector((side * 0.015, -0.23, 0.0)), Vector((0, 0, 1)), side, 0.042, 0.065)
-        head(p, s, centre, pivot, True, 0.12, Vector((0, -1, -0.1)))
+        head(p, s, centre, pivot, 0.12, Vector((0, -1, -0.1)))
         P.finish(p, "Mei", "mei_seated", {"Head": pivot, "Chest": frame(0, 0, 0.16)}, parents={"Head": "Chest"}, screen=s["glass"])
         return
     eye = centre + Vector((0, -0.09, 0.0))
     phone_in_hand(p, s, Vector((-0.07, -0.24, 1.02)), eye, Vector((0, -1, 0.25)), sh_r, Vector((-0.5, 0.5, -0.8)), None)
     wrist = Vector((0.19, 0.02, 0.79))
     arm(p, s, sh_l, wrist, Vector((0.3, 1, 0)), 2.0, None)
-    P.hand(p, s["skin"], None, wrist, Vector((0.02, -0.05, -1)), Vector((-1, 0, 0)), 1, 0.17, (0.25, 0.3, 0.2), (0.3, 0.2, 0.1))
+    P.hand(p, s["skin"], None, wrist, Vector((0.02, -0.05, -1)), Vector((-1, 0, 0)), 1, 0.16, (0.45, 0.6, 0.4), (0.3, 0.2, 0.1), 0.02)
     for side, hip, part in ((1, hip_l, "LegL"), (-1, hip_r, "LegR")):
-        leg(p, s, hip, Vector((side * 0.08, -0.012, 0.45)), Vector((side * 0.085, 0.02, 0.08)), part, Vector((0, -1, 0)))
+        leg(p, s, hip, Vector((side * 0.08, -0.012, 0.45)), Vector((side * 0.085, 0.02, 0.08)), part, Vector((0, -1, 0)), 0.045)
         P.shoe(p, s["shoes"], part, Vector((side * 0.09, 0.07, 0.0)), Vector((side * 0.1, -0.16, 0.0)), Vector((0, 0, 1)), side, 0.042, 0.065)
-    head(p, s, centre, pivot, False, 0.05, Vector((0, -1, -0.15)))
-    P.finish(p, "Mei", "mei_standing", {"Head": pivot, "LegL": hip_l, "LegR": hip_r}, size=128, screen=s["glass"])
+    head(p, s, centre, pivot, 0.05, Vector((0, -1, -0.15)))
+    P.finish(p, "Mei", "mei_standing", {"Head": pivot, "LegL": hip_l, "LegR": hip_r}, screen=s["glass"])
 
 
 build(True)

@@ -8,7 +8,7 @@ metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "d9bfa748d83d607e593605acddf2a807"
+"md5": "a7cdbd9651871d8d4968b96060e9c833"
 }
 
 [deps]
@@ -18,9 +18,9 @@ dest_files=["res://.godot/imported/mei_seated_Mei_color.png-53eb1874d409eafc34e2
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.75
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

@@ -3,9 +3,10 @@ the back of his neck, its drawstrings hanging; a dark cap worn backwards over sh
 the strap's opening; faded dark jeans and worn white sneakers. A thin moustache and a little stubble.
 
 Two models (art/shared/person builds them):
-- hafiz_seated: at the wheel, the origin the driver seat's H-point. His right hand holds the rim at about two o'clock
-  (the wheel's centre is 0.42 m ahead of the H-point and 0.38 m up, 0.37 m across outside, its rim's centre line 0.168 m
-  out, its face tilted 25 degrees back), his left hand rests on his thigh, his right foot on the accelerator.
+- hafiz_seated: at the wheel, the origin the driver seat's H-point. His right hand holds the rim at one o'clock, clear
+  of the spoke at two, its thumb round the rim (the wheel's centre is 0.42 m ahead of the H-point and 0.38 m up, 0.37 m
+  across outside, its rim's centre line 0.168 m out, its face tilted 25 degrees back); his left hand rests on his thigh;
+  his feet are flat on the footwell's mat (the car has no pedals), the right toe 0.045 m short of the firewall.
 - hafiz_standing: the origin the floor between his feet; he holds his phone up in his right hand as a torch. LegL and
   LegR (origins at the hips) swing for walking.
 Both have Head, its origin the top of the neck. Run by tools/models.sh hafiz.
@@ -245,10 +246,10 @@ def build(seated: bool) -> None:
     sh_r, sh_l = frame(-0.185, 0.0, 0.525), frame(0.185, 0.0, 0.525)
     hip_r, hip_l = frame.origin + Vector((-0.085, 0, 0)), frame.origin + Vector((0.085, 0, 0))
     if seated:
-        # The wheel (lane geometry): its centre, its face tilted 25 degrees back, the grip at two o'clock.
+        # The wheel (lane geometry): its centre, its face tilted 25 degrees back, the grip at one o'clock.
         wheel = Vector((0, -0.42, 0.38))
         w_up, w_right = Vector((0, -math.sin(math.radians(25)), math.cos(math.radians(25)))), Vector((-1, 0, 0))
-        clock = math.radians(60)
+        clock = math.radians(30)
         grip = wheel + (w_right * math.sin(clock) + w_up * math.cos(clock)) * 0.168  # the rim's centre line
         tangent = (w_right * math.cos(clock) - w_up * math.sin(clock)).normalized()
         fwd = (grip - sh_r).normalized()
@@ -256,21 +257,22 @@ def build(seated: bool) -> None:
         palm = fwd.cross(tangent).normalized()
         wrist = grip - fwd * 0.07 - palm * 0.027
         arm(p, s, sh_r, wrist, Vector((-0.6, 0.3, -0.75)), 1.0)
-        P.hand(p, s["skin"], None, wrist, fwd, palm, -1, 0.185, (1.0, 1.25, 0.9), (0.6, 0.5, 0.3))
-        knee_l = Vector((0.13, -0.42, 0.05))
+        P.hand(p, s["skin"], None, wrist, fwd, palm, -1, 0.185, (1.0, 1.25, 0.9), (-0.9, -1.1, -0.7))  # right thumb: < 0 curls it in
+        # His feet flat on the mat, the right toe 0.045 m short of the firewall, the left further back; the knees where
+        # his legs put them.
+        legs = []
+        for hip, heel, toe, side in ((hip_r, Vector((-0.13, P.FIREWALL + 0.045 + 0.275, P.MAT_TOP - 0.003)), Vector((0, -0.275, 0)), -1),
+                                     (hip_l, Vector((0.15, P.FIREWALL + 0.09 + 0.27, P.MAT_TOP - 0.003)), Vector((0.03, -0.268, 0)), 1)):
+            ankle = heel + Vector((0, -0.045, 0.065))
+            legs.append((hip, P.elbow(hip, ankle, THIGH, SHIN, Vector((side * 0.15, 0, 1))), ankle, heel, toe, side))
+        knee_l = legs[1][1]
         thigh = (knee_l - hip_l).normalized()
         wrist = hip_l.lerp(knee_l, 0.7) + Vector((0, 0, 0.09)) - thigh * 0.06
         arm(p, s, sh_l, wrist, Vector((0.6, 0.6, -0.2)), 2.0)
         P.hand(p, s["skin"], None, wrist, thigh, Vector((0, 0, -1)), 1, 0.185, (0.25, 0.35, 0.2), (0.3, 0.2, 0.1))
-        knee_r, ankle_r, ankle_l = Vector((-0.12, -0.43, 0.045)), Vector((-0.13, -0.745, -0.215)), Vector((0.15, -0.66, -0.27))
-        leg(p, s, hip_r, knee_r, ankle_r, None, Vector((0, 0, 1)), 3.0)
-        leg(p, s, hip_l, knee_l, ankle_l, None, Vector((0, 0, 1)), 4.0)
-        pedal = math.radians(25)
-        heel = ankle_r + Vector((0, 0.045, -0.065))
-        P.shoe(p, s["shoes"], None, heel, heel + Vector((0, -math.cos(pedal), math.sin(pedal))) * 0.275,
-               Vector((0, math.sin(pedal), math.cos(pedal))), -1, 0.05, 0.075)
-        heel = ankle_l + Vector((0, 0.045, -0.065))
-        P.shoe(p, s["shoes"], None, heel, heel + Vector((0.02, -0.27, 0.025)), Vector((0, 0.09, 1)), 1, 0.05, 0.075)
+        for hip, knee, ankle, heel, toe, side in legs:
+            leg(p, s, hip, knee, ankle, None, Vector((0, 0, 1)), 3.5 + 0.5 * side)
+            P.shoe(p, s["shoes"], None, heel, heel + toe, Vector((0, 0, 1)), side, 0.05, 0.075)
         P.finish(p, "Hafiz", "hafiz_seated", {"Head": pivot})
         return
     wrist = Vector((-0.13, -0.26, 1.0))

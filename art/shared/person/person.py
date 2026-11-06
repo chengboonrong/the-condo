@@ -26,6 +26,9 @@ from common import between, lerp, mapped, maths, node, noise  # noqa: E402
 PARTS = ["Head", "Chest", "LegL", "LegR"]  # vertex groups, in this order
 # What the game draws each kind of surface with: roughness. "screen" is the phone's, untextured and emissive.
 FINAL = {"skin": 0.55, "cloth": 0.92, "hair": 0.8, "eye": 0.06, "plastic": 0.35}
+# The hatchback's front footwells from a front seat's H-point (art/hatchback/build.py: carpet at 0.285, mats 0.012 thick,
+# H-points at y -0.05, z 0.56, the firewall at y -0.86): the mat's top, and how far ahead the firewall is.
+MAT_TOP, FIREWALL = -0.263, -0.81
 
 
 def smooth(t: float) -> float:
@@ -577,7 +580,7 @@ def shaded(nt: bpy.types.NodeTree, colour, distance: float, depth: float) -> bpy
 def face_skin(name: str, f: dict, tone: tuple, hair: tuple, extra=None) -> bpy.types.Material:
     """The head's skin, painted by where each point is on the unturned head (the hp attribute): blotchy, redder on the
     cheeks, the nose, the ears and the lips, darker round the eyes, the brows and the lash line drawn in, the nostrils
-    and the mouth's line dark, and the hair's colour on the scalp above the hairline (f["hairline"](x, z, y) -> metres
+    and the mouth's line dark, and the hair's colour on the scalp above the hairline (f["hairline"](nt, hp, x, z) -> metres
     above it, as a shader socket). extra(nt, colour, hp) may paint more (stubble)."""
     mat, nt, bsdf, coords = common.surface(name)
     hp = attr(nt, "hp")

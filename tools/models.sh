@@ -16,10 +16,16 @@ for id in "$@"; do
 done
 "$GODOT" --headless --path . --import
 # Every model texture: lossless with mipmaps, pinned (3D detection off) so the editor never switches it to VRAM
-# compression, which costs nearly four times the download. Pinned on every run, then imported again if that changed any.
+# compression, which costs nearly four times the download. The people's (hafiz_*, mei_*) are lossy WebP instead: their
+# baked colour is noisy, the loss does not show at full size, and the bytes pay for their faces. Pinned on every run,
+# then imported again if that changed any.
 changed=0
 for f in assets/models/*.png.import; do
-  sed -e 's|^compress/mode=.*|compress/mode=0|' -e 's|^mipmaps/generate=.*|mipmaps/generate=true|' \
+  case "$(basename "$f")" in
+    hafiz_*|mei_*) mode='s|^compress/mode=.*|compress/mode=1|;s|^compress/lossy_quality=.*|compress/lossy_quality=0.75|' ;;
+    *) mode='s|^compress/mode=.*|compress/mode=0|' ;;
+  esac
+  sed -e "$mode" -e 's|^mipmaps/generate=.*|mipmaps/generate=true|' \
     -e 's|^detect_3d/compress_to=.*|detect_3d/compress_to=0|' "$f" > "$f.tmp"
   if cmp -s "$f" "$f.tmp"; then rm "$f.tmp"; else mv "$f.tmp" "$f"; changed=1; fi
 done
