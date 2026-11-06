@@ -24,7 +24,7 @@ render_mode diffuse_lambert;
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap;
 uniform float roughness = 0.8;
 uniform float halo = 2.0;
-uniform vec3 tint = vec3(1.0, 0.6, 0.44);  // the light warms a little coming through her brown hair
+uniform vec3 tint : source_color = vec3(1.0, 0.6, 0.44);  // her brown, which the light takes on coming through
 
 void fragment() {
 	ALBEDO = texture(albedo_texture, UV).rgb;
