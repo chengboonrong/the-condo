@@ -6,8 +6,8 @@ dashboard with its gauges, the backs of the front seats, the mirror, the windows
 car in fog and headlights.
 
 Origin: the ground at the centre of the wheelbase; the front faces Blender -Y (the game's +Z); the car's left is +X. Metres.
-Objects: "hatchback" (the body and the inside), door_rear_left (origin on its hinge line, at its front edge), wheel_fl, wheel_fr,
-wheel_rl, wheel_rr (origin at the hub), and empties seat_driver, seat_front, seat_rear_left, seat_rear_right (the H-points),
+Objects: "hatchback" (the body and the inside), door_rear_left and door_driver (the front right door; origins on their hinge lines,
+at their front edges), wheel_fl, wheel_fr, wheel_rl, wheel_rr (origin at the hub), and empties seat_driver, seat_front, seat_rear_left, seat_rear_right (the H-points),
 mirror_mount, headlight_l, headlight_r, taillight_l, taillight_r and dash_glow. Materials the game drives: "gauges" (glows),
 "headlight_lens", "taillight_lens". Nothing is baked: plain materials, two tiny tiling textures, the gauges' dial image, and
 ambient occlusion in the "ao" vertex colours.
@@ -19,7 +19,7 @@ import sys
 import bmesh
 import bpy
 import numpy as np
-from mathutils import Euler, Matrix, Vector
+from mathutils import Matrix, Vector
 
 ART = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path[:0] = [ART, os.path.join(ART, "shared", "car")]
@@ -33,10 +33,12 @@ TRACK = 0.72  # the hubs' distance from the centre line
 TYRE = 0.298  # tyre radius; the hub is this high
 ARCH = 0.335  # the wheel arch's radius, about the hub
 DOOR = (0.11, 0.89)  # the rear doors' front and rear edges (y)
+FRONT_DOOR = (-0.72, 0.10)  # the front doors'
 DOOR_BOTTOM = 0.46  # z of the rear door's lower edge on its outside
 COWL, TAIL = -0.86, 1.72  # where the front shell ends (the windscreen's foot) and the rear shell begins
 BELT = [(-0.86, 0.965), (-0.70, 0.99), (-0.40, 1.0), (0.9, 1.0), (1.2, 1.015), (1.72, 1.03)]  # y, z of the door tops
 FLOOR = 0.285  # the carpet
+MIRROR_Y = -0.2985  # the rear-view mirror's glass plane, where the mirror_mount empty is (the glass is recessed 2 mm behind it)
 
 # H-points of the four seats (lane-common): the hip joint of a person sitting, 0.13 m in front of the seatback.
 SEATS = {"seat_driver": (-0.37, -0.05, 0.56), "seat_front": (0.37, -0.05, 0.56),
@@ -47,6 +49,8 @@ A_FOOT, A_TOP = (0.80, -0.84, 0.975), (0.625, -0.24, 1.435)
 B_FOOT, B_TOP = (0.84, 0.105, 1.0), (0.64, 0.085, 1.45)
 C_TOP = (0.60, 0.78, 1.445)  # the rear door window's rear edge at the roof
 HATCH_TOP, HATCH_BOTTOM = (0.55, 1.30, 1.425), (0.66, 1.70, 1.045)
+_slope = Vector((0, A_TOP[1] - A_FOOT[1], A_TOP[2] - A_FOOT[2])).normalized()
+WIND_OUT = Vector((0, -_slope.z, _slope.y))  # the windscreen's outward normal: forward and up
 
 
 def arch_height(y: float, zb: float) -> float:
@@ -95,42 +99,49 @@ def tub_half(y: float) -> list:
 
 FRONT = [(-2.025, 0.46, 0.40, 0.66, 0.70, 0.40), (-2.010, 0.62, 0.36, 0.70, 0.745, 0.57), (-1.980, 0.73, 0.32, 0.74, 0.78, 0.68),
          (-1.930, 0.79, 0.29, 0.76, 0.80, 0.73), (-1.860, 0.825, 0.26, 0.78, 0.815, 0.75), (-1.760, 0.845, 0.24, 0.80, 0.83, 0.765),
-         (-1.650, 0.85, 0.23, 0.82, 0.85, 0.77), (COWL, 0.85, 0.22, 0.93, 0.945, 0.775)]
-REAR = [(TAIL, 0.85, 0.28, 1.03, 1.05, 0.80), (1.78, 0.84, 0.30, 1.01, 1.03, 0.79), (1.83, 0.82, 0.32, 0.99, 1.01, 0.77),
+         (-1.650, 0.85, 0.23, 0.82, 0.85, 0.77), (COWL, 0.85, 0.22, 0.96, 0.97, 0.835)]
+REAR = [(TAIL, 0.85, 0.28, 1.03, 1.05, 0.845), (1.78, 0.84, 0.30, 1.01, 1.03, 0.80), (1.83, 0.82, 0.32, 0.99, 1.01, 0.77),
         (1.86, 0.78, 0.36, 0.95, 0.97, 0.72), (1.875, 0.70, 0.42, 0.88, 0.90, 0.64)]
 NOSE_MATS = [M["liner"]] * 3 + [M["paint"]] * 5
 TUB_MATS = [M["liner"]] * 3 + [M["paint"]] * 5 + [M["seal"], M["trim_grey"], M["trim_grey"], M["trim_dark"], M["trim_dark"], M["carpet"], M["carpet"]]
 
 
-def shells(body: Part, door: Part) -> None:
-    """The nose, the open-topped tub that is the cabin's floor and sides, and the tail. The rear left door is cut out of the tub
-    and moved to `door`."""
+def cut_door(body: Part, door: Part, grid: list, ys: list, edges: tuple, sx: int) -> None:
+    """Moves the tub's faces between the y values in edges (outside skin, rim and inside card on side sx) to `door`, leaving an
+    opening with jamb faces, and gives the door its own edge faces."""
+    s0, s1 = ys.index(edges[0]), ys.index(edges[1])
+    cut = [grid[s][seg] for s in range(s0, s1) for seg in (range(5, 12) if sx > 0 else range(18, 25))]  # the mirrored half runs backwards
+    for f in cut:
+        door.poly([v.co.copy() for v in f.verts], body.mats[f.material_index], smooth=True)
+    bmesh.ops.delete(body.bm, geom=cut, context="FACES_ONLY")
+    ring0, ring1 = tub_half(edges[0]), tub_half(edges[1])
+    edge = lambda half, y: [(sx * x, y, z) for x, z in half[5:13]]
+    body.poly(edge(ring0, edges[0]), M["trim_dark"], facing=(0, 1, 0))  # the jamb faces of the opening
+    body.poly(edge(ring1, edges[1]), M["trim_dark"], facing=(0, -1, 0))
+    door.poly(edge(ring0, edges[0]), M["trim_dark"], facing=(0, -1, 0))
+    door.poly(edge(ring1, edges[1]), M["trim_dark"], facing=(0, 1, 0))
+    sill = [(sx * ring0[5][0], edges[0], ring0[5][1]), (sx * ring1[5][0], edges[1], ring1[5][1]),
+            (sx * ring1[12][0], edges[1], ring1[12][1]), (sx * ring0[12][0], edges[0], ring0[12][1])]
+    body.poly(sill, M["trim_dark"], facing=(0, 0, 1))
+    door.poly(sill, M["trim_dark"], facing=(0, 0, -1))
+
+
+def shells(body: Part, door_rl: Part, door_dr: Part) -> None:
+    """The nose, the open-topped tub that is the cabin's floor and sides, and the tail. The rear left door and the driver's door
+    are cut out of the tub and moved to their own parts."""
     ys = [y for y in sorted(set([r[0] for r in FRONT] + arch_stations(-AXLE))) if y <= COWL + 1e-6]
     body.loft([mirrored(nose_half(*interp(FRONT, y), arch_height(y, interp(FRONT, y)[1])), y) for y in ys],
               NOSE_MATS + NOSE_MATS[::-1], toward=(4, (1, 0, 0)))
     body.poly(mirrored(nose_half(*interp(FRONT, COWL), 0.22), COWL), M["liner"], facing=(0, 1, 0))  # the firewall
     body.poly(mirrored(nose_half(*FRONT[0][1:], 0.40), FRONT[0][0]), M["paint"], facing=(0, -1, 0))  # the bumper's face, closing the nose
-    ys = sorted(set([COWL, -0.62, -0.38, -0.12, 0.10] + list(DOOR) + [0.30, 0.52, 0.76] + arch_stations(AXLE) + [1.60, TAIL]))
+    ys = sorted(set([COWL, -0.62, -0.38, -0.12] + list(FRONT_DOOR) + list(DOOR) + [0.30, 0.52, 0.76] + arch_stations(AXLE) + [1.60, TAIL]))
     grid = body.loft([mirrored(tub_half(y), y) for y in ys], TUB_MATS + TUB_MATS[::-1], toward=(6, (1, 0, 0)))
     # the tail (no arches here: the arch height is the underbody's)
     body.loft([mirrored(nose_half(*r[1:], r[2]), r[0]) for r in REAR], NOSE_MATS + NOSE_MATS[::-1], toward=(4, (1, 0, 0)))
     body.poly(mirrored(nose_half(*REAR[0][1:], REAR[0][2]), REAR[0][0]), M["trim_dark"], facing=(0, -1, 0))  # the cargo area's end wall
     body.poly(mirrored(nose_half(*REAR[-1][1:], REAR[-1][2]), REAR[-1][0]), M["paint"], facing=(0, 1, 0))
-    # the door
-    s0, s1 = ys.index(DOOR[0]), ys.index(DOOR[1])
-    cut = [grid[s][seg] for s in range(s0, s1) for seg in range(5, 12)]
-    for f in cut:
-        door.poly([v.co.copy() for v in f.verts], body.mats[f.material_index], smooth=True)
-    bmesh.ops.delete(body.bm, geom=cut, context="FACES_ONLY")
-    ring0, ring1 = tub_half(DOOR[0]), tub_half(DOOR[1])
-    edge = lambda half, y: [(x, y, z) for x, z in half[5:13]]
-    body.poly(edge(ring0, DOOR[0]), M["trim_dark"], facing=(0, 1, 0))  # the jamb faces of the opening
-    body.poly(edge(ring1, DOOR[1]), M["trim_dark"], facing=(0, -1, 0))
-    door.poly(edge(ring0, DOOR[0]), M["trim_dark"], facing=(0, -1, 0))
-    door.poly(edge(ring1, DOOR[1]), M["trim_dark"], facing=(0, 1, 0))
-    sill = lambda: [(ring0[5][0], DOOR[0], ring0[5][1]), (ring1[5][0], DOOR[1], ring1[5][1]), (ring1[12][0], DOOR[1], ring1[12][1]), (ring0[12][0], DOOR[0], ring0[12][1])]
-    body.poly(sill(), M["trim_dark"], facing=(0, 0, 1))
-    door.poly(sill(), M["trim_dark"], facing=(0, 0, -1))
+    cut_door(body, door_rl, grid, ys, DOOR, 1)
+    cut_door(body, door_dr, grid, ys, FRONT_DOOR, -1)
 
 
 # --- the greenhouse -------------------------------------------------------------------------------------
@@ -139,15 +150,20 @@ def mir(p, sx):
     return (p[0] * sx, p[1], p[2])
 
 
+def sunk(p, by: float = 0.05):
+    """p lowered, so a pillar's end stays inside the roof's thickness instead of standing above it."""
+    return (p[0], p[1], p[2] - by)
+
+
 def windscreen(t: float) -> tuple:
     """(y, z) on the windscreen's centre line, t from its foot (0) to its top edge (1)."""
     return (A_FOOT[1] + (A_TOP[1] - A_FOOT[1]) * t, A_FOOT[2] + (A_TOP[2] - A_FOOT[2]) * t)
 
 
-ROOF = [(-0.24, 1.425, 1.455), (0.0, 1.45, 1.49), (0.3, 1.455, 1.50), (0.7, 1.45, 1.495), (1.0, 1.44, 1.48), (1.3, 1.415, 1.445)]
+ROOF = [(-0.24, 1.43, 1.46), (0.0, 1.45, 1.49), (0.3, 1.455, 1.50), (0.7, 1.45, 1.495), (1.0, 1.44, 1.48), (1.3, 1.415, 1.445)]
 
 
-def greenhouse(body: Part, door: Part) -> None:
+def greenhouse(body: Part, door_rl: Part, door_dr: Part) -> None:
     glass = M["glass"]
     # the roof: a slab, paint above and headliner below
     rings = []
@@ -162,12 +178,12 @@ def greenhouse(body: Part, door: Part) -> None:
     body.poly(rings[-1], M["paint"], facing=(0, 1, 0))
     for sx in (1, -1):
         # pillars: A and B as beams, the rail along the roof's edge
-        body.beam([mir(A_FOOT, sx), mir(A_TOP, sx)], 0.075, 0.07, (sx, 0, 0), (M["paint"], M["trim_grey"], M["paint"]))
-        body.beam([mir(B_FOOT, sx), mir(B_TOP, sx)], 0.09, 0.08, (sx, 0, 0), (M["seal"], M["trim_grey"], M["seal"]))
-        body.beam([mir(A_TOP, sx), mir(B_TOP, sx), mir(C_TOP, sx)], 0.05, 0.05, (sx, 0, 0.3), (M["paint"], M["headliner"], M["paint"]))
-        # the front side window, between the A and B pillars
-        bf, br, tr, tf = (0.815, -0.80, 1.012), (0.815, 0.09, 1.012), (0.64, 0.085, 1.455), (0.63, -0.26, 1.44)
-        body.sheet(*[mir(p, sx) for p in ((bf, br, tr, tf) if sx > 0 else (br, bf, tf, tr))], glass)
+        body.beam([mir(A_FOOT, sx), mir(sunk(A_TOP), sx)], 0.075, 0.07, (sx, 0, 0), (M["paint"], M["trim_grey"], M["paint"]))
+        body.beam([mir(B_FOOT, sx), mir(sunk(B_TOP), sx)], 0.09, 0.08, (sx, 0, 0), (M["seal"], M["trim_grey"], M["seal"]))
+        body.beam([mir((x, y, z - 0.03), sx) for x, y, z in (A_TOP, B_TOP, C_TOP)], 0.05, 0.05, (sx, 0, 0.3), (M["paint"], M["headliner"], M["paint"]))
+        # the front side window, between the A and B pillars (the driver's is in his door, which starts behind the pillar's foot)
+        bf, br, tr, tf = (0.815, -0.80 if sx > 0 else -0.76, 1.012), (0.815, 0.09, 1.012), (0.64, 0.085, 1.455), (0.63, -0.26, 1.44)
+        (body if sx > 0 else door_dr).sheet(*[mir(p, sx) for p in ((bf, br, tr, tf) if sx > 0 else (br, bf, tf, tr))], glass)
         if sx < 0:  # the rear right window, in the body (the left one is in the door)
             body.sheet(*[mir(p, sx) for p in ((0.815, 0.885, 1.012), (0.815, 0.145, 1.012), (0.635, 0.145, 1.45), (0.615, 0.775, 1.44))], glass)
         # the quarter panel, from the belt behind the rear door to the rail and the hatch glass
@@ -180,11 +196,11 @@ def greenhouse(body: Part, door: Part) -> None:
         body.loft(inner, M["trim_grey"], closed=False, toward=(0, (-sx, 0, -0.4)))
     # the windscreen and the hatch glass
     wf, wt = (A_FOOT[0] - 0.02, A_FOOT[1], A_FOOT[2]), A_TOP
-    body.sheet((-wf[0], wf[1], wf[2]), wf, wt, (-wt[0], wt[1], wt[2]), glass, nu=4, nv=3, bulge=(0.0, 0.0), facing=(0, -0.6, 0.8))
+    body.sheet((-wf[0], wf[1], wf[2]), wf, wt, (-wt[0], wt[1], wt[2]), glass, nu=4, nv=3, facing=WIND_OUT)
     body.sheet((HATCH_BOTTOM[0], HATCH_BOTTOM[1], HATCH_BOTTOM[2]), (-HATCH_BOTTOM[0], HATCH_BOTTOM[1], HATCH_BOTTOM[2]),
                (-HATCH_TOP[0], HATCH_TOP[1], HATCH_TOP[2]), HATCH_TOP, glass, nu=4, nv=3, facing=(0, 0.6, 0.8))
     # the rear left door's window, with the door
-    door.sheet((0.815, 0.145, 1.012), (0.815, 0.885, 1.012), (0.615, 0.775, 1.44), (0.635, 0.145, 1.45), glass)
+    door_rl.sheet((0.815, 0.145, 1.012), (0.815, 0.885, 1.012), (0.615, 0.775, 1.44), (0.635, 0.145, 1.45), glass)
 
 
 # --- the inside -----------------------------------------------------------------------------------------
@@ -195,6 +211,8 @@ M.update({
     "tissue": car.material("tissue", (0.62, 0.62, 0.6), rough=1.0, texture=weave),
     "webbing": car.material("webbing", (0.045, 0.045, 0.05), rough=0.9, texture=weave),
     "mirror_glass": car.material("mirror_glass", (0.02, 0.025, 0.03), rough=0.08, metal=0.3),
+    "plate": car.material("plate", (0.018, 0.018, 0.017), rough=0.95),  # Malaysian private plates are black; this one has nothing on it
+    "plate_rim": car.material("plate_rim", (0.07, 0.07, 0.068), rough=0.95),
 })
 
 
@@ -340,7 +358,7 @@ def dashboard(body: Part) -> None:
     body.draw(lambda bm: car.torus(bm, 0.168, 0.0175, 22, 8), M["trim_dark"], frame)
     body.cyl(hub - normal * 0.015, hub + normal * 0.03, 0.05, 0.047, M["trim_dark"], sides=14)
     for k in range(3):  # three spokes
-        a = math.radians(90 + 120 * k)
+        a = math.radians(270 + 120 * k)  # 6, 10 and 2 o'clock
         tip = frame @ Vector((math.cos(a) * 0.16, math.sin(a) * 0.16, 0.0))
         body.beam([hub, tip], 0.03, 0.016, normal, (M["trim_dark"], M["trim_dark"], M["trim_dark"]))
     body.cyl(hub - normal * 0.02, hub - normal * 0.30 + Vector((0, 0, 0.0)), 0.04, 0.042, M["trim_dark"], sides=10)
@@ -348,7 +366,7 @@ def dashboard(body: Part) -> None:
     plush(body, Vector((0.02, -0.72, 0.945)))
     body.box((0.02, -0.72, 0.9475), (0.34, 0.20, 0.007), M["trim_dark"])  # the cloth mat under it
     # wipers resting along the foot of the windscreen
-    nrm = Vector((0, -0.613, 0.791))
+    nrm = WIND_OUT
     wy, wz = windscreen(0.045)
     for x0, x1 in ((-0.70, -0.14), (0.05, 0.62)):
         p0, p1 = Vector((x0, wy, wz)) + nrm * 0.012, Vector((x1, wy, wz)) + nrm * 0.012
@@ -396,8 +414,7 @@ def outside_handle(part: Part, sx: int, y: float) -> None:
 def on_glass(t: float, x: float, lift: float = 0.006) -> Matrix:
     """A placement on the windscreen's inside at fraction t up its slope and x across, its local Y along the glass's normal."""
     y, z = windscreen(t)
-    inward = Vector((0, 0.613, -0.791))
-    return Matrix.Translation(Vector((x, y, z)) + inward * lift) @ Matrix.Rotation(math.radians(127.8), 4, "X")
+    return Matrix.Translation(Vector((x, y, z)) - WIND_OUT * lift) @ Matrix.Rotation(math.atan2(WIND_OUT.z, WIND_OUT.y), 4, "X")
 
 
 def ceiling(body: Part) -> None:
@@ -412,8 +429,8 @@ def ceiling(body: Part) -> None:
             body.box((sx * 0.59, y + dy, 1.392), (0.03, 0.025, 0.03), M["trim_grey"])
     # the mirror: its glass is the mirror_mount empty's plane
     body.cyl((0, -0.255, 1.425), (0, -0.315, 1.34), 0.008, 0.008, M["trim_dark"], sides=6)
-    body.rbox((0, -0.32, 1.30), (0.26, 0.04, 0.075), 0.015, M["trim_dark"], seg=1)
-    body.sheet((0.12, -0.2985, 1.268), (-0.12, -0.2985, 1.268), (-0.12, -0.2985, 1.332), (0.12, -0.2985, 1.332), M["mirror_glass"], facing=(0, 1, 0))
+    body.rbox((0, MIRROR_Y - 0.025, 1.30), (0.26, 0.04, 0.075), 0.015, M["trim_dark"], seg=1)
+    body.sheet((0.12, MIRROR_Y - 0.002, 1.268), (-0.12, MIRROR_Y - 0.002, 1.268), (-0.12, MIRROR_Y - 0.002, 1.332), (0.12, MIRROR_Y - 0.002, 1.332), M["mirror_glass"], facing=(0, 1, 0))
     # a parking pass hanging from the mirror (plain card, no design), a toll-tag and a road tax disc on the glass
     body.cyl((0.10, -0.33, 1.27), (0.10, -0.33, 1.165), 0.002, 0.002, M["webbing"], sides=4)
     body.box((0.10, -0.33, 1.135), (0.075, 0.003, 0.055), M["card"])
@@ -426,7 +443,7 @@ def ceiling(body: Part) -> None:
 def belts(body: Part) -> None:
     """Seat belts, unfastened, hanging from their pillars: a webbing strip, its upper anchor, the retractor at the foot."""
     for sx, y, z_top, z_bot, x_top in ((1, 0.095, 1.12, 0.52, 0.745), (-1, 0.095, 1.12, 0.52, 0.745),
-                                       (1, 0.945, 1.07, 0.60, 0.77), (-1, 0.945, 1.07, 0.60, 0.77)):
+                                       (1, 0.945, 1.07, 0.60, 0.73), (-1, 0.945, 1.07, 0.60, 0.73)):
         body.sheet((sx * x_top, y - 0.022, z_bot), (sx * x_top, y + 0.022, z_bot), (sx * x_top, y + 0.022, z_top), (sx * x_top, y - 0.022, z_top),
                    M["webbing"], back=M["webbing"], gap=0.004, facing=(-sx, 0, 0))
         body.box((sx * (x_top + 0.003), y, z_top + 0.012), (0.014, 0.05, 0.035), M["trim_dark"])
@@ -460,7 +477,7 @@ def console(body: Part) -> None:
     body.rbox((0, -0.07, 0.40), (0.20, 0.1, 0.16), 0.02, M["trim_dark"], seg=1)  # the back of the console, facing the rear seat
 
 
-def exterior(body: Part, door: Part) -> None:
+def exterior(body: Part, door_rl: Part, door_dr: Part) -> None:
     """Lights, grille, handles, mirrors and shut lines: the little that makes it read as a car from outside."""
     headlight = car.material("headlight_lens", (0.26, 0.28, 0.29), rough=0.1, metal=0.3, ao=False)
     taillight = car.material("taillight_lens", (0.30, 0.015, 0.012), rough=0.15, ao=False)
@@ -472,17 +489,20 @@ def exterior(body: Part, door: Part) -> None:
         body.rbox((sx * 0.95, -0.80, 1.035), (0.09, 0.14, 0.09), 0.02, M["paint"], None, seg=1)  # the door mirror
         body.box((sx * 0.905, -0.78, 1.0), (0.05, 0.04, 0.03), M["paint"])
         body.sheet((sx * 0.935, -0.715, 1.0), (sx * 0.935, -0.715, 1.07), (sx * 0.985, -0.715, 1.07), (sx * 0.985, -0.715, 1.0), M["mirror_glass"], facing=(0, 1, 0))
-        outside_handle(body, sx, 0.0)
+        outside_handle(body if sx > 0 else door_dr, sx, 0.0)
         for y in (-0.72, 0.105):  # shut lines: the doors' edges
             body.beam([(sx * 0.858, y, 0.50), (sx * 0.8585, y, 0.72), (sx * 0.848, y, interp(BELT, y)[0])], 0.006, 0.004, (sx, 0, 0), (M["seal"], M["seal"], M["seal"]))
         if sx < 0:
             outside_handle(body, sx, 0.80)
     body.rbox((0, -2.02, 0.47), (0.90, 0.04, 0.11), 0.02, M["liner"], seg=1)
-    body.box((0, 1.881, 0.58), (0.46, 0.012, 0.11), car.material("plate", (0.26, 0.26, 0.24), rough=0.5))  # a blank number plate
+    body.box((0, 1.879, 0.58), (0.50, 0.008, 0.135), M["plate_rim"])  # a blank number plate: black, nothing on it, a pale rim
+    body.box((0, 1.8855, 0.58), (0.46, 0.007, 0.105), M["plate"])
     body.beam([(0.858, 0.89, 0.50), (0.8585, 0.89, 0.72), (0.848, 0.89, interp(BELT, 0.89)[0])], 0.006, 0.004, (1, 0, 0), (M["seal"], M["seal"], M["seal"]))
     body.beam([(-0.858, 0.89, 0.50), (-0.8585, 0.89, 0.72), (-0.848, 0.89, interp(BELT, 0.89)[0])], 0.006, 0.004, (-1, 0, 0), (M["seal"], M["seal"], M["seal"]))
-    outside_handle(door, 1, 0.80)
-    door_card(door, 1, DOOR[0], DOOR[1], False)
+    outside_handle(door_rl, 1, 0.80)
+    door_card(door_rl, 1, DOOR[0], DOOR[1], False)
+    door_card(door_dr, -1, FRONT_DOOR[0], FRONT_DOOR[1], True)
+
 
 # --- build ----------------------------------------------------------------------------------------------
 
@@ -496,9 +516,9 @@ def empty(name: str, loc, rot=(0, 0, 0)) -> bpy.types.Object:
     return e
 
 
-body, door = Part("hatchback", []), Part("door_rear_left", [])
-shells(body, door)
-greenhouse(body, door)
+body, door_rl, door_dr = Part("hatchback", []), Part("door_rear_left", []), Part("door_driver", [])
+shells(body, door_rl, door_dr)
+greenhouse(body, door_rl, door_dr)
 for h in (SEATS["seat_driver"], SEATS["seat_front"]):
     seat(body, h)
 rear_bench(body)
@@ -507,23 +527,24 @@ console(body)
 ceiling(body)
 belts(body)
 cargo(body)
-exterior(body, door)
-for sx, y0, y1, front in ((1, -0.72, 0.10, True), (-1, -0.72, 0.10, True), (-1, DOOR[0], DOOR[1], False)):
+exterior(body, door_rl, door_dr)
+for sx, y0, y1, front in ((1, FRONT_DOOR[0], FRONT_DOOR[1], True), (-1, DOOR[0], DOOR[1], False)):  # the doors that stay shut
     door_card(body, sx, y0, y1, front)
-bmesh.ops.remove_doubles(door.bm, verts=door.bm.verts, dist=1e-5)
-body_obj, door_obj = body.object(sharp=50), door.object(sharp=50)
-pivot = Vector((0.84, DOOR[0], 0.70))  # the hinge line: the door's front edge
-door_obj.data.transform(Matrix.Translation(-pivot))
-door_obj.location = pivot
+for d in (door_rl, door_dr):
+    bmesh.ops.remove_doubles(d.bm, verts=d.bm.verts, dist=1e-5)
+body_obj, rl_obj, dr_obj = body.object(sharp=50), door_rl.object(sharp=50), door_dr.object(sharp=50)
+for obj, pivot in ((rl_obj, Vector((0.857, DOOR[0], 0.70))), (dr_obj, Vector((-0.857, FRONT_DOOR[0], 0.70)))):  # the hinge lines: the doors' front edges
+    obj.data.transform(Matrix.Translation(-pivot))
+    obj.location = pivot
 wheels = [car.wheel(n, sx, (sx * TRACK, y, TYRE), TYRE, M["rubber"], M["steel"]) for n, sx, y in (("wheel_fl", 1, -AXLE), ("wheel_fr", -1, -AXLE), ("wheel_rl", 1, AXLE), ("wheel_rr", -1, AXLE))]
 d = SEATS["seat_driver"]
 empties = [empty(n, p) for n, p in SEATS.items()] + [
-    empty("mirror_mount", (0, -0.2985, 1.30), (0, 0, 180)),  # its local +Z faces the back seat
+    empty("mirror_mount", (0, MIRROR_Y, 1.30), (0, 0, 180)),  # its local +Z faces the back seat
     empty("headlight_l", (0.65, -1.98, 0.735), (0, 0, 180)), empty("headlight_r", (-0.65, -1.98, 0.735), (0, 0, 180)),  # -Z is the beam, forward
     empty("taillight_l", (0.52, 1.89, 0.80)), empty("taillight_r", (-0.52, 1.89, 0.80)),  # -Z points back
     empty("dash_glow", (d[0], -0.58, 0.97)),
 ]
-meshes = [body_obj, door_obj] + wheels
+meshes = [body_obj, rl_obj, dr_obj] + wheels
 textured = {m: 0.12 for m in M.values() if m.name in ("headliner", "carpet", "cloth", "cloth_light", "plush", "plush_dark", "tissue", "webbing")}
 textured.update({m: 0.2 for m in M.values() if m.name in ("trim_dark", "trim_grey", "seat_back", "card")})
 for o in meshes:

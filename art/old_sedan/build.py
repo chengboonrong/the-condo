@@ -12,7 +12,6 @@ import math
 import os
 import sys
 
-import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
@@ -29,8 +28,7 @@ FLOOR = 0.285
 SEATS = {"driver": (-0.35, 0.0, 0.52), "front": (0.35, 0.0, 0.52), "rear_left": (0.35, 0.86, 0.54), "rear_right": (-0.35, 0.86, 0.54)}
 A_FOOT, A_TOP = (0.77, -0.70, 0.915), (0.585, -0.10, 1.335)
 B_FOOT, B_TOP = (0.815, 0.12, 0.925), (0.60, 0.10, 1.36)
-C_TOP, C_FOOT = (0.575, 0.92, 1.345), (0.79, 1.28, 0.915)
-ROOF = [(-0.10, 1.31, 1.345), (0.2, 1.335, 1.375), (0.6, 1.335, 1.375), (0.93, 1.315, 1.345)]  # y, edge z, centre z
+ROOF = [(-0.10, 1.33, 1.36), (0.2, 1.35, 1.385), (0.6, 1.35, 1.385), (0.93, 1.33, 1.36)]  # y, edge z, centre z
 
 common.reset()
 weave, grain = car.weave_image(), car.grain_image()
@@ -46,7 +44,8 @@ M = {
     "cloth": car.material("cloth", (0.075, 0.06, 0.05), rough=0.95, texture=weave),
     "headliner": car.material("headliner", (0.17, 0.16, 0.13), rough=0.95, texture=weave),
     "carpet": car.material("carpet", (0.03, 0.028, 0.026), rough=1.0, texture=weave),
-    "plate": car.material("plate", (0.26, 0.26, 0.24), rough=0.5),
+    "plate": car.material("plate", (0.018, 0.018, 0.017), rough=0.95),  # Malaysian private plates are black; this one has nothing on it
+    "plate_rim": car.material("plate_rim", (0.07, 0.07, 0.068), rough=0.95),
     "headlight_lens": car.material("headlight_lens", (0.5, 0.48, 0.42), rough=0.15, ao=False),
     "taillight_dim": car.material("taillight_dim", (0.16, 0.012, 0.01), rough=0.2, ao=False),
     "taillight_dead": car.material("taillight_dead", (0.06, 0.03, 0.025), rough=0.35, ao=False),
@@ -94,6 +93,11 @@ def mir(p, sx):
     return (p[0] * sx, p[1], p[2])
 
 
+def sunk(p, by: float = 0.05):
+    """p lowered, so a pillar's end stays inside the roof's thickness instead of standing above it."""
+    return (p[0], p[1], p[2] - by)
+
+
 def greenhouse(body: Part) -> None:
     glass = M["glass"]
     xs = [-0.60 + 1.20 * k / 6 for k in range(7)]
@@ -105,9 +109,8 @@ def greenhouse(body: Part) -> None:
     body.poly(rings[0], M["paint_faded"], facing=(0, -1, 0))
     body.poly(rings[-1], M["paint_faded"], facing=(0, 1, 0))
     for sx in (1, -1):
-        body.beam([mir(A_FOOT, sx), mir(A_TOP, sx)], 0.07, 0.065, (sx, 0, 0), (M["paint"], M["trim_dark"], M["paint"]))
-        body.beam([mir(B_FOOT, sx), mir(B_TOP, sx)], 0.085, 0.075, (sx, 0, 0), (M["seal"], M["trim_dark"], M["seal"]))
-        body.beam([mir(A_TOP, sx), mir(B_TOP, sx), mir(C_TOP, sx)], 0.045, 0.045, (sx, 0, 0.3), (M["paint_faded"], M["headliner"], M["paint_faded"]))
+        body.beam([mir(A_FOOT, sx), mir(sunk(A_TOP), sx)], 0.07, 0.065, (sx, 0, 0), (M["paint"], M["trim_dark"], M["paint"]))
+        body.beam([mir(B_FOOT, sx), mir(sunk(B_TOP), sx)], 0.085, 0.075, (sx, 0, 0), (M["seal"], M["trim_dark"], M["seal"]))
         windows = (((0.80, -0.58, 0.925), (0.80, 0.08, 0.925), (0.61, 0.085, 1.355), (0.595, -0.12, 1.335)),
                    ((0.80, 0.165, 0.925), (0.80, 1.10, 0.925), (0.59, 0.90, 1.345), (0.61, 0.165, 1.36)))
         for w in windows:
@@ -117,19 +120,19 @@ def greenhouse(body: Part) -> None:
         body.sheet(*[mir(p, sx) for p in quarter], M["paint"], nu=2, nv=2, back=M["trim_dark"], gap=0.04, facing=(sx, 0.3, 0.3))
     wf, wt = (A_FOOT[0] - 0.02, A_FOOT[1], A_FOOT[2]), A_TOP
     body.sheet((-wf[0], wf[1], wf[2]), wf, wt, (-wt[0], wt[1], wt[2]), glass, nu=3, nv=2, facing=(0, -0.6, 0.8))
-    body.sheet((0.64, 1.28, 0.935), (-0.64, 1.28, 0.935), (-0.52, 0.93, 1.335), (0.52, 0.93, 1.335), glass, nu=3, nv=2, facing=(0, 0.7, 0.7))
+    body.sheet((0.64, 1.28, 0.935), (-0.64, 1.28, 0.935), (-0.585, 0.93, 1.335), (0.585, 0.93, 1.335), glass, nu=3, nv=2, facing=(0, 0.7, 0.7))
     body.box((0, 1.14, 0.90), (1.28, 0.28, 0.02), M["trim_dark"])  # the rear shelf
 
 
-def seat(body: Part, h, width: float = 0.46, back_only: bool = False) -> None:
+def seat(body: Part, h, width: float = 0.46, headrest: bool = True, back: float = 0.54) -> None:
+    """A seat about its H-point h: cushion, backrest (`back` tall) leaning 20 degrees, and a headrest unless the seat has none."""
     place = at(h)
     lean = at(h) @ Matrix.Rotation(math.radians(-20), 4, "X")
     c = M["cloth"]
-    if not back_only:
-        body.rbox((0, -0.19, -0.17), (width, 0.48, 0.14), 0.04, c, place, seg=1)
-        body.box((0, -0.15, -0.275), (width * 0.7, 0.38, 0.07), M["trim_dark"], place)
-    body.rbox((0, 0.19, 0.19), (width, 0.12, 0.54), 0.04, c, lean, seg=1)
-    if not back_only:
+    body.rbox((0, -0.19, -0.17), (width, 0.48, 0.14), 0.04, c, place, seg=1)
+    body.box((0, -0.15, -0.275), (width * 0.7, 0.38, 0.07), M["trim_dark"], place)
+    body.rbox((0, 0.19, 0.19 - (0.54 - back) / 2), (width, 0.12, back), 0.04, c, lean, seg=1)
+    if headrest:
         body.rbox((0, 0.19, 0.60), (0.22, 0.09, 0.16), 0.035, c, lean, seg=1)
         for sx in (1, -1):
             body.cyl(lean @ Vector((sx * 0.06, 0.19, 0.45)), lean @ Vector((sx * 0.06, 0.19, 0.56)), 0.007, 0.007, M["steel"], sides=6)
@@ -138,8 +141,8 @@ def seat(body: Part, h, width: float = 0.46, back_only: bool = False) -> None:
 def interior(body: Part) -> None:
     for k in ("driver", "front"):
         seat(body, SEATS[k])
-    for k in ("rear_left", "rear_right"):
-        seat(body, SEATS[k], back_only=False, width=0.55)
+    for k in ("rear_left", "rear_right"):  # the bench has no headrests, and its back stays under the rear window and the shelf
+        seat(body, SEATS[k], width=0.55, headrest=False, back=0.46)
     body.box((0, 0.66, FLOOR + 0.05), (1.3, 0.5, 0.1), M["trim_dark"])  # the rear bench's base
     # the dashboard: a slab across, the wheel and its column on the right
     pts = [(-0.70, 0.90), (-0.50, 0.885), (-0.38, 0.86), (-0.36, 0.78), (-0.42, 0.60), (-0.70, 0.45)]
@@ -171,7 +174,8 @@ def exterior(body: Part) -> None:
     body.rbox((0, -2.0, 0.42), (1.52, 0.1, 0.1), 0.03, M["rubber"], seg=1)  # the bumpers
     body.rbox((0, 2.0, 0.42), (1.52, 0.1, 0.1), 0.03, M["rubber"], seg=1)
     body.rbox((0, -2.01, 0.62), (0.5, 0.03, 0.16), 0.01, M["liner"], seg=1)  # the grille
-    body.box((0, 2.012, 0.62), (0.50, 0.012, 0.12), M["plate"])  # a blank number plate
+    body.box((0, 2.008, 0.62), (0.54, 0.008, 0.145), M["plate_rim"])  # a blank number plate: black, nothing on it, a pale rim
+    body.box((0, 2.0145, 0.62), (0.50, 0.007, 0.115), M["plate"])
 
 
 body = Part("old_sedan", [])

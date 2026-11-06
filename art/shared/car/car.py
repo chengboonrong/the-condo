@@ -58,12 +58,12 @@ def grain_image() -> bpy.types.Image:
 
 def material(name: str, colour: tuple, rough: float = 0.8, metal: float = 0.0, alpha: float | None = None,
              texture: bpy.types.Image | None = None, emission: bpy.types.Image | None = None,
-             cull: bool = True, ao: bool = True) -> bpy.types.Material:
+             ao: bool = True) -> bpy.types.Material:
     """A plain material. colour: linear RGB. alpha: below 1 makes it see-through glass-style (and double-sided).
     texture: a tiling grey multiplied into the colour. emission: an image that glows (the gauges). ao: multiply the
     part's "ao" vertex colours in."""
     mat = bpy.data.materials.new(name)
-    mat.use_backface_culling = cull and alpha is None
+    mat.use_backface_culling = alpha is None
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
     bsdf.inputs["Roughness"].default_value = rough
@@ -359,14 +359,6 @@ def bake_ao(objects: list, rays: int = 24, reach: float = 0.4, floor: float = 0.
                     open_ += 1.0 if hit[0] is None else hit[3] / reach
                 g = floor + (1.0 - floor) * open_ / rays
                 ca.data[li].color = (g, g, g, 1)
-
-
-def clear_ao(obj: bpy.types.Object) -> None:
-    """An all-white "ao" attribute, for parts the bake skips."""
-    me = obj.data
-    ca = me.color_attributes.get("ao") or me.color_attributes.new("ao", "BYTE_COLOR", "CORNER")
-    for d in ca.data:
-        d.color = (1, 1, 1, 1)
 
 
 def torus(bm: bmesh.types.BMesh, radius: float, tube: float, major: int = 20, minor: int = 8) -> None:
