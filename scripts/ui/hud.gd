@@ -1,7 +1,7 @@
 class_name Hud
 extends CanvasLayer
-## Crosshair, interaction prompt, objective, clock, subtitles, inspection panel, the peephole's lens, the start card
-## and a black card for scene changes.
+## Crosshair, interaction prompt, objective, clock, subtitles, the road's choices, inspection panel, the peephole's
+## lens, the start card and a black card for scene changes.
 
 signal started
 
@@ -61,6 +61,11 @@ var _objective: Label
 var _clock: Label
 var _subtitle: Label
 var _subtitle_left := 0.0
+var _choices: VBoxContainer
+var _choice_labels: Array[Label] = []
+var _choice_id: StringName = &""
+var _choice_count := 0
+var _chosen := false  # a key has answered the open choice; the rest wait for the next one
 var _inspect: PanelContainer
 var _inspect_title: Label
 var _inspect_text: Label
@@ -138,6 +143,7 @@ func _ready() -> void:
 	_anchor(_subtitle, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -150, 1120, 110))
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_build_choices(root)
 
 	_build_inspect(root)
 	_build_start(root)
@@ -183,6 +189,21 @@ static func _anchor(c: Control, preset: Control.LayoutPreset, rect: Rect2) -> vo
 	c.offset_top = rect.position.y
 	c.offset_right = rect.end.x
 	c.offset_bottom = rect.end.y
+
+
+## The road's choices, numbered, at the bottom centre just above the subtitle. Longer options push the box up.
+func _build_choices(root: Control) -> void:
+	_choices = VBoxContainer.new()
+	root.add_child(_choices)
+	_anchor(_choices, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -300, 1120, 140))
+	_choices.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_choices.alignment = BoxContainer.ALIGNMENT_END
+	_choices.visible = false
+	for i in 3:
+		var l := _label(_choices, 22, HORIZONTAL_ALIGNMENT_CENTER)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.modulate = Color(0.95, 0.92, 0.85)
+		_choice_labels.append(l)
 
 
 func _build_inspect(root: Control) -> void:
@@ -276,6 +297,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			close_inspect()
 		get_viewport().set_input_as_handled()
 		return
+	if _choices.visible and not _chosen:
+		for i in _choice_count:
+			if event.is_action_pressed("choice_%d" % (i + 1)):
+				_chosen = true
+				get_viewport().set_input_as_handled()
+				EventBus.choice_made.emit(_choice_id, i)
+				return
 	if _ending.visible:
 		if event is InputEventMouseButton and event.pressed:
 			get_viewport().set_input_as_handled()
@@ -333,6 +361,27 @@ func is_card_shown() -> bool:
 
 func card_text() -> String:
 	return _card_label.text
+
+
+## Shows a choice until close_choices: the HUD never closes one by itself. Keys 1–3 answer it, once.
+func show_choices(choice_id: StringName, options: PackedStringArray) -> void:
+	_choice_id = choice_id
+	_choice_count = mini(options.size(), _choice_labels.size())
+	_chosen = false
+	for i in _choice_labels.size():
+		_choice_labels[i].visible = i < _choice_count
+		_choice_labels[i].text = "[%d]  %s" % [i + 1, options[i]] if i < _choice_count else ""
+	_choices.visible = true
+
+
+func close_choices(choice_id: StringName) -> void:
+	if choice_id == _choice_id:
+		_choices.visible = false
+		_choice_id = &""
+
+
+func is_choosing() -> bool:
+	return _choices.visible
 
 
 func show_subtitle(text: String, duration: float) -> void:

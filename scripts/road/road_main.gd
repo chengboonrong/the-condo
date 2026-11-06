@@ -1,7 +1,8 @@
 class_name RoadMain
 extends Node3D
 ## The road down the mountain, the first scene of the game: it ends by handing over to the flat (see Journey).
-## For now it is empty: the start card, and a click ends the road at once.
+## The road's core (RoadDirector) runs the missions; this wires it to the HUD and steps it while he plays. The road
+## itself, the walk and the car come later: for now he stands at the staff exit.
 
 ## The road is over. `ending` is how it went; Journey carries it into the flat.
 signal finished(ending: StringName)
@@ -9,6 +10,7 @@ signal finished(ending: StringName)
 @onready var player: PlayerController = $Player
 @onready var hud: Hud = $Hud
 
+var director: RoadDirector
 var pause: PauseMenu
 var loaded := false  # the start card is ready to be clicked (tools wait for this)
 var _automated := false
@@ -16,14 +18,26 @@ var _automated := false
 
 func _ready() -> void:
 	if Main.has_flag("flat") or Main.has_flag("perf"):  # checks of the flat alone: straight to its own start card
+		process_mode = Node.PROCESS_MODE_DISABLED  # nothing is built, so nothing runs until the flat replaces it
 		Journey.arrive(&"")
 		return
 	WorldState.reset()
+	var stage := RoadStage.new()
+	stage.position = RoadLayout.EXIT
+	director = RoadDirector.new(stage, Main.SEED)
+	EventBus.choices_requested.connect(hud.show_choices)
+	EventBus.choices_closed.connect(hud.close_choices)
+	EventBus.road_cue.connect(_on_cue)
+	EventBus.road_ended.connect(finish)
+	# `-- --mission=N` / `?mission=N`: start at mission N (1 is the lift, and past the last is the last), as if every
+	# earlier one was kept.
+	var mission := Main.flag_value("mission")
+	if mission.is_valid_int():
+		director.start_at(clampi(int(mission) - 1, 0, director.missions.size() - 1))
 	pause = PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)
 	hud.bind(player)
-	hud.started.connect(_on_started)
 	_finish_loading.call_deferred()
 
 
@@ -40,7 +54,7 @@ func _smoke() -> void:
 	_automated = true
 	hud.start()
 	await get_tree().create_timer(3.0).timeout
-	var ok := loaded and player.input_enabled and get_viewport().get_camera_3d() == player.camera
+	var ok := loaded and player.input_enabled and get_viewport().get_camera_3d() == player.camera and WorldState.time > 2.0
 	print("ROAD-SMOKE %s time=%.1f gpu=%s" % ["ok" if ok else "FAIL", WorldState.time, RenderingServer.get_video_adapter_name()])
 	if ok:
 		finish(&"alive")
@@ -53,9 +67,19 @@ func finish(ending: StringName) -> void:
 	Journey.arrive(ending)
 
 
-func _on_started() -> void:
-	if not _automated:  # the smoke run plays its 3 s first and ends the road itself
-		finish(&"alive")
+func _on_cue(cue: StringName) -> void:
+	match cue:
+		&"card_on":
+			hud.show_card("")
+		&"card_off":
+			hud.hide_card(1.0)
+
+
+func _physics_process(delta: float) -> void:
+	# As in the flat: time and the choices' timers stand still on the start card and while paused (the pause menu
+	# pauses the whole tree), so no rule can break then. They keep running while he reads something.
+	if player.input_enabled or hud.is_inspecting():
+		director.step(delta)
 
 
 func _process(delta: float) -> void:

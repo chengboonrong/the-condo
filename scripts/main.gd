@@ -133,6 +133,16 @@ static func has_flag(flag: String) -> bool:
 	return OS.get_cmdline_user_args().has("--" + flag)
 
 
+## A flag's value: `-- --mission=3` on desktop, `?mission=3` on the web. "" when it is not given.
+static func flag_value(flag: String) -> String:
+	if OS.has_feature("web"):
+		return str(JavaScriptBridge.eval("String(new URLSearchParams(location.search).get('%s') ?? '')" % flag, true))
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--%s=" % flag):
+			return arg.trim_prefix("--%s=" % flag)
+	return ""
+
+
 ## Plays the first 3 seconds of a built game and reports whether the simulation runs.
 func _smoke() -> void:
 	_automated = true

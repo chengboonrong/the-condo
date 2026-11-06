@@ -1,0 +1,130 @@
+extends TestCase
+## Mission 1, the wait for a lift: the opening, the walk to the stop, the wait, and the couple's car stopping for him.
+
+const OPENING := [
+	"[12:06 AM. The last staff bus went down the mountain at eleven.]",
+	"[Bang Din at the stall says the road down has rules. He only tells them after midnight.]",
+	"[You laughed. He didn't.]",
+]
+
+var stage: RoadStage
+var d: RoadDirector
+var cues: Array[StringName] = []
+var captions: Array[String] = []
+var ended: Array[StringName] = []
+
+
+func _setup() -> void:
+	stage = RoadStage.new()
+	stage.position = RoadLayout.EXIT
+	d = RoadDirector.new(stage, 1147)
+	cues.clear()
+	captions.clear()
+	ended.clear()
+	EventBus.road_cue.connect(_on_cue)
+	EventBus.subtitle_requested.connect(_on_caption)
+	EventBus.road_ended.connect(_on_ended)
+
+
+func _teardown() -> void:
+	EventBus.road_cue.disconnect(_on_cue)
+	EventBus.subtitle_requested.disconnect(_on_caption)
+	EventBus.road_ended.disconnect(_on_ended)
+
+
+func _on_cue(cue: StringName) -> void:
+	cues.append(cue)
+
+
+func _on_caption(text: String, _seconds: float) -> void:
+	captions.append(text)
+
+
+func _on_ended(ending: StringName) -> void:
+	ended.append(ending)
+
+
+func _run(seconds: float) -> void:
+	for i in roundi(seconds / 0.1):
+		d.step(0.1)
+
+
+## Steps until the cue comes, at most `limit` seconds. True if it came.
+func _until(cue: StringName, limit: float) -> bool:
+	for i in roundi(limit / 0.1):
+		if cues.has(cue):
+			return true
+		d.step(0.1)
+	return cues.has(cue)
+
+
+func _lift() -> LiftMission:
+	return d.missions[0] as LiftMission
+
+
+func test_opening_then_walk_then_wait() -> bool:
+	_setup()
+	_run(0.2)
+	eq(cues, [&"card_on"], "the opening starts on a black card")
+	eq(_lift().beat, &"opening", "the opening")
+	_run(13.0)
+	eq(captions.slice(0, 3), OPENING, "his thoughts, word for word")
+	eq(cues, [&"card_on", &"card_off"], "then the card goes")
+	eq(_lift().beat, &"walk", "and he walks")
+	eq(WorldState.objective, "Walk down to the bus stop and wait for a lift.", "the objective")
+	stage.position = RoadLayout.BUS_STOP
+	_run(0.2)
+	eq(_lift().beat, &"wait", "at the stop: the wait")
+	_run(19.0)
+	check(not cues.has(&"lorry_passes"), "no lorry before 20 s")
+	_run(1.5)
+	eq(cues.back(), &"lorry_passes", "a lorry at 20 s")
+	_run(23.0)
+	check(not cues.has(&"couple_stops"), "no car before 45 s")
+	check(_until(&"couple_stops", 30.0), "the couple stop for him")
+	eq(cues, [&"card_on", &"card_off", &"lorry_passes", &"couple_stops"], "the cues in order")
+	eq(d.car_s, RoadLayout.BUS_STOP_S, "the car stops exactly at the stop")
+	eq(d.car_speed, 0.0, "and stands")
+	eq(WorldState.prompts.get(&"car_door"), "Get in", "the door can be used")
+	_run(0.2)
+	check(captions.has("Mei: \"Eh, you going down ah? Jom, we got space.\""), "Mei calls out")
+	eq(_lift().beat, &"get_in", "and waits for him")
+	_teardown()
+	return true
+
+
+func test_the_car_door_works_only_once_the_car_has_stopped() -> bool:
+	_setup()
+	_run(14.0)
+	stage.position = RoadLayout.BUS_STOP
+	_run(50.0)
+	EventBus.object_interacted.emit(&"car_door")
+	check(not d.seated, "the car is still coming: the door does nothing")
+	check(_until(&"couple_stops", 30.0), "the couple stop")
+	EventBus.object_interacted.emit(&"car_door")
+	check(d.seated, "then he gets in")
+	eq(cues.back(), &"seated", "seated cue")
+	eq(WorldState.prompts.get(&"car_door"), "", "the prompt goes")
+	EventBus.object_interacted.emit(&"car_door")
+	eq(cues.count(&"seated"), 1, "once")
+	_run(12.0)
+	eq(ended, [&"alive"], "the lift is the only mission yet: the road ends after it, all alive")
+	eq(d.score(), 0, "nothing broken")
+	_teardown()
+	return true
+
+
+func test_waiting_away_from_the_stop_does_not_bring_the_car() -> bool:
+	_setup()
+	_run(120.0)
+	check(not cues.has(&"couple_stops"), "at the staff exit for two minutes: no car")
+	eq(_lift().beat, &"walk", "still the walk")
+	stage.position = RoadLayout.BUS_STOP
+	_run(5.0)
+	stage.position = RoadLayout.point(RoadLayout.BUS_STOP_S - 10.0, 4.6)
+	_run(120.0)
+	check(not cues.has(&"lorry_passes") and not cues.has(&"couple_stops"), "10 m up the road: the wait doesn't count")
+	stage.position = RoadLayout.BUS_STOP
+	check(_until(&"couple_stops", 70.0), "back at the stop, the car comes")
+	_teardown()
+	return true

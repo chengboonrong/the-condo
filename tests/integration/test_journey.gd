@@ -32,6 +32,14 @@ func _scene(path: String) -> Node3D:
 	return node
 
 
+## The debug skip, mission after mission, until the road ends (at most one call per mission, plus one).
+func _skip_to_the_end(road: RoadMain) -> void:
+	for i in road.director.missions.size() + 1:
+		if road.director.ending != &"":
+			return
+		road.director.debug_skip()
+
+
 func test_flat_opened_directly_keeps_its_start_card() -> bool:
 	_begin()
 	var main := _scene(Journey.FLAT_SCENE)
@@ -70,7 +78,9 @@ func test_the_road_hands_over_on_the_click() -> bool:
 	var ended := []
 	road.finished.connect(func(ending: StringName) -> void: ended.append(ending))
 	road.hud.start()
-	eq(ended, [&"alive"], "for now, the road ends at once, all alive")  # from Task 2 on: road.director.debug_skip() until it ends
+	eq(ended, [], "the click starts the road, it doesn't end it")
+	_skip_to_the_end(road)
+	eq(ended, [&"alive"], "skipped through, nothing broken: all alive")
 	eq(Journey.road_ending, &"alive", "Journey carries it")
 	road.hud.start()
 	eq(ended, [&"alive"], "a second start does nothing")
@@ -80,8 +90,8 @@ func test_the_road_hands_over_on_the_click() -> bool:
 
 
 ## A real scene change, with the road as the current scene as it is in the game (the runner has none, and a change
-## only removes the one it has). The click that starts the road is still being handled when the road hands over:
-## the scene must not be taken out from under it, or the HUD's next line runs on a viewport that is gone.
+## only removes the one it has). A real click starts the road, and the road's end hands over: the scene must not be
+## taken out from under whoever ends it, or their next line runs on a viewport that is gone.
 func test_the_start_click_hands_over_without_an_error() -> bool:
 	_begin()
 	Journey.change_scenes = true
@@ -94,7 +104,10 @@ func test_the_start_click_hands_over_without_an_error() -> bool:
 	click.position = Vector2(800, 450)
 	tree.root.push_input(click, true)
 	check(road.is_inside_tree(), "the road is still there when the click returns")
+	check(not road.hud.is_on_start_card(), "and it has started")
+	_skip_to_the_end(road)
 	eq(Journey.road_ending, &"alive", "Journey carries the ending at once")
+	check(road.is_inside_tree(), "the road is still there when it ends")
 	for i in 3:
 		await tree.process_frame
 	check(not is_instance_valid(road), "the road is gone a frame later")

@@ -19,6 +19,9 @@ const KEYS := {
 	&"debug_event_4": [KEY_F8],
 	&"debug_event_5": [KEY_F9],
 	&"debug_skip_beat": [KEY_F10],
+	&"choice_1": [KEY_1, KEY_KP_1],  # the road's choices
+	&"choice_2": [KEY_2, KEY_KP_2],
+	&"choice_3": [KEY_3, KEY_KP_3],
 }
 
 

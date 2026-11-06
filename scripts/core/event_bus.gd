@@ -24,6 +24,14 @@ signal subtitle_requested(text: String, duration: float)
 signal inspect_requested(title: String, text: String)
 signal peephole_requested(view: Camera3D)
 
+# The road (RoadDirector emits, except choice_made, which the HUD or a bot sends)
+signal choices_requested(choice_id: StringName, options: PackedStringArray)
+signal choices_closed(choice_id: StringName)
+signal choice_made(choice_id: StringName, index: int)
+signal road_cue(cue: StringName)
+signal road_line(speaker: StringName, seconds: float)  # who speaks, so the presentation can turn heads
+signal road_ended(ending: StringName)
+
 # Story
 signal act_changed(act: int)
 signal objective_changed(text: String)
