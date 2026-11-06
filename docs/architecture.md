@@ -282,6 +282,11 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `her_comes` | Mission 5, `caught` | she comes for the camera |
 | `rule_broken` | `break_rule` | nothing in the game; the bots and tests count them |
 
+`RoadMain` also captions the cues whose sound carries the moment (`RoadMain.CAPTIONS`): `lorry_passes`, `lights_dying`,
+`crank`, `door_cracked`, `mei_door_cracked`, `thump` and `knock_window` (one caption for each set) and `lorry_stops`. They
+go out on `subtitle_requested`, as the flat's sound captions do, and the HUD shows them only with "Captions for sounds"
+on.
+
 ### What the presentation is
 
 `RoadMain` builds these under itself and wires them to the director. Each frame it reads the director's state: it sets

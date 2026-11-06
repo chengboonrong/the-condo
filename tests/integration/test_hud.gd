@@ -148,6 +148,31 @@ func test_road_lines_show_with_captions_off() -> bool:
 	return true
 
 
+## The road's sounds are captioned the way the flat's are: on subtitle_requested, shown only with "Captions for sounds"
+## on. A set of thumps on the roof gets one caption.
+func test_road_sounds_are_captioned_with_captions_on() -> bool:
+	var road := await _road()
+	var hud := road.hud
+	var captions: Array[String] = []
+	var heard := func(text: String, _seconds: float) -> void: captions.append(text)
+	EventBus.subtitle_requested.connect(heard)
+	EventBus.road_cue.emit(&"thump")
+	eq(captions, ["[Something lands on the roof]"] as Array[String], "a thump is captioned")
+	eq(hud._subtitle.text, "[Something lands on the roof]", "and it shows, captions on")
+	EventBus.road_cue.emit(&"thump")
+	eq(captions.size(), 1, "once for the set")
+	road.queue_free()
+	await tree.process_frame
+	road = await _road()
+	Settings.values["subtitles"] = false
+	EventBus.road_cue.emit(&"thump")
+	eq(captions.size(), 2, "with captions off it goes out on the same signal, as the flat's do")
+	eq(road.hud._subtitle.text, "", "but does not show")
+	EventBus.subtitle_requested.disconnect(heard)
+	road.queue_free()
+	return true
+
+
 ## Both scenes show the start card before anything is played, so the gore is warned of whichever opens first.
 func test_start_card_warns_of_gore() -> bool:
 	for path in ["res://scenes/road.tscn", "res://scenes/main.tscn"]:

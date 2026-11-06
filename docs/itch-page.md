@@ -110,7 +110,7 @@ stay off the page until someone has run them.
 | Has sensitive content (*Metadata » Classification*) | The owner's call; open | The rule is that a page with "strong adult themes" "must be marked", and the Creator FAQ defines adult content as sexualised material. The game has none, so leaving the box off follows the written text. Ticking it is the cautious choice, and hides the page from visitors who have not turned adult content on. The wording of the checkbox itself was not read: the logged-in edit page was not opened. See `docs/research/2026-11-06-gore-rules.md` |
 | Languages | English | |
 | Inputs | Keyboard, Mouse | No gamepad support |
-| Accessibility | Subtitles | What anyone says or thinks always shows. In the flat the sounds are captioned (and can be turned off); the road's sounds are not. Controls can't be remapped |
+| Accessibility | Subtitles | What anyone says or thinks always shows. The sounds that carry a moment are captioned, in the flat and on the road, and those captions can be turned off. Controls can't be remapped |
 | Comments | On | |
 | Visibility | Draft until the page is finished | Publish once, when it's ready |
 

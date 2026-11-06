@@ -15,6 +15,19 @@ const ENGINE := Vector3(0.0, 0.7, 1.5)
 const ROOF := Vector3(0.4, 1.45, -0.6)
 const MEI_DOOR := Vector3(0.86, 0.9, 0.3)
 const MEI_WINDOW := Vector3(0.82, 1.15, 0.3)
+## The road's sounds that carry a moment, captioned as the flat's are: [text, seconds] by cue, on subtitle_requested,
+## which the HUD shows only with "Captions for sounds" on. The thumps and the knocks come as one set each: one caption.
+const CAPTIONS := {
+	&"lorry_passes": ["[A lorry passes]", 3.0],
+	&"lights_dying": ["[The engine sputters out]", 3.0],
+	&"crank": ["[The engine cranks and dies]", 2.5],
+	&"door_cracked": ["[Your door opens. A wet slap, and it slams shut]", 3.0],
+	&"mei_door_cracked": ["[Mei's door opens. A wet slap, and it slams shut]", 3.0],
+	&"thump": ["[Something lands on the roof]", 3.0],
+	&"knock_window": ["[Knocking on Mei's window]", 3.0],
+	&"lorry_stops": ["[A lorry pulls up]", 4.0],
+}
+const ONE_SET: Array[StringName] = [&"thump", &"knock_window"]
 const SHAKE := 0.012  # metres each way a thump on the roof shakes his view, at the most
 const SHAKE_SECONDS := 0.35
 ## The warm-up's board (_compile_shaders), far above the road where none of its lights reach: BOARD_AWAY in front of a
@@ -59,6 +72,7 @@ var _dead := false  # the car's engine has died (lights_dying), and it never sta
 var _quiet := false  # the insects have stopped (insects_stop)
 var _shake := 0.0  # seconds left of a thump's shake
 var _at_light := false  # the walk to the light (LightMission) is the core's mission
+var _captioned: Array[StringName] = []  # the sets (ONE_SET) captioned already
 
 
 func _ready() -> void:
@@ -291,6 +305,10 @@ func finish(ending: StringName) -> void:
 
 
 func _on_cue(cue: StringName) -> void:
+	if CAPTIONS.has(cue) and not _captioned.has(cue):
+		EventBus.subtitle_requested.emit(CAPTIONS[cue][0], CAPTIONS[cue][1])
+		if ONE_SET.has(cue):
+			_captioned.append(cue)
 	match cue:
 		&"card_on":
 			hud.show_card("")
