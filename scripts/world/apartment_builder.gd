@@ -134,6 +134,32 @@ const RED_EARTH := Color(0.48, 0.22, 0.1)  # laterite: orange-red, not the dark 
 const PRINT_SIZE := Vector2(0.105, 0.28)  # one print of his work shoes, across and along, in metres
 const TREADS := 4  # the tread texture's cells, heaviest deposit first
 const TOE_OUT := 0.12  # radians each foot turns out from the line
+const GLINT_LENGTH := 0.15  # metres of stream one glint_texture covers
+const GLINT_SPEED := 0.9  # metres a second its glints fall
+# The three lines drawn through the mirror's steam, as points (metres across from its left edge, down from its top)
+# a finger went through, top first.
+const STEAM_LINES := [
+	[Vector2(0.205, 0.17), Vector2(0.214, 0.3), Vector2(0.232, 0.43)],
+	[Vector2(0.262, 0.155), Vector2(0.27, 0.29), Vector2(0.29, 0.44)],
+	[Vector2(0.318, 0.175), Vector2(0.327, 0.31), Vector2(0.344, 0.42)],
+]
+## The rings where the running water lands, spreading from the middle of a small disc and gone at its edge.
+const RIPPLE_SHADER := """
+shader_type spatial;
+render_mode blend_mix, depth_draw_never, shadows_disabled;
+
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float r = length(p) + 0.05 * sin(atan(p.y, p.x) * 5.0 + TIME * 3.0);
+	float ring = pow(0.5 + 0.5 * sin(r * 28.0 - TIME * 40.0), 3.0);
+	float fade = smoothstep(1.0, 0.45, r) * smoothstep(0.05, 0.2, r);
+	// Troughs darken the white bowl a little, as water does; crests catch the light.
+	ALBEDO = mix(vec3(0.42, 0.47, 0.5), vec3(1.0), ring);
+	ROUGHNESS = 0.08;
+	EMISSION = vec3(0.35) * ring * fade;
+	ALPHA = (0.2 + 0.45 * ring) * fade;
+}
+"""
 ## The sole's outline for tread_texture(): [toe (0) to heel (1), half-width inside, half-width outside].
 const SOLE := [
 	[0.0, 0.0, 0.0], [0.03, 0.5, 0.55], [0.1, 0.86, 0.84], [0.24, 1.0, 0.96], [0.38, 0.86, 0.92], [0.5, 0.5, 0.8],
@@ -162,6 +188,7 @@ var _materials: Dictionary = {}
 var _fan: Node3D
 var _plaster_tex: ImageTexture
 static var _tread: ImageTexture  # tread_texture(), made once
+var _glint: StandardMaterial3D  # the running water's: _process slides its glints down
 
 
 func _ready() -> void:
@@ -193,6 +220,7 @@ func build() -> void:
 	for c: Array in COLLIDERS:
 		_collider(c[0], c[1], c[2])
 	_build_models()
+	_build_running_water()
 	for o: Array in OBJECTS:
 		_build_object(o)
 	if Journey.road_ending != &"":
@@ -229,6 +257,8 @@ static func model(id: StringName) -> Node3D:
 func _process(delta: float) -> void:
 	if _fan:
 		_fan.rotate_y(delta * 2.6 * fan_speed)
+	if _glint:
+		_glint.uv1_offset.y = fposmod(_glint.uv1_offset.y - delta * GLINT_SPEED / GLINT_LENGTH, 1.0)
 
 
 # --- geometry -----------------------------------------------------------------------------------
@@ -343,6 +373,41 @@ func _build_models() -> void:
 					mat.roughness = 1.0
 					mat.roughness_texture = null  # the baked texture would keep its shine
 					mesh.set_surface_override_material(s, mat)
+
+
+## The running water's life. Its stream keeps its plain colour, a little less blue, and gets a broken glint
+## (glint_texture, projected down it in world space as the mesh has no UVs) that _process slides down as it falls.
+## Where it lands, rings spread on the bowl's floor: tap_ripple, shown with the stream.
+func _build_running_water() -> void:
+	var water: Node3D = models[&"tap_water"]
+	var stream := water.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	_glint = stream.get_active_material(0).duplicate() as StandardMaterial3D
+	_glint.albedo_color = Color(0.46, 0.53, 0.58, _glint.albedo_color.a)  # it darkens the white bowl seen through it
+	_glint.emission_enabled = true
+	_glint.emission = Color.WHITE
+	_glint.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY  # the texture says where; ADD would light it all
+	_glint.emission_energy_multiplier = 1.0
+	_glint.emission_texture = glint_texture()
+	_glint.uv1_triplanar = true
+	_glint.uv1_world_triplanar = true
+	_glint.uv1_scale = Vector3(1.0, 1.0 / GLINT_LENGTH, 1.0)
+	stream.set_surface_override_material(0, _glint)
+	var ripple := Node3D.new()
+	ripple.name = "tap_ripple"
+	ripple.position = water.position + Vector3(0.0, -0.142, 0.0)  # 2 mm over the bowl's floor (basin/build.py)
+	var disc := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(0.07, 0.07)
+	disc.mesh = plane
+	var m := ShaderMaterial.new()
+	m.shader = Shader.new()
+	m.shader.code = RIPPLE_SHADER
+	disc.material_override = m
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ripple.add_child(disc)
+	add_child(ripple)
+	models[&"tap_ripple"] = ripple
+	gate(ripple, MODELS.filter(func(e: Array) -> bool: return e[0] == &"tap_water")[0][3])
 
 
 func gate(node: Node3D, requires: Dictionary) -> void:
@@ -654,8 +719,6 @@ func _build_object(o: Array) -> void:
 			color = Color(0.92, 0.9, 0.82)
 		&"photo":
 			color = Color(0.5, 0.45, 0.35)
-		&"bathroom_mirror":
-			color = Color(0.7, 0.78, 0.82)
 		&"door_1206", &"door_1208", &"fire_door":
 			color = Color(0.35, 0.25, 0.18) if o[0] != &"fire_door" else Color(0.55, 0.15, 0.12)
 		&"shoe_rack":
@@ -667,11 +730,36 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# these click boxes are drawn by their props or models; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv", &"footprints"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv", &"footprints", &"bathroom_mirror"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
+	if o[0] == &"bathroom_mirror":
+		_build_steamed_mirror(it, o[2])
 	add_child(it)
 	if o.size() > 6:
 		gate(it, o[6])
+
+
+## The bathroom mirror on the wall at the back of its click box (size: deep, tall, wide; facing +x): a frameless
+## pane, its edge the green of thick glass, and on its face the steam with the three lines drawn through it
+## (steam_textures), the dark room showing in them.
+func _build_steamed_mirror(it: Node3D, size: Vector3) -> void:
+	var wall := -size.x * 0.5 + 0.012  # on the wall's tiles (Decor._bathroom)
+	_box(it, Vector3(wall + 0.003, 0.0, 0.0), Vector3(0.006, size.y, size.z), Color(0.5, 0.6, 0.57), false)
+	var face := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(size.z, size.y)
+	face.mesh = quad
+	face.position = Vector3(wall + 0.0062, 0.0, 0.0)
+	face.rotation.y = PI / 2  # the quad faces +z: now +x, its left edge at +z as seen from the room
+	var textures := steam_textures(Vector2(size.z, size.y))
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = textures[0]
+	m.roughness_texture = textures[1]
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.metallic_specular = 0.6
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	face.material_override = m
+	it.add_child(face)
 
 
 ## Each print's centre, the door's first, evenly along TRAIL_PATH.
@@ -784,6 +872,102 @@ static func tread_texture() -> ImageTexture:
 	img.generate_mipmaps()
 	_tread = ImageTexture.create_from_image(img)
 	return _tread
+
+
+## The running water's glint along one GLINT_LENGTH of stream (y), the same all the way round (x): a faint sheen
+## broken by bright beads and dashes, as a falling stream breaks the light. It wraps, so it can slide. Made in code.
+static func glint_texture() -> ImageTexture:
+	var h := 64
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 964
+	var glints := []  # [centre, half-length, brightness], in texture heights
+	for i in 5:
+		glints.append([rng.randf(), rng.randf_range(0.006, 0.03), rng.randf_range(0.4, 1.0)])
+	var img := Image.create(2, h, false, Image.FORMAT_L8)
+	for y in h:
+		var v := (y + 0.5) / h
+		var l := 0.1
+		for g: Array in glints:
+			var d := absf(v - g[0])
+			d = minf(d, 1.0 - d)  # wrapped
+			l = maxf(l, g[2] * exp(-pow(d / g[1], 2.0)))
+		for x in 2:
+			img.set_pixel(x, y, Color(l, l, l))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## The mirror's face (size: wide, tall, in metres) fogged with steam, and the three STEAM_LINES drawn through it:
+## [albedo, roughness]. The fog is pale and uneven, piled up a little along each line's edges, and water runs down
+## from where each line ends and here and there from the fog. Through the lines and the runs the glass shows the
+## dark room behind you, smooth. Made in code, once.
+static func steam_textures(size: Vector2) -> Array[ImageTexture]:
+	var w := 160
+	var h := roundi(w * size.y / size.x)
+	var mist := FastNoiseLite.new()
+	mist.seed = 1155
+	mist.frequency = 0.03
+	var grain := FastNoiseLite.new()
+	grain.seed = 2311
+	grain.frequency = 0.5
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1147
+	var runs := []  # [x, top, bottom], metres: from each line's end, then a few from the fog
+	for line: Array in STEAM_LINES:
+		var end: Vector2 = line[-1]
+		runs.append([end.x + rng.randf_range(-0.002, 0.002), end.y, end.y + rng.randf_range(0.07, 0.13)])
+		var mid: Vector2 = line[1]
+		runs.append([mid.x + 0.004, mid.y + 0.04, mid.y + rng.randf_range(0.1, 0.16)])
+	for i in 3:
+		var top := rng.randf_range(0.4, 0.65) * size.y
+		runs.append([rng.randf_range(0.06, 0.94) * size.x, top, top + rng.randf_range(0.03, 0.08)])
+	var albedo := Image.create(w, h, false, Image.FORMAT_RGB8)
+	var rough := Image.create(w, h, false, Image.FORMAT_L8)
+	var hw := 0.0095  # half a finger's width
+	var lines := Rect2(STEAM_LINES[0][0], Vector2.ZERO)  # around all three, a finger's width out
+	for line: Array in STEAM_LINES:
+		for q: Vector2 in line:
+			lines = lines.expand(q)
+	lines = lines.grow(hw * 2.0)
+	for py in h:
+		for px in w:
+			var p := Vector2((px + 0.5) / w * size.x, (py + 0.5) / h * size.y)
+			var edge := minf(minf(p.x, size.x - p.x), minf(p.y, size.y - p.y))
+			var m := mist.get_noise_2d(px, py)
+			var fog := (0.9 + 0.07 * m + 0.04 * grain.get_noise_2d(px, py)) * lerpf(0.75, 1.0, smoothstep(0.0, 0.04, edge))
+			var clear := 0.0
+			var ridge := 0.0
+			var wobble := 1.0 + 0.15 * grain.get_noise_2d(px * 0.3, py * 0.3) if lines.has_point(p) else 1.0
+			for line: Array in STEAM_LINES:
+				if not lines.has_point(p) or p.y < line[0].y - 0.03 or p.y > line[-1].y + 0.03:
+					continue
+				for k in range(1, line.size()):
+					var a: Vector2 = line[k - 1]
+					var b: Vector2 = line[k]
+					var t := clampf((p - a).dot(b - a) / (b - a).length_squared(), 0.0, 1.0)
+					var along := (k - 1 + t) / (line.size() - 1.0)  # 0 where the finger went on, 1 where it lifted
+					var r := hw * (1.1 - 0.45 * along * along) * wobble
+					var d := p.distance_to(a.lerp(b, t))
+					var smear := 0.12 * (0.5 + 0.5 * sin(d / r * 9.0))  # the finger's ridges leave a little behind
+					clear = maxf(clear, (1.0 - smoothstep(r * 0.7, r, d)) * (1.0 - smear))
+					ridge = maxf(ridge, smoothstep(r * 1.8, r, d))
+			for run: Array in runs:
+				if p.y > run[1] and p.y < run[2] + 0.004:
+					var x: float = run[0] + 0.0005 * sin(p.y * 60.0)
+					var dr := absf(p.x - x)
+					if p.y > run[2]:  # the bead at its foot
+						dr = p.distance_to(Vector2(x, run[2])) * 0.6
+					clear = maxf(clear, 0.8 * (1.0 - smoothstep(0.001, 0.0025, dr)))
+					ridge = maxf(ridge, 1.0 - smoothstep(0.002, 0.0035, dr))
+			fog = clampf(fog + 0.18 * ridge, 0.0, 1.0) * (1.0 - clear)
+			var room := Color(0.1, 0.11, 0.12).lerp(Color(0.2, 0.21, 0.22), 1.0 - p.y / size.y)  # lit a little above
+			room = room.lightened(0.04 * m)
+			albedo.set_pixel(px, py, room.lerp(Color(0.7, 0.72, 0.73), fog))
+			var ro := lerpf(0.05, 0.85, fog)
+			rough.set_pixel(px, py, Color(ro, ro, ro))
+	albedo.generate_mipmaps()
+	rough.generate_mipmaps()
+	return [ImageTexture.create_from_image(albedo), ImageTexture.create_from_image(rough)]
 
 
 ## Half the sole's width (1 at the ball) on its inner (arch) or outer side, from the toe (y 0) to the heel (1).
