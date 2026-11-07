@@ -150,5 +150,6 @@ textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=4
 lights_and_shadows/positional_shadow/atlas_16_bits=false
 limits/opengl/max_lights_per_object=10
