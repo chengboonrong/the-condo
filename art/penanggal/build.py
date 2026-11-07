@@ -8,8 +8,8 @@ under her jaw, hang what came out with her: the windpipe (ringed, the voice box 
 bronchi) and the gullet behind it; the carotid arteries and the jugular veins, and strings of sinew; two dark, spongy,
 lobed lungs, no longer a pair (LUNGS); the heart pressed in front of them with its great vessels; the stomach at the end
 of the gullet, behind her left lung; and three ropes of intestine, swollen and squeezed along their length: the small
-one bunched in loops under the stomach and then hanging free (2.3 m along it), the large one hanging in a torn loop
-(0.8 m) and a thin small one of 1.2 m, the longest, ending about 1.85 m below the skull. And strands of blood that
+one packed in loops round the stomach and then hanging free (GUT prints its length), the large one hanging in a torn
+loop and a thin small one, the lowest, ending about 1.3 m below the skull. And strands of blood that
 drip. Everything is muted and wet: dark crimson, bruise purple and grey-pink, coloured per vertex.
 
 Materials, so code can tell them apart: "skin" (the face and the neck: the painted texture, times the colour attribute,
@@ -524,25 +524,25 @@ def organs(bm: bmesh.types.BMesh) -> None:
     lungs(bm)
     heart(bm)
     pylorus, curve = stomach(bm)
-    root = Vector((-0.005, 0.01, -0.7))
-    bunch = coils(pylorus, root, [(-1.9, 0.085, 0.12), (-0.5, 0.07, 0.19), (0.8, 0.09, 0.1), (2.1, 0.065, 0.15), (3.0, 0.08, 0.09)])
-    ends = [gut(bm, bunch + [Vector(k) for k in [(-0.03, -0.02, -0.86), (-0.045, -0.03, -0.98), (-0.025, -0.035, -1.12),
-                                                  (-0.04, -0.03, -1.27), (-0.03, -0.025, -1.4)]], 0.014, False, 6, 0.03, 1.0)]
+    # the coils pack up round the stomach and the lungs' bases: wide, shallow loops, not a bunch hanging below them
+    root = Vector((0.0, 0.0, -0.6))
+    bunch = coils(pylorus, root, [(-1.9, 0.1, 0.07), (-0.5, 0.085, 0.12), (0.8, 0.11, 0.06), (2.1, 0.09, 0.1), (3.0, 0.1, 0.05)])
+    ends = [gut(bm, bunch + [Vector(k) for k in [(-0.03, -0.02, -0.75), (-0.045, -0.03, -0.86), (-0.025, -0.035, -0.97),
+                                                  (-0.04, -0.03, -1.08)]], 0.014, False, 6, 0.03, 1.0)]
     # the large one hangs in a torn loop, not straight down
     ends.append(gut(bm, hanging(curve + Vector((0.01, 0.0, -0.01)), [(0.085, 0.02, -0.7), (0.095, 0.0, -0.82),
                                                                     (0.07, -0.015, -0.95), (0.03, -0.02, -1.0),
                                                                     (0.0, -0.015, -0.92), (-0.02, -0.01, -0.84),
                                                                     (-0.05, 0.0, -0.9), (-0.065, 0.005, -1.05)]),
                     0.019, True, 7, 0.028, 5.0))
-    ends.append(gut(bm, hanging(root + Vector((0.03, 0.03, -0.08)), [(0.05, 0.03, -0.92), (0.045, 0.02, -1.07),
-                                                                    (0.085, 0.01, -1.2), (0.08, 0.0, -1.33),
-                                                                    (0.035, -0.005, -1.3), (0.03, 0.0, -1.43),
-                                                                    (0.055, -0.005, -1.6), (0.045, -0.01, -1.72),
-                                                                    (0.05, -0.01, -1.85)]),
+    ends.append(gut(bm, hanging(root + Vector((0.03, 0.03, -0.08)), [(0.05, 0.03, -0.8), (0.045, 0.02, -0.92),
+                                                                    (0.085, 0.01, -1.03), (0.08, 0.0, -1.13),
+                                                                    (0.04, -0.005, -1.1), (0.035, 0.0, -1.2),
+                                                                    (0.05, -0.005, -1.3)]),
                     0.0095, False, 6, 0.032, 9.0))
     drips = [(Vector((0.08, -0.026, -0.55)), 0.16),
              (Vector((-0.058, 0.04, -0.46)), 0.09), (HEART + Vector((0.036, -0.058, -0.478)), 0.22), (Vector((0.035, 0.022, -0.675)), 0.12),
-             (Vector((-0.045, -0.03, -0.99)), 0.15), (Vector((0.03, -0.02, -1.01)), 0.2)]
+             (Vector((-0.045, -0.03, -0.86)), 0.15), (Vector((0.03, -0.02, -1.01)), 0.2)]
     drips += [(e, d) for e, d in zip(ends, (0.18, 0.1, 0.26))]
     drips += [(t, d) for t, d in zip(tips, (0.09, 0.05, 0.13, 0.07, 0.11, 0.06, 0.08, 0.04))]
     for i, (p, d) in enumerate(drips):

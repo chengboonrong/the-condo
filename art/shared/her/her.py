@@ -417,14 +417,17 @@ def scalp(d: Vector) -> Vector:
 
 def shell(tris: int, pose: Matrix = Matrix()) -> bpy.types.Object:
     """The hair flat on the scalp, wet: clinging, with grooves where it parts into clumps, thinning to almost nothing
-    over its last 2 cm, where the skin shows through in patches; tucked inside the head below the hairline."""
+    over its last 2 cm, where the skin shows through in patches; tucked inside the head below the hairline, deeper
+    than the hole of her mouth (DEEP) so it does not show in it."""
+    tuck = 0.6 if DEEP else 0.95
+
     def offset(d: Vector, p: Vector) -> Vector:
         a = math.atan2(d.x, -d.y)
         edge = p.z - hairline(a)
         if edge < 0:
-            return p * 0.95
+            return p * tuck
         if perlin.noise(Vector((a * 8.0, p.z * 45.0, 5.0))) > 0.1 + 20.0 * edge:  # thin: the skin shows through
-            return p * 0.95
+            return p * tuck
         fringe = smooth(edge / 0.02)  # thinning to almost nothing at the edge
         grooves = 0.0018 * perlin.noise(Vector((a * 9.0, p.z * 3.0, 2.2))) * fringe
         part = 0.0015 * bump(p.x, 0.0025) * smooth((p.z - 0.06) / 0.02) * (1.0 if p.y < 0.04 else 0.0)  # the parting
@@ -512,8 +515,8 @@ def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat:
            heavy: float = 1.0) -> None:
     """A clump of wet hair along path [(point, normal)]: a strip with a raised middle, wider and narrower along its
     length (seed) and narrowing to a point. flat: barely raised, a few hairs stuck to the skin. heavy over 1: a rope of
-    hair instead, closed all round, that much wider and thicker, thinner where it grows from the scalp so it does not
-    stand off it."""
+    hair instead, closed all round and flattened (wet hair lies in flat clumps), that much wider, thinner where it grows
+    from the scalp so it does not stand off it."""
     n = len(path)
     if n < 2:
         return
@@ -526,9 +529,9 @@ def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat:
         w = width * (1.0 + 0.45 * perlin.noise(Vector((u * 6.0, seed, 3.3)))) * (1.0 - u ** 1.3) ** 0.8 + 0.0006
         if rope:
             w *= 0.5 + 0.5 * smooth(i / 3.0)
-            thick = 0.0012 + 0.22 * heavy * w
+            thick = 0.0008 + 0.07 * heavy * w
             ringset.append([bm.verts.new(p - side * w / 2), bm.verts.new(p + nrm * thick), bm.verts.new(p + side * w / 2),
-                            bm.verts.new(p - nrm * thick * 0.5)])
+                            bm.verts.new(p - nrm * thick * 0.4)])
             continue
         lift = nrm * ((0.0005 + 0.08 * heavy * w) if flat else (0.0012 + 0.25 * heavy * w))
         ringset.append([bm.verts.new(p - side * w / 2), bm.verts.new(p + lift), bm.verts.new(p + side * w / 2)])
@@ -676,7 +679,6 @@ def texture() -> bpy.types.Image:
     cracks = smoothstep((0.04 - np.abs(fbm(rng, xx * 6.0, zz * 0.3, 400.0, 2) - 0.5)) / 0.03)
     colour = over(colour, (0.25, 0.14, 0.15), 0.6 * lips * cracks)
     colour = over(colour, (0.03, 0.015, 0.015), smoothstep((gap / 2 + 0.0012 - np.abs(zz - mz)) / 0.0012) * (ax < MOUTH_W + 0.001))
-    colour = over(colour, (0.0, 0.0, 0.0), smoothstep((gap / 2 - 0.0005 - np.abs(zz - mz)) / 0.0015) * (DEEP > 0))
     if FROWN:  # what the years and the night have done to her face: creases, deepest where it is pulled out of true
         line = lambda d, w: np.exp(-(d / w) ** 2)  # noqa: E731  a crease d metres off its line, w wide
         broken = 0.55 + 0.45 * smoothstep((fbm(rng, xx, zz, 120.0, 2) - 0.35) / 0.2)
@@ -722,6 +724,9 @@ def texture() -> bpy.types.Image:
     torn = smoothstep((-0.132 - zz) / 0.025) * smoothstep((fbm(rng, xx * 0.4, zz, 50.0) - 0.25) / 0.25)
     colour = over(colour, (0.13, 0.025, 0.025), 0.9 * torn)
     colour = over(colour, (0.06, 0.008, 0.01), 0.85 * torn * smoothstep((-0.15 - zz) / 0.015))
+    # last, over every pass above: the hole of the mouth (DEEP) pure black out to the lips, as its walls, pushed in,
+    # read the texture at the gap's edges; nothing there is lit or shines (her.gd)
+    colour = over(colour, (0.0, 0.0, 0.0), smoothstep((gap / 2 + 0.0008 - np.abs(zz - mz)) / 0.0008) * (ax < MOUTH_W) * (DEEP > 0))
     path = os.path.join(HERE, "Her_skin.png")
     img = bpy.data.images.get("Her_skin") or bpy.data.images.new("Her_skin", TEX_W, TEX_H)
     img.pixels.foreach_set(np.concatenate([np.clip(colour, 0, 1), np.ones(xx.shape + (1,))], axis=-1).astype(np.float32).ravel())

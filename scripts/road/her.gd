@@ -150,9 +150,15 @@ void vertex() {
 
 void fragment() {
 	vec3 paint = texture(albedo_texture, UV).rgb;
-	ALBEDO = albedo.rgb * paint * COLOR.rgb;
+	// Her mouth's hole is painted black: nothing there is lit or shines, not even the glancing shine of its steep walls
+	// (AO, on the lights too). Read from the full-size texture, as those walls would read a blurred mip with her lips in.
+	vec3 sharp = textureLod(albedo_texture, UV, 0.0).rgb;
+	float lit = smoothstep(0.0, 0.003, max(sharp.r, max(sharp.g, sharp.b)));
+	ALBEDO = albedo.rgb * paint * COLOR.rgb * lit;
 	ROUGHNESS = roughness;
-	SPECULAR = specular * smoothstep(0.0, 0.003, max(paint.r, max(paint.g, paint.b)));  // her mouth's black hole: no shine
+	SPECULAR = specular * lit;
+	AO = lit;
+	AO_LIGHT_AFFECT = 1.0;
 	if (roughness_noise > 0.0 || bump > 0.0) {  // the eyes and the hair have neither
 		float grain = 0.6 * value_noise(rest * 45.0) + 0.4 * value_noise(rest * 130.0);
 		ROUGHNESS += roughness_noise * smoothstep(0.3, 0.7, grain);
