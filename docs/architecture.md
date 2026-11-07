@@ -395,7 +395,7 @@ clicked is not.
   ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
   minutes) on all three seeds. That is a lower bound for a person, because the bot answers in a second and walks
   straight, and it is not a playtest.
-* `tools/road_stills.sh <dir>` renders 48 stills of the road, one PNG per shot, and a contact sheet. Each starts its
+* `tools/road_stills.sh <dir>` renders 49 stills of the road, one PNG per shot, and a contact sheet. Each starts its
   mission as `--mission` does and the simulation stands still. Stills made for checking stay out of the repository.
 * `-- --perf` runs `RoadPerf`, about 49 s through the road's heaviest moments, before the flat's tour
   ([performance.md](performance.md)).
