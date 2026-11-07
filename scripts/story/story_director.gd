@@ -330,7 +330,7 @@ func _request_reveal() -> void:
 
 
 func _at_front_door() -> void:
-	say("[Nobody there. The corridor is empty.]", 3.0)
+	say("[Nobody there. The corridor is empty.]", 3.0, true)
 	say("[Deeper in the flat, something heavy settles.]", 3.5)
 	_request_reveal()
 
@@ -341,7 +341,7 @@ func _start_act4() -> void:
 	scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)
 	WorldState.set_prompt(&"mirror_wall", "Knock back three times")
 	WorldState.set_prompt(&"lift_button", "Call the lift")
-	say("[B-11-07. It's your flat, the wrong way round.]", 4.0)
+	say("[B-11-07. It's your flat, the wrong way round.]", 4.0, true)
 	_go(&"decision")
 
 
@@ -354,7 +354,7 @@ func _end(ending_id: StringName, line := "") -> void:
 	if WorldState.ending != &"":
 		return
 	if line != "":
-		EventBus.subtitle_requested.emit(line, 4.0)
+		EventBus.line_requested.emit(line, 4.0)  # what he does: story, not a sound
 	match ending_id:
 		&"downstairs":
 			EventBus.sound_requested.emit(_knock(3), ApartmentLayout.ANCHORS[&"knock_mirror"]["pos"], 2.0)
@@ -377,7 +377,7 @@ func _on_interacted(object_id: StringName) -> void:
 	elif NOTICE.has(object_id):
 		var area: StringName = NOTICE[object_id][0]
 		if WorldState.get_variant(area) != &"default":
-			say(NOTICE[object_id][1], 4.0)
+			say(NOTICE[object_id][1], 4.0, true)
 			_reversal()  # he has seen that something moved
 			WorldState.set_variant(area, &"default", false)  # the player puts it back; not a shift
 			noticed += 1
@@ -387,11 +387,11 @@ func _on_interacted(object_id: StringName) -> void:
 		&"sink":
 			if not WorldState.has_flag(&"washed"):
 				WorldState.set_flag(&"washed")
-				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5)
+				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5, true)
 				if beat == &"home" and not _asking:
 					WorldState.set_objective("Get some sleep.")
 			else:
-				say("[Cold water.]", 2.0)
+				say("[Cold water.]", 2.0, true)
 		&"bed":
 			if beat == &"home":
 				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0)
@@ -399,7 +399,7 @@ func _on_interacted(object_id: StringName) -> void:
 				_asking = false  # lying down clears the objective, the question with it
 				_go(&"in_bed")
 			elif WorldState.act < WorldState.Act.ENDED:
-				say("[You can't sleep. Not now.]", 2.5)
+				say("[You can't sleep. Not now.]", 2.5, true)
 		&"footprints":
 			_end_question()
 		&"intercom":
@@ -464,7 +464,7 @@ func _answer_upstairs() -> void:
 	say("\"Hello? Sorry, so late. I just finished my shift at the mamak.\"", 3.5)
 	say("\"This is upstairs. 12-07.\"", 3.0)
 	say("\"Can you please stop the knocking?\"", 3.5)
-	say("[It's your voice.]", 3.0)
+	say("[It's your voice.]", 3.0, true)
 	_offer_choice()
 
 
@@ -475,10 +475,10 @@ func _on_room_entered(room_id: StringName) -> void:
 				_at_front_door()
 		&"revealed":
 			if room_id == &"bedroom" and _once("window", 0.0):
-				say("[The window is a door.]", 3.0)
+				say("[The window is a door.]", 3.0, true)
 				WorldState.set_objective("Where does it go?")
 			elif room_id == &"gap":
-				say("[This can't be here. You're on the twelfth floor.]", 4.0)
+				say("[This can't be here. You're on the twelfth floor.]", 4.0, true)
 				WorldState.set_objective("Follow the corridor.")
 				_go(&"in_gap")
 		&"in_gap":

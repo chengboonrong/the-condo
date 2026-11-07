@@ -360,6 +360,20 @@ func _moved_object() -> StringName:
 	return &""
 
 
+## What he thinks or recognises is a story line, shown whatever "Captions for sounds" says, not a sound caption.
+func test_his_recognition_of_his_own_voice_is_a_story_line() -> bool:
+	var story := _setup(Vector3(8.0, 0, -16.0))  # B-11-07
+	_listen()
+	for i in 3:
+		story.debug_skip()
+	check(_until(func() -> bool: return rt.scheduler.is_running(&"phone_ring"), 10.0), "the intercom rings")
+	EventBus.object_interacted.emit(&"intercom_mirror")
+	_wait(15.0)
+	eq(lines.count("[It's your voice.]"), 1, "he knows the voice, as a story line")
+	check(not subtitles.has("[It's your voice.]"), "and it is no sound caption")
+	return _done()
+
+
 func test_the_look_back_line_plays_once_when_he_notices_something_moved() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
 	story.road = &"alive"
@@ -406,10 +420,11 @@ func test_opened_directly_nothing_is_said_when_he_notices() -> bool:
 	_listen()
 	story.debug_skip()  # act 2
 	check(_until(func() -> bool: return _moved_object() != &"", 400.0), "a shift moves something")
-	EventBus.object_interacted.emit(_moved_object())
+	var moved := _moved_object()
+	EventBus.object_interacted.emit(moved)
 	_wait(12.0)
 	eq(lines.count(StoryDirector.REVERSAL), 0, "no look-back line without the road")
-	eq(lines, [], "no new lines at all")
+	eq(lines, [StoryDirector.NOTICE[moved][1]], "no new lines but what he sees")
 	return _done()
 
 
