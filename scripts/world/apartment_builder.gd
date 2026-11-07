@@ -11,16 +11,9 @@ const CEILING_COLOR := Color(0.9, 0.9, 0.88)
 
 # Props: [center, size, color, requires]. Collide unless the size is tiny or the entry says otherwise.
 const PROPS := [
-	# Living room
-	[Vector3(6.5, 0.22, 9.5), Vector3(2.2, 0.44, 0.75), Color(0.3, 0.33, 0.38)],
-	[Vector3(6.5, 0.6, 9.8), Vector3(2.2, 0.75, 0.22), Color(0.28, 0.31, 0.36)],
-	[Vector3(5.3, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
-	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
-	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), Color(0.45, 0.32, 0.22)],
+	# Living room (the sofa, the coffee table and the selipar are Decor's)
 	[Vector3(6.5, 2.3, 4.14), Vector3(0.95, 0.3, 0.2), Color(0.9, 0.9, 0.88)],  # aircon above the TV
 	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
-	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
-	[Vector3(2.6, 0.015, 9.62), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],
 	# Kitchen
 	[Vector3(0.35, 0.45, 4.9), Vector3(0.6, 0.9, 3.0), Color(0.6, 0.55, 0.48)],
 	[Vector3(0.22, 2.0, 4.9), Vector3(0.35, 0.7, 3.0), Color(0.62, 0.57, 0.5)],
@@ -75,8 +68,14 @@ const MODELS: Array[Array] = [
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
 # seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The beds' bases are boxes the
-# size of their frames, the fridge's the size of its cabinet. The table's and the basin's are Decor's.
+# size of their frames, the fridge's the size of its cabinet. The table's and the basin's are Decor's. The sofa (its
+# seat, back and arms) and the coffee table keep the boxes they were drawn as before Decor built them.
 const COLLIDERS: Array[Array] = [
+	[Vector3(6.5, 0.22, 9.5), Vector3(2.2, 0.44, 0.75), {}],
+	[Vector3(6.5, 0.6, 9.8), Vector3(2.2, 0.75, 0.22), {}],
+	[Vector3(5.3, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), {}],
+	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), {}],
+	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), {}],
 	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), {}],
 	[Vector3(6.55, 0.25, -16.3), Vector3(1.8, 0.5, 2.0), {&"bedroom": &"door"}],
 	[Vector3(0.4, 0.9, 2.95), Vector3(0.7, 1.8, 0.7), {}],

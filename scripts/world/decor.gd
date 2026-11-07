@@ -18,6 +18,7 @@ const GATE := Color(0.1, 0.1, 0.1)
 const BRONZE := Color(0.24, 0.2, 0.16)  # anodised aluminium window frames
 const SKIRTING := Color(0.74, 0.69, 0.6)
 const PLASTIC_WHITE := Color(0.88, 0.87, 0.83)
+const SELIPAR := Color(0.2, 0.3, 0.6)  # his blue rubber flip-flops
 
 var builder: ApartmentBuilder
 var _batches := {}  # key -> [SurfaceTool, Finish, requires]
@@ -71,6 +72,52 @@ func box_xf(xf: Transform3D, size: Vector3, color: Color, look := Finish.MATTE, 
 			var c := n * h * s
 			var pts := [c - du - dv, c + du - dv, c + du + dv, c - du + dv].map(func(q: Vector3) -> Vector3: return xf * q)
 			_poly(st, pts, (xf.basis * (n * s)).normalized(), color)
+
+
+## A box with its edges and corners rounded to `radius` (upholstery, cushions, a planed table top), into st. sag dips
+## the middle of its top by that much and slopes the top's normals with it, as a cushion sits after years of use.
+static func soft_box_xf(st: SurfaceTool, xf: Transform3D, size: Vector3, radius: float, color: Color, sag := 0.0) -> void:
+	var h := size * 0.5
+	var r := minf(radius, minf(h.x, minf(h.y, h.z)))
+	var core := h - Vector3.ONE * r
+	var axes := [Vector3.RIGHT, Vector3.UP, Vector3.BACK]
+	var stops := []  # per axis: across the flat middle (in quarters when it sags), then 15 and 30 degrees round each edge
+	for i in 3:
+		var c: float = core[i]
+		var t := [c, c + r * 0.268, c + r * 0.577, c + r] if r > 0.0 else [c]
+		var mid := [-c * 0.5, 0.0, c * 0.5] if sag > 0.0 and i != 1 else []
+		var line := []
+		for v: float in t:
+			line.push_front(-v)
+		line.append_array(mid)
+		line.append_array(t)
+		var clean := []
+		for v: float in line:
+			if clean.is_empty() or v - clean[-1] > 0.0001:
+				clean.append(v)
+		stops.append(clean)
+	for i in 3:
+		var j := (i + 1) % 3
+		var k := (i + 2) % 3
+		for sgn: float in [-1.0, 1.0]:
+			var face: Vector3 = axes[i] * sgn
+			for a in stops[j].size() - 1:
+				for b in stops[k].size() - 1:
+					var pts := []
+					var normals := []
+					for q: Vector2i in [Vector2i(a, b), Vector2i(a + 1, b), Vector2i(a + 1, b + 1), Vector2i(a, b + 1)]:
+						var p: Vector3 = face * h[i] + axes[j] * stops[j][q.x] + axes[k] * stops[k][q.y]
+						var inner := p.clamp(-core, core)
+						var n := (p - inner).normalized()
+						p = inner + n * r
+						if sag > 0.0 and n.y > 0.0:
+							var u := clampf(p.x / h.x, -1.0, 1.0)
+							var v := clampf(p.z / h.z, -1.0, 1.0)
+							p.y -= sag * (1.0 - u * u) * (1.0 - v * v) * n.y
+							n = (n + Vector3(-sag * 2.0 * u * (1.0 - v * v) / h.x, 0.0, -sag * 2.0 * v * (1.0 - u * u) / h.z) * n.y).normalized()
+						pts.append(xf * p)
+						normals.append((xf.basis * n).normalized())
+					_poly(st, pts, (xf.basis * face).normalized(), color, [], normals)
 
 
 ## Cylinder along the local y axis of xf, from its origin up `height`. A smaller top_radius makes a cone
@@ -400,12 +447,8 @@ func _garment(x: float, z: float, top: float, w: float, h: float, color: Color, 
 
 
 func _living() -> void:
-	# Sofa cushions, worn into the shape of one person.
-	for i in 3:
-		var x := 5.73 + i * 0.77
-		box(Vector3(x, 0.49 - (0.015 if i == 0 else 0.0), 9.39), Vector3(0.72, 0.1, 0.56), Color(0.33, 0.36, 0.41))
-		box(Vector3(x, 0.78, 9.62), Vector3(0.72, 0.36, 0.14), Color(0.32, 0.35, 0.4))
-	box_xf(Transform3D(Basis.from_euler(Vector3(-0.35, 0.4, 0.1)), Vector3(7.25, 0.67, 9.42)), Vector3(0.38, 0.38, 0.11), Color(0.56, 0.45, 0.24))
+	_sofa()
+	_coffee_table()
 	# The TV corner (cabinet, TV, decoder with its light, router with its antennas and lights) is a model: art/tv_cabinet.
 	box(Vector3(6.5, 2.165, 4.243), Vector3(0.85, 0.03, 0.008), Color(0.2, 0.2, 0.2))  # aircon vent
 	_socket(Vector3(5.4, 0.3, 4.075), Vector3.BACK)
@@ -429,6 +472,94 @@ func _living() -> void:
 	_garment(9.3, 7.35, 1.69, 0.38, 0.68, Color(0.33, 0.45, 0.39))
 	solid(Vector3(9.3, 0.85, 6.8), Vector3(0.3, 1.7, 1.64))
 	_snake_plant(Vector3(9.55, 0, 9.5))
+
+
+## The living room's three-seater against the south wall, facing the TV: a fabric frame on short wooden feet, rolled
+## arms, seat cushions worn into the shape of one person (his, nearest the door, sags most), back cushions leaning
+## back, and a mustard throw pillow. Its own mesh, in builder.models; ApartmentBuilder.COLLIDERS keeps the old boxes'
+## collision.
+func _sofa() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var frame := Color(0.27, 0.3, 0.35)
+	for x: float in [5.27, 7.73]:
+		for z: float in [9.15, 9.85]:
+			box_xf(Transform3D(Basis(), Vector3(x, 0.035, z)), Vector3(0.05, 0.07, 0.05), WOOD_DARK, Finish.MATTE, {}, st)
+	soft_box_xf(st, Transform3D(Basis(), Vector3(6.5, 0.235, 9.5)), Vector3(2.24, 0.33, 0.74), 0.03, frame.darkened(0.05))
+	for x: float in [5.31, 7.69]:  # the arms
+		soft_box_xf(st, Transform3D(Basis(), Vector3(x, 0.365, 9.49)), Vector3(0.22, 0.59, 0.82), 0.09, frame)
+	soft_box_xf(st, Transform3D(Basis(), Vector3(6.5, 0.66, 9.79)), Vector3(2.28, 0.56, 0.22), 0.08, frame)
+	for i in 3:
+		var x := 5.76 + i * 0.74
+		var worn := i == 0
+		soft_box_xf(st, Transform3D(Basis(), Vector3(x, 0.475 - (0.01 if worn else 0.0), 9.4)), Vector3(0.72, 0.15, 0.56), 0.05,
+			Color(0.35, 0.37, 0.41) if worn else Color(0.33, 0.36, 0.41), 0.04 if worn else 0.015)
+		soft_box_xf(st, Transform3D(Basis(Vector3.RIGHT, 0.1), Vector3(x, 0.76, 9.595)), Vector3(0.72, 0.42, 0.17), 0.07, Color(0.32, 0.35, 0.4))
+	soft_box_xf(st, Transform3D(Basis.from_euler(Vector3(-0.35, 0.4, 0.1)), Vector3(7.25, 0.68, 9.42)), Vector3(0.38, 0.38, 0.11), 0.05,
+		Color(0.56, 0.45, 0.24), 0.01)
+	_own_mesh(&"sofa", st, Finish.MATTE)
+
+
+## The coffee table on the rug: a varnished top with rounded edges on an apron and four legs, a shelf low between
+## them with yesterday's newspaper on it, and the TV remote on top. Its own mesh, in builder.models.
+func _coffee_table() -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var wood := Color(0.42, 0.29, 0.19)
+	soft_box_xf(st, Transform3D(Basis(), Vector3(6.5, 0.3825, 7.3)), Vector3(1.1, 0.035, 0.6), 0.012, wood)
+	for s: float in [-1.0, 1.0]:
+		box_xf(Transform3D(Basis(), Vector3(6.5, 0.335, 7.3 + s * 0.245)), Vector3(0.94, 0.06, 0.02), wood.darkened(0.15), Finish.MATTE, {}, st)
+		box_xf(Transform3D(Basis(), Vector3(6.5 + s * 0.495, 0.335, 7.3)), Vector3(0.02, 0.06, 0.47), wood.darkened(0.15), Finish.MATTE, {}, st)
+		for t: float in [-1.0, 1.0]:
+			box_xf(Transform3D(Basis(), Vector3(6.5 + s * 0.505, 0.1825, 7.3 + t * 0.255)), Vector3(0.045, 0.365, 0.045), wood.darkened(0.1), Finish.MATTE, {}, st)
+	soft_box_xf(st, Transform3D(Basis(), Vector3(6.5, 0.1, 7.3)), Vector3(0.98, 0.018, 0.5), 0.006, wood.darkened(0.1))
+	_own_mesh(&"coffee_table", st, Finish.GLOSS)
+	box(Vector3(6.32, 0.114, 7.28), Vector3(0.3, 0.01, 0.4), Color(0.8, 0.79, 0.74), Finish.MATTE, {}, 0.12)  # the newspaper, folded
+	box(Vector3(6.38, 0.112, 7.36), Vector3(0.24, 0.004, 0.18), Color(0.72, 0.7, 0.66), Finish.MATTE, {}, -0.05)  # its loose page
+	box(Vector3(6.82, 0.41, 7.2), Vector3(0.05, 0.02, 0.17), Color(0.08, 0.08, 0.09), Finish.GLOSS, {}, 0.35)  # the TV remote
+
+
+## Rubber selipar (side +1 right, -1 left), its toe along -z turned by yaw: a sole the shape of a foot, a little lighter
+## on top where it has worn, and a Y of strap from the toe post to both sides.
+func _selipar(at: Vector3, yaw: float, color: Color, side: float) -> void:
+	var xf := Transform3D(Basis(Vector3.UP, yaw), at)
+	var st := _st(at, Finish.MATTE, {})
+	var length := 0.25
+	var half := 0.048
+	var thick := 0.014
+	var top := color.lightened(0.12)
+	var prev: Array = []
+	for k in 13:
+		var y := (1.0 - cos(PI * k / 12.0)) * 0.5  # closer together at the round toe and heel
+		var z := (y - 0.5) * length  # toe at -z
+		var row := [xf * Vector3(-side * ApartmentBuilder._sole_half(y, false) * half, 0.0, z), xf * Vector3(side * ApartmentBuilder._sole_half(y, true) * half, 0.0, z)]
+		if not prev.is_empty():
+			var up := Vector3.UP * thick
+			_poly(st, [prev[0] + up, prev[1] + up, row[1] + up, row[0] + up], Vector3.UP, top)
+			_poly(st, [prev[0], prev[1], row[1], row[0]], Vector3.DOWN, color.darkened(0.2))
+			for e in 2:
+				var out: Vector3 = (prev[e] - prev[1 - e] + row[e] - row[1 - e]).normalized()
+				_poly(st, [prev[e], row[e], row[e] + up, prev[e] + up], out, color.darkened(0.1))
+		prev = row
+	var post := xf * Vector3(-side * 0.012, thick + 0.018, -length * 0.27)
+	for s: float in [-1.0, 1.0]:
+		var end := xf * Vector3(s * half * 0.82, thick, -length * 0.02)
+		var mid := (post + end) * 0.5
+		box_xf(Transform3D(Basis.looking_at(end - post), mid), Vector3(0.014, 0.008, post.distance_to(end)), color.darkened(0.25), Finish.MATTE, {}, st)
+	box_xf(Transform3D(Basis(), (post + xf * Vector3(-side * 0.012, thick, -length * 0.27)) * 0.5), Vector3(0.008, 0.018, 0.008), color.darkened(0.25), Finish.MATTE, {}, st)
+
+
+## Commits a piece Decor builds on its own (not into a room's batch) as one mesh in a node named `id`, and lists it
+## in builder.models, like the clock and the fan.
+func _own_mesh(id: StringName, st: SurfaceTool, look: Finish) -> void:
+	var piece := Node3D.new()
+	piece.name = id
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = st.commit()
+	mesh.material_override = _look(look)
+	piece.add_child(mesh)
+	add_child(piece)
+	builder.models[id] = piece
 
 
 ## The wall clock (art/wall_clock), its back on the wall at `at`. Its hands follow the game clock (_process).
@@ -478,6 +609,9 @@ func _entrance() -> void:
 	solid(Vector3(0.25, 0.3, 8.0), Vector3(0.4, 0.6, 1.0))  # the rack's Interactable only collides while the shoes are on it
 	foot(Vector3(0.25, 0, 8.0), Vector2(0.19, 0.5), 0.45)
 	box(Vector3(1.5, 0.006, 9.65), Vector3(0.9, 0.012, 0.55), Color(0.42, 0.32, 0.2))  # coir mat
+	# His selipar by the door, toes to it, kicked off a little apart.
+	_selipar(Vector3(2.44, 0, 9.6), 0.18, SELIPAR, -1.0)
+	_selipar(Vector3(2.61, 0, 9.63), -0.06, SELIPAR, 1.0)
 	box(Vector3(0.105, 2.05, 9.3), Vector3(0.06, 0.36, 0.3), Color(0.68, 0.68, 0.66), Finish.GLOSS)  # DB box
 	_socket(Vector3(0.075, 0.3, 7.4), Vector3.RIGHT)
 	# Light from the corridor under the front door; with someone standing outside it, two feet break it.
@@ -587,7 +721,8 @@ func _corridor() -> void:
 		for i in 2:
 			for s: float in [-0.06, 0.06]:
 				box(Vector3(spec[0] - 0.2 + i * 0.4 + s, 0.54, 10.35), Vector3(0.09, 0.08, 0.26), spec[1])
-		box(Vector3(spec[0] + 0.1, 0.015, 10.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.55))
+		_selipar(Vector3(spec[0] + 0.03, 0, 10.6), PI + 0.1, Color(0.2, 0.3, 0.55), -1.0)
+		_selipar(Vector3(spec[0] + 0.17, 0, 10.62), PI - 0.05, Color(0.2, 0.3, 0.55), 1.0)
 	cylinder(Vector3(-3.4, 0.12, 10.2), 0.075, 0.46, Color(0.68, 0.07, 0.05))
 	cylinder(Vector3(-3.4, 0.58, 10.2), 0.03, 0.07, Color(0.12, 0.12, 0.12))
 	box(Vector3(-3.4, 0.4, 10.11), Vector3(0.05, 0.6, 0.03), Color(0.2, 0.2, 0.2))
