@@ -6,6 +6,9 @@ extends RoadMission
 ## counts her, "Three." or saying nothing keeps it, and "Why you ask?" has her ask once more. Whatever he says, Mei
 ## counts three for herself, Hafiz brakes, and the seat in the mirror is empty, and wet.
 ##
+## The look rule is armed when Bang Din's reminder is said (RECALL_AT), not before: until then he has not been told, and
+## turning to "your friend" costs nothing.
+##
 ## Beats: quiet (the mirror on, their talk, the rule), asked, asked_again (only after "Why you ask?"), counting (only
 ## after "Four.": Mei counts heads for herself), empty.
 
@@ -18,7 +21,7 @@ const RECALL := "[Bang Din: \"If they say there's one more in the car, don't tur
 ## Their talk once the mirror is on, from which he works out who sits beside him.
 const MEI_FRIEND := "Mei: \"Eh, your friend so quiet one. Shy ah?\""
 const HAFIZ_FRIEND := "Hafiz: \"Bro, your friend all wet. Kena rain ah?\""
-const RECALL_AT := 9.0  # seconds into the quiet
+const RECALL_AT := 9.0  # seconds into the quiet: Bang Din's rule is said, and the look watch starts
 const COUNT_AT := 22.0
 const MEI_COUNT := "Mei: \"Eh, how many of us ah? I want to buy drinks at the R&R.\""
 const HAFIZ_COUNT := "Hafiz: \"Four people in this small car, also nobody talk.\""
@@ -49,7 +52,6 @@ func begin() -> void:
 	d.drive(CRUISE_SPEED)
 	_mirror = true
 	EventBus.road_cue.emit(&"mirror_on")
-	d.watch_look(RULE, 2.2, 1.0, 0.4, 1, 1)
 	_seen = d.broken.size()
 	_recalled = false
 	_counted = false
@@ -70,6 +72,7 @@ func tick(_delta: float) -> bool:
 			if not _recalled and beat_t >= RECALL_AT:
 				_recalled = true
 				d.say(RECALL, 5.0)
+				d.watch_look(RULE, 2.2, 1.0, 0.4, 1, 1)  # told now: from here, turning to her breaks it
 				WorldState.set_objective(OBJECTIVE)
 			if not _counted and beat_t >= COUNT_AT:
 				_counted = true
