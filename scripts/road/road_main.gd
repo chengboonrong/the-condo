@@ -35,7 +35,8 @@ const ONE_SET: Array[StringName] = [&"thump", &"knock_window"]
 const SHAKE := 0.012  # metres each way a thump on the roof shakes his view, at the most
 const SHAKE_SECONDS := 0.35
 ## The engine loop drops by this many dB from the indicator to the end of the rev: Hafiz eases off, signals, then floors
-## it. The second before the rev is what it is heard over, so the drop is in place by then.
+## it. It eases down over 0.3 s and back up over 0.5 s; the second before the rev is what it is heard over, so the drop
+## is in place by then (the indicator starts 2.5 s before it).
 const ROAR_DUCK := 6.0
 ## The wind's play levels (its file is -24 dB): heard at -48 dB outside and 6 dB lower in the car, where the windows
 ## are up, as the insects are. It blows all night, under the insects and on when they stop.
@@ -83,6 +84,7 @@ var _dead := false  # the car's engine has died (lights_dying), and it never sta
 var _quiet := false  # the insects have stopped (insects_stop)
 var _shake := 0.0  # seconds left of a thump's shake
 var _roar := 0.0  # seconds left of the overtake's rev, which the engine loop ducks under (ROAR_DUCK)
+var _duck := 0.0  # dB the engine loop is ducked by now, on its way to ROAR_DUCK or back to 0
 var _at_light := false  # the walk to the light (LightMission) is the core's mission
 var _captioned: Array[StringName] = []  # the sets (ONE_SET) captioned already
 
@@ -419,6 +421,8 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	builder.set_fog(director.fog)
 	_roar = maxf(_roar - delta, 0.0)
+	var duck := ROAR_DUCK if _signalling or _roar > 0.0 else 0.0
+	_duck = move_toward(_duck, duck, delta * ROAR_DUCK / (0.3 if duck > _duck else 0.5))  # down in 0.3 s, up in 0.5 s
 	_ride()
 	_shake_view(delta)
 	pause.guard(delta, _playing(), OS.has_feature("web"))
@@ -480,8 +484,7 @@ func _ride() -> void:
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
-	var duck := ROAR_DUCK if _signalling or _roar > 0.0 else 0.0
-	audio.set_loop(&"engine_loop", shown and not _dead, -13.5 + away - duck, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
+	audio.set_loop(&"engine_loop", shown and not _dead, -13.5 + away - _duck, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
 	audio.set_loop(&"insects_loop", not _quiet, -12.0 if inside else -6.0)  # the windows are up
 	audio.set_loop(&"wind_loop", true, WIND_DB_IN if inside else WIND_DB_OUT)
 	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)

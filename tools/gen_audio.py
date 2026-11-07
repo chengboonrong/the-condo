@@ -635,7 +635,9 @@ def road_sounds():
         x = normalize(fade(road_step(i + 20), 0.0015, 0.01), 0.7)  # a 1.5 ms fade-in: no step at the first sample
         save(f"road_step_{i + 1}", x, 0.7)
         print(f"road_step_{i + 1}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS")
-    save_db("engine_sputter", engine_sputter(), -18.5, half=True)  # its peak, passing his head at max_db, holds it here
+    # Its peak as heard, in the first half-second as it passes his head at max_db, holds it here. The file's own loudest
+    # 50 ms and sample are at 2.25 s, heard far behind the car.
+    save_db("engine_sputter", engine_sputter(), -18.5, half=True)
     save_db("starter_crank", starter_crank(), -19.0, half=True)
     save_db("thump_roof", thump_roof(), -18.5)  # heard at the +3 dB max_db cap near his head: -15.5
     save_db("knock_glass", knock_glass(), -19.0)

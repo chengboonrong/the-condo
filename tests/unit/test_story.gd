@@ -225,14 +225,15 @@ func test_from_the_road_the_bedroom_knocks_sound_like_the_roof() -> bool:
 	return _done()
 
 
-## The bedroom's knocks after the intercom's call are played louder, to stand out from the flat's room tone where he
-## is then, at the intercom. The next try is played as before.
+## The bedroom's knocks after the intercom's call are played louder while he is at the front door, to stand out from
+## the flat's room tone there, 9.6 m and more from that wall. The next try is played as before.
 func test_the_knocks_after_the_call_are_louder_than_the_next() -> bool:
-	var story := _setup(ApartmentLayout.SPAWN)  # the living room, all the way: never the bedroom
+	var story := _setup(ENTRANCE)  # by the intercom, all the way: never the bedroom
+	story.road = &"caught"  # from the road, as the game is played: the beat plays thump3 (opened directly, knock3)
 	var wall: Vector3 = ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"]
-	var knocks: Array[float] = []  # the play level of each set of knocks from the bedroom wall
+	var knocks: Array[float] = []  # the play level of each set of thumps from the bedroom wall
 	var on_sound := func(id: StringName, pos: Vector3, db: float) -> void:
-		if pos == wall and String(id).ends_with("3"):
+		if pos == wall and id == &"thump3":
 			knocks.append(db)
 	EventBus.sound_requested.connect(on_sound)
 	check(_until(func() -> bool: return knocks.size() == 1, 290.0), "the do-nothing player hears the first knocks")
@@ -242,7 +243,30 @@ func test_the_knocks_after_the_call_are_louder_than_the_next() -> bool:
 	if knocks.size() == 2:
 		eq(knocks[0], StoryDirector.KNOCK_AT_CALL_DB, "the knocks after the call")
 		eq(knocks[1], 2.0, "the next try, as before")
+		check(knocks[0] > knocks[1], "the knocks after the call are the louder")
 	return _done()
+
+
+## Anywhere nearer that wall than the front door, the knocks after the call are played as before: louder, they would
+## be at the +3 dB cap there and peak over the limit (docs/architecture.md, "The key sounds").
+func test_away_from_the_front_door_the_knocks_after_the_call_are_as_before() -> bool:
+	var wall: Vector3 = ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"]
+	for place: Vector3 in [Vector3(8.5, 0, 0.5), ApartmentLayout.SPAWN]:  # in the bedroom, in the living room
+		WorldState.reset()
+		var story := _setup(place)
+		var room := WorldState.player_room
+		var knocks: Array[float] = []
+		var on_sound := func(id: StringName, pos: Vector3, db: float) -> void:
+			if pos == wall and id == &"knock3":  # the flat opened directly: knock3
+				knocks.append(db)
+		EventBus.sound_requested.connect(on_sound)
+		check(_until(func() -> bool: return knocks.size() == 1, 290.0), "the do-nothing player hears them (%s)" % room)
+		EventBus.sound_requested.disconnect(on_sound)
+		eq(story.beat, &"knocked", "after the call (%s)" % room)
+		if knocks.size() == 1:
+			eq(knocks[0], 2.0, "the knocks after the call (%s)" % room)
+		_done()
+	return true
 
 
 ## The wall's answer is a sound caption that comes with its sound: it shows at once, not after the spoken lines

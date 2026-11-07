@@ -512,7 +512,9 @@ his camera, as the lorry passing and the rev are, is at distance 0, so it is cap
 long as it stays there: the rev does not (see the key sounds, below). Rows marked † are those: the roof thump (0.4 m
 from his head), the window knock and the car doors (Mei's door and window are 1.2 m away; his own door is beside him),
 the lorry passing, the rev and the engine dying (2.35 m from his seat, where +1 reaches the cap). Their "Heard at" is
-file + 3 dB, worked out from that rule. Her breath is the same when she comes to his face (0.6 m), and so is the wet
+file + 3 dB, worked out from that rule. The knocks after the intercom's call are † too: at +8 the cap holds to 5.3 m,
+so at 3 m they are at it, but they are played at +8 only from the front door, 9.6 m and more away (see the key sounds).
+Her breath is the same when she comes to his face (0.6 m), and so is the wet
 flap that is heard at Mei's door when it is slapped shut. The flat's rows were not re-checked against this. Measured in
 this build (headless, from the master bus), a positional player is also 3 dB under a non-positional one played at the
 same level, its power shared between the ears, so one held at the cap is heard at file + 0 dB against the loops and
@@ -524,9 +526,10 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Intercom ring | −8.2 | −2 | −10.2 |
 | Lift ding (ending) | −10.7 | 0 | −10.7 |
 | Door opening by itself (event) | −6.9 | −4 | −10.9 |
+| Knock or thump ×3 after the intercom's call, while he is at the front door (story) † | −14.7 / −14.6 | +8 | −11.7 / −11.6 |
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
-| Thump ×3 (the bedroom wall and the knock back at DOWNSTAIRS, after the road) | −14.6 | +8 after the call / +2 / 0 (the beacon) | −6.6 / −12.6 / −14.6 |
+| Thump ×3 (the bedroom wall and the knock back at DOWNSTAIRS, after the road) | −14.6 | +2 / 0 (the beacon) | −12.6 / −14.6 |
 | Hatchback revving for the overtake (the road) † | −14.6 | +3 (see the key sounds, below) | −11.6, less as the car pulls away |
 | Car door shut (the road) † | −17.0 | 0 | −14.0 |
 | Lorry passing in the other lane (the road) † | −17.0 | 0 (no effect: see †) | −14.0 |
@@ -602,29 +605,41 @@ in place then). Their levels now are set by mixing each moment in Godot itself, 
 files and players, the beds as loops at their play levels, the camera moving as the car does. That mix put today's
 three road moments within 0.2 to 0.8 dB of the recording, a little over it (5.6, 9.1 and 9.6 dB against 4.8, 8.7 and
 9.4), so "Expected" takes that off. A peak is at the master (−1.94 dB): the sound's loudest sample as mixed, summed
-with the loudest of each sound under it as if they all fell on one sample, against the limit of −6.1 dBFS.
+with the loudest of each sound under it as if they all fell on one sample, against the limit of −6.1 dBFS. It holds
+where each moment is heard; it is not a bound for every place, and for the thumps after the call it is gated (below).
 
 | Key sound | Its levels | Bed, the second before | Recorded | Mixed now | Expected | Peak, summed |
 |---|---|---|---|---|---|---|
 | The rev at the overtake | file −14.6, played +3 | the engine (ducked 6 dB from the signal), the indicator (−5), the slow car | 4.8 | 13.9 to 14.6 | about 13 | −7.1 (−6.8 with the slow car close) |
 | The engine dying | file −18.5, played +1 | the engine (now −13.5) | 8.7 | 12.1 | about 11.7 | −6.4 (−6.2 if it were all to one side) |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
-| The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`), 11.6 m from the intercom | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 |
+| The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
 
 * **The rev and the sputter** both play from a pool player that stays where it started, and the car leaves it. At the
   overtake the car pulls out at 4 m/s and speeds up at 2.5 m/s², so the rev is 5 m behind him by the file's loudest,
   1 s in: the cap no longer holds there and the play level counts (at +3 it is at the cap to 3 m). As it dies the car
-  rolls on from 9 m/s, so the sputter passes his right shoulder 0.6 m off and falls behind. Its loudest 50 ms and its
-  loudest sample both come in its first half-second, at the cap, so past +1 the play level adds nothing and only the
-  file can raise it, as far as that sample allows (−18.5). The rest is the bed: the engine loop, 1.5 dB lower all ride.
+  rolls on from 9 m/s, so the sputter passes his right shoulder 0.6 m off and falls behind. As heard, its loudest 50 ms
+  and its loudest sample both come in its first half-second, at the cap, so past +1 the play level adds nothing and only
+  the file can raise it, as far as that sample allows (−18.5). The file's own loudest 50 ms and sample are at 2.25 s
+  (1.0 and 1.8 dB over the first half-second's), heard far behind the car; its loudest 100 ms, the table's measure, is
+  at the start, so it is heard at −15.5. The rest is the bed: the engine loop, 1.5 dB lower all ride.
 * **The rev's bed.** In the second before, the engine (−28.7 dB RMS at −12) and the indicator's ticks (−30.1 at 0)
   were about level, so ducking the engine alone stops at about 12 dB. The indicator at −5 does the rest. Its ticks
-  peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` is in place
-  from the signal (`indicator`, 2.5 s before the overtake) to the rev's end, 1.9 s after it.
+  peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` eases in over
+  0.3 s from the signal (`indicator`, 2.5 s before the overtake), so it is in place 2.2 s before, and eases out over
+  0.5 s from the rev's end, 1.9 s after it.
 * **The thumps after the call.** The 7.0 dB recorded is the thumps with the bed under them, so alone they were
-  10·log10(10^0.7 − 1) = 6.0 dB over it. 6 dB more makes 12.0, and 12.3 with the bed under them again. Within 5.3 m of
-  that wall they are at the cap, which would peak at −4.2 dBFS, as before at +2 within 2.7 m; the recording has him at
-  the intercom.
+  10·log10(10^0.7 − 1) = 6.0 dB over it. 6 dB more makes 12.0, and 12.3 with the bed under them again. They are played
+  at +8 only while he is at the front door (the entrance or the corridor, 9.6 m and more from that wall); anywhere else
+  at +2, as the next try is and as both were before. Their peak here is a bound: the file's loudest sample (thump3
+  0.615, knock3 0.900 when the flat is opened directly) at the player's gain (+8 less 20·log10(d/3), at most +3, then
+  the fade to 30 m), all to one side (1 dB under a non-positional player), the master, and the flat's beds with the
+  drone at full tension, as mixed at the intercom (0.130), summed. At the entrance's nearest point, 9.6 m, that is
+  −8.8 dBFS (knock3 −6.5); at the intercom −10.3. At +8 every other room would pass the limit somewhere: the kitchen's
+  nearest point (5.7 m) −4.4, the living room's (5.9 m) −4.7, the hallway's far end (6.9 m) −6.07, and the bedroom, the
+  bathroom and the hallway's bedroom side are within 5.3 m, at the cap. So −6.1 holds wherever +8 is played. At +2 near
+  the wall it does not, as it never did: within 2.7 m of it a knock at +2 is at the cap, −2.6 dBFS summed for thump3,
+  and knock3 reaches 0 dBFS.
 * **The wind** (`wind_loop()`, 12 s at 22.05 kHz, its own `Random`) blows from the start of the road to its end, at −24
   outside and −30 seated, as the insects drop 6 dB, so nothing starts at the quiet. Its strongest second outside is
   −49.8 dB RMS (−52.6 on average): 8 dB under his steps (−41.9 RMS as mixed) and 10 dB under the insects (−39.6). It
