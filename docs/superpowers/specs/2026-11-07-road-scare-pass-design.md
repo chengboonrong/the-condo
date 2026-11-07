@@ -101,7 +101,7 @@ write it up". After this is built, the real-play trailer is recorded again.
    punished.
 2. **The sting is two sounds:** the flat's stinger (assets/audio/stinger.wav) and a new shriek of hers made in
    gen_audio.py. Her breath (`rattle`) is a breath, not a shriek.
-3. **Size wins over distance:** her face fills a third of his view, so she stops at about 0.6 m, not 1 m.
+3. **Size wins over distance:** her face fills a third of his view, so she stops at 0.5 m (`LUNGE_AT`), not 1 m.
 4. **Her own fill light** for the scare, steady and dim (goal 1).
 5. **Only her first wet flap on the walk gets a caption.** She flaps every 3–6 s, and a caption each time would crowd
    Hafiz's voice and Mei's choices. The look-back has its own caption.
