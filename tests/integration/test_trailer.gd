@@ -89,6 +89,7 @@ func test_trailer_films_with_the_shipped_settings() -> bool:
 	for l: CanvasItem in [hud._crosshair, hud._prompt, hud._clock, hud._start]:
 		check(not l.visible, "%s hidden" % l)
 	eq(hud._subtitle.get_theme_font_size("font_size"), 34, "subtitle font size")
+	eq(hud._caption.get_theme_font_size("font_size"), 34, "caption font size")
 	check(not FileAccess.file_exists(Settings.path), "no settings file written")
 	main.queue_free()
 	return true

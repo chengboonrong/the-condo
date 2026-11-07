@@ -22,7 +22,10 @@ func test_hud_labels_follow_their_anchors() -> bool:
 		var sub := hud._subtitle.get_global_rect()
 		near(sub.get_center().x, screen.size.x / 2, 0.5, tag + "subtitle centred")
 		near(sub.end.y, screen.size.y - 40, 0.5, tag + "subtitle above the bottom edge")
-		for l: Label in [hud._prompt, hud._objective, hud._clock, hud._subtitle]:
+		var caption := hud._caption.get_global_rect()
+		near(caption.get_center().x, screen.size.x / 2, 0.5, tag + "caption centred")
+		near(caption.end.y, sub.position.y, 0.5, tag + "caption just above the subtitle")
+		for l: Label in [hud._prompt, hud._objective, hud._clock, hud._caption, hud._subtitle]:
 			check(screen.encloses(l.get_global_rect()), tag + "%s on screen" % l.get_global_rect())
 	tree.root.size = window
 	main.queue_free()
@@ -122,12 +125,14 @@ func test_choice_box_fits_the_screen() -> bool:
 		await tree.process_frame
 		var screen := hud.get_viewport().get_visible_rect()
 		var sub := hud._subtitle.get_global_rect()
+		var caption := hud._caption.get_global_rect()
 		var tag := "%dx%d: " % [size.x, size.y]
 		eq(hud._choice_labels.filter(func(l: Label) -> bool: return l.visible).size(), 3, tag + "three options")
 		for l: Label in hud._choice_labels:
 			var r := l.get_global_rect()
 			check(screen.encloses(r), tag + "%s on screen (%s)" % [l.text.left(12), r])
 			check(not r.intersects(sub), tag + "%s clear of the subtitle (%s, %s)" % [l.text.left(12), r, sub])
+			check(not r.intersects(caption), tag + "%s clear of the caption (%s, %s)" % [l.text.left(12), r, caption])
 			check(l.get_line_count() == 1, tag + "%s on one line" % l.text.left(12))
 	tree.root.size = window
 	road.queue_free()
@@ -140,10 +145,40 @@ func test_road_lines_show_with_captions_off() -> bool:
 	var hud := road.hud
 	Settings.values["subtitles"] = false
 	EventBus.subtitle_requested.emit("[A lorry passes]", 3.0)
-	eq(hud._subtitle.text, "", "a sound caption follows the setting")
+	eq(hud._caption.text, "", "a sound caption follows the setting")
 	road.director.say("[You laughed. He didn't.]", 3.0)
 	road.director.step(0.1)
 	eq(hud._subtitle.text, "[You laughed. He didn't.]", "a road line always shows")
+	road.queue_free()
+	return true
+
+
+## A sound caption has a line of its own, above the subtitle: it never cuts a spoken line short, and it follows the
+## captions setting. A quoted line is dialogue and goes on the subtitle whatever the setting.
+func test_a_sound_caption_never_cuts_a_spoken_line() -> bool:
+	var road := await _road()
+	var hud := road.hud
+	var hafiz := "Hafiz: \"Mei! Wait for me!\""
+	EventBus.line_requested.emit(hafiz, 5.0)
+	EventBus.subtitle_requested.emit("[She is right behind you.]", 2.0)
+	eq(hud._subtitle.text, hafiz, "the spoken line is still up")
+	eq(hud._caption.text, "[She is right behind you.]", "and the caption has its own line")
+	EventBus.subtitle_requested.emit("[Something lands on the roof]", 2.0)
+	eq(hud._caption.text, "[Something lands on the roof]", "a new caption replaces the one on the caption line")
+	eq(hud._subtitle.text, hafiz, "and still leaves the spoken line")
+	hud._process(2.5)
+	eq(hud._caption.text, "", "each line has its own timer: the caption has gone")
+	eq(hud._subtitle.text, hafiz, "the spoken line has 2.5 s left")
+	hud._process(2.6)
+	eq(hud._subtitle.text, "", "and then it goes")
+	Settings.values["subtitles"] = false
+	EventBus.line_requested.emit(hafiz, 5.0)
+	EventBus.subtitle_requested.emit("[She is right behind you.]", 2.0)
+	eq(hud._caption.text, "", "captions off: no caption")
+	eq(hud._subtitle.text, hafiz, "and the spoken line still shows")
+	EventBus.subtitle_requested.emit("\"Hello? Sorry ah, so late.\"", 2.0)
+	eq(hud._subtitle.text, "\"Hello? Sorry ah, so late.\"", "a quoted line goes on the subtitle, whatever the setting")
+	eq(hud._caption.text, "", "and leaves the caption line alone")
 	road.queue_free()
 	return true
 
@@ -158,7 +193,7 @@ func test_road_sounds_are_captioned_with_captions_on() -> bool:
 	EventBus.subtitle_requested.connect(heard)
 	EventBus.road_cue.emit(&"thump")
 	eq(captions, ["[Something lands on the roof]"] as Array[String], "a thump is captioned")
-	eq(hud._subtitle.text, "[Something lands on the roof]", "and it shows, captions on")
+	eq(hud._caption.text, "[Something lands on the roof]", "and it shows, captions on")
 	EventBus.road_cue.emit(&"thump")
 	eq(captions.size(), 1, "once for the set")
 	road.queue_free()
@@ -167,7 +202,7 @@ func test_road_sounds_are_captioned_with_captions_on() -> bool:
 	Settings.values["subtitles"] = false
 	EventBus.road_cue.emit(&"thump")
 	eq(captions.size(), 2, "with captions off it goes out on the same signal, as the flat's do")
-	eq(road.hud._subtitle.text, "", "but does not show")
+	eq(road.hud._caption.text, "", "but does not show")
 	EventBus.subtitle_requested.disconnect(heard)
 	road.queue_free()
 	return true

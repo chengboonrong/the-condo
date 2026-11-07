@@ -195,7 +195,7 @@ func _initialize() -> void:
 
 ## Films the game as players get it: the shipped settings, in memory only (set_value would write the owner's file),
 ## no player input (so main never steps the horror runtime or opens the pause menu), and of the HUD only the
-## subtitles, drawn larger so they read in a small embed.
+## subtitles and sound captions, drawn larger so they read in a small embed.
 static func prepare(main: Node3D) -> void:
 	var settings := main.get_node("/root/Settings")
 	settings.values = settings.DEFAULTS.duplicate()
@@ -207,6 +207,7 @@ static func prepare(main: Node3D) -> void:
 		c.visible = false
 	hud._objective.text = ""
 	hud._subtitle.add_theme_font_size_override("font_size", 34)
+	hud._caption.add_theme_font_size_override("font_size", 34)
 
 
 ## Cuts to the shot: the condo in its state, the player there, the grade settled.

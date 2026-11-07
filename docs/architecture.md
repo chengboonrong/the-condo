@@ -133,6 +133,22 @@ directly) every line is as before.
 The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
 `tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds.
 
+## Captions
+
+The HUD has two text lines at the bottom: the sound caption line (`_caption`) just above the subtitle line (`_subtitle`).
+What goes on each depends on whether the text is spoken.
+
+* **Spoken** is a `line_requested` text (someone says or thinks it), or a `subtitle_requested` text that begins with `"`.
+  It goes on the subtitle line and always shows, whatever "Captions for sounds" says.
+* **A sound caption** is any other `subtitle_requested` text. It goes on the caption line, and only with "Captions for
+  sounds" on. A new caption replaces the one on the line, and each line has its own timer, so a sound caption never
+  cuts a spoken line short.
+* **Emitting.** A sound caption that comes with its sound is emitted on `subtitle_requested` at that moment: the
+  events, the road's cues, `Her`, the wall's answer. It does not wait for the lines before it.
+  `StoryDirector.say()` and `RoadDirector.say()` stay one queue, one text at a time, 0.3 s apart, in the order said:
+  what is said there, a caption included, follows the lines before it. Narration needs that ("[The line goes dead.]"
+  ends Rosnah's call, and "[It's your voice.]" the voice's).
+
 ## The road
 
 The game starts on the road down a mountain, and the flat follows it. The road has its own simulation core, built like
@@ -296,8 +312,8 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 
 `RoadMain` also captions the cues whose sound carries the moment (`RoadMain.CAPTIONS`): `lorry_passes`, `lights_dying`,
 `crank`, `door_cracked`, `mei_door_cracked`, `thump` and `knock_window` (one caption for each set) and `lorry_stops`. They
-go out on `subtitle_requested`, as the flat's sound captions do, and the HUD shows them only with "Captions for sounds"
-on.
+go out on `subtitle_requested`, as the flat's sound captions do, and the HUD shows them on the caption line, only with
+"Captions for sounds" on (see [Captions](#captions)).
 
 ### What the presentation is
 
@@ -307,7 +323,7 @@ the fog, places the car, seats him and drives the loops.
 | Node | File | What it does |
 |---|---|---|
 | `Player` | `scripts/player/player_controller.gd` | The flat's controller. `sit(seat)` puts him in the car's rear left seat with no collision and only the look; `stand(at)` puts him back on the road. |
-| `Hud` | `scripts/ui/hud.gd` | The flat's HUD, with the black card, the choices and the lines. |
+| `Hud` | `scripts/ui/hud.gd` | The flat's HUD, with the black card, the choices and the two caption lines (see [Captions](#captions)). |
 | `RoadBuilder` | `scripts/road/road_builder.gd` | The road in code from `RoadLayout` (3,200 m, a constant 6% downhill: a tunnel, six switchbacks, a long straight), in 100 m chunks with a visibility range, with the signs, lamps, tunnel, resort wall, bus stop and the far light. `set_fog(director.fog)` runs from density 0.035 (no rule broken) to 0.11. |
 | `Look` | `scripts/world/look.gd` | The flat's grade, held on `&"road"` (`grade_override`). |
 | `Car` (`CarRig`) | `scripts/road/car_rig.gd` | The couple's hatchback: its seats, its rear left door (an interactable: `car_door` outside, `car_door_inside` once he is seated), Hafiz's door, headlights that die with the engine. It is solid only when it stands still or with him in it. |

@@ -59,6 +59,8 @@ var film_material := ShaderMaterial.new()  # Look sets its pixel_size
 var _prompt: Label
 var _objective: Label
 var _clock: Label
+var _caption: Label
+var _caption_left := 0.0
 var _subtitle: Label
 var _subtitle_left := 0.0
 var _choices: VBoxContainer
@@ -138,7 +140,11 @@ func _ready() -> void:
 	_anchor(_clock, Control.PRESET_TOP_RIGHT, Rect2(-232, 26, 200, 40))
 	_clock.modulate = Color(0.95, 0.4, 0.35, 0.9)
 
-	_build_card(root)  # over the labels above, under the subtitles
+	_build_card(root)  # over the labels above, under the captions and the subtitles
+	_caption = _label(root, 24, HORIZONTAL_ALIGNMENT_CENTER)
+	_anchor(_caption, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -190, 1120, 40))
+	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_subtitle = _label(root, 24, HORIZONTAL_ALIGNMENT_CENTER)
 	_anchor(_subtitle, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -150, 1120, 110))
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -192,11 +198,11 @@ static func _anchor(c: Control, preset: Control.LayoutPreset, rect: Rect2) -> vo
 	c.offset_bottom = rect.end.y
 
 
-## The road's choices, numbered, at the bottom centre just above the subtitle. Longer options push the box up.
+## The road's choices, numbered, at the bottom centre just above the caption line. Longer options push the box up.
 func _build_choices(root: Control) -> void:
 	_choices = VBoxContainer.new()
 	root.add_child(_choices)
-	_anchor(_choices, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -300, 1120, 140))
+	_anchor(_choices, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -340, 1120, 140))
 	_choices.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_choices.alignment = BoxContainer.ALIGNMENT_END
 	_choices.visible = false
@@ -385,13 +391,16 @@ func is_choosing() -> bool:
 	return _choices.visible
 
 
-## `always`: a line someone says or thinks, shown whatever the captions setting. Otherwise sound captions are optional
-## and only dialogue (quoted) always shows.
+## A spoken line (`always`: someone says or thinks it, or it is quoted) shows whatever the captions setting, on the
+## subtitle. Any other text is a sound caption: it shows only with "Captions for sounds" on, on the line above, so it
+## never cuts a spoken line short. Each line keeps its own timer, and a new text replaces the one on its line.
 func show_subtitle(text: String, duration: float, always := false) -> void:
-	if not always and not Settings.get_value("subtitles") and not text.begins_with("\""):
-		return
-	_subtitle.text = text
-	_subtitle_left = duration
+	if always or text.begins_with("\""):
+		_subtitle.text = text
+		_subtitle_left = duration
+	elif Settings.get_value("subtitles"):
+		_caption.text = text
+		_caption_left = duration
 
 
 func show_inspect(title: String, text: String) -> void:
@@ -471,6 +480,10 @@ func _process(delta: float) -> void:
 		_subtitle_left -= delta
 		if _subtitle_left <= 0.0:
 			_subtitle.text = ""
+	if _caption_left > 0.0:
+		_caption_left -= delta
+		if _caption_left <= 0.0:
+			_caption.text = ""
 	var minutes := WorldState.clock_minutes()
 	var h := minutes / 60
 	_clock.text = "%d:%02d %s" % [12 if h % 12 == 0 else h % 12, minutes % 60, "AM" if h < 12 else "PM"]

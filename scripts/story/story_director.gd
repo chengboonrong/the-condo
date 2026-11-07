@@ -214,7 +214,8 @@ func tick(delta: float) -> void:
 				_end(&"downstairs", "[You waited too long. Your hand is already on the wall.]")
 
 
-## `always` lines are story, not sound captions: they show whatever "Captions for sounds" says.
+## `always` lines are story, not sound captions: they show whatever "Captions for sounds" says. A caption whose sound
+## plays at that moment is not said but emitted on EventBus.subtitle_requested; a said one follows the lines before it.
 func say(text: String, seconds := 3.5, always := false) -> void:
 	_lines.append([text, seconds, always])
 
@@ -295,9 +296,10 @@ func _reversal() -> void:
 		say(REVERSAL, 5.0, true)
 
 
+## The wall's caption goes out with its knock, not through say(): it must not wait behind the lines already queued.
 func _wall_answers() -> void:
 	EventBus.sound_requested.emit(_knock(1), ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
-	say("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
+	EventBus.subtitle_requested.emit("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
 	_smell()  # he touched the wall before the 4 s were up: it follows the answer, never comes first
 	WorldState.set_act(WorldState.Act.DISTURBANCE)
 	WorldState.set_objective("Something in the flat is wrong. Look around.")

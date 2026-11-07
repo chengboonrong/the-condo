@@ -218,6 +218,7 @@ func test_the_card_fades_out_over_the_labels_and_under_the_subtitles() -> bool:
 	check(hud._card.get_parent() == root, "(in the labels' root)")
 	check(hud._card.get_index() > hud._clock.get_index(), "over the HUD labels")
 	check(hud._card.get_index() < hud._subtitle.get_index(), "and under the subtitles")
+	check(hud._card.get_index() < hud._caption.get_index(), "and under the sound captions")
 	hud.hide_card(0.1)
 	check(hud.is_card_shown(), "still there while it fades")
 	for i in 20:

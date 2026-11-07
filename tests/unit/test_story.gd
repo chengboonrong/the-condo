@@ -4,6 +4,7 @@ extends TestCase
 
 const ENTRANCE := Vector3(1.5, 0, 8.5)  # by the intercom
 const CRACKLE := "[The speaker crackles. Wind, and an engine idling.]"
+const WALL_ANSWER := "[The wall is cold. Something on the other side knocks back. Once.]"
 
 var stage: HorrorStage
 var rt: HorrorRuntime
@@ -224,6 +225,38 @@ func test_from_the_road_the_bedroom_knocks_sound_like_the_roof() -> bool:
 	return _done()
 
 
+## The wall's answer is a sound caption that comes with its sound: it shows at once, not after the spoken lines
+## queued before it.
+func test_the_wall_answer_shows_with_its_knock() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	_listen()
+	for i in 3:
+		story.say("Line %d" % i, 3.5, true)
+	story._wall_answers()
+	_wait(0.5)
+	eq(subtitles.count(WALL_ANSWER), 1, "the wall's caption has come, with the lines still queued")
+	eq(lines.size(), 1, "and only the first of the spoken lines")
+	return _done()
+
+
+## Captions that wait for their turn (they come with no sound at that moment) keep the order they were said in, 3.0 s
+## and the 0.3 s gap apart.
+func test_sound_captions_keep_their_order() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	var at: Array = []  # [text, sim time] of ours
+	var on_caption := func(text: String, _seconds: float) -> void:
+		if text.begins_with("[Said"):
+			at.append([text, WorldState.time])
+	EventBus.subtitle_requested.connect(on_caption)
+	story.say("[Said first]", 3.0)
+	story.say("[Said second]", 3.0)
+	_wait(4.0)
+	EventBus.subtitle_requested.disconnect(on_caption)
+	eq(at.map(func(a: Array) -> String: return a[0]), ["[Said first]", "[Said second]"], "in the order they were said")
+	near(float(at[1][1]) - float(at[0][1]), 3.3, 0.15, "3.3 s apart: the first one's 3.0 s and the gap")
+	return _done()
+
+
 func test_touching_the_wall_early_brings_the_smell_after_the_answer() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
 	story.road = &"saved"
@@ -233,7 +266,7 @@ func test_touching_the_wall_early_brings_the_smell_after_the_answer() -> bool:
 	_place(Vector3(8.5, 0, 0.5))
 	EventBus.object_interacted.emit(&"bedroom_wall")  # at once: not 4 s in the bedroom first
 	_wait(9.0)
-	var answer := heard.find("[The wall is cold. Something on the other side knocks back. Once.]")
+	var answer := heard.find(WALL_ANSWER)
 	var smell := heard.find(StoryDirector.SMELL)
 	check(answer >= 0, "the answer's caption shows")
 	check(smell > answer, "and her smell follows it, so the caption is with its sound")
