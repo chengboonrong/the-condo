@@ -534,10 +534,10 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Hatchback revving for the overtake (the road) † | −14.6 | +3 (see the key sounds, below) | −11.6, less as the car pulls away |
 | Car door shut (the road) † | −17.0 | 0 | −14.0 |
 | Lorry passing in the other lane (the road) † | −17.0 | 0 (no effect: see †) | −14.0 |
+| Engine dying (the road) † | −17.0 | +1 | −14.0, less as the car rolls on |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
 | Thump ×1 (the wall answers, after the road) | −14.6 | 0 | −14.6 |
 | Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
-| Engine dying (the road) † | −18.5 | +1 | −15.5, less as the car rolls on |
 | Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
 | Stinger, as he looks back and she is right behind him (the road, in his head) ‡ | −8.5 | −8 | −16.5 |
 | Her shriek, with it (the road, in his head) ‡ | −14.6 | −2 | −16.6 |
@@ -579,7 +579,7 @@ the starter cranking twice, the thump on the roof, the knocks on Mei's window an
 drip and breath (from where she is, falling off past 3 m), and, in one ending, the phone ringing on the fruit stall's
 table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
 than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: the rev (−11.6) is 3.0 dB over
-it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump and the engine dying (−15.5) and the
+it, and his car door, the lorry passing and the engine dying (−14.0) 0.6 dB, while the roof thump (−15.5) and the
 window knock (−16.0) stay under it. Seven of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the four `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
 (2 s). The rest play once. Eleven of them (both engine loops, the wind, the rev, the lorry passing, idling and braking,
@@ -612,7 +612,7 @@ where each moment is heard; it is not a bound for every place, and for the thump
 | Key sound | Its levels | Bed, the second before | Recorded | Mixed now | Expected | Peak, summed |
 |---|---|---|---|---|---|---|
 | The rev at the overtake | file −14.6, played +3 | the engine (ducked 6 dB from the signal), the indicator (−5), the slow car | 4.8 | 13.9 to 14.6 | about 13 | −7.1 (−6.8 with the slow car close) |
-| The engine dying | file −18.5, played +1 | the engine (now −13.5) | 8.7 | 12.1 | about 11.7 | −6.4 (−6.2 if it were all to one side) |
+| The engine dying | file −17.0, played +1 | the engine (now −13.5) | 8.7 | about 13.6 (12.1 at −18.5) | about 12.3 (10.8 in real play at −18.5) | about −6.5 in play (−8.0 dBTP at −18.5); about −5.0 as mixed, −4.8 if it were all to one side |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
 | The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
 
@@ -621,9 +621,13 @@ where each moment is heard; it is not a bound for every place, and for the thump
   1 s in: the cap no longer holds there and the play level counts (at +3 it is at the cap to 3 m). As it dies the car
   rolls on from 9 m/s, so the sputter passes his right shoulder 0.6 m off and falls behind. As heard, its loudest 50 ms
   and its loudest sample both come in its first half-second, at the cap, so past +1 the play level adds nothing and only
-  the file can raise it, as far as that sample allows (−18.5). The file's own loudest 50 ms and sample are at 2.25 s
-  (1.0 and 1.8 dB over the first half-second's), heard far behind the car; its loudest 100 ms, the table's measure, is
-  at the start, so it is heard at −15.5. The rest is the bed: the engine loop, 1.5 dB lower all ride.
+  the file can raise it. The file's own loudest 50 ms and sample are at 2.25 s (1.0 and 1.8 dB over the first
+  half-second's), heard far behind the car; its loudest 100 ms, the table's measure, is at the start, so it is heard at
+  −14.0. The rest of the margin is the bed: the engine loop, 1.5 dB lower all ride. At −18.5 the headless mix put its
+  peak at −6.4 dBFS summed; the real-play recording (take 2, seed 1147) measured 10.8 dB over its bed and −8.0 dBTP,
+  where the sputter passes ahead of and behind him, centred, not to one side. So the file is −17.0, 1.5 dB up: about
+  12.3 dB and −6.5 dBTP in play. As mixed headless (about −5.0) and by the bound with it all to one side (−4.8) it now passes
+  the −6.1 limit; the real play is the measure kept.
 * **The rev's bed.** In the second before, the engine (−28.7 dB RMS at −12) and the indicator's ticks (−30.1 at 0)
   were about level, so ducking the engine alone stops at about 12 dB. The indicator at −5 does the rest. Its ticks
   peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` eases in over
