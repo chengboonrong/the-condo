@@ -283,3 +283,36 @@ func test_the_night_never_goes_dead() -> bool:
 	near(standing - wind.volume_db, 6.0, 0.001, "where the windows are up, it is 6 dB under")
 	_done(road)
 	return true
+
+
+## The engine loop ducks 6 dB under the indicator and the overtake's rev (down in 0.3 s), and is back at its level 0.5 s
+## after the rev ends.
+func test_the_engine_ducks_under_the_overtake() -> bool:
+	var road: RoadMain = await _road()
+	await _secs(0.1)  # the first mission begins
+	road.director.seated = true
+	road.director.slow_gap = 20.0  # the slow car is ahead, so the indicator stays on
+	await _secs(0.1)
+	check(road.player.is_seated(), "seated in the car")
+	var engine: AudioStreamPlayer = road.audio.loops.get(&"engine_loop")
+	check(engine != null and engine.playing, "the engine runs")
+	if engine == null:
+		_done(road)
+		return true
+	var base := engine.volume_db
+	EventBus.road_cue.emit(&"indicator")
+	await _secs(0.4)
+	near(base - engine.volume_db, 6.0, 0.01, "the engine is 6 dB under the indicator")
+	EventBus.road_cue.emit(&"overtake")
+	await _secs(1.5)
+	near(base - engine.volume_db, 6.0, 0.01, "and stays under the rev")
+	await _secs(0.4 + 0.5 + 0.1)  # the rev ends, then 0.5 s back up
+	near(base - engine.volume_db, 0.0, 0.01, "and is back at its level once the rev is done")
+	_done(road)
+	return true
+
+
+## `s` seconds of frames.
+func _secs(s: float) -> void:
+	for i in roundi(s * 60.0):
+		await tree.process_frame

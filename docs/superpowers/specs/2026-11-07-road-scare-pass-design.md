@@ -21,8 +21,10 @@ write it up". After this is built, the real-play trailer is recorded again.
 
 1. **The look-back scare.** On the walk to the light (LightMission's beat `walk`), each time a look back counts (the
    `looked_back` rule breaks: at most twice), she is right behind him.
-   - **Where she is:** at his eye height, facing him, where his view is. She is close enough that her face fills at least
-     a third of his view's height: about 0.6 m (`CLOSE`) at the default field of view of 72°.
+   - **Where she is:** in the middle of his view, facing him, `LUNGE_AT` (0.5 m) from his eyes and level with them when he
+     looks level. She is close enough that her head, as seen from crown to chin, fills at least a third of his view's
+     height at the default field of view of 72°.
+     (Corrected 2026-11-07 to the build, per the ledger's pitch and size rulings.)
    - **What plays:** a loud sting and her shriek, with the sound caption "[She is right behind you.]".
    - **What follows:** about half a second later she pulls back into the fog, to where she follows now
      (`Her._behind_point`). On the way, within about a second of the sting, his view shows her whole figure: skull,

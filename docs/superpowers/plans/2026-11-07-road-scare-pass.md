@@ -120,7 +120,7 @@ ffmpeg for the trailer.
 - **Behaviour (from the spec, goal 1):**
   - `lunge` does nothing unless she is in `&"behind"` or `&"lunge"`.
   - She is placed in the same frame: `LUNGE_AT` along the camera's view flattened to level, at the camera's height,
-    facing it.
+    facing it. (The ledger's pitch ruling superseded this: she is placed on his full view direction, pitch included.)
   - It plays the stinger and the shriek through `play_here`, and emits `LUNGE_CAPTION` on `subtitle_requested`.
   - After `LUNGE_HOLD` she becomes `&"behind"` again from where she is, so `_process` takes her back to
     `_behind_point()` at `FOLLOW`.

@@ -335,7 +335,7 @@ the fog, places the car, seats him and drives the loops.
 | `Couple` (on the car) | `scripts/road/couple.gd` | Hafiz and Mei in the front seats, turning when they speak; Hafiz walks off and back, and Mei walks beside him. |
 | `Lorry` | `scripts/road/lorry.gd` | Passes in Mission 1; in the endings it comes down the walkers' lane and pulls up, yielding to anyone in its way. |
 | `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`, 1 m in from the lane's centre towards the line so that it shows past Mei's head. |
-| `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, and the six loops. |
+| `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, the seven loops (`RoadAudio.LOOPS`), and `play_here`: one non-positional player for each sound played in his head (the look-back's stinger and her shriek). |
 | `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, right behind him when he looks back (`lunge`), flying, catching someone, or coming for the camera. Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Her sounds are wet, but for the look-back's sting. |
 | `Endings` | `scripts/road/endings.gd` | The fruit stall, its bulb, the phones, Hafiz's walk and each ending's moments. |
 | `PauseMenu` | `scripts/ui/pause_menu.gd` | The flat's, with its web guard for a lost pointer lock. |
@@ -350,8 +350,9 @@ the fog, places the car, seats him and drives the loops.
   looks outranks his eye height), upright and facing him: her 0.26 m head fills a third of his 72° view from 0.54 m in,
   so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not positional, so at
   exactly their play levels) and "[She is right behind you.]" goes out on `subtitle_requested`.
-  After 0.5 s (`LUNGE_HOLD`) she is `behind` again from where she is, and goes back to where she follows at 6 m/s; a
-  second look back during it starts it over. It only ever happens from `behind`, so never after the endings move her.
+  Through the hold she goes where he goes (his eyes' place plus her first offset, which does not turn with his view), so
+  walking into her never takes his eyes inside her head. After 0.5 s (`LUNGE_HOLD`) she is `behind` again from where she
+  is, and goes back to where she follows at 6 m/s; a second look back during it starts it over. It only ever happens from `behind`, so never after the endings move her.
   For it she carries her own fill: an unshadowed omni light in front of her face and above it, dim (0.5) and steady,
   that fades out as she goes back, by the share of the way left, and is off in every other place. Without it her
   face, with his phone light off (it starts off), is a black shape in the fog. It lights render layer 12 alone, which
@@ -631,15 +632,17 @@ where each moment is heard; it is not a bound for every place, and for the thump
 * **The thumps after the call.** The 7.0 dB recorded is the thumps with the bed under them, so alone they were
   10·log10(10^0.7 − 1) = 6.0 dB over it. 6 dB more makes 12.0, and 12.3 with the bed under them again. They are played
   at +8 only while he is at the front door (the entrance or the corridor, 9.6 m and more from that wall); anywhere else
-  at +2, as the next try is and as both were before. Their peak here is a bound: the file's loudest sample (thump3
-  0.615, knock3 0.900 when the flat is opened directly) at the player's gain (+8 less 20·log10(d/3), at most +3, then
-  the fade to 30 m), all to one side (1 dB under a non-positional player), the master, and the flat's beds with the
-  drone at full tension, as mixed at the intercom (0.130), summed. At the entrance's nearest point, 9.6 m, that is
-  −8.8 dBFS (knock3 −6.5); at the intercom −10.3. At +8 every other room would pass the limit somewhere: the kitchen's
-  nearest point (5.7 m) −4.4, the living room's (5.9 m) −4.7, the hallway's far end (6.9 m) −6.07, and the bedroom, the
-  bathroom and the hallway's bedroom side are within 5.3 m, at the cap. So −6.1 holds wherever +8 is played. At +2 near
-  the wall it does not, as it never did: within 2.7 m of it a knock at +2 is at the cap, −2.6 dBFS summed for thump3,
-  and knock3 reaches 0 dBFS.
+  at +2, as the next try is and as both were before. The gate is read when the knock is requested, not when it plays: a
+  story request is queued only behind a priority-10 `audio_major` event, which this beat never requests, so it plays at
+  once in practice, and were it ever delayed the worst case is the pre-branch cap peak. Their peak here is a bound: the
+  file's loudest sample (thump3 0.615, knock3 0.900 when the flat is opened directly) at the player's gain (+8 less
+  20·log10(d/3), at most +3, then the fade to 30 m), all to one side (1 dB under a non-positional player), the master,
+  and the flat's beds with the drone at full tension, as mixed at the intercom (0.130), summed. At the entrance's
+  nearest point, 9.6 m, that is −8.8 dBFS (knock3 −6.5); at the intercom −10.3. At +8 every other room would pass the
+  limit somewhere: the kitchen's nearest point (5.7 m) −4.4, the living room's (5.9 m) −4.7, the hallway's far end (6.9
+  m) −6.07, and the bedroom, the bathroom and the hallway's bedroom side are within 5.3 m, at the cap. So −6.1 holds
+  wherever +8 is played. At +2 near the wall it does not, as it never did: within 2.7 m of it a knock at +2 is at the
+  cap, −2.6 dBFS summed for thump3, and knock3 reaches 0 dBFS.
 * **The wind** (`wind_loop()`, 12 s at 22.05 kHz, its own `Random`) blows from the start of the road to its end, at −24
   outside and −30 seated, as the insects drop 6 dB, so nothing starts at the quiet. Its strongest second outside is
   −49.8 dB RMS (−52.6 on average): 8 dB under his steps (−41.9 RMS as mixed) and 10 dB under the insects (−39.6). It

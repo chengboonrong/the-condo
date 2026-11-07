@@ -209,6 +209,8 @@ var _drop := DROP  # catch: seconds she takes to drop onto him
 var _from := Vector3.ZERO  # catch: where she drops from
 var _to := Vector3.ZERO  # fly: where she flies to
 var _pull_from := 1.0  # behind, back from a lunge: metres she had to go back, which her fill fades out over
+var _lunge_eyes: Camera3D  # lunge: his eyes, whose place she holds her offset from
+var _lunge_off := Vector3.ZERO  # lunge: where she is from his eyes, in the world: it does not turn with him
 var _ahead := 0.0  # glimpse: metres ahead of the car she keeps pace at
 var _out := 0.0  # glimpse: metres across
 var _pace := 0.0  # glimpse: seconds she keeps pace for, before she stops dead
@@ -340,13 +342,16 @@ func behind(walker: Node3D) -> void:
 
 ## He looked back, and it counted: she is right behind him. In the same frame she is LUNGE_AT from his eyes in the
 ## middle of his view, wherever he looks up or down (the look counts on his yaw alone), upright and facing him in her
-## own fill, as the stinger and her shriek sound in his head and the caption shows. After LUNGE_HOLD she pulls back to
+## own fill, as the stinger and her shriek sound in his head and the caption shows. Through LUNGE_HOLD she goes where he
+## goes, so a step into her does not carry his eyes into her head, but she does not turn with him. Then she pulls back to
 ## where she follows him (behind), at FOLLOW, from where she is. Only from behind him; a lunge during a lunge starts it
 ## over.
 func lunge(camera: Camera3D) -> void:
 	if _mode != &"behind" and _mode != &"lunge":
 		return
-	_begin(&"lunge", camera.global_position - camera.global_basis.z * LUNGE_AT)
+	_lunge_eyes = camera
+	_lunge_off = -camera.global_basis.z * LUNGE_AT
+	_begin(&"lunge", camera.global_position + _lunge_off)
 	_face(camera.global_position)
 	audio.play_here(&"stinger", STING_DB)
 	audio.play_here(&"shriek", SHRIEK_DB)
@@ -427,6 +432,9 @@ func _process(delta: float) -> void:
 				fill.visible = fill.light_energy > 0.0
 		&"lunge":
 			bob = 0.0
+			if is_instance_valid(_lunge_eyes):
+				_base = _lunge_eyes.global_position + _lunge_off
+				_face(_lunge_eyes.global_position)
 			if _t >= LUNGE_HOLD:
 				_mode = &"behind"
 				_t = 0.0

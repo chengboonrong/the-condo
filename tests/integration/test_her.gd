@@ -268,8 +268,9 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 
 
 ## He looks back on the walk and she is right behind him: in his face in the middle of his view (looking level, at his
-## eye height; looking down, below it), lit by her own fill, captioned; half a second on she pulls back to where she
-## follows, her fill fading out on the way.
+## eye height; looking down, below it), lit by her own fill, captioned. She holds there as he moves (a step into her
+## does not carry his eyes into her head) but not as he turns; half a second on she pulls back to where she follows,
+## her fill fading out on the way.
 func test_lunge_puts_her_in_his_face_then_back() -> bool:
 	var her := _her()
 	her.director.her_near = 0.36  # one counted look (0.12 x 3): she follows 13 m back
@@ -296,9 +297,18 @@ func test_lunge_puts_her_in_his_face_then_back() -> bool:
 	var face := her.global_basis.z.slide(Vector3.UP).normalized()
 	near(face.dot(-to.slide(Vector3.UP).normalized()), 1.0, 0.02, "her face to him")
 	check(her.fill.is_visible_in_tree() and her.fill.light_energy > 0.0, "lit by her own fill")
+	eq(her.fill.light_cull_mask, Penanggal.LAYER, "her fill lights her layer alone, so the road's light budget never counts it")
 	eq(captions, [Penanggal.LUNGE_CAPTION], "and captioned, once")
 	for id: StringName in [&"stinger", &"shriek"]:
 		check(her.audio.here.has(id) and her.audio.here[id].playing, "%s, in his head" % id)
+	var held := her.global_position - camera.global_position
+	camera.rotation.y += PI / 2.0  # he turns his head mid-hold: she does not follow where he turns
+	await _frames(2)
+	near((her.global_position - camera.global_position).distance_to(held), 0.0, 0.02, "she keeps her place when he only turns")
+	camera.rotation.y -= PI / 2.0
+	camera.global_position -= camera.global_basis.z * 0.6  # he walks into her, mid-hold: she stays 0.5 m from his eyes
+	await _frames(2)
+	near(her.global_position.distance_to(camera.global_position), Penanggal.LUNGE_AT, 0.02, "he walks at her and she keeps LUNGE_AT from his eyes")
 	await _frames(roundi((Penanggal.LUNGE_HOLD + 0.5) * 60.0))
 	var away := her.global_position.distance_to(camera.global_position)
 	check(away >= 2.2, "half a second after the hold she has pulled back (%.2f m)" % away)
