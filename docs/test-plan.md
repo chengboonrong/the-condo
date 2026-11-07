@@ -74,7 +74,7 @@ today's flat). Each test sets the ending itself and puts it back.
 
 ## Builds
 
-`tools/smoke.sh` (after `tools/export.sh`) first checks `index.pck` against the 8912 KiB cap (exit 1 above it),
+`tools/smoke.sh` (after `tools/export.sh`) first checks `index.pck` against the 9936 KiB cap (exit 1 above it),
 then starts the exported macOS app with `-- --smoke` and the web build with `?smoke` in Chromium and WebKit. The game starts on the road,
 which plays 3 s and prints `ROAD-SMOKE ok` (it started, the player's camera is current and the road's clock ran past 2 s), then hands over to the flat. The flat plays 3 s and prints `SMOKE ok` only if all
 8 event definitions loaded from the exported pack, time is running, the story is at its first beat, and

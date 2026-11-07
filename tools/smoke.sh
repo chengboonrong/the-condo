@@ -3,14 +3,14 @@
 # prints "ROAD-SMOKE ok|FAIL ...", then the flat runs 3 s, checks the event catalogue, the clock and the story,
 # and prints "SMOKE ok|FAIL ..." and saves a screenshot. Both lines must be ok, the road's first.
 # --flat checks the flat alone, as before the road existed.
-# Size cap first (the web download is the budget: 720 KiB before the model rebuild + 8 MiB), then the macOS app,
-# then the web build in Chromium and WebKit. Windows and Linux builds need their own machines.
+# Size cap first (the web download is the budget: 720 KiB before the model rebuild + 8 MiB, + 1 MiB for the voices),
+# then the macOS app, then the web build in Chromium and WebKit. Windows and Linux builds need their own machines.
 set -uo pipefail
 cd "$(dirname "$(realpath "$0")")/.."
 status=0
 flat=""
 [ "${1:-}" = "--flat" ] && flat="--flat"
-cap=8912
+cap=9936
 pck=builds/web/index.pck
 if bytes=$(stat -f%z "$pck" 2>/dev/null); then
   kib=$(( (bytes + 1023) / 1024 ))  # rounded up, so a miss never rounds into a pass

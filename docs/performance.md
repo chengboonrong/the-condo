@@ -302,3 +302,11 @@ average, the darkest the most, and brighter ones moved by under 0.3; the picture
   alive and saved endings) and the ring light (saved) are not on it. Their lights are unshadowed spots and an omni
   light, kinds the warm-up draws everything under.
 * The route skips between stages, so a stage's first frame also carries the skip (the car moves up to 550 m at once).
+
+## The voices
+
+* **Download**: `index.pck` 9,529,680 bytes, 9307 KiB rounded up, from
+  `godot --headless --path . --export-release Web builds/web/index.html`. The 57 voices are 816,141 bytes (24 kHz,
+  the intercom 16 kHz, at 40 kbps), which put the pck over the 8912 KiB cap, so the cap is 1 MiB larger: 9936 KiB.
+  At 16 kbps they would have fitted (8839 KiB), but Qwen3-ASR understood them less well (mean similarity 0.83 against
+  0.87), and the owner kept 40 kbps.

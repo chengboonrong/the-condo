@@ -46,7 +46,7 @@ godot --path . --editor        # open in the editor
 
 ```sh
 GODOT=/path/to/Godot tools/export.sh   # web, macOS, Windows, Linux into builds/ (git-ignored)
-tools/smoke.sh                         # checks index.pck against the 8912 KiB cap (exit 1 above it), then runs the macOS app and the web build (Chromium, WebKit) for 3 s each
+tools/smoke.sh                         # checks index.pck against the 9936 KiB cap (exit 1 above it), then runs the macOS app and the web build (Chromium, WebKit) for 3 s each
 ```
 
 The web build has no threads, so it runs on itch.io without special headers. The macOS app is signed
