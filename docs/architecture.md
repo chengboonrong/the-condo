@@ -508,12 +508,15 @@ player's own noise near the bottom, beds underneath.
 Closer than 3 m a sound gets louder, but not without limit: `AudioStreamPlayer3D` holds its played level plus the gain
 from being close to `max_db`, which is +3 dB, and that cap applies after the played level. So a sound played at 0 dB
 within about 1 m of his head is heard at its file level + 3 dB, whatever the table's arithmetic says. A sound placed at
-his camera, as the lorry passing and the rev are, is at distance 0, so it is capped whatever it is played at. Rows
-marked † are those: the roof thump (0.4 m from his head), the window knock and the car doors (Mei's door and window are
-1.2 m away; his own door is beside him), the lorry passing and the rev. Their "Heard at" is file + 3 dB, worked out from
-that rule and not measured in a running game. Her breath is the same when she comes to his face (0.6 m), and so is the
-wet flap that is heard at Mei's door when it is slapped shut. The flat's rows
-were not re-checked against this.
+his camera, as the lorry passing and the rev are, is at distance 0, so it is capped whatever it is played at, for as
+long as it stays there: the rev does not (see the key sounds, below). Rows marked † are those: the roof thump (0.4 m
+from his head), the window knock and the car doors (Mei's door and window are 1.2 m away; his own door is beside him),
+the lorry passing, the rev and the engine dying (2.35 m from his seat, where +1 reaches the cap). Their "Heard at" is
+file + 3 dB, worked out from that rule. Her breath is the same when she comes to his face (0.6 m), and so is the wet
+flap that is heard at Mei's door when it is slapped shut. The flat's rows were not re-checked against this. Measured in
+this build (headless, from the master bus), a positional player is also 3 dB under a non-positional one played at the
+same level, its power shared between the ears, so one held at the cap is heard at file + 0 dB against the loops and
+`play_here`; the table leaves this out.
 
 | Sound | File | Played at | Heard at |
 |---|---|---|---|
@@ -523,13 +526,14 @@ were not re-checked against this.
 | Door opening by itself (event) | −6.9 | −4 | −10.9 |
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
-| Thump ×3 (the bedroom wall and the knock back at DOWNSTAIRS, after the road) | −14.6 | +2 / 0 (the beacon) | −12.6 / −14.6 |
-| Hatchback revving for the overtake (the road) † | −16.0 | −2 (no effect: see †) | −13.0 |
+| Thump ×3 (the bedroom wall and the knock back at DOWNSTAIRS, after the road) | −14.6 | +8 after the call / +2 / 0 (the beacon) | −6.6 / −12.6 / −14.6 |
+| Hatchback revving for the overtake (the road) † | −14.6 | +3 (see the key sounds, below) | −11.6, less as the car pulls away |
 | Car door shut (the road) † | −17.0 | 0 | −14.0 |
 | Lorry passing in the other lane (the road) † | −17.0 | 0 (no effect: see †) | −14.0 |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
 | Thump ×1 (the wall answers, after the road) | −14.6 | 0 | −14.6 |
 | Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
+| Engine dying (the road) † | −18.5 | +1 | −15.5, less as the car rolls on |
 | Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
 | Stinger, as he looks back and she is right behind him (the road, in his head) ‡ | −8.5 | −8 | −16.5 |
 | Her shriek, with it (the road, in his head) ‡ | −14.6 | −2 | −16.6 |
@@ -538,20 +542,20 @@ were not re-checked against this.
 | Phone ringing on the table (the road, loop: one ring) | −19.0 | 0 | −19.0 |
 | Car door opened (the road) † | −23.0 | 0 | −20.0 |
 | Door closing | −20.6 | 0 | −20.6 |
-| Engine dying (the road) | −19.0 | −2 | −21.0 |
 | Lorry's air brakes as it pulls up (the road) | −21.0 | 0 | −21.0 |
 | Starter cranking ×2 (the road) | −19.0 | −2 | −21.0 |
 | Intercom's last call, wind and the idling engine (after the road) | −22.0 | 0 | −22.0 |
-| Indicator (the road, loop: one flash) | −24.0 | 0 | −24.0 |
+| Her wet flap behind him on the walk (the road) | −27.0 | +4 | −23.0 |
 | Lorry's diesel idling (the road, loop: 60 firings) | −20.0 | −4 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
 | Your footsteps (walk / sprint / crouch) | −19.8 to −15.9 | −15 / −10 / −22 | about −33 / −28 / −40 |
 | Your footsteps on asphalt (the road: walk / sprint / crouch) | −20.7 to −17.8 | −15 / −10 / −22 | about −34 / −29 / −41 |
 | Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
-| Her wet flap, her breath (the road) | −27.0 | 0 | −27.0 |
+| Her wet flap elsewhere, her breath (the road) | −27.0 | 0 | −27.0 |
 | Her drip (the road) | −28.0 | 0 | −28.0 |
 | Tap running (loop) | −19.4 | −8 | −27.4 |
-| Hatchback engine from the back seat (loop, pitch 0.7× to 1.6× with speed) | −16.0 | −12 | −28.0 |
+| Indicator (the road, loop: one flash) | −24.0 | −5 | −29.0 |
+| Hatchback engine from the back seat (loop, pitch 0.7× to 1.6× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
 | Slow car's old engine (loop) | −20.0 | −12 | −32.0 |
 | Night insects (loop, stop when the car dies; windows up in the car) | −27.0 | −6 / −12 seated | −33.0 / −39.0 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
@@ -559,24 +563,25 @@ were not re-checked against this.
 | Fridge (loop) | −11.9 | −26 | −37.9 |
 | Neighbour's TV through the wall (loop) | −17.5 | −22.5 | −40 |
 | Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
+| Night wind (the road, loop, all night and on when the insects stop; windows up in the car) | −24.0 | −24 / −30 seated | −48.0 / −54.0 |
 
 The rows marked "the road" are the road down's sounds (`tools/gen_audio.py` prints each file's level as it makes it).
 Their file levels are measured from the files. "Played at" is what the game plays them at, and all of them are played
-now: the engine (seated; outside it falls off as 1/distance), the insects, the car doors, the lorry passing in
+now: the engine (seated; outside it falls off as 1/distance), the insects, the wind, the car doors, the lorry passing in
 Mission 1 and, in the endings, its diesel idling (falling off past 6 m) and its air brakes as it pulls up, the asphalt
 steps, the slow car's old engine (from 10 m away it falls off as 1/distance, and its pitch drops as it stops), the
 indicator (while Hafiz signals), the rev (as he pulls out), the stall's sounds (the engine sputtering as the car dies,
 the starter cranking twice, the thump on the roof, the knocks on Mei's window and the slap of her door), her wet flap,
 drip and breath (from where she is, falling off past 3 m), and, in one ending, the phone ringing on the fruit stall's
 table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
-than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: the rev (−13.0) is 1.6 dB over
-it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump (−15.5) and the window knock (−16.0)
-stay under it. Six of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
+than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: the rev (−11.6) is 3.0 dB over
+it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump and the engine dying (−15.5) and the
+window knock (−16.0) stay under it. Seven of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the four `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
-(2 s). The rest play once. Ten of them (both engine loops, the rev, the lorry passing, idling and braking, the sputter,
-the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is charged by the second of audio: at
-44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the lorry loses about 1.3% of its power
-above 11 kHz (its tyre hiss). The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.
+(2 s). The rest play once. Eleven of them (both engine loops, the wind, the rev, the lorry passing, idling and braking,
+the sputter, the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is charged by the second of
+audio: at 44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the lorry loses about 1.3% of
+its power above 11 kHz (its tyre hiss). The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.
 
 The rows marked ‡ are the look-back's sting (`Penanggal.lunge`): the flat's stinger and her shriek (`shriek()` in
 `tools/gen_audio.py`: a woman's voice torn high and rough, 0.8 s at 44.1 kHz, 0.7% of its power above 8 kHz, saved at
@@ -590,6 +595,40 @@ started together, the pair peaks at −7.13 dBFS. Their loudest 100 ms together 
 sting is the loudest sound of the walk by loudness (his steps on asphalt are about −34, her wet flap −27), not by peak.
 The stinger's file level here is measured as `tools/gen_audio.py` measures the road's (its loudest 100 ms, −8.49); the
 flat's row above has −8.8.
+
+**The key sounds.** The real-play recording of 2026-11-07 had four key sounds under 10 dB over their beds (level: the
+loudest 50 ms RMS from the cue to 2 s on; bed: the RMS of the second before it, so a duck counts only if it is already
+in place then). Their levels now are set by mixing each moment in Godot itself, headless, from the master bus: the same
+files and players, the beds as loops at their play levels, the camera moving as the car does. That mix put today's
+three road moments within 0.2 to 0.8 dB of the recording, a little over it (5.6, 9.1 and 9.6 dB against 4.8, 8.7 and
+9.4), so "Expected" takes that off. A peak is at the master (−1.94 dB): the sound's loudest sample as mixed, summed
+with the loudest of each sound under it as if they all fell on one sample, against the limit of −6.1 dBFS.
+
+| Key sound | Its levels | Bed, the second before | Recorded | Mixed now | Expected | Peak, summed |
+|---|---|---|---|---|---|---|
+| The rev at the overtake | file −14.6, played +3 | the engine (ducked 6 dB from the signal), the indicator (−5), the slow car | 4.8 | 13.9 to 14.6 | about 13 | −7.1 (−6.8 with the slow car close) |
+| The engine dying | file −18.5, played +1 | the engine (now −13.5) | 8.7 | 12.1 | about 11.7 | −6.4 (−6.2 if it were all to one side) |
+| Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
+| The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`), 11.6 m from the intercom | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 |
+
+* **The rev and the sputter** both play from a pool player that stays where it started, and the car leaves it. At the
+  overtake the car pulls out at 4 m/s and speeds up at 2.5 m/s², so the rev is 5 m behind him by the file's loudest,
+  1 s in: the cap no longer holds there and the play level counts (at +3 it is at the cap to 3 m). As it dies the car
+  rolls on from 9 m/s, so the sputter passes his right shoulder 0.6 m off and falls behind. Its loudest 50 ms and its
+  loudest sample both come in its first half-second, at the cap, so past +1 the play level adds nothing and only the
+  file can raise it, as far as that sample allows (−18.5). The rest is the bed: the engine loop, 1.5 dB lower all ride.
+* **The rev's bed.** In the second before, the engine (−28.7 dB RMS at −12) and the indicator's ticks (−30.1 at 0)
+  were about level, so ducking the engine alone stops at about 12 dB. The indicator at −5 does the rest. Its ticks
+  peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` is in place
+  from the signal (`indicator`, 2.5 s before the overtake) to the rev's end, 1.9 s after it.
+* **The thumps after the call.** The 7.0 dB recorded is the thumps with the bed under them, so alone they were
+  10·log10(10^0.7 − 1) = 6.0 dB over it. 6 dB more makes 12.0, and 12.3 with the bed under them again. Within 5.3 m of
+  that wall they are at the cap, which would peak at −4.2 dBFS, as before at +2 within 2.7 m; the recording has him at
+  the intercom.
+* **The wind** (`wind_loop()`, 12 s at 22.05 kHz, its own `Random`) blows from the start of the road to its end, at −24
+  outside and −30 seated, as the insects drop 6 dB, so nothing starts at the quiet. Its strongest second outside is
+  −49.8 dB RMS (−52.6 on average): 8 dB under his steps (−41.9 RMS as mixed) and 10 dB under the insects (−39.6). It
+  raises the flap's bed by 0.6 dB.
 
 The rows marked "after the road" are the flat's own sounds that the road changes (`bridge_sounds()` in `tools/gen_audio.py`).
 The thumps are `thump_roof`'s body at knock3's timing and the knock's level, so the story's bedroom knocks are the roof's

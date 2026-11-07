@@ -259,3 +259,27 @@ func test_road_audio_plays_the_road() -> bool:
 	check(not steps.is_empty() and RoadAudio.STEPS.has(steps[0].stream), "on asphalt")
 	audio.queue_free()
 	return true
+
+
+## The wind is there all night, under the insects and after them: when they stop the road goes quiet, not dead.
+func test_the_night_never_goes_dead() -> bool:
+	var road: RoadMain = await _road()
+	await tree.process_frame
+	var wind: AudioStreamPlayer = road.audio.loops.get(&"wind_loop")
+	check(wind != null and wind.playing, "the wind blows from the start")
+	if wind == null:
+		_done(road)
+		return true
+	eq((RoadAudio.LOOPS.get(&"wind_loop") as AudioStreamWAV).loop_mode, AudioStreamWAV.LOOP_FORWARD, "and loops (its .import)")
+	var standing := wind.volume_db
+	EventBus.road_cue.emit(&"insects_stop")
+	await tree.process_frame
+	check(not road.audio.loops[&"insects_loop"].playing, "the insects stop")
+	check(wind.playing, "and the wind blows on")
+	road.director.seated = true
+	await tree.process_frame
+	await tree.process_frame
+	check(road.player.is_seated(), "seated in the car")
+	near(standing - wind.volume_db, 6.0, 0.001, "where the windows are up, it is 6 dB under")
+	_done(road)
+	return true

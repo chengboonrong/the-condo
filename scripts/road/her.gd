@@ -72,13 +72,15 @@ const POOL := 0.95  # metres the pool spreads to
 ## hangs from her passes the glass and the door (the car's body is 0.88 m wide each side at most).
 const ROOF := Vector3(1.08, 1.62, -0.45)
 const POOL_COLOR := Color(0.2, 0.02, 0.03)
-## [sound, the shortest and longest seconds between] while she is in each place.
+## The wet flap's play level behind a walker: from 4 m back at her nearest it stands 13 dB over his steps and the wind.
+const BEHIND_DB := 4.0
+## [sound, the shortest and longest seconds between, play level] while she is in each place.
 const NOISES := {
-	&"behind": [[&"wet_flap", 3.0, 6.0], [&"drip", 1.5, 4.0]],
-	&"catch": [[&"drip", 0.8, 2.0]],
-	&"come_for": [[&"wet_flap", 0.5, 0.9]],
-	&"fly": [[&"wet_flap", 0.5, 0.9]],
-	&"roof": [[&"drip", 2.0, 5.0], [&"rattle", 6.0, 11.0]],
+	&"behind": [[&"wet_flap", 3.0, 6.0, BEHIND_DB], [&"drip", 1.5, 4.0, 0.0]],
+	&"catch": [[&"drip", 0.8, 2.0, 0.0]],
+	&"come_for": [[&"wet_flap", 0.5, 0.9, 0.0]],
+	&"fly": [[&"wet_flap", 0.5, 0.9, 0.0]],
+	&"roof": [[&"drip", 2.0, 5.0, 0.0], [&"rattle", 6.0, 11.0, 0.0]],
 }
 const NOISE := """
 float hash(vec3 p) {
@@ -462,7 +464,7 @@ func _process(delta: float) -> void:
 		_timers[noise[0]] = _timers.get(noise[0], _rng.randf_range(noise[1], noise[2])) - delta
 		if _timers[noise[0]] <= 0.0:
 			_timers[noise[0]] = _rng.randf_range(noise[1], noise[2])
-			_play(noise[0])
+			_play(noise[0], noise[3])
 			if noise[0] == &"wet_flap" and _mode == &"behind" and not _flapped:
 				_flapped = true
 				EventBus.subtitle_requested.emit(FLAP_CAPTION, 2.5)
@@ -591,5 +593,5 @@ func _passed(at: float, delta: float) -> bool:
 	return _t >= at and _t - delta < at
 
 
-func _play(sound: StringName) -> void:
-	EventBus.sound_requested.emit(sound, global_position, 0.0)
+func _play(sound: StringName, volume_db := 0.0) -> void:
+	EventBus.sound_requested.emit(sound, global_position, volume_db)

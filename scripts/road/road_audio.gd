@@ -1,9 +1,9 @@
 class_name RoadAudio
 extends Node
 ## The road's sounds. EventBus.sound_requested plays through a pool of positional players, as AudioDirector plays the
-## flat's, with asphalt under his feet. The loops (the engine, the insects, the slow car, the indicator, the phone) are
-## only ever started, changed and stopped with set_loop. A sound in his head (the sting when he looks back) is played
-## with play_here. Levels: docs/architecture.md, "Audio levels".
+## flat's, with asphalt under his feet. The loops (the engine, the insects, the wind, the slow car, the indicator, the
+## phone) are only ever started, changed and stopped with set_loop. A sound in his head (the sting when he looks back)
+## is played with play_here. Levels: docs/architecture.md, "Audio levels".
 
 const SOUNDS := {
 	&"switch": preload("res://assets/audio/switch.wav"),  # his phone light
@@ -31,6 +31,7 @@ const LOOPS := {
 	&"engine_loop": preload("res://assets/audio/engine_loop.wav"),
 	&"old_engine_loop": preload("res://assets/audio/old_engine_loop.wav"),
 	&"insects_loop": preload("res://assets/audio/insects_loop.wav"),
+	&"wind_loop": preload("res://assets/audio/wind_loop.wav"),  # the mountain's, all night
 	&"indicator": preload("res://assets/audio/indicator.wav"),
 	&"phone_ring_mobile": preload("res://assets/audio/phone_ring_mobile.wav"),
 	&"lorry_idle": preload("res://assets/audio/lorry_idle.wav"),  # its diesel, standing

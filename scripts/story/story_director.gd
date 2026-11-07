@@ -10,6 +10,9 @@ const ACT2_MIN := 240.0  # seconds of disturbance before act 3, even with enough
 const ACT2_MAX := 420.0  # fail-safe: act 3 starts anyway
 const DECISION_WAIT := 210.0  # fail-safe: waiting this long in B-11-07 is a choice too
 const BEACON_EVERY := 30.0
+## The play level of the bedroom's knocks after the intercom's call (the `complained` beat), heard from the intercom
+## 11.6 m away: they stand 12 dB over the flat's room tone there (docs/architecture.md, "Audio levels").
+const KNOCK_AT_CALL_DB := 8.0
 ## After the road the flat opens quiet: no event, and no ring, for this long from the story's first tick.
 const QUIET := 20.0
 const HOME_OBJECTIVE := "Wash up, then get some sleep."
@@ -162,7 +165,7 @@ func tick(delta: float) -> void:
 				_go(&"complained")
 		&"complained":
 			if t >= 8.0:
-				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": 2.0, "sound": _knock(3)})
+				scheduler.request(&"knock_wall", {"anchor": &"knock_bedroom_north", "volume_db": KNOCK_AT_CALL_DB, "sound": _knock(3)})
 				WorldState.set_objective("Find where the knocking came from.")
 				_go(&"knocked")
 		&"knocked":

@@ -34,6 +34,13 @@ const THUMP_AGAIN := ["[It moves on the roof.]", 2.5]
 const ONE_SET: Array[StringName] = [&"thump", &"knock_window"]
 const SHAKE := 0.012  # metres each way a thump on the roof shakes his view, at the most
 const SHAKE_SECONDS := 0.35
+## The engine loop drops by this many dB from the indicator to the end of the rev: Hafiz eases off, signals, then floors
+## it. The second before the rev is what it is heard over, so the drop is in place by then.
+const ROAR_DUCK := 6.0
+## The wind's play levels (its file is -24 dB): heard at -48 dB outside and 6 dB lower in the car, where the windows
+## are up, as the insects are. It blows all night, under the insects and on when they stop.
+const WIND_DB_OUT := -24.0
+const WIND_DB_IN := -30.0
 ## The warm-up's board (_compile_shaders), far above the road where none of its lights reach: BOARD_AWAY in front of a
 ## camera of its own, a grid COLUMNS wide of CELL squares, each holding a copy turned by TILT so that a flat one (a
 ## plane faces up) still shows. The mirror's camera looks at it from MIRROR_BACK further back, where its narrow picture
@@ -75,6 +82,7 @@ var _signalling := false  # the dashboard indicator ticks: from the signal to th
 var _dead := false  # the car's engine has died (lights_dying), and it never starts again
 var _quiet := false  # the insects have stopped (insects_stop)
 var _shake := 0.0  # seconds left of a thump's shake
+var _roar := 0.0  # seconds left of the overtake's rev, which the engine loop ducks under (ROAR_DUCK)
 var _at_light := false  # the walk to the light (LightMission) is the core's mission
 var _captioned: Array[StringName] = []  # the sets (ONE_SET) captioned already
 
@@ -331,7 +339,9 @@ func _on_cue(cue: StringName) -> void:
 			_signalling = true
 		&"overtake":
 			_signalling = false
-			EventBus.sound_requested.emit(&"rev", player.camera.global_position, -2.0)
+			_roar = (RoadAudio.SOUNDS[&"rev"] as AudioStream).get_length()
+			# At max_db: the car pulls away from where it plays (a pool player stays put), so past 3 m the level counts.
+			EventBus.sound_requested.emit(&"rev", player.camera.global_position, 3.0)
 		&"slow_car_gone":
 			slow_car.pull_in()
 		&"mirror_on":
@@ -347,7 +357,7 @@ func _on_cue(cue: StringName) -> void:
 		&"lights_dying":
 			_dead = true
 			car.lights_dying()
-			_sound(&"engine_sputter", ENGINE, -2.0)
+			_sound(&"engine_sputter", ENGINE, 1.0)  # at max_db from his seat, 2.35 m: the car rolls on past it
 		&"crank":
 			_sound(&"starter_crank", ENGINE, -2.0)
 		&"hafiz_leaves":
@@ -408,6 +418,7 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	builder.set_fog(director.fog)
+	_roar = maxf(_roar - delta, 0.0)
 	_ride()
 	_shake_view(delta)
 	pause.guard(delta, _playing(), OS.has_feature("web"))
@@ -453,7 +464,7 @@ func _shake_view(delta: float) -> void:
 ## The car, the slow car, his seat and the ride's loops follow the core. The car stands out of sight up the road,
 ## hidden and not solid, until it comes for him; it is solid only standing still or with him in it (CarRig.set_solid).
 ## The engine's pitch follows the car's speed; outside, it fades with distance, as does the slow car's old engine from
-## 10 m.
+## 10 m. The engine ducks under the overtake's rev (ROAR_DUCK), and the wind blows all the while.
 func _ride() -> void:
 	var shown := director.seated or director.car_speed > 0.0 or director.car_s > LiftMission.CAR_FROM
 	car.visible = shown
@@ -469,14 +480,16 @@ func _ride() -> void:
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
-	audio.set_loop(&"engine_loop", shown and not _dead, -12.0 + away, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
+	var duck := ROAR_DUCK if _signalling or _roar > 0.0 else 0.0
+	audio.set_loop(&"engine_loop", shown and not _dead, -13.5 + away - duck, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
 	audio.set_loop(&"insects_loop", not _quiet, -12.0 if inside else -6.0)  # the windows are up
+	audio.set_loop(&"wind_loop", true, WIND_DB_IN if inside else WIND_DB_OUT)
 	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)
 	audio.set_loop(&"old_engine_loop", slow_car.visible and slow_car.speed > 0.0, -12.0 + linear_to_db(1.0 / maxf(slow_away / 10.0, 1.0)),
 		lerpf(0.6, 1.0, slow_car.speed / SlowCarMission.SLOW_SPEED))
 	if is_nan(director.slow_gap):
 		_signalling = false  # the slow car is gone, by the lay-by or a skip: so is the indicator
-	audio.set_loop(&"indicator", _signalling, 0.0)
+	audio.set_loop(&"indicator", _signalling, -5.0)  # under the rev's roar: with the engine ducked it was most of its bed
 
 
 func _notification(what: int) -> void:

@@ -225,6 +225,26 @@ func test_from_the_road_the_bedroom_knocks_sound_like_the_roof() -> bool:
 	return _done()
 
 
+## The bedroom's knocks after the intercom's call are played louder, to stand out from the flat's room tone where he
+## is then, at the intercom. The next try is played as before.
+func test_the_knocks_after_the_call_are_louder_than_the_next() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)  # the living room, all the way: never the bedroom
+	var wall: Vector3 = ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"]
+	var knocks: Array[float] = []  # the play level of each set of knocks from the bedroom wall
+	var on_sound := func(id: StringName, pos: Vector3, db: float) -> void:
+		if pos == wall and String(id).ends_with("3"):
+			knocks.append(db)
+	EventBus.sound_requested.connect(on_sound)
+	check(_until(func() -> bool: return knocks.size() == 1, 290.0), "the do-nothing player hears the first knocks")
+	eq(story.beat, &"knocked", "after the call")
+	check(_until(func() -> bool: return knocks.size() == 2, 50.0), "and the next try, out of the bedroom")
+	EventBus.sound_requested.disconnect(on_sound)
+	if knocks.size() == 2:
+		eq(knocks[0], StoryDirector.KNOCK_AT_CALL_DB, "the knocks after the call")
+		eq(knocks[1], 2.0, "the next try, as before")
+	return _done()
+
+
 ## The wall's answer is a sound caption that comes with its sound: it shows at once, not after the spoken lines
 ## queued before it.
 func test_the_wall_answer_shows_with_its_knock() -> bool:

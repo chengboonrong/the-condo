@@ -602,14 +602,31 @@ def shriek():
     return fade([math.tanh(1.5 * min(1.0, i / SR / 0.015) * (1 - 0.4 * i / n) * v) for i, v in enumerate(voice)], 0.002, 0.25)
 
 
+def wind_loop():
+    """The wind on the mountain at night, under everything on the road and still there when the insects stop: a low
+    rush in the trees that swells and eases in slow gusts, breathier at the top of the strong ones. 12 s. The gusts are
+    whole cycles of the loop and every filter runs round it (circ), so it is seamless."""
+    r = random.Random(1318)
+    L = 12.0
+    low = circ(lambda x: highpass(lowpass(lowpass(x, 380), 380), 40), noise(L, r))
+    rush = circ(lambda x: highpass(highpass(lowpass(lowpass(x, 1700), 1700), 450), 450), noise(L, r))
+    out = []
+    for i, (a, b) in enumerate(zip(low, rush)):
+        t = i / SR
+        gust = 0.75 + 0.17 * math.sin(2 * math.pi * 2 * t / L + 0.7) + 0.08 * math.sin(2 * math.pi * 5 * t / L + 2.1)
+        out.append(a * gust + b * 0.35 * gust ** 3)
+    return out
+
+
 def road_sounds():
-    """Every sound the road's tasks name. Six are loops, imported with edit/loop_mode=2 and only ever started with
-    RoadAudio.set_loop: the three _loop files, the indicator (one flash), the phone (one ring) and the lorry's idle.
+    """Every sound the road's tasks name. Seven are loops, imported with edit/loop_mode=2 and only ever started with
+    RoadAudio.set_loop: the four _loop files, the indicator (one flash), the phone (one ring) and the lorry's idle.
     The rest play once."""
     save_db("engine_loop", engine_loop(), -16.0, loop=True, half=True)
     save_db("old_engine_loop", old_engine_loop(), -20.0, loop=True, half=True)
     save_db("insects_loop", insects_loop(), -27.0, loop=True)  # full rate: 13% of its power is above 11 kHz
-    save_db("rev", rev(), -16.0, half=True)
+    save_db("wind_loop", wind_loop(), -24.0, loop=True, half=True)
+    save_db("rev", rev(), KNOCK_DB, half=True)  # as loud as a road sound may be: RoadMain plays it at max_db
     save_db("indicator", indicator(), -24.0, loop=True)
     save_db("car_door_close", car_door_close(), -17.0)
     save_db("car_door_open", car_door_open(), -23.0)
@@ -618,7 +635,7 @@ def road_sounds():
         x = normalize(fade(road_step(i + 20), 0.0015, 0.01), 0.7)  # a 1.5 ms fade-in: no step at the first sample
         save(f"road_step_{i + 1}", x, 0.7)
         print(f"road_step_{i + 1}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS")
-    save_db("engine_sputter", engine_sputter(), -19.0, half=True)
+    save_db("engine_sputter", engine_sputter(), -18.5, half=True)  # its peak, passing his head at max_db, holds it here
     save_db("starter_crank", starter_crank(), -19.0, half=True)
     save_db("thump_roof", thump_roof(), -18.5)  # heard at the +3 dB max_db cap near his head: -15.5
     save_db("knock_glass", knock_glass(), -19.0)
