@@ -195,6 +195,19 @@ func test_looking_back_costs_three_twice_at_most() -> bool:
 	return true
 
 
+## Each look back that counts is the presentation's cue for her to lunge; keeping every rule gives none.
+func test_looking_back_makes_her_lunge() -> bool:
+	_setup()
+	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])
+	eq(cues.count(&"her_lunges"), 2, "one for each look back that cost three")
+	_teardown()
+	_setup()
+	_play({&"mei_look_1": 0, &"mei_look_2": 0})
+	eq(cues.count(&"her_lunges"), 0, "keeping every rule: she never does")
+	_teardown()
+	return true
+
+
 func test_silence_lets_mei_look() -> bool:
 	_setup()
 	_play({})

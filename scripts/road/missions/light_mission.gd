@@ -113,8 +113,9 @@ func leave() -> void:
 	d.stop_look()
 
 
+## Each look back that counts is her cue to lunge at him: the scare the presentation makes of it.
 func _walk() -> void:
-	d.watch_look(&"looked_back", 1.9, 1.9, 0.25, 3, 2)
+	d.watch_look(&"looked_back", 1.9, 1.9, 0.25, 3, 2, &"her_lunges")
 	EventBus.road_cue.emit(&"her_behind")
 	go(&"walk")
 

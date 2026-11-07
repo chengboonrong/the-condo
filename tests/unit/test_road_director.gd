@@ -173,6 +173,34 @@ func test_look_rule_needs_a_hold_and_a_return() -> bool:
 	return true
 
 
+## A look rule can name a cue to give each time it breaks, right after `rule_broken`: the presentation's scare.
+func test_a_look_rule_can_name_its_cue() -> bool:
+	_setup()
+	d.watch_look(&"r", 1.9, 1.9, 0.25, 3, 2, &"x")
+	stage.view_yaw = PI
+	_run(0.3)
+	eq(cues, [&"rule_broken", &"x"], "the first look back: the break, then its cue")
+	stage.view_yaw = 0.0
+	_run(0.2)
+	stage.view_yaw = PI
+	_run(0.5)
+	eq(cues, [&"rule_broken", &"x", &"rule_broken", &"x"], "a second look: the same")
+	stage.view_yaw = 0.0
+	_run(0.2)
+	stage.view_yaw = PI
+	_run(0.5)
+	eq(cues.size(), 4, "a third look: nothing more")
+	_teardown()
+
+	_setup()
+	d.watch_look(&"r", 1.9, 1.9, 0.25, 3, 2)
+	stage.view_yaw = PI
+	_run(0.3)
+	eq(cues, [&"rule_broken"], "named no cue: the break alone")
+	_teardown()
+	return true
+
+
 func test_view_yaw_wraps() -> bool:
 	_setup()
 	stage.view_yaw = TAU + 0.1
