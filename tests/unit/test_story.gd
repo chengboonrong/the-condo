@@ -239,21 +239,25 @@ func test_the_wall_answer_shows_with_its_knock() -> bool:
 	return _done()
 
 
-## Captions that wait for their turn (they come with no sound at that moment) keep the order they were said in, 3.0 s
-## and the 0.3 s gap apart.
+## What is said keeps its order whatever its kind: one queue, so a caption said between spoken lines is not shown
+## alongside the first of them. Each comes out after the one before it, that one's seconds and the 0.3 s gap later.
 func test_sound_captions_keep_their_order() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
-	var at: Array = []  # [text, sim time] of ours
-	var on_caption := func(text: String, _seconds: float) -> void:
-		if text.begins_with("[Said"):
+	var said := [["[Said first]", 3.0, false], ["\"Said second\"", 2.0, true], ["[Said third]", 2.5, false], ["[Said fourth]", 3.0, false]]
+	var at: Array = []  # [text, sim time] of ours, whichever signal carried them
+	var on_text := func(text: String, _seconds: float) -> void:
+		if text.contains("Said"):
 			at.append([text, WorldState.time])
-	EventBus.subtitle_requested.connect(on_caption)
-	story.say("[Said first]", 3.0)
-	story.say("[Said second]", 3.0)
-	_wait(4.0)
-	EventBus.subtitle_requested.disconnect(on_caption)
-	eq(at.map(func(a: Array) -> String: return a[0]), ["[Said first]", "[Said second]"], "in the order they were said")
-	near(float(at[1][1]) - float(at[0][1]), 3.3, 0.15, "3.3 s apart: the first one's 3.0 s and the gap")
+	EventBus.subtitle_requested.connect(on_text)
+	EventBus.line_requested.connect(on_text)
+	for s: Array in said:
+		story.say(s[0], s[1], s[2])
+	_wait(10.0)
+	EventBus.subtitle_requested.disconnect(on_text)
+	EventBus.line_requested.disconnect(on_text)
+	eq(at.map(func(a: Array) -> String: return a[0]), said.map(func(s: Array) -> String: return s[0]), "in the order they were said")
+	for i in range(1, mini(at.size(), said.size())):
+		near(float(at[i][1]) - float(at[i - 1][1]), float(said[i - 1][1]) + 0.3, 0.15, "%s comes after %s's seconds and the gap" % [said[i][0], said[i - 1][0]])
 	return _done()
 
 

@@ -145,6 +145,7 @@ func _ready() -> void:
 	_anchor(_caption, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -190, 1120, 40))
 	_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	_caption.grow_vertical = Control.GROW_DIRECTION_BEGIN  # a second line goes up, not down into the subtitle
 	_subtitle = _label(root, 24, HORIZONTAL_ALIGNMENT_CENTER)
 	_anchor(_subtitle, Control.PRESET_CENTER_BOTTOM, Rect2(-560, -150, 1120, 110))
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

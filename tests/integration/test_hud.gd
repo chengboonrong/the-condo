@@ -117,7 +117,7 @@ func test_choice_box_fits_the_screen() -> bool:
 	for i in 3:
 		options.append(("%d Bro, please. Stay behind it. Nobody at the wheel. " % i).repeat(2).left(60))
 	EventBus.choices_requested.emit(&"t", options)
-	hud.show_subtitle("Mei: \"Eh… isn't that the same car?\"", 30.0)
+	hud.show_subtitle("Mei: \"Eh… isn't that the same car?\"", 30.0, true)  # said by someone: the worst case sits on the subtitle
 	var window := tree.root.size
 	for size: Vector2i in [Vector2i(1280, 720), Vector2i(2560, 1080)]:
 		tree.root.size = size
@@ -126,6 +126,7 @@ func test_choice_box_fits_the_screen() -> bool:
 		var screen := hud.get_viewport().get_visible_rect()
 		var sub := hud._subtitle.get_global_rect()
 		var caption := hud._caption.get_global_rect()
+		var prompt := hud._prompt.get_global_rect()  # the door's prompt can be up while the stall's choices are
 		var tag := "%dx%d: " % [size.x, size.y]
 		eq(hud._choice_labels.filter(func(l: Label) -> bool: return l.visible).size(), 3, tag + "three options")
 		for l: Label in hud._choice_labels:
@@ -133,6 +134,7 @@ func test_choice_box_fits_the_screen() -> bool:
 			check(screen.encloses(r), tag + "%s on screen (%s)" % [l.text.left(12), r])
 			check(not r.intersects(sub), tag + "%s clear of the subtitle (%s, %s)" % [l.text.left(12), r, sub])
 			check(not r.intersects(caption), tag + "%s clear of the caption (%s, %s)" % [l.text.left(12), r, caption])
+			check(not r.intersects(prompt), tag + "%s clear of the prompt (%s, %s)" % [l.text.left(12), r, prompt])
 			check(l.get_line_count() == 1, tag + "%s on one line" % l.text.left(12))
 	tree.root.size = window
 	road.queue_free()
@@ -179,6 +181,23 @@ func test_a_sound_caption_never_cuts_a_spoken_line() -> bool:
 	EventBus.subtitle_requested.emit("\"Hello? Sorry ah, so late.\"", 2.0)
 	eq(hud._subtitle.text, "\"Hello? Sorry ah, so late.\"", "a quoted line goes on the subtitle, whatever the setting")
 	eq(hud._caption.text, "", "and leaves the caption line alone")
+	road.queue_free()
+	return true
+
+
+## A caption that wraps to two lines grows up, away from the subtitle's line, not down into it.
+func test_a_long_caption_grows_up_not_into_the_subtitle() -> bool:
+	var road := await _road()
+	var hud := road.hud
+	hud._caption.add_theme_font_size_override("font_size", 34)  # the trailer's size
+	EventBus.subtitle_requested.emit("[Your work shoes, in the middle of the floor. You always leave them on the rack.]", 3.0)
+	for i in 3:
+		await tree.process_frame
+	eq(hud._caption.get_line_count(), 2, "the caption wraps to two lines")
+	var caption := hud._caption.get_global_rect()
+	var sub := hud._subtitle.get_global_rect()
+	check(caption.end.y <= sub.position.y + 0.5, "and its bottom stays above the subtitle's top (%s, %s)" % [caption, sub])
+	check(hud.get_viewport().get_visible_rect().encloses(caption), "on screen (%s)" % caption)
 	road.queue_free()
 	return true
 

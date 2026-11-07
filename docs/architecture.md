@@ -147,7 +147,8 @@ What goes on each depends on whether the text is spoken.
   events, the road's cues, `Her`, the wall's answer. It does not wait for the lines before it.
   `StoryDirector.say()` and `RoadDirector.say()` stay one queue, one text at a time, 0.3 s apart, in the order said:
   what is said there, a caption included, follows the lines before it. Narration needs that ("[The line goes dead.]"
-  ends Rosnah's call, and "[It's your voice.]" the voice's).
+  ends Rosnah's call, and "[It's your voice.]" the voice's). The last call's crackle is said, though its sound plays in
+  the same call: `_play_last_call` runs only once the queue is empty, so the crackle comes out on the next tick.
 
 ## The road
 
