@@ -463,19 +463,10 @@ func test_the_last_call_points_back_once() -> bool:
 	var mei := "\"Eh, you going down ah? Jom, we got space.\""
 	var hafiz := "\"Wah, so late still working ah? Kesian, bro.\""
 	for road: StringName in [&"caught", &"saved", &"alive", &""]:
-		WorldState.reset()
-		sounds.clear()
-		lines.clear()
-		subtitles.clear()
-		var story := _setup(ApartmentLayout.SPAWN)
-		story.road = road
-		_listen()
-		WorldState.set_flag(&"answered_intercom")
-		EventBus.object_interacted.emit(&"intercom")
-		EventBus.object_interacted.emit(&"intercom")
-		_wait(10.0)
+		_rosnah_answers(road, ENTRANCE)  # he does not touch the intercom again
+		_wait(30.0)
 		var calls := 1 if road in [&"caught", &"saved"] else 0
-		eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), calls, "the wind and the engine, road %s" % road)
+		eq(sounds.filter(func(s: Array) -> bool: return s[0] == &"intercom_road").size(), calls, "the wind and the engine, by itself, road %s" % road)
 		eq(subtitles.count(CRACKLE), calls, "the crackle goes with the sound, as a sound caption, road %s" % road)
 		eq(lines.count(CRACKLE), 0, "so it follows the captions setting, road %s" % road)
 		eq(lines.count(mei), 1 if road == &"caught" else 0, "Mei's line, road %s" % road)
@@ -514,7 +505,7 @@ func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
 	var inspected: Array[String] = []
 	var on_inspect := func(_title: String, text: String) -> void: inspected.append(text)
 	EventBus.inspect_requested.connect(on_inspect)
-	EventBus.object_interacted.emit(&"intercom")  # pressed again at once, while her lines are queued
+	EventBus.object_interacted.emit(&"intercom")  # pressed at once, while her lines are queued
 	_wait(5.0)
 	EventBus.object_interacted.emit(&"intercom")  # and again, while she is still talking
 	eq(_last_calls(), 0, "no wind and engine over her voice")
@@ -525,7 +516,7 @@ func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
 	eq(_last_calls(), 0, "nor over her last line")
 	eq(lines.count(mei), 0, "no last-call line over her last line")
 	check(inspected.size() == 1 and inspected[0].begins_with("LAST CALL  23:47"), "an early press still shows the inspect text")
-	check(_until(func() -> bool: return _last_calls() > 0, 10.0), "he waits in the entrance: the last call plays by itself")
+	check(_until(func() -> bool: return _last_calls() > 0, 10.0), "the last call plays by itself")
 	check(heard.has("[The line goes dead.]") and story._lines.size() == 2 and story._line_left <= 0.0, "once her last line has gone")
 	_wait(10.0)
 	eq(_last_calls(), 1, "once")
@@ -539,30 +530,50 @@ func test_the_last_call_waits_for_rosnah_to_finish() -> bool:
 	return _done()
 
 
-func test_the_last_call_stays_pending_when_he_leaves_the_entrance() -> bool:
+func test_the_last_call_plays_by_itself_wherever_he_is() -> bool:
 	var mei := "\"Eh, you going down ah? Jom, we got space.\""
 	var story := _rosnah_answers(&"caught", ENTRANCE)
-	EventBus.object_interacted.emit(&"intercom")  # while she talks
 	_wait(2.0)
 	_place(ApartmentLayout.SPAWN)  # he walks out of the entrance, to the living room
-	check(_until(func() -> bool: return story._lines.is_empty() and story._line_left <= 0.0, 30.0), "her call is over")
-	_wait(30.0)
-	eq(_last_calls(), 0, "nothing plays while he is away from the entrance")
-	_place(ENTRANCE)  # and back, with nobody speaking
-	_wait(5.0)
-	eq(_last_calls(), 0, "nor when he walks back in: it waits for his press")
-	eq(lines.count(mei), 0, "no road line either")
-	EventBus.object_interacted.emit(&"intercom")  # his next press, with nobody speaking
-	eq(_last_calls(), 1, "it plays at the press")
+	eq(_last_calls(), 0, "(her call is not over)")
+	check(_until(func() -> bool: return _last_calls() > 0, 30.0), "it plays once her call is over, though he is away from the entrance")
 	_wait(10.0)
 	eq(_last_calls(), 1, "once")
 	eq(lines.count(mei), 1, "with Mei's line, once")
+	check(heard.find("[The line goes dead.]") < heard.find(CRACKLE) and heard.find(CRACKLE) < heard.find(mei), "in order: her call, the crackle, Mei")
+	var inspected: Array[String] = []
+	var on_inspect := func(_title: String, text: String) -> void: inspected.append(text)
+	EventBus.inspect_requested.connect(on_inspect)
+	_place(ENTRANCE)
+	EventBus.object_interacted.emit(&"intercom")  # a later press shows the log, and plays nothing again
+	_wait(10.0)
+	check(inspected.size() == 1 and inspected[0].begins_with("LAST CALL  23:47"), "a later press shows the LAST CALL log")
+	eq(_last_calls(), 1, "and the recording does not play again")
+	eq(lines.count(mei), 1, "nor Mei's line")
+	EventBus.inspect_requested.disconnect(on_inspect)
+	return _done()
+
+
+## It must not play over a knock: one that starts as her call ends holds it until the knock is done (1.6 s).
+func test_the_last_call_waits_for_a_knock() -> bool:
+	var story := _rosnah_answers(&"saved", ENTRANCE)
+	check(_until(func() -> bool: return story._lines.is_empty() and story._line_left <= 1.0, 30.0), "her last line is nearly over")
+	rt.scheduler.request(&"knock_wall", {"anchor": &"knock_entrance_door", "volume_db": 3.0}, 20)
+	check(rt.scheduler.is_running(&"knock_wall"), "(a knock starts)")
+	var steps := 0
+	var knocking := true
+	while _last_calls() == 0 and steps < 300:
+		rt.step(0.1)
+		steps += 1
+		knocking = rt.scheduler.is_running(&"knock_wall")
+	eq(_last_calls(), 1, "the last call plays")
+	check(not knocking, "not over the knock")
+	check(steps >= 14, "it waited for the knock: its last line had 1 s to go, the knock lasts 1.6 s (%d steps)" % steps)
 	return _done()
 
 
 func test_a_pending_last_call_never_plays_after_an_ending() -> bool:
-	_rosnah_answers(&"caught", ENTRANCE)
-	EventBus.object_interacted.emit(&"intercom")  # while she talks: pending
+	_rosnah_answers(&"caught", ENTRANCE)  # the last call is pending until her lines are done
 	WorldState.set_ending(&"downstairs")
 	_wait(40.0)
 	eq(_last_calls(), 0, "the story is over: no last call")
