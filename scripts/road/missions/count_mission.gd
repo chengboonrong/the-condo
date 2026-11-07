@@ -7,7 +7,8 @@ extends RoadMission
 ## counts three for herself, Hafiz brakes, and the seat in the mirror is empty, and wet.
 ##
 ## The look rule is armed when Bang Din's reminder is said (RECALL_AT), not before: until then he has not been told, and
-## turning to "your friend" costs nothing.
+## turning to "your friend" costs nothing. When the seat is empty a thought says nobody speaks and Hafiz drives faster,
+## which the next mission's cruise (StallMission.CRUISE_SPEED) then does.
 ##
 ## Beats: quiet (the mirror on, their talk, the rule), asked, asked_again (only after "Why you ask?"), counting (only
 ## after "Four.": Mei counts heads for herself), empty.
@@ -31,6 +32,7 @@ const THREE := "Mei: \"Three? Then who's sitting—\""
 const COUNTING_SECONDS := 3.0  # Mei counts heads after "Four.", before THREE
 const BRAKE_AT := 2.5  # seconds into the empty beat, as Mei breaks off
 const EMPTY_SECONDS := 7.0  # the mirror shows the empty seat, then goes off (leave)
+const NOBODY := "[Nobody says anything. Hafiz drives faster.]"  # his thought, as the seat empties for good
 
 var _mirror := false  # mirror_on sent, and mirror_off not yet
 var _seen := 0  # broken rules already looked at for a turn round
@@ -104,6 +106,7 @@ func tick(_delta: float) -> bool:
 				EventBus.road_cue.emit(&"fourth_gone")
 			if beat_t >= EMPTY_SECONDS:
 				d.drive(CRUISE_SPEED)
+				d.say(NOBODY, 4.0)
 				return true  # leave() turns the mirror off and stops the look watch
 	return false
 

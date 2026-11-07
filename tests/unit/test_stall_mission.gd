@@ -109,7 +109,7 @@ func _rules() -> Array:
 
 func test_keeping_breaks_nothing() -> bool:
 	_setup()
-	eq([d.seated, d.car_s, d.car_speed], [true, 1800.0, 9.0], "skipped to: seated, cruising at 1800")
+	eq([d.seated, d.car_s, d.car_speed], [true, 1800.0, StallMission.CRUISE_SPEED], "skipped to: seated, cruising at 1800, Hafiz driving faster since the empty seat")
 	_play({&"answer_voice": 1, &"stop_mei": 0})
 	eq(d.score(), 0, "nothing broken")
 	eq(cues, KEPT_CUES, "every cue, in order")
@@ -199,7 +199,7 @@ func test_the_light_is_150_m_on() -> bool:
 	_setup()
 	_play({&"answer_voice": 1, &"stop_mei": 0}, 0, 30.0)
 	near(stopped_at, 2000.0, 2.0, "the car stands on the long straight, about where the next mission takes it up")
-	near(stopped_after, 4.0, 0.15, "its speed eases to nothing over 4 s")
+	near(stopped_after, StallMission.CRUISE_SPEED / StallMission.ROLL_DECEL, 0.15, "its speed eases to nothing at ROLL_DECEL, 7.6 s from 17 m/s")
 	near(d.light_s, stopped_at + 150.0, 0.001, "the light is 150 m on from where it stood")
 	_teardown()
 	_setup()

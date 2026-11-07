@@ -115,6 +115,8 @@ func test_keeping_breaks_nothing() -> bool:
 	check(not captions.has(COUNTING), "with no counting first")
 	eq(asked, [&"count"], "asked once")
 	eq(cues, [&"mirror_on", &"brake", &"fourth_gone", &"mirror_off"], "the cues in order")
+	_run(0.3)  # the thought is said on the step after the mission ends
+	eq(captions.back(), CountMission.NOBODY, "and nobody says anything: Hafiz drives faster")
 	eq(d.score(), 0, "nothing broken")
 	eq([d.look_rule, WorldState.objective], [&"", ""], "the look watch and the objective end with it")
 	eq(ended, [&"alive"], "the road ends after it, all alive")
