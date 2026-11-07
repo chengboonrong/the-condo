@@ -28,6 +28,7 @@ const SHOTS := [
 	["lorry_pass", 0, -2.0, 4.3, -0.12, -0.04, 0.0, false, {}, &"", [&"lorry_passes", 0.6]],  # from the stop: the lorry coming up the other lane
 	["back_seat", 0, 615.0, 0.0, -0.25, -0.04, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # chevrons 20-40 m on
 	["slow_car", 1, 0.0, 0.0, 0.0, -0.03, 0.0, false, {"seated": true, "car_s": 140.0, "car_speed": 4.0, "slow_gap": 12.0}],  # behind it, in the headlights
+	["slow_car_ahead", 1, 0.0, 0.0, 0.0, -0.04, 0.0, false, {"seated": true, "car_s": 400.0, "car_speed": 4.0, "slow_gap": 10.0}],  # it shows between Mei and the mirror (itch.sh)
 	["overtake", 1, 0.0, 0.0, 0.16, -0.03, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 8.0, "lane": 0.0, "slow_gap": 8.0}],  # pulling out, level with its tail, in the headlights
 	["lay_by", 1, 0.0, 0.0, 0.45, -0.03, 0.0, false, {"seated": true, "car_s": 634.0, "car_speed": 9.0, "lane": 0.9, "slow_gap": 12.0, "pull_in": {"car_s": 647.0, "lane": 0.9}}],  # it has pulled in, dark: they edge by (the keeper's, in switchback 1)
 	["couple", 0, 615.0, 0.0, -0.15, -0.12, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # Hafiz and Mei from his seat
