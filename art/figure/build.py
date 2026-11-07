@@ -1,13 +1,16 @@
-"""The figure: an ordinary person, about 1.7 m, medium build, standing still where nobody should be. A loose work T-shirt
-and trousers, rubber slippers, plain short hair; the arms hang a little too low (the hands near mid-thigh) and the head
-is tipped. It wears the player's mamak apron, tied at the back. Nothing says who it is, man or woman. Run by
+"""The figure: an ordinary person, about 1.7 m, medium build, standing too still where nobody should be. A loose work
+T-shirt and trousers, rubber slippers, plain short hair; the arms hang a little too low (the hands near mid-thigh). It
+stands as people do and then does not move (POSE): its weight on its right leg, its left knee bent, one shoulder lower,
+the head hung forward and tipped, the left forearm a little raised and the right hand turned back at the wrist, its
+fingers curled in. It wears the player's mamak apron, tied at the back. Nothing says who it is, man or woman. Run by
 tools/models.sh.
 
 The body is Skin-modifier tubes on a vertex skeleton (trousers, shirt, arms, hands, neck, feet, slipper straps), then
-Subdivision; the head and the hair are shaped in code, and the cloth gets its drape folds from noise. The game draws
-the body near-black (Silhouette._material), so it needs no texture: its material "body" is a plain colour. The apron is
-the shared one (art/shared/apron), wrapped round the body; its material is "apron". The origin is the floor between the
-feet; the figure faces -Y, which is the game's +Z.
+Subdivision; the head and the hair are shaped in code, and the cloth gets its drape folds from noise. It needs no
+texture but a 16 x 4 palette (Figure_colours): its material "body" takes each part's colour from it by UV (skin, shirt,
+trousers, hair, slippers), and under its feet lies a soft shadow in the same material, its UVs running along the
+palette's strip of black that fades out. The apron is the shared one (art/shared/apron), wrapped round the body; its material is "apron".
+The origin is the floor between the feet; the figure faces -Y, which is the game's +Z.
 """
 import math
 import os
@@ -25,7 +28,7 @@ import common  # noqa: E402
 
 perlin.seed_set(1207)
 
-ROLL, NOD = 0.2, 0.06  # the head: tipped towards its left shoulder, and a little forward
+ROLL, NOD = 0.24, 0.36  # the head: tipped towards its left shoulder, and hung forward
 NECK_TOP = Vector((0.0, 0.0, 1.535))  # what the head turns about
 HEAD = Vector((0.0, -0.006, 1.594))  # the skull's centre, before the tip
 SKULL = (0.079, 0.099, 0.106, 0.107)  # half width, half depth to the front and to the back, half height
@@ -53,14 +56,28 @@ ARM = [
 NECK = [[(0, 0.004, 1.38, 0.085, 0.068), (0, 0.006, 1.43, 0.07, 0.06), (0, 0.01, 1.48, 0.056, 0.057),
          (0, 0.018, 1.53, 0.051, 0.06)]]
 
+# Its colours, picked like albedo colours (sRGB) and dim: they show where a room light finds it. The palette's two
+# bottom rows (Blender's v 0 to 0.5) hold them, two texels each; its two top rows the shadow's black, as opaque as 0.8
+# at u 0 and clear at u 1.
+PALETTE = {"skin": (0.34, 0.24, 0.18), "shirt": (0.2, 0.21, 0.22),  # a washed-out grey work T-shirt
+           "trousers": (0.07, 0.07, 0.08), "hair": (0.025, 0.024, 0.024),
+           "sole": (0.3, 0.3, 0.3), "strap": (0.07, 0.1, 0.24)}  # the slippers: grey rubber soles, blue straps
 
-def fingers() -> list:
-    """The left hand's fingers and thumb, relaxed: each a chain from inside the palm, curled a little towards it (-X)."""
+# The pose, about the front-back axis (+ drops its left side): the hips pushed over its right foot (SHIFT) and its left
+# hip dropped, the chest tilted back the other way so its right shoulder is the lower; its left knee comes forward.
+SHIFT, HIP_Z, WAIST_Z = -0.04, 0.9, 1.0
+HIP_TILT, CHEST_TILT = 0.07, -0.1
+ELBOW = Vector((0.196, 0.024, 1.075))  # its left elbow, where the forearm comes forward from
+WRIST = Vector((-0.211, 0.0, 0.0))  # its right wrist, about which the hand turns back
+
+
+def fingers(curl: float = 1.0) -> list:
+    """The left hand's fingers and thumb: each a chain from inside the palm, curled towards it (-X), a little at curl 1."""
     chains = []
     for y, length in ((-0.026, 0.92), (-0.009, 1.0), (0.008, 0.95), (0.024, 0.8)):  # index to little finger
         x, z = 0.213, 0.76
         chain = [(x, y, z, 0.009, 0.009)]
-        for seg, bend in ((0.044, 0.06), (0.027, 0.2), (0.021, 0.34)):
+        for seg, bend in ((0.044, 0.06 * curl), (0.027, 0.2 * curl), (0.021, 0.34 * curl)):
             seg *= length
             x -= seg * math.sin(bend)
             z -= seg * math.cos(bend)
@@ -328,17 +345,70 @@ def drape(obj: bpy.types.Object, amount: float, bottom: float, top: float, bunch
         v.co += v.normal * (depth * ridge + crease)
 
 
+def rotated(p: Vector, angle: float, axis: str, pivot: Vector) -> Vector:
+    return Matrix.Translation(pivot) @ Matrix.Rotation(angle, 4, axis) @ Matrix.Translation(-pivot) @ p
+
+
+def pose(p: Vector, part: str) -> Vector:
+    """Where the point p of a part ("body": the trunk and the legs, "arm", "head" or "feet") goes in the pose."""
+    if part == "arm":
+        if p.x > 0.0:  # its left forearm comes forward from the elbow
+            p = rotated(p, -0.3 * smooth((1.09 - p.z) / 0.04), "X", ELBOW)
+        else:  # its right hand is turned back at the wrist
+            p = rotated(p, 1.2 * smooth((0.85 - p.z) / 0.04), "Z", WRIST)
+    if part == "feet" or (part == "body" and p.z < HIP_Z):  # the legs lean over to the hips, the feet stay put
+        w = min(max(p.z / HIP_Z, 0.0), 1.0)
+        q = Vector((p.x + SHIFT * w, p.y, p.z - math.sin(HIP_TILT) * p.x * w))
+        if p.x > 0.0:  # its left knee, the free one, comes forward and in
+            knee = bump(p.z - 0.47, 0.17)
+            q += Vector((-0.012 * knee, -0.04 * knee, 0.0))
+        return q
+    hips = rotated(p, HIP_TILT, "Y", Vector((0.0, 0.0, HIP_Z))) + Vector((SHIFT, 0.0, 0.0))
+    chest = 1.0 if part in ("arm", "head") else smooth((p.z - 0.95) / 0.2)
+    return rotated(hips, (CHEST_TILT - HIP_TILT) * chest, "Y", Vector((SHIFT, 0.0, WAIST_Z)))
+
+
+def posed(obj: bpy.types.Object, part: str, colour: str = "") -> None:
+    """Moves obj's vertices (in world space) into the pose and, given a colour (a PALETTE name), maps it all to that."""
+    for v in obj.data.vertices:
+        v.co = pose(v.co, part)
+    if colour:
+        k = list(PALETTE).index(colour)
+        uv = obj.data.uv_layers.new(name="UVMap")
+        for d in uv.data:
+            d.uv = ((2 * k + 1) / 16, 0.25)
+
+
+def palette() -> bpy.types.Image:
+    img = bpy.data.images.new("Figure_colours", 16, 4, alpha=True)
+    px = []
+    for y in range(4):
+        for x in range(16):
+            if y < 2:
+                px += [*(list(PALETTE.values()) + [(0.0, 0.0, 0.0)] * 2)[x // 2], 1.0]
+            else:
+                px += [0.0, 0.0, 0.0, 0.8 * (1.0 - x / 15) ** 1.3]
+    img.pixels = px
+    return img
+
+
 def body() -> bpy.types.Object:
     trousers = skin("trousers", TROUSERS)
     drape(trousers, 0.004, 0.05, 0.85, bunch=0.004)
     shirt = skin("shirt", SHIRT)
     drape(shirt, 0.005, 0.8, 1.35)
-    parts = [trousers, shirt, skin("arms", ARM), skin("fingers", fingers()), skin("neck", NECK, mirror=False)]
+    # its left hand curled a little, its right one curled in hard
+    hands = fingers(1.4) + [[(-p[0], *p[1:]) for p in c] for c in fingers(2.6)]
+    parts = [trousers, shirt, skin("arms", ARM), skin("fingers", hands, mirror=False), skin("neck", NECK, mirror=False)]
+    looks = [("body", "trousers"), ("body", "shirt"), ("arm", "skin"), ("arm", "skin"), ("head", "skin")]
     tipped = head()
     tip = Matrix.Translation(NECK_TOP) @ Matrix.Rotation(-NOD, 4, "X") @ Matrix.Rotation(ROLL, 4, "Y") @ Matrix.Translation(-NECK_TOP)
     for o in tipped:
         o.matrix_world = tip @ o.matrix_world
-    parts += tipped + feet()
+    looks += [("head", "skin"), ("head", "hair"), ("head", "skin"), ("head", "skin")]
+    shod = feet()
+    parts += tipped + shod
+    looks += [("feet", ("skin", "strap", "sole")[i % 3]) for i in range(len(shod))]
     common.select(parts)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     for o in parts:  # mirrored parts (scale -1) came out inside out
@@ -347,18 +417,66 @@ def body() -> bpy.types.Object:
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bm.to_mesh(o.data)
         bm.free()
+    for o, (part, colour) in zip(parts, looks):
+        posed(o, part, colour)
     common.select(parts)
     bpy.ops.object.join()
     figure = bpy.context.view_layer.objects.active
     figure.name = "Figure"
-    mat = bpy.data.materials.new("body")
-    mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.03, 0.03, 0.032, 1.0)
-    mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.95
     figure.data.materials.clear()
-    figure.data.materials.append(mat)
+    figure.data.materials.append(body_material())
     for f in figure.data.polygons:
         f.use_smooth = True
     return figure
+
+
+def body_material() -> bpy.types.Material:
+    """"body": its colour (and the shadow's fade) from the palette, matt."""
+    mat = bpy.data.materials.get("body")
+    if mat:
+        return mat
+    mat = bpy.data.materials.new("body")
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = palette()
+    tex.interpolation = "Linear"
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
+    bsdf.inputs["Roughness"].default_value = 0.95
+    return mat
+
+
+def shadow() -> bpy.types.Object:
+    """A soft shadow on the floor under its feet, 4 mm up: black, as dark as 0.8 under them and fading out to nothing
+    0.36 m to the sides and 0.28 m to the front and back (along the palette's top rows)."""
+    bm = bmesh.new()
+    centre = Vector((SHIFT * 0.5, -0.02, 0.004))
+    out = {bm.verts.new(centre): 0.0}  # how far out, 0 to 1
+    rings = []
+    for k in range(1, 7):
+        r = k / 6
+        ring = [bm.verts.new(centre + Vector((0.36 * r * math.sin(a), -0.28 * r * math.cos(a), 0.0)))
+                for a in (math.tau * i / 20 for i in range(20))]
+        out.update({v: r for v in ring})
+        rings.append(ring)
+    middle = next(iter(out))
+    for i in range(20):
+        j = (i + 1) % 20
+        bm.faces.new([middle, rings[0][i], rings[0][j]])  # all facing up
+        for a, b in zip(rings, rings[1:]):
+            bm.faces.new([a[i], b[i], b[j], a[j]])
+    uv = bm.loops.layers.uv.new("UVMap")
+    for f in bm.faces:
+        for loop in f.loops:
+            loop[uv].uv = ((0.5 + 15.0 * out[loop.vert]) / 16, 0.75)
+    me = bpy.data.meshes.new("shadow")
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(body_material())
+    obj = bpy.data.objects.new("shadow", me)
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
 
 
 # --- the apron ------------------------------------------------------------------------------------------------
@@ -439,6 +557,7 @@ def wearing() -> bpy.types.Object:
     obj = bpy.data.objects.new("apron", me)
     bpy.context.scene.collection.objects.link(obj)
     me.materials.append(apron.material())
+    posed(obj, "body")  # worn: it goes where the body goes
     return obj
 
 
@@ -454,8 +573,10 @@ fewer = figure.modifiers.new("fewer", "DECIMATE")
 fewer.ratio = BODY_TRIS / triangles(figure)
 applied(figure)
 dress = wearing()
-figure.data.uv_layers.new(name=dress.data.uv_layers[0].name)  # or the join drops the apron's
-common.select([figure, dress])
+figure.data.uv_layers[0].name = dress.data.uv_layers[0].name  # one UV map, or the join drops the apron's
+floor = shadow()
+floor.data.uv_layers[0].name = dress.data.uv_layers[0].name
+common.select([figure, dress, floor])
 bpy.ops.object.join()
 print("FIGURE tris", triangles(figure), [uv.name for uv in figure.data.uv_layers])
 common.export("figure", [figure])

@@ -21,13 +21,14 @@ var _material := StandardMaterial3D.new()
 var _apron := StandardMaterial3D.new()
 
 
-## A person, not a pawn (art/figure): arms hanging a little too low, the head tipped, in the apron from the mamak
-## (the window: "Someone in your apron is pulling teh tarik"). The model's "body" surfaces are drawn with _material,
-## its "apron" ones with _apron, which keeps the apron's stains; both fade together (_set_alpha).
+## A person, not a pawn (art/figure): standing too still, its weight on one leg, its head hung and tipped, one hand
+## turned the wrong way, in the apron from the mamak (the window: "Someone in your apron is pulling teh tarik"). The
+## model's "body" surfaces are drawn with _material, which keeps the body's palette (its skin, its clothes and the soft
+## shadow under it), its "apron" ones with _apron, which keeps the apron's stains; both fade together (_set_alpha).
 func _ready() -> void:
-	# Near-black but lit, so a room light finds its shoulders and head; in the dark it is a shape against
-	# whatever is behind it.
-	_material.albedo_color = Color(0.03, 0.03, 0.032, 0.95)
+	# Its palette as it is, dim: a room light finds its skin, its grey shirt and its dark trousers; in the dark it is
+	# a shape against whatever is behind it.
+	_material.albedo_color = Color(1, 1, 1, 0.95)
 	_material.roughness = 0.95
 	_apron.albedo_color = Color(1, 1, 1, 0.95)  # the texture as it is: lit by the room, it shows only where there is light
 	_apron.roughness = 0.9
@@ -50,6 +51,7 @@ func _ready() -> void:
 				_apron.albedo_texture = own.albedo_texture
 				m.set_surface_override_material(s, _apron)
 			else:
+				_material.albedo_texture = own.albedo_texture
 				m.set_surface_override_material(s, _material)
 	visible = false
 	EventBus.silhouette_requested.connect(_on_requested)

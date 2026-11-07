@@ -475,7 +475,9 @@ gory, and blood (see [The road](#the-road) and `docs/research/2026-11-06-gore-ru
   does the front door opening. It offers nothing while the door is open or still swinging shut (its prompt is empty,
   which is how `InteractionSystem` skips an object). The lens is drawn once behind the start card (`Hud.set_lens`), so it never compiles
   mid-game.
-* **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
+* **The figure** is an ordinary person in dim colours (brown skin, a grey work T-shirt, dark trousers, from a 16 x 4
+  palette texture), standing too still with its weight on one leg, and wears a mamak apron like the one drying on the
+  rack. A soft shadow under its feet is part of its body mesh, so it fades with it and needs no light of its own.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
   Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are
   `apron_hung`, `basin`, `bed`, `ceiling_fan`, `dining_chair`, `dining_table`, `figure`, `fridge`, `front_door`,
