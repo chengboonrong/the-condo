@@ -87,9 +87,18 @@ var _lens: ColorRect
 var _lens_material := ShaderMaterial.new()
 var _lens_hint: Label
 var _peeping := false
+var _choice_options := PackedStringArray()
+var voice := AudioStreamPlayer.new()  # the spoken lines (Voices): one at a time
+var next_voice: AudioStream  # the newest voiced line that came while another was being said: it waits for that one
 
 
 func _ready() -> void:
+	add_child(voice)
+	voice.finished.connect(func() -> void:
+		if next_voice != null:
+			voice.stream = next_voice
+			next_voice = null
+			voice.play())
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -310,6 +319,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.is_action_pressed("choice_%d" % (i + 1)):
 				_chosen = true
 				get_viewport().set_input_as_handled()
+				speak(_choice_options[i])
 				EventBus.choice_made.emit(_choice_id, i)
 				return
 	if _ending.visible:
@@ -375,6 +385,7 @@ func card_text() -> String:
 func show_choices(choice_id: StringName, options: PackedStringArray) -> void:
 	_choice_id = choice_id
 	_choice_count = mini(options.size(), _choice_labels.size())
+	_choice_options = options
 	_chosen = false
 	for i in _choice_labels.size():
 		_choice_labels[i].visible = i < _choice_count
@@ -396,12 +407,28 @@ func is_choosing() -> bool:
 ## subtitle. Any other text is a sound caption: it shows only with "Captions for sounds" on, on the line above, so it
 ## never cuts a spoken line short. Each line keeps its own timer, and a new text replaces the one on its line.
 func show_subtitle(text: String, duration: float, always := false) -> void:
+	speak(text)
 	if always or text.begins_with("\""):
 		_subtitle.text = text
 		_subtitle_left = duration
 	elif Settings.get_value("subtitles"):
 		_caption.text = text
 		_caption_left = duration
+
+
+## A line or chosen answer with a voice (Voices) is heard whatever the captions setting. One that comes while another
+## is being said waits for it rather than cutting it off (his answer and the reply that follows it at once; a line a
+## little longer than its time on screen), so its subtitle can show up to a line early. Only the newest waits; a sound
+## caption leaves the voice alone.
+func speak(text: String) -> void:
+	var s := Voices.stream(text)
+	if s == null:
+		return
+	if voice.playing:
+		next_voice = s
+	else:
+		voice.stream = s
+		voice.play()
 
 
 func show_inspect(title: String, text: String) -> void:

@@ -110,6 +110,30 @@ func test_stray_choice_keys_do_nothing() -> bool:
 	return true
 
 
+## Spoken lines and the answer he picks are heard (Voices). A sound caption leaves a voice talking, and a voiced line
+## that comes while another is being said waits for it: the reply that follows his answer at once doesn't cut him off.
+func test_lines_and_his_answers_are_heard() -> bool:
+	var road := await _road()
+	var hud := road.hud
+	var hafiz := "Hafiz: \"Mei? Bro?\""
+	EventBus.line_requested.emit(hafiz, 2.5)
+	check(hud.voice.playing, "a line is heard")
+	eq(hud.voice.stream, Voices.stream(hafiz), "in its own voice")
+	EventBus.subtitle_requested.emit("[A car door shuts.]", 2.0)
+	eq([hud.voice.stream, hud.next_voice], [Voices.stream(hafiz), null], "a sound caption leaves him talking")
+	hud.voice.stop()
+	EventBus.choices_requested.emit(&"t", PackedStringArray(["\"Three.\"", "\"Four.\""]))
+	_press(KEY_2)
+	eq(hud.voice.stream, Voices.stream("\"Four.\""), "his answer is heard")
+	var reply := "Mei: \"Four meh? Wait, I count. One, two...\""
+	EventBus.line_requested.emit(reply, 3.0)
+	eq([hud.voice.stream, hud.next_voice], [Voices.stream("\"Four.\""), Voices.stream(reply)], "Mei's reply waits for him")
+	hud.voice.finished.emit()
+	eq([hud.voice.stream, hud.next_voice], [Voices.stream(reply), null], "and is heard once he has finished")
+	road.queue_free()
+	return true
+
+
 func test_choice_box_fits_the_screen() -> bool:
 	var road := await _road()
 	var hud := road.hud

@@ -125,8 +125,10 @@ owner's to word. The facts:
   and the code that synthesises every sound.
 * The in-game text (the dialogue and the captions) and this page's text were drafted with it. Every commit in the
   repository carries its co-author line.
-* No image, video, 3D, voice or music generator was used, as far as the repository shows (every model has its
-  Blender script, every sound its line in `tools/gen_audio.py`). Yours to confirm.
+* The spoken lines were generated with a voice model, mesolitica/Malaysian-Podcast-Dia-1.6B, in its own voices
+  (no real person's), each take checked with a speech recogniser (README, Licence).
+* No image, video, 3D or music generator was used, as far as the repository shows (every model has its Blender
+  script, every sound its line in `tools/gen_audio.py`). Yours to confirm.
 
 ## Before publishing
 

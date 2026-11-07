@@ -539,9 +539,12 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Thump ×1 (the wall answers, after the road) | −14.6 | 0 | −14.6 |
 | Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
 | Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
+| Spoken lines: Hafiz and Mei (the HUD's `voice`, not positional; `scripts/ui/voices.gd`) | −15.5 to −15.3 | 0 | −15.5 to −15.3 |
 | Stinger, as he looks back and she is right behind him (the road, in his head) ‡ | −8.5 | −8 | −16.5 |
 | Her shriek, with it (the road, in his head) ‡ | −14.6 | −2 | −16.6 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
+| His answers; the intercom's voices (Rosnah, his own, the last call); the voice outside the car | −16.7 to −16.3 | 0 | −16.7 to −16.3 |
+| The voice behind him on the walk (the road) | −17.4 | 0 | −17.4 |
 | Door opening (the player) | −6.9 | −11 | −17.9 |
 | Phone ringing on the table (the road, loop: one ring) | −19.0 | 0 | −19.0 |
 | Car door opened (the road) † | −23.0 | 0 | −20.0 |
@@ -549,6 +552,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Lorry's air brakes as it pulls up (the road) | −21.0 | 0 | −21.0 |
 | Starter cranking ×2 (the road) | −19.0 | −2 | −21.0 |
 | Intercom's last call, wind and the idling engine (after the road) | −22.0 | 0 | −22.0 |
+| Bang Din, remembered (an echo) | −21.4 | 0 | −21.4 |
 | Her wet flap behind him on the walk (the road) | −27.0 | +4 | −23.0 |
 | Lorry's diesel idling (the road, loop: 60 firings) | −20.0 | −4 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
