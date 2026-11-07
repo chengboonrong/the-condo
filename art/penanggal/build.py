@@ -1,14 +1,16 @@
 """The penanggal: a woman's head flying loose of her body, her organs hanging from her neck. Run by tools/models.sh.
 
 Her head and hair are the shared ones (art/shared/her), the same as the fourth passenger's: gaunt, grey-pale, the eyes
-wide and dark, the mouth a little open, the long black hair wet and hanging in clumps. Her neck is torn off raggedly
-under the jaw, bruised and bloodied down to the tear, its skin hanging in shreds. Below it hang what came out with her,
-as the anatomy has them: the windpipe (ringed, the voice box at its top, splitting into the two bronchi) and the gullet
-behind it; the carotid arteries and the jugular veins, and strings of sinew; two dark, spongy, lobed lungs; the heart
-between them with its great vessels; the stomach at the end of the gullet; and three ropes of intestine, looped and
-torn: the small one bunched in loops under the stomach and then hanging free (2.7 m along it, about 1.15 m of that
-hanging), a second small one of 1.2 m and the large one of 1.5 m; everything ends about 2.05 m below the skull. And
-strands of blood that drip. Everything is muted and wet: dark crimson, bruise purple and grey-pink, coloured per vertex.
+wide and dark, the long black hair wet; but hers is pulled out of true (one lid hanging, one cheek fallen in, the mouth
+hanging open into a black hole), creased and blotched, and her hair hangs in fewer, heavier ropes. Her neck is torn off
+raggedly under the jaw, bruised and bloodied down to the tear, its skin hanging in shreds. Below it, bunched up close
+under her jaw, hang what came out with her: the windpipe (ringed, the voice box at its top, splitting into the two
+bronchi) and the gullet behind it; the carotid arteries and the jugular veins, and strings of sinew; two dark, spongy,
+lobed lungs, no longer a pair (LUNGS); the heart pressed in front of them with its great vessels; the stomach at the end
+of the gullet, behind her left lung; and three ropes of intestine, swollen and squeezed along their length: the small
+one bunched in loops under the stomach and then hanging free (2.3 m along it), the large one hanging in a torn loop
+(0.8 m) and a thin small one of 1.2 m, the longest, ending about 1.85 m below the skull. And strands of blood that
+drip. Everything is muted and wet: dark crimson, bruise purple and grey-pink, coloured per vertex.
 
 Materials, so code can tell them apart: "skin" (the face and the neck: the painted texture, times the colour attribute,
 white but for the neck's bruising and blood), "eyes", "hair" (black, seen from both sides) and "entrails" (the organs,
@@ -287,9 +289,9 @@ def sinews(bm: bmesh.types.BMesh) -> list:
     ends = []
     artery, vein = (0.0042, 1.0, CRIMSON, (0.24, 0.13, 0.13)), (0.0055, 0.55, BLOOD, BRUISE)
     vessels = [  # (points, radius, flattened, colour at the top, colour along)
-        ([(0.02, -0.014, -0.15), (0.024, -0.024, -0.2), (0.022, -0.03, -0.26), (0.02, -0.03, -0.316)], *artery),
-        ([(-0.02, -0.014, -0.15), (-0.018, -0.026, -0.21), (-0.008, -0.034, -0.28), (0.004, -0.038, -0.33)], *artery),
-        ([(-0.032, 0.0, -0.148), (-0.036, -0.012, -0.2), (-0.03, -0.022, -0.26), (-0.022, -0.024, -0.312)], *vein),
+        ([(0.02, -0.014, -0.15), (0.024, -0.024, -0.19), (0.022, -0.03, -0.23), (0.02, -0.034, -0.262)], *artery),
+        ([(-0.02, -0.014, -0.15), (-0.018, -0.026, -0.19), (-0.01, -0.034, -0.235), (0.0, -0.04, -0.265)], *artery),
+        ([(-0.032, 0.0, -0.148), (-0.036, -0.012, -0.19), (-0.03, -0.022, -0.23), (-0.026, -0.03, -0.26)], *vein),
         ([(0.033, 0.0, -0.148), (0.038, -0.01, -0.19), (0.036, -0.016, -0.235), (0.042, -0.012, -0.262)], *vein),  # torn free
     ]
     for i, (points, r, flat, top, along) in enumerate(vessels):
@@ -312,9 +314,8 @@ def sinews(bm: bmesh.types.BMesh) -> list:
         tube(bm, path, lambda u, a_, w=w: (w * (1.0 - 0.75 * u), 0.0016), 4,
              lambda p, u, a_: mix(CRIMSON, BLOOD, 0.3 + 0.5 * u + 0.2 * n3(p, 120, 4.0)), caps=(False, True))
         ends.append(path[-1])
-    for side in (1, -1):  # sinew pulled taut down to the lung's top
-        path = resample([Vector((side * 0.026, 0.008, -0.152)), Vector((side * 0.036, 0.006, -0.25)),
-                         Vector((side * 0.05, 0.0, -0.37))], 0.02)
+    for side, top in ((1, LUNGS[0][0][0]), (-1, LUNGS[1][0][0])):  # sinew pulled taut down to the lung's top
+        path = resample([Vector((side * 0.026, 0.008, -0.152)), Vector((side * 0.034, 0.006, -0.22)), Vector(top)], 0.02)
         tube(bm, path, lambda u, a: (0.0014,) * 2, 4,
              lambda p, u, a: mix((0.28, 0.18, 0.17), CRIMSON, 0.3 + 0.5 * smooth((n3(p, 50, 8.0) + 0.2) / 0.4)), caps=(False, False))
     return ends
@@ -323,8 +324,8 @@ def sinews(bm: bmesh.types.BMesh) -> list:
 def windpipe(bm: bmesh.types.BMesh) -> None:
     """The voice box, the windpipe below it, its cartilage rings faint and uneven under the blood, and its two bronchi
     turning down into the lungs."""
-    path = resample([Vector((0.0, -0.008, -0.15)), Vector((0.0, -0.018, -0.18)), Vector((0.003, -0.024, -0.21)), Vector((-0.002, -0.021, -0.26)),
-                     Vector((0.002, -0.014, -0.315))], 0.0055)
+    path = resample([Vector((0.0, -0.008, -0.15)), Vector((0.0, -0.018, -0.18)), Vector((0.003, -0.022, -0.21)), Vector((0.0, -0.018, -0.25)),
+                     Vector((0.003, -0.012, -0.275))], 0.0055)
     total = length(path)
 
     def rings(s: float) -> float:
@@ -345,33 +346,38 @@ def windpipe(bm: bmesh.types.BMesh) -> None:
         c = mix(c, CRIMSON, 0.9 * smooth((0.03 - s) / 0.02) + 0.75 * smooth((n3(p, 30, 5.0) + 0.25) / 0.5))  # smeared
         return mix(c, BLOOD, 0.7 * smooth((n3(p, 55, 2.0) - 0.1) / 0.3))  # clotted
     tube(bm, path, radius, 7, colour, caps=(True, False))
-    for side in (1, -1):
-        branch = resample([path[-1], Vector((side * 0.02, -0.012, -0.335)), Vector((side * 0.042, -0.006, -0.355)),
-                           Vector((side * 0.05, -0.002, -0.38))], 0.008)
-        tube(bm, branch, lambda u, a: (0.0085 - 0.002 * u,) * 2, 6,
+    for (points, _), r in zip(LUNGS, (0.0085, 0.0065)):
+        top = Vector(points[0])
+        branch = resample([path[-1], path[-1].lerp(top, 0.4) + Vector((0.0, 0.0, -0.012)), path[-1].lerp(top, 0.75), top], 0.008)
+        tube(bm, branch, lambda u, a, r=r: (r - 0.002 * u,) * 2, 6,
              lambda p, u, a: mix((0.32, 0.22, 0.21), BRUISE, u), caps=(False, False))
 
 
 def gullet(bm: bmesh.types.BMesh) -> None:
     """The gullet, behind the windpipe, down to the stomach: a flattened muscular tube."""
-    path = resample([Vector((0.0, 0.01, -0.135)), Vector((0.002, 0.016, -0.25)), Vector((0.006, 0.02, -0.38)),
-                     Vector((0.012, 0.02, -0.5)), Vector((0.018, 0.016, -0.585))], 0.022)
-    tube(bm, path, lambda u, a: (0.0105, 0.0072), 6,
+    path = resample([Vector((0.0, 0.01, -0.135)), Vector((0.003, 0.018, -0.22)), Vector((0.008, 0.028, -0.31)),
+                     Vector((0.016, 0.04, -0.38)), Vector((0.023, 0.051, -0.43))], 0.022)
+    tube(bm, path, lambda u, a: (0.0105 * (1.0 + 0.35 * bump(u - 0.55, 0.15)), 0.0072), 6,
          lambda p, u, a: mix((0.19, 0.065, 0.065), CRIMSON, 0.3 + 0.4 * n3(p, 40)), caps=(True, False))
 
 
-def lungs(bm: bmesh.types.BMesh) -> None:
-    """Two lungs out of the chest, hanging from their bronchi: collapsed, heavy at the base, the flat side towards the
-    heart, cut into lobes (three on her right, two on her left), spongy, dark: mottled purple-grey and crimson with black
-    specks."""
-    for side in (1, -1):
-        path = resample([Vector((side * 0.05, 0.0, -0.36)), Vector((side * 0.07, 0.006, -0.44)),
-                         Vector((side * 0.08, 0.01, -0.53)), Vector((side * 0.078, 0.006, -0.63))], 0.019)
+# The lungs, not a pair any more: her left one hangs heavy, swung out in front of her; her right one has collapsed to
+# under three quarters of its size and is pulled up behind the windpipe. (points from the bronchus down, size)
+LUNGS = (([(0.045, -0.008, -0.3), (0.07, -0.02, -0.37), (0.088, -0.03, -0.45), (0.08, -0.026, -0.54)], 1.0),
+         ([(-0.04, 0.012, -0.295), (-0.06, 0.03, -0.34), (-0.068, 0.042, -0.4), (-0.058, 0.04, -0.45)], 0.72))
 
-        def radius(u: float, a: float, side=side) -> tuple:
+
+def lungs(bm: bmesh.types.BMesh) -> None:
+    """Two lungs out of the chest, hanging from their bronchi (LUNGS): collapsed, heavy at the base, the flat side
+    towards the heart, cut into lobes (three on her right, two on her left), spongy, dark: mottled purple-grey and
+    crimson with black specks."""
+    for side, (points, size) in zip((1, -1), LUNGS):
+        path = resample([Vector(p) for p in points], 0.019)
+
+        def radius(u: float, a: float, side=side, size=size) -> tuple:
             # narrow at the apex, broadest low down, the base flat and sharp-edged where it sat on the diaphragm
             profile = math.sin(0.5 * math.pi * min(u / 0.84, 1.0)) ** 1.3 * math.sqrt(max(0.0, 1.0 - (max(u - 0.84, 0.0) / 0.16) ** 2))
-            r = 0.06 * profile + 0.004
+            r = 0.06 * size * profile + 0.004
             towards_middle = max(0.0, -side * math.cos(a))
             rx = r * (1.0 - 0.38 * towards_middle ** 2)
             fissure = 0.0
@@ -391,11 +397,14 @@ def lungs(bm: bmesh.types.BMesh) -> None:
         tube(bm, path, radius, 11, colour, caps=(True, True), lumps=(0.09, 28.0))
 
 
+HEART = Vector((-0.01, -0.006, 0.055))  # where the heart hangs from where it once did: higher, pressed into the lungs
+
+
 def heart(bm: bmesh.types.BMesh) -> None:
     """The heart, hanging in front between the lungs, its point down and to her left: maroon, fat in its grooves, the
     stubs of the aorta (arching over to her left) and the pulmonary trunk torn off above it."""
-    path = resample([Vector((0.006, -0.042, -0.355)), Vector((0.014, -0.05, -0.395)), Vector((0.026, -0.056, -0.44)),
-                     Vector((0.036, -0.058, -0.476))], 0.012)
+    path = resample([HEART + Vector(p) for p in ((0.006, -0.042, -0.355), (0.014, -0.05, -0.395), (0.026, -0.056, -0.44),
+                                                  (0.036, -0.058, -0.476))], 0.012)
 
     def radius(u: float, a: float) -> tuple:
         r = 0.041 * math.sin(math.pi * (0.18 + 0.82 * u)) ** 0.7 * (1.0 - 0.25 * u) + 0.002
@@ -415,7 +424,7 @@ def heart(bm: bmesh.types.BMesh) -> None:
         ([Vector((-0.016, -0.036, -0.37)), Vector((-0.02, -0.03, -0.335)), Vector((-0.022, -0.024, -0.315))], 0.009),  # vena cava
     ]
     for points, r in vessels:
-        path = resample(points, 0.009)
+        path = resample([HEART + p for p in points], 0.009)
         tube(bm, path, lambda u, a, r=r: (r * (1.0 + 0.1 * u),) * 2, 6,
              lambda p, u, a: mix((0.3, 0.19, 0.18), CRIMSON, 0.3 + 0.7 * smooth((u - 0.8) / 0.2)), caps=(False, True))
 
@@ -423,9 +432,9 @@ def heart(bm: bmesh.types.BMesh) -> None:
 def stomach(bm: bmesh.types.BMesh) -> tuple:
     """The stomach at the end of the gullet, hanging: a J-shaped sac, collapsed and lumpy, swelling to her left and
     turning back up to the pylorus. Returns the pylorus and a point low on its greater curve."""
-    points = [Vector((0.018, 0.016, -0.585)), Vector((0.05, 0.008, -0.62)), Vector((0.07, 0.0, -0.69)),
-              Vector((0.062, -0.006, -0.77)), Vector((0.03, -0.01, -0.82)), Vector((-0.012, -0.012, -0.815)),
-              Vector((-0.034, -0.012, -0.785))]
+    points = [Vector((0.023, 0.051, -0.43)), Vector((0.055, 0.043, -0.465)), Vector((0.075, 0.035, -0.535)),
+              Vector((0.067, 0.029, -0.615)), Vector((0.035, 0.022, -0.665)), Vector((-0.007, 0.016, -0.66)),
+              Vector((-0.029, 0.012, -0.63))]
     path = resample(points, 0.02)
 
     def radius(u: float, a: float) -> tuple:
@@ -452,6 +461,7 @@ def gut(bm: bmesh.types.BMesh, points: list, r: float, large: bool, sides: int, 
     def radius(u: float, a: float) -> tuple:
         s = u * total
         k = 1.0 + 0.13 * n3(Vector((s * 9.0, seed, 0)), 1.0)
+        k *= 1.0 + 0.35 * n3(Vector((s * 2.5, seed, 7.0)), 1.0)  # swollen here, squeezed there
         if large:
             k *= 0.86 + 0.24 * abs(math.sin(math.pi * s / 0.036))  # haustra
             k *= 1.0 - 0.08 * max(0.0, math.cos(3 * a)) ** 4  # the three bands down it
@@ -514,26 +524,25 @@ def organs(bm: bmesh.types.BMesh) -> None:
     lungs(bm)
     heart(bm)
     pylorus, curve = stomach(bm)
-    root = Vector((0.0, -0.005, -0.85))
-    bunch = coils(pylorus, root, [(-1.9, 0.075, 0.13), (-0.6, 0.085, 0.17), (0.7, 0.07, 0.12), (2.0, 0.08, 0.16), (3.1, 0.06, 0.11)])
-    ends = [gut(bm, bunch + [Vector(k) for k in [(-0.03, -0.03, -0.96), (-0.04, -0.035, -1.12), (-0.02, -0.035, -1.3),
-                                                  (-0.035, -0.03, -1.5), (-0.02, -0.03, -1.7), (-0.03, -0.025, -1.9),
-                                                  (-0.02, -0.025, -2.0)]], 0.0125, False, 6, 0.03, 1.0)]
-    ends.append(gut(bm, hanging(curve + Vector((0.01, 0.0, -0.01)), [(0.08, 0.025, -0.86), (0.085, 0.035, -1.0),
-                                                                    (0.06, 0.04, -1.2), (0.02, 0.04, -1.32),
-                                                                    (-0.02, 0.035, -1.24), (-0.03, 0.03, -1.08),
-                                                                    (-0.06, 0.03, -1.12), (-0.075, 0.025, -1.35),
-                                                                    (-0.07, 0.02, -1.55), (-0.08, 0.015, -1.7)]),
+    root = Vector((-0.005, 0.01, -0.7))
+    bunch = coils(pylorus, root, [(-1.9, 0.085, 0.12), (-0.5, 0.07, 0.19), (0.8, 0.09, 0.1), (2.1, 0.065, 0.15), (3.0, 0.08, 0.09)])
+    ends = [gut(bm, bunch + [Vector(k) for k in [(-0.03, -0.02, -0.86), (-0.045, -0.03, -0.98), (-0.025, -0.035, -1.12),
+                                                  (-0.04, -0.03, -1.27), (-0.03, -0.025, -1.4)]], 0.014, False, 6, 0.03, 1.0)]
+    # the large one hangs in a torn loop, not straight down
+    ends.append(gut(bm, hanging(curve + Vector((0.01, 0.0, -0.01)), [(0.085, 0.02, -0.7), (0.095, 0.0, -0.82),
+                                                                    (0.07, -0.015, -0.95), (0.03, -0.02, -1.0),
+                                                                    (0.0, -0.015, -0.92), (-0.02, -0.01, -0.84),
+                                                                    (-0.05, 0.0, -0.9), (-0.065, 0.005, -1.05)]),
                     0.019, True, 7, 0.028, 5.0))
-    ends.append(gut(bm, hanging(root + Vector((0.03, 0.03, -0.08)), [(0.05, 0.03, -1.0), (0.045, 0.02, -1.15),
-                                                                    (0.085, 0.01, -1.27), (0.08, 0.0, -1.4),
-                                                                    (0.035, -0.005, -1.37), (0.03, 0.0, -1.5),
-                                                                    (0.055, -0.005, -1.7), (0.045, -0.01, -1.85),
-                                                                    (0.05, -0.01, -2.05)]),
-                    0.0115, False, 6, 0.032, 9.0))
-    drips = [(Vector((0.078, 0.006, -0.64)), 0.16),
-             (Vector((-0.078, 0.006, -0.64)), 0.09), (Vector((0.036, -0.058, -0.478)), 0.22), (Vector((0.03, -0.01, -0.83)), 0.12),
-             (Vector((-0.06, -0.01, -1.0)), 0.15), (Vector((0.07, 0.0, -1.0)), 0.2)]
+    ends.append(gut(bm, hanging(root + Vector((0.03, 0.03, -0.08)), [(0.05, 0.03, -0.92), (0.045, 0.02, -1.07),
+                                                                    (0.085, 0.01, -1.2), (0.08, 0.0, -1.33),
+                                                                    (0.035, -0.005, -1.3), (0.03, 0.0, -1.43),
+                                                                    (0.055, -0.005, -1.6), (0.045, -0.01, -1.72),
+                                                                    (0.05, -0.01, -1.85)]),
+                    0.0095, False, 6, 0.032, 9.0))
+    drips = [(Vector((0.08, -0.026, -0.55)), 0.16),
+             (Vector((-0.058, 0.04, -0.46)), 0.09), (HEART + Vector((0.036, -0.058, -0.478)), 0.22), (Vector((0.035, 0.022, -0.675)), 0.12),
+             (Vector((-0.045, -0.03, -0.99)), 0.15), (Vector((0.03, -0.02, -1.01)), 0.2)]
     drips += [(e, d) for e, d in zip(ends, (0.18, 0.1, 0.26))]
     drips += [(t, d) for t, d in zip(tips, (0.09, 0.05, 0.13, 0.07, 0.11, 0.06, 0.08, 0.04))]
     for i, (p, d) in enumerate(drips):
@@ -575,14 +584,20 @@ def triangles(obj: bpy.types.Object) -> int:
 
 
 common.reset()
+# By night her face is pulled out of true (the fourth passenger's is not): her right upper lid hangs half shut, her left
+# cheek has fallen in, her mouth hangs open into a dark hole, its left corner dragged down.
+her.DROOP, her.SUNKEN, her.GAPE, her.DEEP, her.PULL, her.FROWN = 0.0062, 0.006, 0.011, 0.024, 0.004, 0.0022
 skin, eyes_mat, hair_mat = skin_material(), her.eyes_material(), her.hair_material()
-head = her.head("head", 2400)
-eyes = her.eyes("eyes")
+head = her.head("head", 3200)
+# The eyes wet and staring, the white showing round a small iris, the pupil a pinpoint; rings close at their edges.
+eyes = her.eyes("eyes", pupil=0.15, iris=0.46, white=(0.36, 0.3, 0.24),
+                rings=[0.07, 0.14, 0.2, 0.28, 0.36, 0.42, 0.48, 0.62, 0.85, 1.2, 1.6, 2.1, 2.6], segments=20)
 colliders = [(Vector((0.0, 0.004, -0.05)), Vector((0.0, -0.002, -0.2)), 0.056)]
-colliders += [(Vector((s * 0.06, 0.004, -0.38)), Vector((s * 0.078, 0.008, -0.6)), 0.062) for s in (1, -1)]
+colliders += [(Vector(points[0]), Vector(points[-1]), 0.062 * size) for points, size in LUNGS]
 plastered = [(Vector((0.62, -0.62, 0.42)), Vector((0.15, 0.0, -1.0))), (Vector((-0.3, -0.72, 0.62)), Vector((-0.12, 0.0, -1.0))),
-             (Vector((-0.12, -0.7, 0.7)), Vector((0.05, 0.0, -1.0)))]
-hair_parts = her.hair(Matrix(), 44, (0.6, 0.78), colliders, 600, plastered)
+             (Vector((-0.12, -0.7, 0.7)), Vector((0.05, 0.0, -1.0))), (Vector((0.2, -0.72, 0.66)), Vector((-0.3, 0.0, -1.0)))]
+# Fewer clumps than the fourth passenger's, and heavier: wet ropes of hair, some stuck across her face.
+hair_parts = her.hair(Matrix(), 21, (0.55, 0.78), colliders, 600, plastered, heavy=1.7)
 bm = her.new_bmesh()
 organs(bm)
 body = her.to_object("organs", bm, [skin, eyes_mat, hair_mat, entrails_material()])
