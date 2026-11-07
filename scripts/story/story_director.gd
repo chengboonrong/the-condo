@@ -455,7 +455,7 @@ func _answer_rosnah() -> void:
 	say("\"Every night also the same. Knock, knock, knock. From your bedroom.\"", 4.0)
 	say("\"Please. Can you stop the knocking?\"", 3.5)
 	say("[The line goes dead.]", 2.5)
-	WorldState.set_objective("You haven't made a sound all night.")
+	WorldState.set_objective("You haven't knocked on anything.")
 	_go(&"complained")
 
 
