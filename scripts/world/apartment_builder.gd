@@ -131,11 +131,14 @@ const OBJECTS := [
 const TRAIL_PATH: Array[Vector3] = [Vector3(1.1, 0.006, 9.5), Vector3(3.0, 0.006, 8.5), Vector3(ApartmentLayout.SPAWN.x, 0.006, 8.45)]
 const TRAIL_PRINTS := 10
 const TRAIL_SWAY := 0.07  # each print lies this far to its side of the line, left and right in turn
-const RED_EARTH := Color(0.42, 0.17, 0.09)
-# One print in (sideways, forward) metres from the foot's middle: the sole, and the heel behind it.
-const SHOE := [
-	[Vector2(-0.04, -0.02), Vector2(0.04, -0.02), Vector2(0.05, 0.05), Vector2(0.04, 0.11), Vector2(0.0, 0.135), Vector2(-0.04, 0.11), Vector2(-0.05, 0.05)],
-	[Vector2(-0.032, -0.135), Vector2(0.032, -0.135), Vector2(0.036, -0.045), Vector2(-0.036, -0.045)],
+const RED_EARTH := Color(0.48, 0.22, 0.1)  # laterite: orange-red, not the dark red of blood
+const PRINT_SIZE := Vector2(0.105, 0.28)  # one print of his work shoes, across and along, in metres
+const TREADS := 4  # the tread texture's cells, heaviest deposit first
+const TOE_OUT := 0.12  # radians each foot turns out from the line
+## The sole's outline for tread_texture(): [toe (0) to heel (1), half-width inside, half-width outside].
+const SOLE := [
+	[0.0, 0.0, 0.0], [0.03, 0.5, 0.55], [0.1, 0.86, 0.84], [0.24, 1.0, 0.96], [0.38, 0.86, 0.92], [0.5, 0.5, 0.8],
+	[0.6, 0.44, 0.76], [0.7, 0.64, 0.78], [0.82, 0.72, 0.78], [0.93, 0.6, 0.64], [0.985, 0.28, 0.32], [1.0, 0.0, 0.0],
 ]
 
 # Label3D: text, pos, yaw (0 faces +z), pixel size, color, requires
@@ -159,6 +162,7 @@ var _gated: Array = []  # [Node3D, requires]
 var _materials: Dictionary = {}
 var _fan: Node3D
 var _plaster_tex: ImageTexture
+static var _tread: ImageTexture  # tread_texture(), made once
 
 
 func _ready() -> void:
@@ -688,25 +692,108 @@ static func footprint_trail() -> Array[Vector3]:
 	return trail
 
 
-## The prints as flat polygons in one mesh (a Decal does not draw in the Compatibility renderer), lit like the
-## floor, and the low box over the living-room stretch that inspects them. The box is 2 cm tall so he walks over it.
+## The prints as flat quads in one mesh (a Decal does not draw in the Compatibility renderer), lit like the floor
+## and blended over it: the tread texture says where the earth stuck. Strongest just inside the door and fainter at
+## each step after, as his soles ran out of earth, each turned and pressed a little differently. Then the low box
+## over the living-room stretch that inspects them, 2 cm tall so he walks over it.
 func _build_footprints() -> void:
 	var trail := footprint_trail()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1147
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in trail.size():
-		var fwd := (trail[mini(i + 1, trail.size() - 1)] - trail[maxi(i - 1, 0)]).normalized()  # along the line, not the sway
-		var side := Vector3(-fwd.z, 0.0, fwd.x)
-		for part: Array in SHOE:
-			Decor._poly(st, part.map(func(q: Vector2) -> Vector3: return trail[i] + side * q.x + fwd * q.y), Vector3.UP, RED_EARTH)
+		var t := i / (trail.size() - 1.0)  # 0 at the door, 1 where he stands
+		var line := (trail[mini(i + 1, trail.size() - 1)] - trail[maxi(i - 1, 0)]).normalized()  # not the sway
+		var out := 1.0 if i % 2 == 0 else -1.0  # which side of the line the foot is on (footprint_trail's sway)
+		var turn := TOE_OUT + rng.randf_range(-0.07, 0.07)
+		var fwd := (line + Vector3(-line.z, 0.0, line.x) * out * tan(turn)).normalized()
+		var side := Vector3(-fwd.z, 0.0, fwd.x) * out  # towards the foot's outer edge
+		var cell := clampi(roundi(t * (TREADS - 1) + rng.randf_range(-0.5, 0.5)), 0, TREADS - 1)
+		var earth := Color(RED_EARTH, clampf(lerpf(0.95, 0.5, t) + rng.randf_range(-0.07, 0.07), 0.0, 1.0))
+		var corners := []
+		var uv := []
+		for c: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:  # (across, toe to heel)
+			corners.append(trail[i] + side * c.x * PRINT_SIZE.x * 0.5 - fwd * c.y * PRINT_SIZE.y * 0.5)
+			uv.append(Vector2((cell + (c.x + 1.0) * 0.5) / TREADS, (c.y + 1.0) * 0.5))
+		Decor._poly(st, corners, Vector3.UP, earth, uv)
 	var prints := MeshInstance3D.new()
 	prints.name = "Footprints"
 	prints.mesh = st.commit()
-	prints.material_override = _material(RED_EARTH)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tread_texture()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.95  # dried earth
+	prints.material_override = m
 	prints.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(prints)
 	_build_object([&"footprints", Vector3(4.65, 0.01, 8.45), Vector3(2.9, 0.02, 0.5), "Look at the footprints", "Footprints",
 		"Red earth, from the mountain road. You don't remember walking in."])
+
+
+## The tread of his work shoes printed in earth, TREADS cells side by side, each leaving less than the last: white,
+## its alpha the earth left on the tile, x across (the outer edge at the right), y from the toe down to the heel.
+## The rim and the lugs print, packed earth fills the grooves in places, the arch barely touches, and the earth breaks
+## into patches and crumbs at a ragged edge, more in each cell. Made in code, once.
+static func tread_texture() -> ImageTexture:
+	if _tread:
+		return _tread
+	var w := 48
+	var h := 128
+	var patches := FastNoiseLite.new()
+	patches.seed = 1147
+	patches.frequency = 0.06
+	var grit := FastNoiseLite.new()
+	grit.seed = 2026
+	grit.frequency = 0.45
+	var img := Image.create(w * TREADS, h, false, Image.FORMAT_LA8)
+	for cell in TREADS:
+		var lost := 0.12 + 0.11 * cell
+		for py in h:
+			for px in w:
+				var gx := cell * w + px
+				var x := (px + 0.5) / w * 2.2 - 1.1
+				var y := (py + 0.5) / h
+				var patch := patches.get_noise_2d(gx, py) * 0.5 + 0.5
+				var g := grit.get_noise_2d(gx, py) * 0.5 + 0.5
+				var inside := _sole_half(y, x > 0.0) - absf(x) + (patches.get_noise_2d(gx * 4.0 + 900.0, py * 4.0) * 0.1)
+				var a := 0.0
+				if inside > 0.0:
+					var lug: float
+					if y > 0.7:  # the heel block: bars across
+						lug = 1.0 - smoothstep(0.55, 0.7, fposmod(y * 15.0, 1.0))
+					else:  # the sole: small lugs laid like bricks
+						var row := floorf(y * 19.0)
+						var col := fposmod((x + 1.1) * 2.7 + 0.5 * fposmod(row, 2.0), 1.0)
+						lug = (1.0 - smoothstep(0.62, 0.78, fposmod(y * 19.0, 1.0))) * (1.0 - smoothstep(0.7, 0.85, col))
+					if inside < 0.12:
+						lug = 1.0  # the rim prints whole
+					var packed := smoothstep(0.45, 0.75, patches.get_noise_2d(gx * 2.0 + 400.0, py * 2.0) * 0.5 + 0.5)
+					var arch := smoothstep(0.38, 0.5, y) * (1.0 - smoothstep(0.62, 0.72, y))
+					var press := 1.0 - arch * (0.75 if x < 0.0 else 0.15)
+					a = smoothstep(0.0, 0.05, inside) * press * lerpf(0.35, 1.0, maxf(lug * (0.55 + 0.45 * g), packed))
+					a *= smoothstep(lost - 0.1, lost + 0.1, patch * (0.7 + 0.3 * press))
+					if g < lost * 0.4:
+						a = 0.0  # crumbled away
+				elif inside > -0.25 and g > 0.86 and patch > 0.45:
+					a = 0.6  # crumbs knocked off the edge
+				var l := 0.8 + 0.2 * g  # thicker earth is darker
+				img.set_pixel(gx, py, Color(l, l, l, clampf(a, 0.0, 1.0)))
+	img.generate_mipmaps()
+	_tread = ImageTexture.create_from_image(img)
+	return _tread
+
+
+## Half the sole's width (1 at the ball) on its inner (arch) or outer side, from the toe (y 0) to the heel (1).
+static func _sole_half(y: float, outer: bool) -> float:
+	for i in range(1, SOLE.size()):
+		if y <= SOLE[i][0]:
+			var k: float = inverse_lerp(SOLE[i - 1][0], SOLE[i][0], y)
+			return lerpf(SOLE[i - 1][2 if outer else 1], SOLE[i][2 if outer else 1], k)
+	return 0.0
 
 
 func _build_label(l: Array) -> void:
