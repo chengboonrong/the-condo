@@ -236,9 +236,9 @@ most).
   not, it pulls into a lay-by and goes dark. Each overtake sends `her_glimpse`.
 * Mission 3: whatever he answers, Mei counts three for herself, Hafiz brakes and the seat in the mirror is empty and
   wet. Turning to her shows her to him for 0.3 s (`fourth_glimpse`). Then a thought says nobody speaks and Hafiz drives
-  faster: Mission 4's cruise is 17 m/s (`StallMission.CRUISE_SPEED`), 58 s to the car dying in the keeper bot where
-  9 m/s took 112 s. The car dies `roll_distance` short of `STOP_S` and rolls to a stop at 2.25 m/s² (7.6 s from 17
-  m/s), as the ride lets it slow no faster than 2.5.
+  faster: Mission 4's cruise is 14 m/s (`StallMission.CRUISE_SPEED`, Mission 2's `PASS_SPEED`), 71 s to the car dying
+  in the keeper bot where 9 m/s took 112 s. The car dies `roll_distance` short of `STOP_S` and rolls to a stop at
+  2.25 m/s² (6.2 s from 14 m/s), as the ride lets it slow no faster than 2.5.
 * Mission 4: opening his door cracks it a hand's width before something slaps it shut. If Mei is not stopped, her door
   does the same. The voice outside sounds like Hafiz's. Mei reaches for her door whatever he answers the voice.
 * Mission 5: the light is 150 m on from where the car died. The walk is over 4 m short of it (`alive`, `saved`) or where
@@ -391,7 +391,7 @@ clicked is not.
 
 * `tests/sim/road_playthrough.gd` (`RoadPlaythrough`) plays the core headless with a `RoadStage`: three bots, on seeds
   1147, 7 and 2026. `keeper` keeps every rule and ends `alive` with score 0, `wobbly` ends `saved` with 4 and `breaker`
-  ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 526 s of sim time (8.8 minutes; the test accepts 7 to 15
+  ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
   minutes) on all three seeds. That is a lower bound for a person, because the bot answers in a second and walks
   straight, and it is not a playtest.
 * `tools/road_stills.sh <dir>` renders 46 stills of the road, one PNG per shot, and a contact sheet. Each starts its
@@ -628,7 +628,7 @@ where each moment is heard; it is not a bound for every place, and for the thump
 * **The rev and the sputter** both play from a pool player that stays where it started, and the car leaves it. At the
   overtake the car pulls out at 4 m/s and speeds up at 2.5 m/s², so the rev is 5 m behind him by the file's loudest,
   1 s in: the cap no longer holds there and the play level counts (at +3 it is at the cap to 3 m). As it dies the car
-  rolls on from 9 m/s (17 now, since Hafiz drives faster after the fourth passenger; not measured again), so the
+  rolls on from 9 m/s (14 now, since Hafiz drives faster after the fourth passenger; not measured again), so the
   sputter passes his right shoulder 0.6 m off and falls behind. As heard, its loudest 50 ms
   and its loudest sample both come in its first half-second, at the cap, so past +1 the play level adds nothing and only
   the file can raise it. The file's own loudest 50 ms and sample are at 2.25 s (1.0 and 1.8 dB over the first

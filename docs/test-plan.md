@@ -32,7 +32,7 @@ Simulated playthroughs are bots, not people. They are never reported as human pl
 `godot --headless --path . --script res://tools/playthroughs.gd` rewrites `docs/playthroughs.md` with each
 bot's event sequence, director scores, progression, completion, errors and warnings. The road's bots are checked by
 `test_road_playthroughs.gd` and write no record: the keeper ends `alive` with score 0, the wobbly one `saved` with 4 and
-the breaker `caught` with 16. The keeper reaches `alive` at 526 s of sim time (8.8 minutes; the test accepts 7 to 15
+the breaker `caught` with 16. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
 minutes), a lower bound for a person, because the bot answers in a second and walks straight.
 
 `docs/playthroughs.md` also has `## After the road`: the same three bots in the flat after each road ending

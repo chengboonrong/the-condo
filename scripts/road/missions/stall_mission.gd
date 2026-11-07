@@ -8,10 +8,10 @@ extends RoadMission
 ## Beats: cruise (to the long straight), dying, cranking, hafiz_leaves, waiting, thumps, voice, mei, knocks, quiet,
 ## light.
 
-const CRUISE_SPEED := 17.0  # Hafiz drives faster after the empty seat (CountMission.NOBODY): at 9 the stretch took 112 s
+const CRUISE_SPEED := 14.0  # Hafiz drives faster after the empty seat (CountMission.NOBODY), as fast as Mission 2's pass; at 9 the stretch took 112 s
 const STOP_S := 2000.0  # where the car stands, on the long straight; the next mission takes it up here
 ## m/s², the car rolling to a stop, slowing evenly: it dies roll_distance() short of STOP_S, and stands 4 s later from
-## 9 m/s, 7.6 s from CRUISE_SPEED. Under RoadDirector.ACCEL, as the ride slows the car no faster than that, so a firmer roll
+## 9 m/s, 6.2 s from CRUISE_SPEED. Under RoadDirector.ACCEL, as the ride slows the car no faster than that, so a firmer roll
 ## would not be followed and would stand it past STOP_S.
 const ROLL_DECEL := 2.25
 const LIGHT_AHEAD := 150.0  # metres on from the car to the light, and the stall the next mission walks to

@@ -45,13 +45,13 @@ func test_the_keeper_takes_seven_to_fifteen_minutes() -> bool:
 
 
 ## After the fourth passenger vanishes nobody speaks and Hafiz drives faster (CountMission.NOBODY): the drive to the long
-## straight was 112 s of cruising at 9 m/s, and is about a minute now.
-func test_the_drive_after_the_count_takes_about_a_minute() -> bool:
+## straight was 112 s of cruising at 9 m/s, and is about 70 s now (14 m/s, as fast as Mission 2's pass).
+func test_the_drive_after_the_count_takes_about_70_seconds() -> bool:
 	var r: Dictionary = RoadPlaythrough.run("keeper", 1147)
 	var at := {}
 	for g: Dictionary in r["progress"]:
 		if g["mission"] == 3:  # the stall, the fourth mission
 			at[g["beat"]] = g["t"]
 	check(at.has(&"cruise") and at.has(&"dying"), "(the keeper cruises and then the car dies)")
-	check(float(at.get(&"dying", 0.0)) - float(at.get(&"cruise", 0.0)) <= 62.0, "the cruise takes about a minute or less (%.1f s)" % (float(at.get(&"dying", 0.0)) - float(at.get(&"cruise", 0.0))))
+	check(float(at.get(&"dying", 0.0)) - float(at.get(&"cruise", 0.0)) <= 74.0, "the cruise takes about 70 s or less (%.1f s)" % (float(at.get(&"dying", 0.0)) - float(at.get(&"cruise", 0.0))))
 	return true

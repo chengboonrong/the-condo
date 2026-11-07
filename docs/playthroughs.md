@@ -287,9 +287,9 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 
 | Bot | Plays like | Ending | Score | Sim time | Rules broken | Errors | Warnings |
 |---|---|---|---|---|---|---|---|
-| keeper | keeps every rule | alive | 0 | 8:46.0 | none | 0 | 0 |
-| wobbly | says overtake at the third slow car, asks why before counting three, looks back once on the walk | saved | 4 | 8:43.0 | overtook 1, looked_back 3 | 0 | 0 |
-| breaker | stays silent at the choices, turns to the fourth and counts four, opens the door, looks back twice | caught | 16 | 8:28.8 | overtook 1, overtook 1, overtook 1, turned_round 1, counted_her 1, opened_door 2, mei_opened 1, looked_back 3, mei_looked 1, looked_back 3, mei_looked 1 | 0 | 0 |
+| keeper | keeps every rule | alive | 0 | 8:57.6 | none | 0 | 0 |
+| wobbly | says overtake at the third slow car, asks why before counting three, looks back once on the walk | saved | 4 | 8:50.8 | overtook 1, looked_back 3 | 0 | 0 |
+| breaker | stays silent at the choices, turns to the fourth and counts four, opens the door, looks back twice | caught | 16 | 8:30.5 | overtook 1, overtook 1, overtook 1, turned_round 1, counted_her 1, opened_door 2, mei_opened 1, looked_back 3, mei_looked 1, looked_back 3, mei_looked 1 | 0 | 0 |
 
 ## keeper (the road)
 
@@ -319,19 +319,19 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 | 4:41.4 | 3 | asked |
 | 4:42.5 | 3 | empty |
 | 4:49.7 | 4 | cruise |
-| 5:47.8 | 4 | dying |
-| 5:55.5 | 4 | cranking |
-| 6:02.1 | 4 | hafiz_leaves |
-| 6:10.2 | 4 | waiting |
-| 6:30.2 | 4 | thumps |
-| 6:45.3 | 4 | voice |
-| 6:47.9 | 4 | mei |
-| 6:50.1 | 4 | knocks |
-| 6:55.2 | 4 | quiet |
-| 7:05.3 | 4 | light |
-| 7:09.4 | 5 | get_out |
-| 7:09.9 | 5 | walk |
-| 8:16.5 | 5 | alive |
+| 6:00.7 | 4 | dying |
+| 6:07.1 | 4 | cranking |
+| 6:13.7 | 4 | hafiz_leaves |
+| 6:21.8 | 4 | waiting |
+| 6:41.8 | 4 | thumps |
+| 6:56.9 | 4 | voice |
+| 6:59.5 | 4 | mei |
+| 7:01.7 | 4 | knocks |
+| 7:06.8 | 4 | quiet |
+| 7:16.9 | 4 | light |
+| 7:21.0 | 5 | get_out |
+| 7:21.5 | 5 | walk |
+| 8:28.1 | 5 | alive |
 
 ## wobbly (the road)
 
@@ -364,19 +364,19 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 | 5:07.0 | 3 | asked_again |
 | 5:08.1 | 3 | empty |
 | 5:15.3 | 4 | cruise |
-| 5:56.6 | 4 | dying |
-| 6:04.3 | 4 | cranking |
-| 6:10.9 | 4 | hafiz_leaves |
-| 6:19.0 | 4 | waiting |
-| 6:39.0 | 4 | thumps |
-| 6:54.1 | 4 | voice |
-| 6:56.7 | 4 | mei |
-| 6:58.9 | 4 | knocks |
-| 7:04.0 | 4 | quiet |
-| 7:14.1 | 4 | light |
-| 7:18.2 | 5 | get_out |
-| 7:18.7 | 5 | walk |
-| 8:25.4 | 5 | saved |
+| 6:05.8 | 4 | dying |
+| 6:12.2 | 4 | cranking |
+| 6:18.8 | 4 | hafiz_leaves |
+| 6:26.9 | 4 | waiting |
+| 6:46.9 | 4 | thumps |
+| 7:02.0 | 4 | voice |
+| 7:04.6 | 4 | mei |
+| 7:06.8 | 4 | knocks |
+| 7:11.9 | 4 | quiet |
+| 7:22.0 | 4 | light |
+| 7:26.1 | 5 | get_out |
+| 7:26.6 | 5 | walk |
+| 8:33.2 | 5 | saved |
 
 ## breaker (the road)
 
@@ -411,16 +411,16 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 | 5:23.1 | 3 | counting |
 | 5:26.1 | 3 | empty |
 | 5:33.3 | 4 | cruise |
-| 5:45.4 | 4 | dying |
-| 5:53.1 | 4 | cranking |
-| 5:59.7 | 4 | hafiz_leaves |
-| 6:07.8 | 4 | waiting |
-| 6:27.8 | 4 | thumps |
-| 6:42.9 | 4 | voice |
-| 6:50.5 | 4 | mei |
-| 6:55.6 | 4 | knocks |
-| 7:00.7 | 4 | quiet |
-| 7:10.8 | 4 | light |
-| 7:14.9 | 5 | get_out |
-| 7:15.4 | 5 | walk |
-| 8:10.2 | 5 | caught |
+| 5:48.4 | 4 | dying |
+| 5:54.8 | 4 | cranking |
+| 6:01.4 | 4 | hafiz_leaves |
+| 6:09.5 | 4 | waiting |
+| 6:29.5 | 4 | thumps |
+| 6:44.6 | 4 | voice |
+| 6:52.2 | 4 | mei |
+| 6:57.3 | 4 | knocks |
+| 7:02.4 | 4 | quiet |
+| 7:12.5 | 4 | light |
+| 7:16.6 | 5 | get_out |
+| 7:17.1 | 5 | walk |
+| 8:11.9 | 5 | caught |

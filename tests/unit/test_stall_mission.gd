@@ -199,7 +199,7 @@ func test_the_light_is_150_m_on() -> bool:
 	_setup()
 	_play({&"answer_voice": 1, &"stop_mei": 0}, 0, 30.0)
 	near(stopped_at, 2000.0, 2.0, "the car stands on the long straight, about where the next mission takes it up")
-	near(stopped_after, StallMission.CRUISE_SPEED / StallMission.ROLL_DECEL, 0.15, "its speed eases to nothing at ROLL_DECEL, 7.6 s from 17 m/s")
+	near(stopped_after, StallMission.CRUISE_SPEED / StallMission.ROLL_DECEL, 0.15, "its speed eases to nothing at ROLL_DECEL, 6.2 s from 14 m/s")
 	near(d.light_s, stopped_at + 150.0, 0.001, "the light is 150 m on from where it stood")
 	_teardown()
 	_setup()
