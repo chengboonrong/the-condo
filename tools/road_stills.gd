@@ -13,7 +13,7 @@ extends SceneTree
 #  where the shot has him), as the mission's begin() would, a number among them being seconds to let them play out;
 #  optional: where she is, held still: seconds into a glimpse cued where the car is, played on a frame at a time as
 #  Mission 2 drives (slowing from the car's speed), [metres ahead of the camera, metres up], "roof": on the car's
-#  roof, "behind": behind him, or "cued": wherever the cues left her]
+#  roof, "behind": behind him, "lunge": right behind him as he looks back, or "cued": wherever the cues left her]
 # Cues stay played (a dead car stays dead), so the shots that send the stall's come last, and the walk's after them.
 const SHOTS := [
 	["road_exit", 0, -63.0, -1.0, 0.75, -0.05, 0.0, false],  # the staff exit in the resort's back wall, its lamp, its bin
@@ -61,6 +61,10 @@ const SHOTS := [
 	# the light ahead as he walks to it, from 75 m, 35 m and 8 m: the haze gives way to the bulb at the closed stall
 	["walk_light", "LightMission", 2075.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [], "behind"],
 	["walk_near", "LightMission", 2115.0, 3.3, 0.0, 0.0, 0.0, true, {}, &"", [], "behind"],
+	# checking only, never published: he looks back on the walk after one counted look, and she is right behind him, by
+	# her own fill alone and with his phone light on
+	["lunge", "LightMission", 2100.0, 3.3, PI, 0.0, 0.36, false, {"her_near": 0.36}, &"", [], "lunge"],
+	["lunge_phone", "LightMission", 2100.0, 3.3, PI, 0.0, 0.36, true, {"her_near": 0.36}, &"", [], "lunge"],
 	["stall", "LightMission", 2142.0, 3.3, 0.15, -0.12, 0.0, false],
 	# checking only, never published: each ending (saved first: alive takes the phone off the table)
 	["ending_saved", "LightMission", 2146.0, 3.3, 0.35, -0.3, 0.24, false, {}, &"", [&"phone_rings", 0.5]],  # his phone rings on the table
@@ -175,6 +179,9 @@ func _initialize() -> void:
 		if s.size() > 11 and not cued:
 			if s[11] is String and s[11] == "behind":
 				her.behind(player)
+			elif s[11] is String and s[11] == "lunge":
+				her.behind(player)
+				her.lunge(player.camera)
 			elif s[11] is String:  # "roof"
 				her.on_roof(road.car)
 			elif s[11] is float:

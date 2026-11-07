@@ -576,6 +576,32 @@ def lorry_brake():
     return fade(out, 0.002, 0.2)
 
 
+def shriek():
+    """Her shriek in his face when he looks back: a woman's voice torn high and rough, 0.8 s. It leaps to about 1.2 kHz
+    in 60 ms, wavers, and sinks as it dies; the mouth wide open (peaks at 1.3, 2.6 and 3.6 kHz), every other cycle
+    louder (a growl under the pitch), a rasp of breath through it, and overdriven. Nothing in it swells: it is apart
+    from the stinger's low rise."""
+    r = random.Random(1317)
+    L = 0.8
+    n = int(L * SR)
+    wander = normalize(lowpass(noise(L, r), 25), 1.0)  # the pitch wavers
+    rasp = highpass(lowpass(noise(L, r), 6000), 1500)
+
+    def mouth(f):
+        return sum(a / (1 + ((f - c) / w) ** 2) for c, w, a in ((1300, 400, 1.0), (2600, 500, 0.7), (3600, 600, 0.4)))
+
+    voice, ph = [], 0.0
+    for i in range(n):
+        t = i / SR
+        f0 = 650 + 550 * min(1.0, t / 0.06) - 350 * max(0.0, t - 0.35) / 0.45  # leaps up, holds, sinks as it dies
+        f0 *= 1 + 0.04 * wander[i] + 0.01 * math.sin(2 * math.pi * 7 * t)
+        ph += 2 * math.pi * f0 / SR
+        v = sum(mouth(k * f0) * math.sin(k * ph) / math.sqrt(k) for k in range(1, int(9000 / f0) + 1))
+        voice.append(v * (1 + 0.4 * math.sin(ph / 2)) + 0.25 * rasp[i])
+    voice = normalize(voice, 1.0)
+    return fade([math.tanh(1.5 * min(1.0, i / SR / 0.015) * (1 - 0.4 * i / n) * v) for i, v in enumerate(voice)], 0.002, 0.25)
+
+
 def road_sounds():
     """Every sound the road's tasks name. Six are loops, imported with edit/loop_mode=2 and only ever started with
     RoadAudio.set_loop: the three _loop files, the indicator (one flash), the phone (one ring) and the lorry's idle.
@@ -602,6 +628,7 @@ def road_sounds():
     save_db("phone_ring_mobile", phone_ring_mobile(), -19.0, loop=True, half=True)
     save_db("lorry_idle", lorry_idle(), -20.0, loop=True, half=True)
     save_db("lorry_brake", lorry_brake(), -21.0, half=True)
+    save_db("shriek", shriek(), KNOCK_DB)  # full rate: 0.7% of its power is above 8 kHz
 
 
 def thump3():

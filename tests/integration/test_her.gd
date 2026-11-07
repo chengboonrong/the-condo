@@ -267,6 +267,55 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	return true
 
 
+## He looks back on the walk and she is right behind him: in his face where he looks, at his eye height, lit by her own
+## fill, captioned; half a second on she pulls back to where she follows, her fill fading out on the way.
+func test_lunge_puts_her_in_his_face_then_back() -> bool:
+	var her := _her()
+	her.director.her_near = 0.36  # one counted look (0.12 x 3): she follows 13 m back
+	her.audio = RoadAudio.new()
+	tree.root.add_child(her.audio)
+	var walker := Node3D.new()
+	tree.root.add_child(walker)
+	walker.global_position = RoadLayout.point(900.0)
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = walker.global_position + Vector3.UP * 1.6
+	camera.rotation.y = RoadBuilder.yaw_along(900.0) + PI  # looking back up the road
+	var captions := []
+	var on_caption := func(text: String, _seconds: float) -> void: captions.append(text)
+	EventBus.subtitle_requested.connect(on_caption)
+	her.behind(walker)
+	await _frames(2)
+	her.lunge(camera)
+	await _frames(1)
+	var to := her.global_position - camera.global_position
+	near(to.length(), Penanggal.LUNGE_AT, 0.02, "she is LUNGE_AT from his eyes")
+	near(her.global_position.y, camera.global_position.y, 0.02, "at their height")
+	check(to.normalized().dot(-camera.global_basis.z) > 0.98, "where he looks")
+	var face := her.global_basis.z.slide(Vector3.UP).normalized()
+	near(face.dot(-to.slide(Vector3.UP).normalized()), 1.0, 0.02, "her face to him")
+	check(her.fill.is_visible_in_tree() and her.fill.light_energy > 0.0, "lit by her own fill")
+	eq(captions, [Penanggal.LUNGE_CAPTION], "and captioned, once")
+	for id: StringName in [&"stinger", &"shriek"]:
+		check(her.audio.here.has(id) and her.audio.here[id].playing, "%s, in his head" % id)
+	await _frames(roundi((Penanggal.LUNGE_HOLD + 0.5) * 60.0))
+	var away := her.global_position.distance_to(camera.global_position)
+	check(away >= 2.2, "half a second after the hold she has pulled back (%.2f m)" % away)
+	await _frames(roundi((3.0 - Penanggal.LUNGE_HOLD - 0.5) * 60.0))
+	check(her.global_position.distance_to(her._behind_point()) < 0.5, "3 s on she follows where she did")
+	eq(her.fill.light_energy, 0.0, "and her fill is out")
+	her.lunge(camera)
+	await _frames(20)
+	her.lunge(camera)  # he looks back again mid-hold: it starts over
+	await _frames(20)  # past where the first hold would have ended
+	near(her.global_position.distance_to(camera.global_position), Penanggal.LUNGE_AT, 0.02, "a second lunge mid-hold starts it over")
+	EventBus.subtitle_requested.disconnect(on_caption)
+	her.hide_her()
+	her.lunge(camera)
+	check(not her.visible, "hidden, she does not lunge")
+	return true
+
+
 ## Seen from the back seat her insides hang past his window, but nothing of hers is inside the car's body.
 func test_on_the_roof_nothing_passes_through_the_car() -> bool:
 	var car := CarRig.new()

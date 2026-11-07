@@ -221,7 +221,7 @@ most).
   does the same. The voice outside sounds like Hafiz's. Mei reaches for her door whatever he answers the voice.
 * Mission 5: the light is 150 m on from where the car died. The walk is over 4 m short of it (`alive`, `saved`) or where
   the bulb dies (`caught`). Every beat is timed by the core, never by the presentation, because the bots play it with
-  none.
+  none. Each look back that counts sends `her_lunges` right after its `rule_broken` (`watch_look`'s cue): the scare.
 
 ### How the road ends
 
@@ -282,6 +282,7 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `light_on` | Mission 4, when it goes quiet | the fruit stall's bulb and the far light come on, Mei leans in to see it, she is gone from the roof |
 | `get_out` | Mission 5 | his door swings, Mei's is heard, and Mei gets out and walks beside him |
 | `her_behind` | Mission 5 | she follows him along the road, 18 m behind with no rule broken, 4 m at her nearest |
+| `her_lunges` | Mission 5, each time a look back counts (at most twice) | she is right behind him: in his face where he looks, with the stinger, her shriek and "[She is right behind you.]"; half a second later she pulls back to where she follows |
 | `mei_looks` | Mission 5, if he did not hold her hand | Mei looks back for 2.5 s |
 | `hafiz_at_stall` | Mission 5, `alive` decided | `Endings`: Hafiz walks up to the stall |
 | `walk_over` | Mission 5, 4 m short of the light (`caught`: where it is decided) | `Endings`: Mei stops where she is |
@@ -315,7 +316,7 @@ the fog, places the car, seats him and drives the loops.
 | `Lorry` | `scripts/road/lorry.gd` | Passes in Mission 1; in the endings it comes down the walkers' lane and pulls up, yielding to anyone in its way. |
 | `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`, 1 m in from the lane's centre towards the line so that it shows past Mei's head. |
 | `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, and the six loops. |
-| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, flying, catching someone, or coming for the camera. Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Her sounds are wet, and none is a sting. |
+| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, right behind him when he looks back (`lunge`), flying, catching someone, or coming for the camera. Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Her sounds are wet, but for the look-back's sting. |
 | `Endings` | `scripts/road/endings.gd` | The fruit stall, its bulb, the phones, Hafiz's walk and each ending's moments. |
 | `PauseMenu` | `scripts/ui/pause_menu.gd` | The flat's, with its web guard for a lost pointer lock. |
 
@@ -323,11 +324,25 @@ the fog, places the car, seats him and drives the loops.
   intestines hanging beneath it (`art/penanggal/`). In the `caught` ending a man is knocked down and a dark pool spreads
   under him (a shader in `her.gd`). Both stay out of every published image and the README, and the start card, the
   README and the itch page carry the warning (`docs/research/2026-11-06-gore-rules.md`).
+* **The look-back.** On the walk she follows him (`behind`), and each look back that counts (`her_lunges`) is the
+  game's jump-scare (`Penanggal.lunge`). In the same frame she is 0.5 m from his eyes to her skull's centre
+  (`LUNGE_AT`), along his view made level, at his eye height, facing him: her 0.26 m head fills a third of his 72° view
+  from 0.54 m in, so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not
+  positional, so at exactly their play levels) and "[She is right behind you.]" goes out on `subtitle_requested`.
+  After 0.5 s (`LUNGE_HOLD`) she is `behind` again from where she is, and goes back to where she follows at 6 m/s; a
+  second look back during it starts it over. It only ever happens from `behind`, so never after the endings move her.
+  For it she carries her own fill: an unshadowed omni light in front of her face and above it, dim (0.5) and steady,
+  that fades out as she goes back, by the share of the way left, and is off in every other place. Without it her
+  face, with his phone light off (it starts off), is a black shape in the fog. It lights render layer 12 alone, which
+  only her mesh is on. The warm-up's omni light draws her under it (an unshadowed omni light is one of its states).
 * **Render layer 11** (see the layers table) is the mirror's alone: the fourth passenger and the wet patch she leaves.
   The mirror's camera draws it, the player's camera (cull mask 1047551) leaves it out, except for the 0.3 s glimpse.
   In the warm-up only, a picture of a viewport goes on layer 20 (`PICTURE_LAYER`) so the mirror's camera leaves it
   out: drawn into its own viewport it would read the texture it writes, which WebGL refuses.
-* **Sounds.** The road's sounds go through `EventBus.sound_requested` like the flat's. The levels are in "Audio levels".
+* **Render layer 12** is hers (`Penanggal.LAYER`): her mesh is on it as well as layer 1, and her fill lights it alone,
+  so it lights nothing else on the road.
+* **Sounds.** The road's sounds go through `EventBus.sound_requested` like the flat's, but for the look-back's sting,
+  which plays in his head (`RoadAudio.play_here`). The levels are in "Audio levels".
   The stall's sounds are played now: the lorry idling and braking, the phone ringing as a loop, her wet flap and drip.
 * **Text.** He never speaks: his options are captions he chooses between. Every line is a caption: `Name: "…"`
   for what is said, `[…]` for a sound or a thought.
@@ -352,7 +367,7 @@ clicked is not.
   ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 576 s of sim time (9.6 minutes; the test accepts 7 to 15
   minutes) on all three seeds. That is a lower bound for a person, because the bot answers in a second and walks
   straight, and it is not a playtest.
-* `tools/road_stills.sh <dir>` renders 44 stills of the road, one PNG per shot, and a contact sheet. Each starts its
+* `tools/road_stills.sh <dir>` renders 46 stills of the road, one PNG per shot, and a contact sheet. Each starts its
   mission as `--mission` does and the simulation stands still. Stills made for checking stay out of the repository.
 * `-- --perf` runs `RoadPerf`, about 49 s through the road's heaviest moments, before the flat's tour
   ([performance.md](performance.md)).
@@ -495,6 +510,8 @@ were not re-checked against this.
 | Thump ×1 (the wall answers, after the road) | −14.6 | 0 | −14.6 |
 | Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
 | Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
+| Stinger, as he looks back and she is right behind him (the road, in his head) ‡ | −8.5 | −8 | −16.5 |
+| Her shriek, with it (the road, in his head) ‡ | −14.6 | −2 | −16.6 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
 | Door opening (the player) | −6.9 | −11 | −17.9 |
 | Phone ringing on the table (the road, loop: one ring) | −19.0 | 0 | −19.0 |
@@ -531,7 +548,7 @@ indicator (while Hafiz signals), the rev (as he pulls out), the stall's sounds (
 the starter cranking twice, the thump on the roof, the knocks on Mei's window and the slap of her door), her wet flap,
 drip and breath (from where she is, falling off past 3 m), and, in one ending, the phone ringing on the fruit stall's
 table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
-than the single knock (−14.6) and none is a sting. Close to his head the † rows pass it: the rev (−13.0) is 1.6 dB over
+than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: the rev (−13.0) is 1.6 dB over
 it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump (−15.5) and the window knock (−16.0)
 stay under it. Six of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the three `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
@@ -539,6 +556,19 @@ indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s,
 the crank, her breath and the phone) are saved at 22.05 kHz, because the pack is charged by the second of audio: at
 44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the lorry loses about 1.3% of its power
 above 11 kHz (its tyre hiss). The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.
+
+The rows marked ‡ are the look-back's sting (`Penanggal.lunge`): the flat's stinger and her shriek (`shriek()` in
+`tools/gen_audio.py`: a woman's voice torn high and rough, 0.8 s at 44.1 kHz, 0.7% of its power above 8 kHz, saved at
+the knock's −14.6). They are played together in his head with `RoadAudio.play_here`, one non-positional player each,
+so they are heard at exactly file + play level and the +3 dB cap never applies. Their play levels are set by their
+peaks, not their loudness: in the real-play recording at the master volume as shipped (0.8, −1.94 dB on bus 0) nothing
+may peak above the loudest peak there now (−6.1 dBTP). The files peak at 0.800 (the stinger, −1.94 dBFS) and 0.325 (the
+shriek, −9.78 dBFS). At −8 and −2 dB and then the master they peak at 0.255 (−11.88 dBFS) and 0.206 (−13.71 dBFS), and
+the two peaks summed, as if they fell on the same sample, are 0.461: −6.73 dBFS, 0.63 dB under the limit. As mixed,
+started together, the pair peaks at −7.13 dBFS. Their loudest 100 ms together is −13.8 dB before the master, so the
+sting is the loudest sound of the walk by loudness (his steps on asphalt are about −34, her wet flap −27), not by peak.
+The stinger's file level here is measured as `tools/gen_audio.py` measures the road's (its loudest 100 ms, −8.49); the
+flat's row above has −8.8.
 
 The rows marked "after the road" are the flat's own sounds that the road changes (`bridge_sounds()` in `tools/gen_audio.py`).
 The thumps are `thump_roof`'s body at knock3's timing and the knock's level, so the story's bedroom knocks are the roof's
@@ -566,6 +596,7 @@ Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pas
 |---|---|
 | 1 | everything the player's camera draws (Godot's default) |
 | 11 | mirror only: the road's fourth passenger and the wet patch she leaves (`Mirror`). The rear-view mirror's camera draws it; the player's camera (`scenes/player/player.tscn`, cull mask 1047551) leaves it out, except for her 0.3 s glimpse when he turns round to her. Her fill light lights layer 11 alone. |
+| 12 | the penanggal (`Penanggal.LAYER`), on it as well as layer 1: her own fill at the look-back lights layer 12 alone, so it lights her and nothing else. Every camera draws it. |
 
 Room membership comes from `ApartmentLayout.room_at(position)` (a point-in-rect test against the
 active variant's rects), not from Area3D triggers, so it is exact and identical in simulation.

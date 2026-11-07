@@ -2,7 +2,8 @@ class_name RoadAudio
 extends Node
 ## The road's sounds. EventBus.sound_requested plays through a pool of positional players, as AudioDirector plays the
 ## flat's, with asphalt under his feet. The loops (the engine, the insects, the slow car, the indicator, the phone) are
-## only ever started, changed and stopped with set_loop. Levels: docs/architecture.md, "Audio levels".
+## only ever started, changed and stopped with set_loop. A sound in his head (the sting when he looks back) is played
+## with play_here. Levels: docs/architecture.md, "Audio levels".
 
 const SOUNDS := {
 	&"switch": preload("res://assets/audio/switch.wav"),  # his phone light
@@ -18,6 +19,8 @@ const SOUNDS := {
 	&"starter_crank": preload("res://assets/audio/starter_crank.wav"),  # and not starting
 	&"thump_roof": preload("res://assets/audio/thump_roof.wav"),  # something landing on it
 	&"knock_glass": preload("res://assets/audio/knock_glass.wav"),  # on Mei's window
+	&"stinger": preload("res://assets/audio/stinger.wav"),  # the flat's, as he looks back and she is right behind him
+	&"shriek": preload("res://assets/audio/shriek.wav"),  # and hers
 }
 const STEPS := [
 	preload("res://assets/audio/road_step_1.wav"), preload("res://assets/audio/road_step_2.wav"),
@@ -35,6 +38,7 @@ const LOOPS := {
 const POOL_SIZE := 8
 
 var loops: Dictionary = {}  # loop id -> its AudioStreamPlayer, from the first time set_loop starts it
+var here: Dictionary = {}  # sound id -> its AudioStreamPlayer, from the first time play_here plays it
 
 var _pool: Array[AudioStreamPlayer3D] = []
 var _next := 0
@@ -64,6 +68,22 @@ func play_at(sound_id: StringName, pos: Vector3, volume_db: float) -> void:
 	p.global_position = pos
 	p.volume_db = volume_db
 	p.pitch_scale = _rng.randf_range(0.94, 1.06) if step else 1.0
+	p.play()
+
+
+## One of SOUNDS in his head, from the start: not positional, so it is heard at exactly `volume_db` and never meets
+## the +3 dB cap (max_db) that a positional player at his camera holds whatever it is played at.
+func play_here(sound_id: StringName, volume_db: float) -> void:
+	if not SOUNDS.has(sound_id):
+		push_warning("unknown sound %s" % sound_id)
+		return
+	var p: AudioStreamPlayer = here.get(sound_id)
+	if p == null:
+		p = AudioStreamPlayer.new()
+		p.stream = SOUNDS[sound_id]
+		add_child(p)
+		here[sound_id] = p
+	p.volume_db = volume_db
 	p.play()
 
 
