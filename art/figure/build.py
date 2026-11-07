@@ -28,7 +28,7 @@ import common  # noqa: E402
 
 perlin.seed_set(1207)
 
-ROLL, NOD = 0.24, 0.36  # the head: tipped towards its left shoulder, and hung forward
+ROLL, NOD, YAW = 0.24, 0.5, 0.45  # the head: tipped towards its left shoulder, hung forward, turned to its left
 NECK_TOP = Vector((0.0, 0.0, 1.535))  # what the head turns about
 HEAD = Vector((0.0, -0.006, 1.594))  # the skull's centre, before the tip
 SKULL = (0.079, 0.099, 0.106, 0.107)  # half width, half depth to the front and to the back, half height
@@ -67,7 +67,7 @@ PALETTE = {"skin": (0.34, 0.24, 0.18), "shirt": (0.2, 0.21, 0.22),  # a washed-o
 # hip dropped, the chest tilted back the other way so its right shoulder is the lower; its left knee comes forward.
 SHIFT, HIP_Z, WAIST_Z = -0.04, 0.9, 1.0
 HIP_TILT, CHEST_TILT = 0.07, -0.1
-ELBOW = Vector((0.196, 0.024, 1.075))  # its left elbow, where the forearm comes forward from
+ELBOW = Vector((0.196, 0.024, 1.075))  # its left elbow, bent: the forearm comes forward and in, the hand over the apron
 WRIST = Vector((-0.211, 0.0, 0.0))  # its right wrist, about which the hand turns back
 
 
@@ -353,7 +353,8 @@ def pose(p: Vector, part: str) -> Vector:
     """Where the point p of a part ("body": the trunk and the legs, "arm", "head" or "feet") goes in the pose."""
     if part == "arm":
         if p.x > 0.0:  # its left forearm comes forward from the elbow
-            p = rotated(p, -0.3 * smooth((1.09 - p.z) / 0.04), "X", ELBOW)
+            bend = smooth((1.09 - p.z) / 0.04)
+            p = rotated(rotated(p, -0.65 * bend, "X", ELBOW), 0.42 * bend, "Y", ELBOW)
         else:  # its right hand is turned back at the wrist
             p = rotated(p, 1.2 * smooth((0.85 - p.z) / 0.04), "Z", WRIST)
     if part == "feet" or (part == "body" and p.z < HIP_Z):  # the legs lean over to the hips, the feet stay put
@@ -402,7 +403,8 @@ def body() -> bpy.types.Object:
     parts = [trousers, shirt, skin("arms", ARM), skin("fingers", hands, mirror=False), skin("neck", NECK, mirror=False)]
     looks = [("body", "trousers"), ("body", "shirt"), ("arm", "skin"), ("arm", "skin"), ("head", "skin")]
     tipped = head()
-    tip = Matrix.Translation(NECK_TOP) @ Matrix.Rotation(-NOD, 4, "X") @ Matrix.Rotation(ROLL, 4, "Y") @ Matrix.Translation(-NECK_TOP)
+    tip = Matrix.Translation(NECK_TOP) @ Matrix.Rotation(-NOD, 4, "X") @ Matrix.Rotation(ROLL, 4, "Y") @ Matrix.Rotation(YAW, 4, "Z") \
+        @ Matrix.Translation(-NECK_TOP)
     for o in tipped:
         o.matrix_world = tip @ o.matrix_world
     looks += [("head", "skin"), ("head", "hair"), ("head", "skin"), ("head", "skin")]
