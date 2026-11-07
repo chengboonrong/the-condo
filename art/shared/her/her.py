@@ -45,6 +45,11 @@ EYE_R = 0.012
 MEDIAL, LATERAL = (0.0195, -0.0068), (0.0478, -0.0028)  # the corners of her left eye's opening (x, z)
 LID_UP, LID_DOWN = 0.0069, 0.0051  # how far the open lids stand above and below the line between the corners
 MOUTH_Z, MOUTH_W, MOUTH_OPEN = -0.0735, 0.0245, 0.0055  # the line between the lips, the corners' x, the gap at the middle
+# How far her face is pulled out of true, in metres. All 0 (the fourth passenger's): her two sides mirror each other.
+# The penanggal's build sets them before it builds her: her right upper lid hangs lower (DROOP), her left cheek falls
+# in deeper (SUNKEN), her mouth hangs open wider (GAPE) and deeper (DEEP), its left corner dragged down (PULL), and her
+# brows are knotted, the right one lower (FROWN).
+DROOP, SUNKEN, GAPE, DEEP, PULL, FROWN = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 TEX_W, TEX_H = 192, 384  # the skin texture, projected from the front over x -0.1..0.1, z -0.27..0.13
 TEX_X, TEX_Z = (-0.1, 0.1), (-0.27, 0.13)
 
@@ -65,13 +70,16 @@ def bump(d: float, width: float) -> float:
 # --- the head's surface -----------------------------------------------------------------------------------
 
 def almond(x: float, z: float) -> float:
-    """How far (x, z) is outside her left eye's opening, in metres (negative inside). x is taken as |x|."""
+    """How far (x, z) is outside the opening of her eye on that side, in metres (negative inside): her left one (+x)
+    mirrored, but for her right one's drooping upper lid (DROOP)."""
+    droop = DROOP if x < 0 else 0.0
     x = abs(x)
     t = (x - MEDIAL[0]) / (LATERAL[0] - MEDIAL[0])
     tc = min(max(t, 0.0), 1.0)
     line = MEDIAL[1] + (LATERAL[1] - MEDIAL[1]) * tc
     s = math.sin(math.pi * tc)
     upper = line + LID_UP * s ** 0.75 * (1.0 + 0.2 * (0.5 - tc))  # the upper lid peaks a little towards the nose
+    upper -= droop * (0.6 + 0.4 * tc) * s ** 0.75
     lower = line - LID_DOWN * s ** 0.9
     d = max(lower - z, z - upper)
     if t < 0:
@@ -94,9 +102,10 @@ def ball_front(x: float, z: float) -> float | None:
 
 
 def mouth(x: float) -> tuple:
-    """The parted lips at |x|: the middle of the gap (z) and its height."""
+    """The parted lips at x: the middle of the gap (z) and its height. Her left corner (+x) is dragged down by PULL."""
     t = min(abs(x) / MOUTH_W, 1.0)
-    return MOUTH_Z - 0.0035 * t * t, MOUTH_OPEN * max(1.0 - t * t, 0.0) ** 0.7
+    pull = PULL * t * t if x > 0 else 0.0
+    return MOUTH_Z - 0.0035 * t * t - pull, (MOUTH_OPEN + GAPE) * max(1.0 - t * t, 0.0) ** 0.7 + 0.25 * pull * (1.0 - t)
 
 
 def table(rows_: list, key: float, column: int = 1) -> float:
@@ -150,22 +159,30 @@ def surface(direction: Vector) -> Vector:
     p = d * lo
     front = smooth(-d.y * 1.8)  # the face only
     x, z = abs(p.x), p.z
+    mz, gap = mouth(p.x)
+    t = min(x / MOUTH_W, 1.0)
+    lips = mz - (MOUTH_Z - 0.0035 * t * t)  # how far the lips move, as the mouth is pulled open (0 for the fourth)
+    spread = (gap - MOUTH_OPEN * max(1.0 - t * t, 0.0) ** 0.7) / 2
     out = 0.0
     out += 0.0025 * bump(z - 0.018, 0.009) * smooth((0.05 - x) / 0.02)  # brow
+    if FROWN:  # knotted: the inner brows pulled down and together over the eyes, two creases between them
+        low = 1.3 if p.x < 0 else 1.0
+        out += FROWN * low * bump(x - 0.017, 0.011) * bump(z - 0.006 * low, 0.007)
+        out -= 0.35 * FROWN * bump(x - 0.0045, 0.0016) * bump(z - 0.012, 0.007)
     out -= 0.0025 * bump(x, 0.008) * bump(z + 0.004, 0.007)  # the root of the nose, between the eyes
     out -= 0.008 * bump(x - EYE.x, 0.016) * bump(z - EYE.z, 0.013)  # orbits
     out -= 0.003 * bump(x - 0.034, 0.011) * bump(z - 0.01, 0.005)  # hollow under the brow
     out -= 0.0025 * bump(x - 0.03, 0.013) * bump(z + 0.023, 0.005)  # tear trough
     out += 0.005 * bump(x - 0.051, 0.012) * bump(z + 0.028, 0.01)  # cheekbones
-    out -= 0.009 * bump(x - 0.046, 0.014) * bump(z + 0.062, 0.018)  # hollow cheeks
+    out -= (0.009 + (SUNKEN if p.x > 0 else 0.0)) * bump(x - 0.046, 0.014) * bump(z + 0.062, 0.018)  # hollow cheeks
     # the nose: the bridge rising from its root to the tip, its underside turning back to the lip; broad wings
     ridge = (0.0005 + 0.0205 * smooth((-0.006 - z) / 0.03) ** 1.5) * smooth((z + 0.051) / 0.012)
     out += ridge * bump(x, 0.0065 + 0.006 * smooth((-0.01 - z) / 0.03))
     out += 0.006 * bump(x - 0.0135, 0.006) * bump(z + 0.045, 0.006)  # wings
     out -= 0.0018 * bump(x - 0.0195, 0.0018) * bump(z + 0.045, 0.006)  # the crease round each wing
     out -= 0.001 * bump(x, 0.0035) * bump(z + 0.058, 0.007)  # philtrum
-    out += 0.0016 * bump(x, 0.02) * bump(z + 0.0695, 0.0026)  # upper lip
-    out += 0.0024 * bump(x, 0.019) * bump(z + 0.079, 0.0033)  # lower lip
+    out += 0.0016 * bump(x, 0.02) * bump(z + 0.0695 - lips - spread, 0.0026)  # upper lip
+    out += 0.0024 * bump(x, 0.019) * bump(z + 0.079 - lips + spread, 0.0033)  # lower lip
     out += 0.0025 * bump(x, 0.014) * bump(z + 0.106, 0.008)  # chin
     # the folds from the nose's wings to the corners of the mouth
     t = min(max((z + 0.047) / -0.028, 0.0), 1.0)
@@ -174,15 +191,14 @@ def surface(direction: Vector) -> Vector:
     if p.y < 0:  # hollow temples
         p.x -= math.copysign(0.004 * bump(z - 0.015, 0.02) * bump(p.y + 0.05, 0.02) * smooth((abs(p.x) - 0.055) / 0.01), p.x)
     if front > 0.5:
-        p.y = _lidded(x, z, p.y)
-        mz, gap = mouth(x)
+        p.y = _lidded(p.x, z, p.y)
         if gap > 0:
-            p.y += 0.012 * smooth((gap / 2 - abs(z - mz)) / 0.0024)  # into the mouth
+            p.y += (0.012 + DEEP) * smooth((gap / 2 - abs(z - mz)) / 0.0024)  # into the mouth
     return p
 
 
 def _lidded(x: float, z: float, y: float) -> float:
-    """y where the eyelids lie over the eyeball, and inside the opening, back behind the ball."""
+    """y where the eyelids lie over the eyeball, and inside the opening, back behind the ball (x signed)."""
     e = almond(x, z)
     if e > 0.009:
         return y
@@ -327,17 +343,19 @@ def head(name: str, tris: int, pose: Matrix = Matrix(), colour: tuple | None = N
     return obj
 
 
-def eyes(name: str, pose: Matrix = Matrix()) -> bpy.types.Object:
-    """Her eyeballs, staring straight ahead: a greyed, bloodshot white, the iris near black, the pupil wide. Material 0
-    is "eyes"."""
+def eyes(name: str, pose: Matrix = Matrix(), pupil: float = 0.27, iris: float = 0.5, white: tuple = (0.3, 0.27, 0.21),
+         rings: list | None = None, segments: int = 14) -> bpy.types.Object:
+    """Her eyeballs, staring straight ahead: a greyed, bloodshot white, the iris near black, the pupil wide. pupil and
+    iris: their edges, in radians from the front; white: the white's colour away from the corners; rings: the angles of
+    the rings of vertices from the front (eight even ones if not given), close where the iris and the pupil have to
+    keep their edges. Material 0 is "eyes"."""
     bm = new_bmesh()
+    angles = rings or [math.pi * k / 9 for k in range(1, 9)]  # from the front pole
     for side in (1, -1):
         centre = Vector((side * EYE.x, EYE.y, EYE.z))
-        rings_, segments = 9, 14
         pts = []
-        for k in range(1, rings_):
-            t = math.pi * k / rings_  # from the front pole
-            r = EYE_R * (1.0 + 0.07 * smooth((0.55 - t) / 0.25))  # the cornea stands out over the iris
+        for t in angles:
+            r = EYE_R * (1.0 + 0.07 * smooth((iris + 0.05 - t) / 0.25))  # the cornea stands out over the iris
             pts.append([centre + r * Vector((math.sin(t) * math.cos(a), -math.cos(t), math.sin(t) * math.sin(a)))
                         for a in (math.tau * i / segments for i in range(segments))])
         rings = [[bm.verts.new(p) for p in row] for row in pts]
@@ -356,7 +374,6 @@ def eyes(name: str, pose: Matrix = Matrix()) -> bpy.types.Object:
         def colour(p: Vector, centre=centre) -> tuple:
             q = (p - centre).normalized()
             t = math.acos(max(min(-q.y, 1.0), -1.0))  # angle from the front
-            pupil, iris = 0.27, 0.5
             if t < pupil:
                 return (0.004, 0.003, 0.003, 1.0)
             if t < iris:
@@ -364,7 +381,7 @@ def eyes(name: str, pose: Matrix = Matrix()) -> bpy.types.Object:
                 c = (0.03 - 0.02 * ring, 0.017 - 0.012 * ring, 0.01 - 0.007 * ring)
                 return (*c, 1.0)
             red = smooth((t - 0.9) / 0.7)  # bloodshot towards the corners
-            return (0.3 - 0.06 * red, 0.27 - 0.17 * red, 0.21 - 0.13 * red, 1.0)
+            return (white[0] - 0.06 * red, white[1] - 0.17 * red, white[2] - 0.13 * red, 1.0)
         paint(bm, faces, 0, colour)
     obj = to_object(name, bm, [eyes_material()])
     obj.data.transform(pose)
@@ -400,14 +417,17 @@ def scalp(d: Vector) -> Vector:
 
 def shell(tris: int, pose: Matrix = Matrix()) -> bpy.types.Object:
     """The hair flat on the scalp, wet: clinging, with grooves where it parts into clumps, thinning to almost nothing
-    over its last 2 cm, where the skin shows through in patches; tucked inside the head below the hairline."""
+    over its last 2 cm, where the skin shows through in patches; tucked inside the head below the hairline, deeper
+    than the hole of her mouth (DEEP) so it does not show in it."""
+    tuck = 0.6 if DEEP else 0.95
+
     def offset(d: Vector, p: Vector) -> Vector:
         a = math.atan2(d.x, -d.y)
         edge = p.z - hairline(a)
         if edge < 0:
-            return p * 0.95
+            return p * tuck
         if perlin.noise(Vector((a * 8.0, p.z * 45.0, 5.0))) > 0.1 + 20.0 * edge:  # thin: the skin shows through
-            return p * 0.95
+            return p * tuck
         fringe = smooth(edge / 0.02)  # thinning to almost nothing at the edge
         grooves = 0.0018 * perlin.noise(Vector((a * 9.0, p.z * 3.0, 2.2))) * fringe
         part = 0.0015 * bump(p.x, 0.0025) * smooth((p.z - 0.06) / 0.02) * (1.0 if p.y < 0.04 else 0.0)  # the parting
@@ -491,47 +511,58 @@ def strand(root: Vector, pose: Matrix, length: float, colliders: list, seed: flo
     return path
 
 
-def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat: bool = False, seed: float = 0.0) -> None:
+def ribbon(bm: bmesh.types.BMesh, path: list, width: float, material: int, flat: bool = False, seed: float = 0.0,
+           heavy: float = 1.0) -> None:
     """A clump of wet hair along path [(point, normal)]: a strip with a raised middle, wider and narrower along its
-    length (seed) and narrowing to a point. flat: barely raised, a few hairs stuck to the skin."""
+    length (seed) and narrowing to a point. flat: barely raised, a few hairs stuck to the skin. heavy over 1: a rope of
+    hair instead, closed all round and flattened (wet hair lies in flat clumps), that much wider, thinner where it grows
+    from the scalp so it does not stand off it."""
     n = len(path)
     if n < 2:
         return
+    rope = heavy > 1.0 and not flat
     ringset = []
     for i, (p, nrm) in enumerate(path):
         t = (path[min(i + 1, n - 1)][0] - path[max(i - 1, 0)][0]).normalized()
         side = t.cross(nrm).normalized()
         u = i / (n - 1)
         w = width * (1.0 + 0.45 * perlin.noise(Vector((u * 6.0, seed, 3.3)))) * (1.0 - u ** 1.3) ** 0.8 + 0.0006
-        lift = nrm * ((0.0005 + 0.08 * w) if flat else (0.0012 + 0.25 * w))
+        if rope:
+            w *= 0.5 + 0.5 * smooth(i / 3.0)
+            thick = 0.0008 + 0.07 * heavy * w
+            ringset.append([bm.verts.new(p - side * w / 2), bm.verts.new(p + nrm * thick), bm.verts.new(p + side * w / 2),
+                            bm.verts.new(p - nrm * thick * 0.4)])
+            continue
+        lift = nrm * ((0.0005 + 0.08 * heavy * w) if flat else (0.0012 + 0.25 * heavy * w))
         ringset.append([bm.verts.new(p - side * w / 2), bm.verts.new(p + lift), bm.verts.new(p + side * w / 2)])
     faces = []
     for a, b in zip(ringset, ringset[1:]):
-        faces.append(bm.faces.new([a[0], a[1], b[1], b[0]]))
-        faces.append(bm.faces.new([a[1], a[2], b[2], b[1]]))
+        for k in range(len(a) if rope else 2):
+            j = (k + 1) % len(a)
+            faces.append(bm.faces.new([a[k], a[j], b[j], b[k]]))
     paint(bm, faces, material)
 
 
 def hair(pose: Matrix, count: int, length: tuple, colliders: list, shell_tris: int, plastered: list = (),
-         combed: float = 1.4, parting: bool = True) -> list:
+         combed: float = 1.4, parting: bool = True, heavy: float = 1.0) -> list:
     """Her hair for the head posed into model space by pose: the shell and count clumps, each length[0] to length[1]
     long from its root. plastered: (root direction, comb direction) of strands stuck across the face. combed: how
     strongly the parting holds the hair (low: it falls where gravity takes it, over her face when she bows her head).
-    parting: keep the parting bare (no clumps grow from it)."""
+    parting: keep the parting bare (no clumps grow from it). heavy: how much wider and thicker every clump is."""
     bm = new_bmesh()
     rng = np.random.default_rng(29)
     for i, d in enumerate(roots(count)):
         p = surface(d)
         if parting and abs(p.x) < 0.012 and p.y < 0.03 and p.z > 0.05:  # nothing grows out of the parting itself
             continue
-        ribbon(bm, strand(d, pose, rng.uniform(*length), colliders, i * 1.7, combed=combed), rng.uniform(0.01, 0.019), 0,
-               seed=i * 1.7)
+        ribbon(bm, strand(d, pose, rng.uniform(*length), colliders, i * 1.7, combed=combed), rng.uniform(0.01, 0.019) * heavy,
+               0, seed=i * 1.7, heavy=heavy)
     for i, (d, c) in enumerate(plastered):  # each splits into a thicker and a thinner strand that drift apart
         for k, (turn, width, short) in enumerate(((0.0, 0.0042, 1.0), (0.35 if i % 2 else -0.35, 0.0026, 0.7))):
             cc = Matrix.Rotation(turn, 3, d.normalized()) @ c
             seed = 50.0 + i * 3.0 + k * 1.3
-            ribbon(bm, strand(d, pose, rng.uniform(*length) * short, colliders, seed, plastered=cc, kink=0.011), width, 0,
-                   flat=True, seed=seed)
+            ribbon(bm, strand(d, pose, rng.uniform(*length) * short, colliders, seed, plastered=cc, kink=0.011), width * heavy,
+                   0, flat=True, seed=seed, heavy=heavy)
     clumps = to_object("hair", bm, [hair_material()])
     return [shell(shell_tris, pose), clumps]
 
@@ -640,14 +671,36 @@ def texture() -> bpy.types.Image:
     # the nose: shade at its wings, the nostrils dark beneath it
     colour = over(colour, (0.4, 0.33, 0.33), 0.5 * np.exp(-((ax - 0.0195) / 0.003) ** 2 - ((zz + 0.045) / 0.006) ** 2))
     colour = over(colour, (0.07, 0.04, 0.04), 0.95 * np.exp(-((ax - 0.008) / 0.0035) ** 2 - ((zz + 0.049) / 0.0022) ** 2))
-    # the lips: dry, grey-mauve, cracked; the gap between them black
-    mz = MOUTH_Z - 0.0035 * np.clip(ax / MOUTH_W, 0, 1) ** 2
-    lips = np.exp(-((zz + 0.0695) / 0.0032) ** 2) * smoothstep((0.022 - ax) / 0.004) + np.exp(-((zz + 0.079) / 0.0042) ** 2) * smoothstep((0.021 - ax) / 0.004)
+    # the lips: dry, grey-mauve, cracked; the gap between them black, and the mouth behind it (DEEP) a black hole
+    mz, gap = np.vectorize(mouth)(xx)
+    lips = np.exp(-((zz - mz - gap / 2 - 0.0012) / 0.0032) ** 2) * smoothstep((0.022 - ax) / 0.004) \
+        + np.exp(-((zz - mz + gap / 2 + 0.0027) / 0.0042) ** 2) * smoothstep((0.021 - ax) / 0.004)
     colour = over(colour, (0.42, 0.3, 0.33), 0.8 * lips)
     cracks = smoothstep((0.04 - np.abs(fbm(rng, xx * 6.0, zz * 0.3, 400.0, 2) - 0.5)) / 0.03)
     colour = over(colour, (0.25, 0.14, 0.15), 0.6 * lips * cracks)
-    gap = MOUTH_OPEN * np.clip(1 - (ax / MOUTH_W) ** 2, 0, 1) ** 0.7
     colour = over(colour, (0.03, 0.015, 0.015), smoothstep((gap / 2 + 0.0012 - np.abs(zz - mz)) / 0.0012) * (ax < MOUTH_W + 0.001))
+    if FROWN:  # what the years and the night have done to her face: creases, deepest where it is pulled out of true
+        line = lambda d, w: np.exp(-(d / w) ** 2)  # noqa: E731  a crease d metres off its line, w wide
+        broken = 0.55 + 0.45 * smoothstep((fbm(rng, xx, zz, 120.0, 2) - 0.35) / 0.2)
+        creases = 0.0
+        creases += line(ax - 0.0045, 0.0011) * np.exp(-((zz - 0.013) / 0.007) ** 2)  # between the brows
+        for k, cz in enumerate((0.03, 0.041, 0.053)):  # across the forehead, wavering
+            creases += 0.3 * line(zz - cz - 0.0016 * np.sin(xx * 140.0 + k) - 0.004 * (ax / 0.05) ** 2, 0.0009) * smoothstep((0.05 - ax) / 0.012) * broken
+        below = MEDIAL[1] - 0.0058 - 0.004 * np.sin(np.pi * np.clip((ax - MEDIAL[0]) / (LATERAL[0] - MEDIAL[0]), 0, 1))
+        creases += 0.8 * line(zz - below + 0.0015 * (xx < 0), 0.0012) * smoothstep((ax - 0.017) / 0.004) * smoothstep((0.05 - ax) / 0.006)
+        for a in (-0.35, 0.0, 0.35):  # from the outer corners of the eyes
+            u = (ax - LATERAL[0] - 0.003) / 0.012
+            creases += 0.5 * line(zz - LATERAL[1] - a * 0.012 * u, 0.0008) * smoothstep(u / 0.1) * smoothstep((1.0 - u) / 0.3)
+        for side, deep in ((1.0, 1.4), (-1.0, 1.0)):  # from the nose's wings to the mouth's corners, and on down
+            u = np.clip((-0.047 - zz) / 0.05, 0, 1)
+            fold = side * (0.021 + 0.012 * u - 0.006 * u * u)
+            creases += deep * line(xx - fold, 0.0013) * smoothstep(u / 0.05) * smoothstep((1.0 - u) / 0.3) * ((xx * side) > 0)
+        colour = over(colour, (0.2, 0.15, 0.16), np.clip(0.75 * creases * broken, 0, 1))
+        # mottled, the blood settled and grey-violet in a net under the skin, greenish where it has gone longest
+        net = smoothstep((0.06 - np.abs(fbm(rng, xx, zz, 45.0, 3) - 0.5)) / 0.05)
+        colour = over(colour, (0.38, 0.32, 0.4), 0.2 * net * (0.4 + 0.6 * blotch))
+        colour = over(colour, (0.42, 0.44, 0.36), 0.3 * smoothstep((fbm(rng, xx, zz, 18.0, 3) - 0.52) / 0.12))
+        colour = over(colour, (0.25, 0.2, 0.23), 0.45 * smoothstep((0.012 - e) / 0.01) * (1.0 + 0.4 * (xx < 0)))  # the sockets
     # blood: at the corners of the mouth and on the lower lip, pooled under it, and run down the chin in a few drips of
     # different widths and lengths, following the chin in, broken where it dried in drops; dried darker as it ran
     blood = np.exp(-((ax - 0.021) / 0.003) ** 2 - ((zz - mz) / 0.004) ** 2) + 0.7 * np.exp(-((zz + 0.081) / 0.003) ** 2) * smoothstep((0.012 - ax) / 0.006)
@@ -671,6 +724,9 @@ def texture() -> bpy.types.Image:
     torn = smoothstep((-0.132 - zz) / 0.025) * smoothstep((fbm(rng, xx * 0.4, zz, 50.0) - 0.25) / 0.25)
     colour = over(colour, (0.13, 0.025, 0.025), 0.9 * torn)
     colour = over(colour, (0.06, 0.008, 0.01), 0.85 * torn * smoothstep((-0.15 - zz) / 0.015))
+    # last, over every pass above: the hole of the mouth (DEEP) pure black out to the lips, as its walls, pushed in,
+    # read the texture at the gap's edges; nothing there is lit or shines (her.gd)
+    colour = over(colour, (0.0, 0.0, 0.0), smoothstep((gap / 2 + 0.0008 - np.abs(zz - mz)) / 0.0008) * (ax < MOUTH_W) * (DEEP > 0))
     path = os.path.join(HERE, "Her_skin.png")
     img = bpy.data.images.get("Her_skin") or bpy.data.images.new("Her_skin", TEX_W, TEX_H)
     img.pixels.foreach_set(np.concatenate([np.clip(colour, 0, 1), np.ones(xx.shape + (1,))], axis=-1).astype(np.float32).ravel())

@@ -350,15 +350,16 @@ the fog, places the car, seats him and drives the loops.
   under him (a shader in `her.gd`). Both stay out of every published image and the README, and the start card, the
   README and the itch page carry the warning (`docs/research/2026-11-06-gore-rules.md`).
 * **The look-back.** On the walk she follows him (`behind`), and each look back that counts (`her_lunges`) is the
-  game's jump-scare (`Penanggal.lunge`). In the same frame she is 0.5 m from his eyes to her skull's centre
+  game's jump-scare (`Penanggal.lunge`). In the same frame she is 0.45 m from his eyes to her skull's centre
   (`LUNGE_AT`), in the middle of his view whether he looks up or down (the look counts on his yaw alone, so where he
-  looks outranks his eye height), upright and facing him: her 0.26 m head fills a third of his 72° view from 0.54 m in,
-  so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not positional, so at
+  looks outranks his eye height), upright and facing him: her head, crown to chin, fills 0.38 of his 72° view's height
+  there (measured on the `lunge` still; at 0.5 m it was 0.33), so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not positional, so at
   exactly their play levels) and "[She is right behind you.]" goes out on `subtitle_requested`.
   Through the hold she goes where he goes (his eyes' place plus her first offset, which does not turn with his view), so
   walking into her never takes his eyes inside her head. After 0.5 s (`LUNGE_HOLD`) she is `behind` again from where she
   is, and goes back to where she follows at 6 m/s; a second look back during it starts it over. It only ever happens from `behind`, so never after the endings move her.
-  For it she carries her own fill: an unshadowed omni light in front of her face and above it, dim (0.5) and steady,
+  For it she carries her own fill: an unshadowed omni light off to her left, above her and a little in front, so her
+  eyes stay in deep sockets and her right cheek in shadow; dim (0.5) and steady,
   that fades out as she goes back, by the share of the way left, and is off in every other place. Without it her
   face, with his phone light off (it starts off), is a black shape in the fog. It lights render layer 12 alone, which
   only her mesh is on. The warm-up's omni light draws her under it (an unshadowed omni light is one of its states).
@@ -479,7 +480,9 @@ gory, and blood (see [The road](#the-road) and `docs/research/2026-11-06-gore-ru
   does the front door opening. It offers nothing while the door is open or still swinging shut (its prompt is empty,
   which is how `InteractionSystem` skips an object). The lens is drawn once behind the start card (`Hud.set_lens`), so it never compiles
   mid-game.
-* **The figure** is shaded near-black and wears a mamak apron like the one drying on the rack.
+* **The figure** is an ordinary person in dim colours (brown skin, a grey work T-shirt, dark trousers, from a 16 x 4
+  palette texture), standing too still with its weight on one leg, and wears a mamak apron like the one drying on the
+  rack. A soft shadow under its feet is part of its body mesh, so it fades with it and needs no light of its own.
 * **Objects are Blender models**, one folder per model: `art/<id>/build.py` builds it and bakes its textures in
   Blender, and exports `assets/models/<id>.glb`; `tools/models.sh <ids>` rebuilds and imports them. The ids are
   `apron_hung`, `basin`, `bed`, `ceiling_fan`, `dining_chair`, `dining_table`, `figure`, `fridge`, `front_door`,

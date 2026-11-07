@@ -44,9 +44,9 @@ const FOLLOW := 6.0  # m/s at most, keeping behind a walker
 const SPEED := 6.0  # m/s, coming for the camera
 const LOW_IN := 2.0  # metres from the camera she comes down from ABOVE_ROAD to its height
 const CLOSE := 0.6  # metres from the camera she stops at
-## lunge: metres from his eyes to her skull's centre when he looks back and it counts. Her 0.26 m head fills a third
-## of his view (72 degrees high) from 0.54 m in: size wins over distance.
-const LUNGE_AT := 0.5
+## lunge: metres from his eyes to her skull's centre when he looks back and it counts. From here her head, crown to
+## chin, fills over a third of his view (72 degrees high; 0.38 on the lunge still): size wins over distance.
+const LUNGE_AT := 0.45
 const LUNGE_HOLD := 0.5  # seconds she stays in his face before she pulls back
 const LUNGE_CAPTION := "[She is right behind you.]"
 ## Her first wet flap behind him, captioned once: the same noise after it is not. Her flaps in her other places have no
@@ -57,9 +57,10 @@ const FLAP_CAPTION := "[Behind you, something wet flaps.]"
 ## docs/architecture.md, "Audio levels".
 const STING_DB := -8.0
 const SHRIEK_DB := -2.0
-## Her fill, in her own space: in front of her face and above it, so her brow and cheekbones shape it and what hangs
-## from her is lit too. It lights her alone, on render layer 12 (LAYER), and only for a lunge.
-const FILL := Vector3(0.15, 0.35, 0.35)
+## Her fill, in her own space: off to her left, above and a little in front, so her brow leaves her eyes in deep
+## sockets, her right cheek falls into shadow and her left eye catches it. It lights her alone, on render layer 12
+## (LAYER), and only for a lunge.
+const FILL := Vector3(0.22, 0.18, 0.14)
 const FILL_ENERGY := 0.5  # dim and steady at a lunge; it fades out over the pull-back
 const LAYER := 1 << 11  # render layer 12: her alone (the mirror's is 11)
 const SWOOP := 8.0  # m/s at most, dropping onto someone
@@ -101,7 +102,8 @@ float value_noise(vec3 p) {
 ## sways more the further it hangs (with the square of the distance), trails against `motion` (her velocity, in her own
 ## space) keeping its length, and lies on the ground wherever it would reach below `floor_y`. On the organs and the skin
 ## the roughness wanders in patches and the surface is lumpy (`bump`, metres), so their highlights break up: wet flesh,
-## not rubber hoses or plastic. `fade` dissolves her in and out. She makes her own fog, `fog_share` of the road's:
+## not rubber hoses or plastic. Where her paint is black (the hole of her mouth) nothing shines, and her hair's
+## `specular` is low. `fade` dissolves her in and out. She makes her own fog, `fog_share` of the road's:
 ## writing FOG replaces the renderer's (Compatibility, scene.glsl: CUSTOM_FOG_USED skips fog_process, and the fog is
 ## then mixed in as ever), so it repeats fog_process's exponential fog from the road's density and colour in linear.
 ## ponytail: exponential fog only; the road has no height fog, no sun scatter and no depth fog to repeat.
@@ -113,6 +115,7 @@ uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D albedo_texture : source_color, hint_default_white, filter_linear_mipmap;
 uniform float roughness = 0.5;
 uniform float roughness_noise = 0.0;
+uniform float specular = 0.5;
 uniform float bump = 0.0;
 uniform vec3 motion = vec3(0.0);
 uniform float floor_y = -100.0;
@@ -146,8 +149,16 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = albedo.rgb * texture(albedo_texture, UV).rgb * COLOR.rgb;
+	vec3 paint = texture(albedo_texture, UV).rgb;
+	// Her mouth's hole is painted black: nothing there is lit or shines, not even the glancing shine of its steep walls
+	// (AO, on the lights too). Read from the full-size texture, as those walls would read a blurred mip with her lips in.
+	vec3 sharp = textureLod(albedo_texture, UV, 0.0).rgb;
+	float lit = smoothstep(0.0, 0.003, max(sharp.r, max(sharp.g, sharp.b)));
+	ALBEDO = albedo.rgb * paint * COLOR.rgb * lit;
 	ROUGHNESS = roughness;
+	SPECULAR = specular * lit;
+	AO = lit;
+	AO_LIGHT_AFFECT = 1.0;
 	if (roughness_noise > 0.0 || bump > 0.0) {  // the eyes and the hair have neither
 		float grain = 0.6 * value_noise(rest * 45.0) + 0.4 * value_noise(rest * 130.0);
 		ROUGHNESS += roughness_noise * smoothstep(0.3, 0.7, grain);
@@ -250,6 +261,8 @@ func _ready() -> void:
 		elif own.resource_name == "skin":  # dead skin, damp: no broad plastic sheen down her neck or over her brow
 			m.set_shader_parameter(&"roughness_noise", 0.3)
 			m.set_shader_parameter(&"bump", 0.0015)
+		elif own.resource_name == "hair":  # wet, but a phone's light along it is a dull streak, not grey plastic
+			m.set_shader_parameter(&"specular", 0.2)
 		mesh.set_surface_override_material(i, m)
 		_skin.append(m)
 	mesh.layers |= LAYER
