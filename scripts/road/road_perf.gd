@@ -82,7 +82,7 @@ func _enter(stage: StringName) -> void:
 			d.debug_skip()
 		&"roof":  # where the car dies at once
 			d.debug_skip()
-			d.car_s = StallMission.STOP_S - d.car_speed * StallMission.DYING / 2.0
+			d.car_s = StallMission.STOP_S - StallMission.roll_distance(d.car_speed)
 		&"catch":  # 30 m short of the light with every rule broken: it is decided at once, and she catches them
 			player.use_scripted_move = false
 			d.break_rule(&"perf", RoadDirector.SAVED_MAX + 1)

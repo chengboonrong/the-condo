@@ -80,7 +80,7 @@ var _bedroom_since := -1.0
 var _next_beacon := INF
 var _t0 := -1.0  # when the first tick came
 var _asking := false  # the "How did you get home?" objective is showing
-var _call_pending := false  # he pressed the intercom while someone was speaking: the last call waits
+var _call_pending := false  # he answered Rosnah on a road with a last call, and it has not played: it waits for the lines
 
 
 func _init(event_scheduler: EventScheduler, room_transformer: RoomTransformer) -> void:
@@ -141,10 +141,8 @@ func tick(delta: float) -> void:
 		_go(&"home")
 		_asking = road != &""
 		WorldState.set_objective("How did you get home?" if _asking else "You're home from your shift at the mamak. " + HOME_OBJECTIVE)
-	if WorldState.player_room != &"entrance":
-		_call_pending = false  # he has left: the wait is over, only his next press asks again
-	elif _call_pending:
-		_play_last_call()  # he waited by the intercom: it comes once Rosnah has finished
+	if _call_pending:
+		_play_last_call()  # once Rosnah has finished, wherever he is
 	if road != &"":
 		for i in OPENING_LINES.size():
 			if now() - _t0 >= float(OPENING_LINES[i][0]) and _once_ever("opening%d" % i):
@@ -330,7 +328,7 @@ func _request_reveal() -> void:
 
 
 func _at_front_door() -> void:
-	say("[Nobody there. The corridor is empty.]", 3.0)
+	say("[Nobody there. The corridor is empty.]", 3.0, true)
 	say("[Deeper in the flat, something heavy settles.]", 3.5)
 	_request_reveal()
 
@@ -341,7 +339,7 @@ func _start_act4() -> void:
 	scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)
 	WorldState.set_prompt(&"mirror_wall", "Knock back three times")
 	WorldState.set_prompt(&"lift_button", "Call the lift")
-	say("[B-11-07. It's your flat, the wrong way round.]", 4.0)
+	say("[B-11-07. It's your flat, the wrong way round.]", 4.0, true)
 	_go(&"decision")
 
 
@@ -354,7 +352,7 @@ func _end(ending_id: StringName, line := "") -> void:
 	if WorldState.ending != &"":
 		return
 	if line != "":
-		EventBus.subtitle_requested.emit(line, 4.0)
+		EventBus.line_requested.emit(line, 4.0)  # what he does: story, not a sound
 	match ending_id:
 		&"downstairs":
 			EventBus.sound_requested.emit(_knock(3), ApartmentLayout.ANCHORS[&"knock_mirror"]["pos"], 2.0)
@@ -377,7 +375,7 @@ func _on_interacted(object_id: StringName) -> void:
 	elif NOTICE.has(object_id):
 		var area: StringName = NOTICE[object_id][0]
 		if WorldState.get_variant(area) != &"default":
-			say(NOTICE[object_id][1], 4.0)
+			say(NOTICE[object_id][1], 4.0, true)
 			_reversal()  # he has seen that something moved
 			WorldState.set_variant(area, &"default", false)  # the player puts it back; not a shift
 			noticed += 1
@@ -387,19 +385,19 @@ func _on_interacted(object_id: StringName) -> void:
 		&"sink":
 			if not WorldState.has_flag(&"washed"):
 				WorldState.set_flag(&"washed")
-				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5)
+				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5, true)
 				if beat == &"home" and not _asking:
 					WorldState.set_objective("Get some sleep.")
 			else:
-				say("[Cold water.]", 2.0)
+				say("[Cold water.]", 2.0, true)
 		&"bed":
 			if beat == &"home":
-				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0)
+				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0, true)
 				WorldState.set_objective("")
 				_asking = false  # lying down clears the objective, the question with it
 				_go(&"in_bed")
 			elif WorldState.act < WorldState.Act.ENDED:
-				say("[You can't sleep. Not now.]", 2.5)
+				say("[You can't sleep. Not now.]", 2.5, true)
 		&"footprints":
 			_end_question()
 		&"intercom":
@@ -408,7 +406,6 @@ func _on_interacted(object_id: StringName) -> void:
 			elif WorldState.has_flag(&"answered_intercom"):
 				WorldState.add_clue(&"own_unit")
 				EventBus.inspect_requested.emit("Intercom", "LAST CALL  23:47\nFROM  B-12-07\n\nB-12-07 is this flat.")
-				_last_call()
 			else:
 				EventBus.inspect_requested.emit("Intercom", "The little screen is dark.")
 		&"intercom_mirror":
@@ -431,17 +428,12 @@ func _on_interacted(object_id: StringName) -> void:
 				EventBus.inspect_requested.emit("Lift", "LIF ROSAK — DALAM PENYELENGGARAAN\nUNDER MAINTENANCE\n\nThe button doesn't light up.")
 
 
-## Once, after the road: the last call plays back, with the road's wind and engine and the one who is lost. Not over
-## another voice: a press while Rosnah (or any line) is still speaking shows the inspect text and leaves the call pending.
-## It then plays by itself once the lines are done, if he stays in the entrance; once he leaves, it takes his next press.
-func _last_call() -> void:
-	if LAST_CALL.has(road) and not _ever.has("last_call"):
-		_call_pending = true
-		_play_last_call()
-
-
+## Once, after the road: the last call plays back by itself, with the road's wind and engine and the one who is lost,
+## once Rosnah's lines are over, wherever he is, unless an ending has started. Never over another voice or a knock: it
+## waits for the lines and the knocks. A press of the intercom only shows the log's text.
 func _play_last_call() -> void:
-	if WorldState.ending == &"" and _lines.is_empty() and _line_left <= 0.0 and _once_ever("last_call"):
+	if WorldState.ending == &"" and _lines.is_empty() and _line_left <= 0.0 and not scheduler.is_running(&"knock_wall") \
+			and not scheduler.is_queued(&"knock_wall") and _once_ever("last_call"):
 		_call_pending = false
 		EventBus.sound_requested.emit(&"intercom_road", ApartmentLayout.ANCHORS[&"phone_intercom"]["pos"], 0.0)
 		say("[The speaker crackles. Wind, and an engine idling.]", 3.0)  # a sound's caption: follows the setting
@@ -455,7 +447,8 @@ func _answer_rosnah() -> void:
 	say("\"Every night also the same. Knock, knock, knock. From your bedroom.\"", 4.0)
 	say("\"Please. Can you stop the knocking?\"", 3.5)
 	say("[The line goes dead.]", 2.5)
-	WorldState.set_objective("You haven't made a sound all night.")
+	_call_pending = LAST_CALL.has(road)  # alive, or no road: no recording
+	WorldState.set_objective("You haven't knocked on anything.")
 	_go(&"complained")
 
 
@@ -464,7 +457,7 @@ func _answer_upstairs() -> void:
 	say("\"Hello? Sorry, so late. I just finished my shift at the mamak.\"", 3.5)
 	say("\"This is upstairs. 12-07.\"", 3.0)
 	say("\"Can you please stop the knocking?\"", 3.5)
-	say("[It's your voice.]", 3.0)
+	say("[It's your voice.]", 3.0, true)
 	_offer_choice()
 
 
@@ -475,10 +468,10 @@ func _on_room_entered(room_id: StringName) -> void:
 				_at_front_door()
 		&"revealed":
 			if room_id == &"bedroom" and _once("window", 0.0):
-				say("[The window is a door.]", 3.0)
+				say("[The window is a door.]", 3.0, true)
 				WorldState.set_objective("Where does it go?")
 			elif room_id == &"gap":
-				say("[This can't be here. You're on the twelfth floor.]", 4.0)
+				say("[This can't be here. You're on the twelfth floor.]", 4.0, true)
 				WorldState.set_objective("Follow the corridor.")
 				_go(&"in_gap")
 		&"in_gap":

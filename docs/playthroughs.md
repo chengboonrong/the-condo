@@ -265,7 +265,7 @@ Errors: none. Warnings: none. Entity in the player's room: none.
 
 ## After the road
 
-The same three bots (bots, not people) on the flat's simulation core after each ending of the road, on the same seed. The road's ending is set for the run, not played: the story opens with a quiet 20 s and a question, the wall knocks like the roof, the last call (after `saved` and `caught` only) waits for Rosnah to finish and plays if he stays in the entrance, or at his next press of the intercom once he has left, and the look-back line comes the first time he notices something that has moved. Whether a bot hears them depends on where it stands and what it looks at: the line under the table says which did. The core has no scene, so the red earth and the ending cards are not part of these runs.
+The same three bots (bots, not people) on the flat's simulation core after each ending of the road, on the same seed. The road's ending is set for the run, not played: the story opens with a quiet 20 s and a question, the wall knocks like the roof, the last call (after `saved` and `caught` only, and only once he has answered Rosnah) plays by itself when her lines are over, wherever he is, and the look-back line comes the first time he notices something that has moved. Whether a bot hears them depends on where it stands and what it looks at: the line under the table says which did. The core has no scene, so the red earth and the ending cards are not part of these runs.
 
 | Bot | Road ending | Flat ending | Sim time | Errors | Warnings |
 |---|---|---|---|---|---|
@@ -279,7 +279,7 @@ The same three bots (bots, not people) on the flat's simulation core after each 
 | avoider | caught | vacant | 10:49.2 | 0 | 0 |
 | passive | caught | downstairs | 20:20.4 | 0 | 0 |
 
-Heard in these runs. The last call: none. The look-back line: explorer after alive; avoider after alive; explorer after saved; avoider after saved; explorer after caught; avoider after caught.
+Heard in these runs. The last call: explorer after saved; avoider after saved; explorer after caught; avoider after caught. The look-back line: explorer after alive; avoider after alive; explorer after saved; avoider after saved; explorer after caught; avoider after caught.
 
 # The road
 
@@ -287,9 +287,9 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 
 | Bot | Plays like | Ending | Score | Sim time | Rules broken | Errors | Warnings |
 |---|---|---|---|---|---|---|---|
-| keeper | keeps every rule | alive | 0 | 9:35.8 | none | 0 | 0 |
-| wobbly | says overtake at the third slow car, asks why before counting three, looks back once on the walk | saved | 4 | 9:17.6 | overtook 1, looked_back 3 | 0 | 0 |
-| breaker | stays silent at the choices, turns to the fourth and counts four, opens the door, looks back twice | caught | 16 | 8:37.5 | overtook 1, overtook 1, overtook 1, turned_round 1, counted_her 1, opened_door 2, mei_opened 1, looked_back 3, mei_looked 1, looked_back 3, mei_looked 1 | 0 | 0 |
+| keeper | keeps every rule | alive | 0 | 8:57.6 | none | 0 | 0 |
+| wobbly | says overtake at the third slow car, asks why before counting three, looks back once on the walk | saved | 4 | 8:50.8 | overtook 1, looked_back 3 | 0 | 0 |
+| breaker | stays silent at the choices, turns to the fourth and counts four, opens the door, looks back twice | caught | 16 | 8:30.5 | overtook 1, overtook 1, overtook 1, turned_round 1, counted_her 1, opened_door 2, mei_opened 1, looked_back 3, mei_looked 1, looked_back 3, mei_looked 1 | 0 | 0 |
 
 ## keeper (the road)
 
@@ -319,19 +319,19 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 | 4:41.4 | 3 | asked |
 | 4:42.5 | 3 | empty |
 | 4:49.7 | 4 | cruise |
-| 6:41.2 | 4 | dying |
-| 6:45.3 | 4 | cranking |
-| 6:51.9 | 4 | hafiz_leaves |
-| 7:00.0 | 4 | waiting |
-| 7:20.0 | 4 | thumps |
-| 7:35.1 | 4 | voice |
-| 7:37.7 | 4 | mei |
-| 7:39.9 | 4 | knocks |
-| 7:45.0 | 4 | quiet |
-| 7:55.1 | 4 | light |
-| 7:59.2 | 5 | get_out |
-| 7:59.7 | 5 | walk |
-| 9:06.3 | 5 | alive |
+| 6:00.7 | 4 | dying |
+| 6:07.1 | 4 | cranking |
+| 6:13.7 | 4 | hafiz_leaves |
+| 6:21.8 | 4 | waiting |
+| 6:41.8 | 4 | thumps |
+| 6:56.9 | 4 | voice |
+| 6:59.5 | 4 | mei |
+| 7:01.7 | 4 | knocks |
+| 7:06.8 | 4 | quiet |
+| 7:16.9 | 4 | light |
+| 7:21.0 | 5 | get_out |
+| 7:21.5 | 5 | walk |
+| 8:28.1 | 5 | alive |
 
 ## wobbly (the road)
 
@@ -364,19 +364,19 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 | 5:07.0 | 3 | asked_again |
 | 5:08.1 | 3 | empty |
 | 5:15.3 | 4 | cruise |
-| 6:34.9 | 4 | dying |
-| 6:39.0 | 4 | cranking |
-| 6:45.6 | 4 | hafiz_leaves |
-| 6:53.7 | 4 | waiting |
-| 7:13.7 | 4 | thumps |
-| 7:28.8 | 4 | voice |
-| 7:31.4 | 4 | mei |
-| 7:33.6 | 4 | knocks |
-| 7:38.7 | 4 | quiet |
-| 7:48.8 | 4 | light |
-| 7:52.9 | 5 | get_out |
-| 7:53.4 | 5 | walk |
-| 9:00.0 | 5 | saved |
+| 6:05.8 | 4 | dying |
+| 6:12.2 | 4 | cranking |
+| 6:18.8 | 4 | hafiz_leaves |
+| 6:26.9 | 4 | waiting |
+| 6:46.9 | 4 | thumps |
+| 7:02.0 | 4 | voice |
+| 7:04.6 | 4 | mei |
+| 7:06.8 | 4 | knocks |
+| 7:11.9 | 4 | quiet |
+| 7:22.0 | 4 | light |
+| 7:26.1 | 5 | get_out |
+| 7:26.6 | 5 | walk |
+| 8:33.2 | 5 | saved |
 
 ## breaker (the road)
 
@@ -411,16 +411,16 @@ The road's core (`RoadDirector`) played by three rule-based bots (`tests/sim/roa
 | 5:23.1 | 3 | counting |
 | 5:26.1 | 3 | empty |
 | 5:33.3 | 4 | cruise |
-| 5:57.7 | 4 | dying |
-| 6:01.8 | 4 | cranking |
-| 6:08.4 | 4 | hafiz_leaves |
-| 6:16.5 | 4 | waiting |
-| 6:36.5 | 4 | thumps |
-| 6:51.6 | 4 | voice |
-| 6:59.2 | 4 | mei |
-| 7:04.3 | 4 | knocks |
-| 7:09.4 | 4 | quiet |
-| 7:19.5 | 4 | light |
-| 7:23.6 | 5 | get_out |
-| 7:24.1 | 5 | walk |
-| 8:18.9 | 5 | caught |
+| 5:48.4 | 4 | dying |
+| 5:54.8 | 4 | cranking |
+| 6:01.4 | 4 | hafiz_leaves |
+| 6:09.5 | 4 | waiting |
+| 6:29.5 | 4 | thumps |
+| 6:44.6 | 4 | voice |
+| 6:52.2 | 4 | mei |
+| 6:57.3 | 4 | knocks |
+| 7:02.4 | 4 | quiet |
+| 7:12.5 | 4 | light |
+| 7:16.6 | 5 | get_out |
+| 7:17.1 | 5 | walk |
+| 8:11.9 | 5 | caught |

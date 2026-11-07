@@ -12,7 +12,7 @@ extends RefCounted
 ## no rule to break, so all three play it alike: walk down to the stop, wait, get in. In mission 2 the keeper follows
 ## the slow car all three times, the wobbly one overtakes at the third, and the breaker says nothing: Hafiz overtakes.
 ## In mission 3 the keeper never turns round and answers "Three.", the wobbly one asks why and then says "Three.", and
-## the breaker turns to her once and says "Four.".
+## the breaker turns to her once, after Bang Din has told him not to, and says "Four.".
 ## In mission 4 the keeper and the wobbly one never open the door, stay quiet for the voice and stop Mei; the breaker
 ## opens the door once and says nothing to either, so Mei opens hers.
 ## In mission 5 all three get out and walk straight down the road to the light. The keeper never looks back, the wobbly
@@ -30,7 +30,7 @@ const LIMIT := 40.0 * 60.0  # sim seconds before we call it stuck
 const ANSWER_AFTER := 1.0  # seconds after a choice opens
 const USE_AFTER := 0.5  # seconds after a prompt appears
 const TO_HER := -1.3  # radians: the breaker turns to his right, where the fourth sits...
-const TURN_SECONDS := 1.0  # ...this long, at the start of mission 3
+const TURN_SECONDS := 1.0  # ...this long, once Bang Din has said the rule in mission 3 (CountMission.RECALL_AT)
 const BESIDE := 1.5  # metres to the car's left: where he stands up beside his door (as RoadMain stands him)
 const LOOK_SECONDS := 1.0  # each look back in mission 5, straight behind him
 ## Metres down the road from the car at which each profile looks back in mission 5.
@@ -114,7 +114,8 @@ func _act() -> void:
 	if m is LiftMission and m.beat == &"walk":
 		_walk_to(RoadLayout.BUS_STOP_S, RoadLayout.BUS_STOP)
 	if m is CountMission:
-		stage.view_yaw = TO_HER if profile == "breaker" and m.beat == &"quiet" and m.beat_t < TURN_SECONDS else 0.0
+		var told: float = m.beat_t - CountMission.RECALL_AT  # seconds since the rule was said
+		stage.view_yaw = TO_HER if profile == "breaker" and m.beat == &"quiet" and told >= 0.0 and told < TURN_SECONDS else 0.0
 	if m is LightMission and m.beat == &"walk":
 		var walked := RoadLayout.closest_s(stage.position) - _out_s
 		if not _looks.is_empty() and walked >= _looks[0]:

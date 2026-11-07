@@ -123,10 +123,10 @@ switches to its waiting beat *before* asking for it. Noticing a moved object put
 
 After the road (`Journey.road_ending` is `alive`, `saved` or `caught`) the same beats run with a few changes: a quiet
 opening with a question, the road's smell and look-back lines (always shown), and roof thumps in place of the bedroom
-knocks. Inspecting the intercom after Rosnah's call plays the last call once for `caught` and `saved` (wind and an
-idling engine, then Mei's or Hafiz's first line); pressed while someone is still speaking, it waits and plays by itself
-when the lines are done if he stays in the entrance; once he leaves, it takes his next press. The look-back line comes
-the first time he notices something a shift has moved. `StoryDirector.ending_card(ending, road)` gives the last card its
+knocks. Once he has answered Rosnah, the last call plays by itself, once, for `caught` and `saved` (wind and an idling
+engine, then Mei's or Hafiz's first line) when her lines are over, wherever he is and unless an ending has started; it
+waits for any line or knock still going. Inspecting the intercom after her call only shows the log. `alive` has no
+recording. The look-back line comes the first time he notices something a shift has moved. `StoryDirector.ending_card(ending, road)` gives the last card its
 text: `caught` adds to or edits today's text, `saved` and `alive` have their own. With no road (the flat opened
 directly) every line is as before.
 
@@ -147,8 +147,10 @@ What goes on each depends on whether the text is spoken.
   events, the road's cues, `Her`, the wall's answer. It does not wait for the lines before it.
   `StoryDirector.say()` and `RoadDirector.say()` stay one queue, one text at a time, 0.3 s apart, in the order said:
   what is said there, a caption included, follows the lines before it. Narration needs that ("[The line goes dead.]"
-  ends Rosnah's call, and "[It's your voice.]" the voice's). The last call's crackle is said, though its sound plays in
-  the same call: `_play_last_call` runs only once the queue is empty, so the crackle comes out on the next tick.
+  ends Rosnah's call). What he thinks, sees or recognises ("[It's your voice.]", "[The window is a door.]", the notice
+  lines) is said as a story line (`say(text, seconds, true)`); only what describes a sound is a caption. The last call's
+  crackle is said, though its sound plays in the same call: `_play_last_call` runs only once the queue is empty and no
+  knock is running, so the crackle comes out on the next tick.
 
 ## The road
 
@@ -223,7 +225,7 @@ break also thickens the fog and brings her nearer, as above.
 |---|---|---|---|---|
 | 1 | `LiftMission` | `opening` (his thoughts on a black card), `walk` (to the bus stop), `wait` (counts only at the stop: the lorry passes at 20 s, the couple's car comes at 45 s), `get_in` (he uses the car's rear door; 9 s of small talk) | none | none |
 | 2 | `SlowCarMission` | `cruise`, `seen`; then for each of three attempts `follow`, `urge`, `ask` and either `kept` or `signal`, `pass`, `away`; then `lay_by`, `gone` | `overtook` (1 each, at most 3) | `overtake_1`, `overtake_2`, `overtake_3` (6 s): three options each; the first two keep the rule, the third and silence break it |
-| 3 | `CountMission` | `quiet`, `asked`, `asked_again`, `counting`, `empty` | `turned_round` (1, once: his look past 2.2 rad to his left or 1.0 rad to his right for 0.4 s); `counted_her` (1) | `count` (6 s): "Three." and "Why you ask?" keep it, "Four." breaks it, silence keeps it; "Why you ask?" opens `count_again` (5 s): "Three." and silence keep it, "Four." breaks it |
+| 3 | `CountMission` | `quiet`, `asked`, `asked_again`, `counting`, `empty` | `turned_round` (1, once: his look past 2.2 rad to his left or 1.0 rad to his right for 0.4 s, watched only from Bang Din's reminder at 9 s: before it, turning costs nothing); `counted_her` (1) | `count` (6 s): "Three." and "Why you ask?" keep it, "Four." breaks it, silence keeps it; "Why you ask?" opens `count_again` (5 s): "Three." and silence keep it, "Four." breaks it |
 | 4 | `StallMission` | `cruise`, `dying`, `cranking`, `hafiz_leaves`, `waiting`, `thumps`, `voice`, `mei`, `knocks`, `quiet`, `light` | `opened_door` (2, once: he uses his door before the light comes on); `answered` (1); `mei_opened` (1) | `answer_voice` (6 s): "Hafiz? That you?" breaks `answered`, "Stay quiet." and silence keep it; `stop_mei` (4 s): "Mei, don't. That's not him." keeps `mei_opened`, "Okay, open." and silence break it |
 | 5 | `LightMission` | `get_out`, `walk`, then `alive`, `saved` or `caught` | `looked_back` (3, at most twice: his look past 1.9 rad either way for 0.25 s); `mei_looked` (1 each) | `mei_look_1` and `mei_look_2` (5 s), 30% and 65% of the way to the light: "Don't look. Hold my hand." keeps `mei_looked`, "Maybe it's him." and silence break it |
 
@@ -233,7 +235,10 @@ most).
 * Mission 2: the same car is ahead again about 20 s after each overtake, round a bend. After the third attempt, kept or
   not, it pulls into a lay-by and goes dark. Each overtake sends `her_glimpse`.
 * Mission 3: whatever he answers, Mei counts three for herself, Hafiz brakes and the seat in the mirror is empty and
-  wet. Turning to her shows her to him for 0.3 s (`fourth_glimpse`).
+  wet. Turning to her shows her to him for 0.3 s (`fourth_glimpse`). Then a thought says nobody speaks and Hafiz drives
+  faster: Mission 4's cruise is 14 m/s (`StallMission.CRUISE_SPEED`, Mission 2's `PASS_SPEED`), 71 s to the car dying
+  in the keeper bot where 9 m/s took 112 s. The car dies `roll_distance` short of `STOP_S` and rolls to a stop at
+  2.25 m/s² (6.2 s from 14 m/s), as the ride lets it slow no faster than 2.5.
 * Mission 4: opening his door cracks it a hand's width before something slaps it shut. If Mei is not stopped, her door
   does the same. The voice outside sounds like Hafiz's. Mei reaches for her door whatever he answers the voice.
 * Mission 5: the light is 150 m on from where the car died. The walk is over 4 m short of it (`alive`, `saved`) or where
@@ -386,7 +391,7 @@ clicked is not.
 
 * `tests/sim/road_playthrough.gd` (`RoadPlaythrough`) plays the core headless with a `RoadStage`: three bots, on seeds
   1147, 7 and 2026. `keeper` keeps every rule and ends `alive` with score 0, `wobbly` ends `saved` with 4 and `breaker`
-  ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 576 s of sim time (9.6 minutes; the test accepts 7 to 15
+  ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
   minutes) on all three seeds. That is a lower bound for a person, because the bot answers in a second and walks
   straight, and it is not a playtest.
 * `tools/road_stills.sh <dir>` renders 46 stills of the road, one PNG per shot, and a contact sheet. Each starts its
@@ -623,7 +628,8 @@ where each moment is heard; it is not a bound for every place, and for the thump
 * **The rev and the sputter** both play from a pool player that stays where it started, and the car leaves it. At the
   overtake the car pulls out at 4 m/s and speeds up at 2.5 m/s², so the rev is 5 m behind him by the file's loudest,
   1 s in: the cap no longer holds there and the play level counts (at +3 it is at the cap to 3 m). As it dies the car
-  rolls on from 9 m/s, so the sputter passes his right shoulder 0.6 m off and falls behind. As heard, its loudest 50 ms
+  rolls on from 9 m/s (14 now, since Hafiz drives faster after the fourth passenger; not measured again), so the
+  sputter passes his right shoulder 0.6 m off and falls behind. As heard, its loudest 50 ms
   and its loudest sample both come in its first half-second, at the cap, so past +1 the play level adds nothing and only
   the file can raise it. The file's own loudest 50 ms and sample are at 2.25 s (1.0 and 1.8 dB over the first
   half-second's), heard far behind the car; its loudest 100 ms, the table's measure, is at the start, so it is heard at

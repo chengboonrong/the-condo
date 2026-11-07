@@ -101,8 +101,9 @@ func test_keeping_breaks_nothing() -> bool:
 		"set up as if the earlier missions were kept: seated at s 900, cruising, no slow car")
 	_run(0.2)
 	eq(cues, [&"mirror_on"], "the mirror comes on")
-	eq(d.look_rule, &"turned_round", "and his look is watched")
+	eq(d.look_rule, &"", "but his look is not watched yet: he has not been told")
 	_run(12.0)
+	eq(d.look_rule, &"turned_round", "his look is watched once Bang Din has said it")
 	var recall := captions.find(RECALL)
 	check(recall > 0, "Bang Din's rule, word for word")
 	check(captions.slice(0, recall).any(func(c: String) -> bool: return c.contains("your friend")), "after the couple talk about \"your friend\"")
@@ -114,6 +115,8 @@ func test_keeping_breaks_nothing() -> bool:
 	check(not captions.has(COUNTING), "with no counting first")
 	eq(asked, [&"count"], "asked once")
 	eq(cues, [&"mirror_on", &"brake", &"fourth_gone", &"mirror_off"], "the cues in order")
+	_run(0.3)  # the thought is said on the step after the mission ends
+	eq(captions.back(), CountMission.NOBODY, "and nobody says anything: Hafiz drives faster")
 	eq(d.score(), 0, "nothing broken")
 	eq([d.look_rule, WorldState.objective], [&"", ""], "the look watch and the objective end with it")
 	eq(ended, [&"alive"], "the road ends after it, all alive")
@@ -121,10 +124,27 @@ func test_keeping_breaks_nothing() -> bool:
 	return true
 
 
+## "Your friend so quiet one" makes him turn, and nobody has told him the rule yet: that costs nothing.
+func test_turning_before_bang_din_says_the_rule_costs_nothing() -> bool:
+	_setup({&"count": 0})
+	stage.view_yaw = -1.3  # to his right, where she sits, held from the start
+	_run(8.0)
+	eq(captions.find(RECALL), -1, "(Bang Din has not said it yet)")
+	eq(_rules(), [], "turning to her breaks nothing")
+	check(not cues.has(&"fourth_glimpse"), "and shows her to him no more than before")
+	_run(4.0)  # he is still turned when the rule is said: now it breaks
+	check(captions.has(RECALL), "(Bang Din has said it)")
+	eq(_rules(), [&"turned_round"], "turning to her after it breaks the rule")
+	eq(cues.count(&"fourth_glimpse"), 1, "and he sees her")
+	_teardown()
+	return true
+
+
 func test_turning_to_her_breaks_once() -> bool:
 	_setup({&"count": 0})
+	_run(10.0)  # the rule is said at 9 s
 	stage.view_yaw = -1.3  # to his right, where she sits
-	_run(10.0)
+	_run(2.0)
 	eq(_rules(), [&"turned_round"], "turning to her breaks the rule")
 	eq(cues.count(&"fourth_glimpse"), 1, "and he sees her, once")
 	stage.view_yaw = 0.0
@@ -143,7 +163,7 @@ func test_turning_to_her_breaks_once() -> bool:
 func test_looking_out_of_his_own_window_is_allowed() -> bool:
 	_setup({&"count": 0})
 	stage.view_yaw = 1.6  # to his left, out of his own window
-	_run(10.0)
+	_run(13.0)  # past the rule's being said
 	eq(_rules(), [], "his own window: no break")
 	check(not cues.has(&"fourth_glimpse"), "and no glimpse of her")
 	_teardown()

@@ -8,9 +8,12 @@ extends RoadMission
 ## Beats: cruise (to the long straight), dying, cranking, hafiz_leaves, waiting, thumps, voice, mei, knocks, quiet,
 ## light.
 
-const CRUISE_SPEED := 9.0
+const CRUISE_SPEED := 14.0  # Hafiz drives faster after the empty seat (CountMission.NOBODY), as fast as Mission 2's pass; at 9 the stretch took 112 s
 const STOP_S := 2000.0  # where the car stands, on the long straight; the next mission takes it up here
-const DYING := 4.0  # seconds the car takes to roll to a stop, slowing evenly: it dies that far short of STOP_S
+## m/s², the car rolling to a stop, slowing evenly: it dies roll_distance() short of STOP_S, and stands 4 s later from
+## 9 m/s, 6.2 s from CRUISE_SPEED. Under RoadDirector.ACCEL, as the ride slows the car no faster than that, so a firmer roll
+## would not be followed and would stand it past STOP_S.
+const ROLL_DECEL := 2.25
 const LIGHT_AHEAD := 150.0  # metres on from the car to the light, and the stall the next mission walks to
 const CRANKS := [1.0, 4.0]  # seconds into cranking: Hafiz tries the key twice
 const CRANKING := 6.5
@@ -55,13 +58,13 @@ func begin() -> void:
 func tick(delta: float) -> bool:
 	match beat:
 		&"cruise":
-			if d.car_s >= STOP_S - d.car_speed * DYING / 2.0:  # later (a skip): it dies where it is
+			if d.car_s >= STOP_S - roll_distance(d.car_speed):  # later (a skip): it dies where it is
 				_rolling = d.car_speed
 				EventBus.road_cue.emit(&"lights_dying")
 				go(&"dying")
 		&"dying":
-			# It rolls to a stop, slowing evenly over DYING: gentler than the director's braking for stop_at.
-			d.drive(_rolling * maxf(1.0 - beat_t / DYING, 0.0))
+			# It rolls to a stop, slowing evenly at ROLL_DECEL: gentler than the director's braking for stop_at.
+			d.drive(maxf(_rolling - ROLL_DECEL * beat_t, 0.0))
 			if d.car_speed == 0.0:
 				d.light_s = d.car_s + LIGHT_AHEAD
 				go(&"cranking")
@@ -128,6 +131,11 @@ func tick(delta: float) -> bool:
 		&"light":
 			return beat_t >= LIGHT
 	return false
+
+
+## Metres the car rolls on from `speed` before it stands.
+static func roll_distance(speed: float) -> float:
+	return speed * speed / (2.0 * ROLL_DECEL)
 
 
 ## He opens his door, once: it opens a hand's width before something slaps it shut, and the prompt is gone.

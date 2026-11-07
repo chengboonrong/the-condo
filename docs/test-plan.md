@@ -32,7 +32,7 @@ Simulated playthroughs are bots, not people. They are never reported as human pl
 `godot --headless --path . --script res://tools/playthroughs.gd` rewrites `docs/playthroughs.md` with each
 bot's event sequence, director scores, progression, completion, errors and warnings. The road's bots are checked by
 `test_road_playthroughs.gd` and write no record: the keeper ends `alive` with score 0, the wobbly one `saved` with 4 and
-the breaker `caught` with 16. The keeper reaches `alive` at 576 s of sim time (9.6 minutes; the test accepts 7 to 15
+the breaker `caught` with 16. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
 minutes), a lower bound for a person, because the bot answers in a second and walks straight.
 
 `docs/playthroughs.md` also has `## After the road`: the same three bots in the flat after each road ending
@@ -65,11 +65,13 @@ today's flat). Each test sets the ending itself and puts it back.
 | `test_opened_directly_nothing_is_said_when_he_notices` | `tests/unit/test_story.gd` | no road: noticing a moved object says no look-back line and no new line at all |
 | `test_the_downstairs_knock_back_follows_the_road` | `tests/unit/test_story.gd` | the knock back at the mirror wall (the B-11-07 side) is a thump after a road and a knuckle knock without one, never both |
 | `test_ending_cards_follow_the_road` | `tests/unit/test_story.gd` | every road has its card text per flat ending (titles kept); no road keeps today's cards; caught adds "You never got home." or its notice |
-| `test_the_last_call_points_back_once` | `tests/unit/test_story.gd` | the intercom's last call plays the road's wind and engine once, with its crackle as a sound caption and Mei's line (caught) or Hafiz's (saved) as a story line |
-| `test_the_last_call_waits_for_rosnah_to_finish` | `tests/unit/test_story.gd` | no wind or engine over Rosnah's voice or her last line; a press then leaves the call pending, and it plays once by itself when her call is done and he is still in the entrance |
-| `test_the_last_call_stays_pending_when_he_leaves_the_entrance` | `tests/unit/test_story.gd` | he walks out before her call ends: nothing plays while he is away or when he walks back in; his next press plays it once |
+| `test_the_last_call_points_back_once` | `tests/unit/test_story.gd` | once he has answered Rosnah, the last call plays the road's wind and engine by itself, once, with its crackle as a sound caption and Mei's line (caught) or Hafiz's (saved) as a story line; `alive` and no road have none |
+| `test_the_last_call_waits_for_rosnah_to_finish` | `tests/unit/test_story.gd` | no wind or engine over Rosnah's voice or her last line; a press meanwhile only shows the log, and the call plays by itself when her call is done |
+| `test_the_last_call_plays_by_itself_wherever_he_is` | `tests/unit/test_story.gd` | he walks out of the entrance during her call: it plays once when she is done; a later press shows the log and plays nothing again |
+| `test_the_last_call_waits_for_a_knock` | `tests/unit/test_story.gd` | a knock that starts as her call ends holds the last call until it is done |
 | `test_a_pending_last_call_never_plays_after_an_ending` | `tests/unit/test_story.gd` | a pending last call does not play once the story has ended |
 | `test_a_road_without_a_last_call_never_leaves_one_pending` | `tests/unit/test_story.gd` | roads `alive` and none: pressing the intercom during and after her call never plays a last call or its crackle |
+| `test_his_recognition_of_his_own_voice_is_a_story_line` | `tests/unit/test_story.gd` | "[It's your voice.]" goes out as a story line, shown with "Captions for sounds" off, not as a sound caption |
 | `test_the_quiet_starts_on_the_first_tick_whatever_came_first` | `tests/unit/test_story.gd` | road `caught`, F10 before the first tick: the quiet still ends 20 s after that tick |
 
 ## Builds
