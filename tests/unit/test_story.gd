@@ -193,7 +193,7 @@ func test_opened_directly_the_flat_opens_as_today() -> bool:
 	eq(WorldState.objective, "You're home from your shift at the mamak. Wash up, then get some sleep.", "today's objective")
 	EventBus.object_interacted.emit(&"bed")
 	check(_until(func() -> bool: return story.beat == &"ringing", 4.2), "the intercom rings 4 s after lying down, as today")
-	eq(lines, [], "no new lines")
+	eq(lines, ["[You lie down. Somewhere in the building, a lift hums and stops.]"], "no new lines: only the old one, now shown whatever the captions setting")
 	return _done()
 
 

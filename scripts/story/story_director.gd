@@ -392,7 +392,7 @@ func _on_interacted(object_id: StringName) -> void:
 				say("[Cold water.]", 2.0, true)
 		&"bed":
 			if beat == &"home":
-				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0)
+				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0, true)
 				WorldState.set_objective("")
 				_asking = false  # lying down clears the objective, the question with it
 				_go(&"in_bed")
