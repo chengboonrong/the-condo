@@ -11,16 +11,9 @@ const CEILING_COLOR := Color(0.9, 0.9, 0.88)
 
 # Props: [center, size, color, requires]. Collide unless the size is tiny or the entry says otherwise.
 const PROPS := [
-	# Living room
-	[Vector3(6.5, 0.22, 9.5), Vector3(2.2, 0.44, 0.75), Color(0.3, 0.33, 0.38)],
-	[Vector3(6.5, 0.6, 9.8), Vector3(2.2, 0.75, 0.22), Color(0.28, 0.31, 0.36)],
-	[Vector3(5.3, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
-	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), Color(0.27, 0.3, 0.35)],
-	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), Color(0.45, 0.32, 0.22)],
+	# Living room (the sofa, the coffee table and the selipar are Decor's)
 	[Vector3(6.5, 2.3, 4.14), Vector3(0.95, 0.3, 0.2), Color(0.9, 0.9, 0.88)],  # aircon above the TV
 	[Vector3(6.5, 0.005, 7.5), Vector3(2.4, 0.01, 1.6), Color(0.33, 0.14, 0.12)],  # rug
-	[Vector3(2.45, 0.015, 9.6), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],  # selipar by the door
-	[Vector3(2.6, 0.015, 9.62), Vector3(0.1, 0.03, 0.26), Color(0.2, 0.3, 0.6)],
 	# Kitchen
 	[Vector3(0.35, 0.45, 4.9), Vector3(0.6, 0.9, 3.0), Color(0.6, 0.55, 0.48)],
 	[Vector3(0.22, 2.0, 4.9), Vector3(0.35, 0.7, 3.0), Color(0.62, 0.57, 0.5)],
@@ -75,8 +68,14 @@ const MODELS: Array[Array] = [
 ]
 # Collision for furniture a model draws: [center, size, requires]. A colliding PROPS entry with no mesh. The chairs'
 # seats are too thin to collide; their backs do, from 0.475 m up to the model's 0.9 m. The beds' bases are boxes the
-# size of their frames, the fridge's the size of its cabinet. The table's and the basin's are Decor's.
+# size of their frames, the fridge's the size of its cabinet. The table's and the basin's are Decor's. The sofa (its
+# seat, back and arms) and the coffee table keep the boxes they were drawn as before Decor built them.
 const COLLIDERS: Array[Array] = [
+	[Vector3(6.5, 0.22, 9.5), Vector3(2.2, 0.44, 0.75), {}],
+	[Vector3(6.5, 0.6, 9.8), Vector3(2.2, 0.75, 0.22), {}],
+	[Vector3(5.3, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), {}],
+	[Vector3(7.7, 0.35, 9.5), Vector3(0.2, 0.7, 0.85), {}],
+	[Vector3(6.5, 0.2, 7.3), Vector3(1.1, 0.4, 0.6), {}],
 	[Vector3(8.95, 0.25, 0.2), Vector3(1.8, 0.5, 2.0), {}],
 	[Vector3(6.55, 0.25, -16.3), Vector3(1.8, 0.5, 2.0), {&"bedroom": &"door"}],
 	[Vector3(0.4, 0.9, 2.95), Vector3(0.7, 1.8, 0.7), {}],
@@ -131,11 +130,40 @@ const OBJECTS := [
 const TRAIL_PATH: Array[Vector3] = [Vector3(1.1, 0.006, 9.5), Vector3(3.0, 0.006, 8.5), Vector3(ApartmentLayout.SPAWN.x, 0.006, 8.45)]
 const TRAIL_PRINTS := 10
 const TRAIL_SWAY := 0.07  # each print lies this far to its side of the line, left and right in turn
-const RED_EARTH := Color(0.42, 0.17, 0.09)
-# One print in (sideways, forward) metres from the foot's middle: the sole, and the heel behind it.
-const SHOE := [
-	[Vector2(-0.04, -0.02), Vector2(0.04, -0.02), Vector2(0.05, 0.05), Vector2(0.04, 0.11), Vector2(0.0, 0.135), Vector2(-0.04, 0.11), Vector2(-0.05, 0.05)],
-	[Vector2(-0.032, -0.135), Vector2(0.032, -0.135), Vector2(0.036, -0.045), Vector2(-0.036, -0.045)],
+const RED_EARTH := Color(0.48, 0.22, 0.1)  # laterite: orange-red, not the dark red of blood
+const PRINT_SIZE := Vector2(0.105, 0.28)  # one print of his work shoes, across and along, in metres
+const TREADS := 4  # the tread texture's cells, heaviest deposit first
+const TOE_OUT := 0.12  # radians each foot turns out from the line
+const GLINT_LENGTH := 0.15  # metres of stream one glint_texture covers
+const GLINT_SPEED := 0.9  # metres a second its glints fall
+# The three lines drawn through the mirror's steam, as points (metres across from its left edge, down from its top)
+# a finger went through, top first.
+const STEAM_LINES := [
+	[Vector2(0.205, 0.17), Vector2(0.214, 0.3), Vector2(0.232, 0.43)],
+	[Vector2(0.262, 0.155), Vector2(0.27, 0.29), Vector2(0.29, 0.44)],
+	[Vector2(0.318, 0.175), Vector2(0.327, 0.31), Vector2(0.344, 0.42)],
+]
+## The rings where the running water lands, spreading from the middle of a small disc and gone at its edge.
+const RIPPLE_SHADER := """
+shader_type spatial;
+render_mode blend_mix, depth_draw_never, shadows_disabled;
+
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float r = length(p) + 0.05 * sin(atan(p.y, p.x) * 5.0 + TIME * 3.0);
+	float ring = pow(0.5 + 0.5 * sin(r * 28.0 - TIME * 40.0), 3.0);
+	float fade = (1.0 - smoothstep(0.45, 1.0, r)) * smoothstep(0.05, 0.2, r);
+	// Troughs darken the white bowl a little, as water does; crests catch the light.
+	ALBEDO = mix(vec3(0.42, 0.47, 0.5), vec3(1.0), ring);
+	ROUGHNESS = 0.08;
+	EMISSION = vec3(0.35) * ring * fade;
+	ALPHA = (0.2 + 0.45 * ring) * fade;
+}
+"""
+## The sole's outline for tread_texture(): [toe (0) to heel (1), half-width inside, half-width outside].
+const SOLE := [
+	[0.0, 0.0, 0.0], [0.03, 0.5, 0.55], [0.1, 0.86, 0.84], [0.24, 1.0, 0.96], [0.38, 0.86, 0.92], [0.5, 0.5, 0.8],
+	[0.6, 0.44, 0.76], [0.7, 0.64, 0.78], [0.82, 0.72, 0.78], [0.93, 0.6, 0.64], [0.985, 0.28, 0.32], [1.0, 0.0, 0.0],
 ]
 
 # Label3D: text, pos, yaw (0 faces +z), pixel size, color, requires
@@ -159,6 +187,9 @@ var _gated: Array = []  # [Node3D, requires]
 var _materials: Dictionary = {}
 var _fan: Node3D
 var _plaster_tex: ImageTexture
+static var _tread: ImageTexture  # tread_texture(), made once
+static var _steam := {}  # steam_textures() by mirror size, made once each
+var _glint: StandardMaterial3D  # the running water's: _process slides its glints down
 
 
 func _ready() -> void:
@@ -190,6 +221,7 @@ func build() -> void:
 	for c: Array in COLLIDERS:
 		_collider(c[0], c[1], c[2])
 	_build_models()
+	_build_running_water()
 	for o: Array in OBJECTS:
 		_build_object(o)
 	if Journey.road_ending != &"":
@@ -226,6 +258,9 @@ static func model(id: StringName) -> Node3D:
 func _process(delta: float) -> void:
 	if _fan:
 		_fan.rotate_y(delta * 2.6 * fan_speed)
+	if _glint:
+		# Triplanar V runs down the world (Godot flips it), so a growing offset carries the glints down.
+		_glint.uv1_offset.y = fposmod(_glint.uv1_offset.y + delta * GLINT_SPEED / GLINT_LENGTH, 1.0)
 
 
 # --- geometry -----------------------------------------------------------------------------------
@@ -342,6 +377,41 @@ func _build_models() -> void:
 					mesh.set_surface_override_material(s, mat)
 
 
+## The running water's life. Its stream keeps its plain colour, a little less blue, and gets a broken glint
+## (glint_texture, projected down it in world space as the mesh has no UVs) that _process slides down as it falls.
+## Where it lands, rings spread on the bowl's floor: tap_ripple, shown with the stream.
+func _build_running_water() -> void:
+	var water: Node3D = models[&"tap_water"]
+	var stream := water.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	_glint = stream.get_active_material(0).duplicate() as StandardMaterial3D
+	_glint.albedo_color = Color(0.46, 0.53, 0.58, _glint.albedo_color.a)  # it darkens the white bowl seen through it
+	_glint.emission_enabled = true
+	_glint.emission = Color.WHITE
+	_glint.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY  # the texture says where; ADD would light it all
+	_glint.emission_energy_multiplier = 1.0
+	_glint.emission_texture = glint_texture()
+	_glint.uv1_triplanar = true
+	_glint.uv1_world_triplanar = true
+	_glint.uv1_scale = Vector3(1.0, 1.0 / GLINT_LENGTH, 1.0)
+	stream.set_surface_override_material(0, _glint)
+	var ripple := Node3D.new()
+	ripple.name = "tap_ripple"
+	ripple.position = water.position + Vector3(0.0, -0.142, 0.0)  # 2 mm over the bowl's floor (basin/build.py)
+	var disc := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(0.07, 0.07)
+	disc.mesh = plane
+	var m := ShaderMaterial.new()
+	m.shader = Shader.new()
+	m.shader.code = RIPPLE_SHADER
+	disc.material_override = m
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ripple.add_child(disc)
+	add_child(ripple)
+	models[&"tap_ripple"] = ripple
+	gate(ripple, MODELS.filter(func(e: Array) -> bool: return e[0] == &"tap_water")[0][3])
+
+
 func gate(node: Node3D, requires: Dictionary) -> void:
 	if not requires.is_empty():
 		_gated.append([node, requires])
@@ -354,7 +424,9 @@ func _set_collision(node: Node, on: bool) -> void:
 		_set_collision(child, on)
 
 
-## Tiles with 2 px grout, projected in world space. size: tile width, and height on walls.
+## Tiles with 2 px grout, projected in world space. size: tile width, and height on walls. Mipmapped and anisotropic,
+## like the road: without mipmaps a far floor samples the grout only now and then, and its lines across the view break
+## into dashes.
 func tile_material(base: Color, grout: Color, size := Vector2(0.6, 0.6)) -> StandardMaterial3D:
 	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
 	img.fill(base)
@@ -362,8 +434,10 @@ func tile_material(base: Color, grout: Color, size := Vector2(0.6, 0.6)) -> Stan
 		for j in [0, 1]:
 			img.set_pixel(i, j, grout)
 			img.set_pixel(j, i, grout)
+	img.generate_mipmaps()
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.uv1_triplanar = true
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3(1.0 / size.x, 1.0 / size.y, 1.0 / size.x)
@@ -647,8 +721,6 @@ func _build_object(o: Array) -> void:
 			color = Color(0.92, 0.9, 0.82)
 		&"photo":
 			color = Color(0.5, 0.45, 0.35)
-		&"bathroom_mirror":
-			color = Color(0.7, 0.78, 0.82)
 		&"door_1206", &"door_1208", &"fire_door":
 			color = Color(0.35, 0.25, 0.18) if o[0] != &"fire_door" else Color(0.55, 0.15, 0.12)
 		&"shoe_rack":
@@ -660,11 +732,36 @@ func _build_object(o: Array) -> void:
 		&"bedroom_wall", &"mirror_wall":
 			color = Color(0.79, 0.77, 0.71) if o[0] == &"bedroom_wall" else WALL_MIRROR
 	# these click boxes are drawn by their props or models; only the click box is added
-	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv", &"footprints"].has(o[0]):
+	if not [&"bedroom_window", &"shoes_moved", &"chair_turned", &"tap", &"sink", &"bed", &"shoe_rack", &"intercom", &"intercom_mirror", &"tv", &"footprints", &"bathroom_mirror"].has(o[0]):
 		_box(it, Vector3.ZERO, o[2], color, false)
+	if o[0] == &"bathroom_mirror":
+		_build_steamed_mirror(it, o[2])
 	add_child(it)
 	if o.size() > 6:
 		gate(it, o[6])
+
+
+## The bathroom mirror on the wall at the back of its click box (size: deep, tall, wide; facing +x): a frameless
+## pane, its edge the green of thick glass, and on its face the steam with the three lines drawn through it
+## (steam_textures), the room behind you showing dimly in them.
+func _build_steamed_mirror(it: Node3D, size: Vector3) -> void:
+	var wall := -size.x * 0.5 + 0.012  # on the wall's tiles (Decor._bathroom)
+	_box(it, Vector3(wall + 0.003, 0.0, 0.0), Vector3(0.006, size.y, size.z), Color(0.5, 0.6, 0.57), false)
+	var face := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(size.z, size.y)
+	face.mesh = quad
+	face.position = Vector3(wall + 0.0062, 0.0, 0.0)
+	face.rotation.y = PI / 2  # the quad faces +z: now +x, its left edge at +z as seen from the room
+	var textures := steam_textures(Vector2(size.z, size.y))
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = textures[0]
+	m.roughness_texture = textures[1]
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	m.metallic_specular = 0.6
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	face.material_override = m
+	it.add_child(face)
 
 
 ## Each print's centre, the door's first, evenly along TRAIL_PATH.
@@ -684,25 +781,206 @@ static func footprint_trail() -> Array[Vector3]:
 	return trail
 
 
-## The prints as flat polygons in one mesh (a Decal does not draw in the Compatibility renderer), lit like the
-## floor, and the low box over the living-room stretch that inspects them. The box is 2 cm tall so he walks over it.
+## The prints as flat quads in one mesh (a Decal does not draw in the Compatibility renderer), lit like the floor
+## and blended over it: the tread texture says where the earth stuck. Strongest just inside the door and fainter at
+## each step after, as his soles ran out of earth, each turned and pressed a little differently. Then the low box
+## over the living-room stretch that inspects them, 2 cm tall so he walks over it.
 func _build_footprints() -> void:
 	var trail := footprint_trail()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1147
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in trail.size():
-		var fwd := (trail[mini(i + 1, trail.size() - 1)] - trail[maxi(i - 1, 0)]).normalized()  # along the line, not the sway
-		var side := Vector3(-fwd.z, 0.0, fwd.x)
-		for part: Array in SHOE:
-			Decor._poly(st, part.map(func(q: Vector2) -> Vector3: return trail[i] + side * q.x + fwd * q.y), Vector3.UP, RED_EARTH)
+		var t := i / (trail.size() - 1.0)  # 0 at the door, 1 where he stands
+		var line := (trail[mini(i + 1, trail.size() - 1)] - trail[maxi(i - 1, 0)]).normalized()  # not the sway
+		var out := 1.0 if i % 2 == 0 else -1.0  # which side of the line the foot is on (footprint_trail's sway)
+		var turn := TOE_OUT + rng.randf_range(-0.07, 0.07)
+		var fwd := (line + Vector3(-line.z, 0.0, line.x) * out * tan(turn)).normalized()
+		var side := Vector3(-fwd.z, 0.0, fwd.x) * out  # towards the foot's outer edge
+		var cell := clampi(roundi(t * (TREADS - 1) + rng.randf_range(-0.5, 0.5)), 0, TREADS - 1)
+		var earth := Color(RED_EARTH, clampf(lerpf(0.95, 0.5, t) + rng.randf_range(-0.07, 0.07), 0.0, 1.0))
+		var corners := []
+		var uv := []
+		for c: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:  # (across, toe to heel)
+			corners.append(trail[i] + side * c.x * PRINT_SIZE.x * 0.5 - fwd * c.y * PRINT_SIZE.y * 0.5)
+			uv.append(Vector2((cell + (c.x + 1.0) * 0.5) / TREADS, (c.y + 1.0) * 0.5))
+		Decor._poly(st, corners, Vector3.UP, earth, uv)
 	var prints := MeshInstance3D.new()
 	prints.name = "Footprints"
 	prints.mesh = st.commit()
-	prints.material_override = _material(RED_EARTH)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tread_texture()
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.95  # dried earth
+	prints.material_override = m
 	prints.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(prints)
 	_build_object([&"footprints", Vector3(4.65, 0.01, 8.45), Vector3(2.9, 0.02, 0.5), "Look at the footprints", "Footprints",
 		"Red earth, from the mountain road. You don't remember walking in."])
+
+
+## The tread of his work shoes printed in earth, TREADS cells side by side, each leaving less than the last: white,
+## its alpha the earth left on the tile, x across (the outer edge at the right), y from the toe down to the heel.
+## The rim and the lugs print, packed earth fills the grooves in places, the arch barely touches, and the earth breaks
+## into patches and crumbs at a ragged edge, more in each cell. Made in code, once.
+static func tread_texture() -> ImageTexture:
+	if _tread:
+		return _tread
+	var w := 48
+	var h := 128
+	var patches := FastNoiseLite.new()
+	patches.seed = 1147
+	patches.frequency = 0.06
+	var grit := FastNoiseLite.new()
+	grit.seed = 2026
+	grit.frequency = 0.45
+	var img := Image.create(w * TREADS, h, false, Image.FORMAT_LA8)
+	for cell in TREADS:
+		var lost := 0.12 + 0.11 * cell
+		for py in h:
+			for px in w:
+				var gx := cell * w + px
+				var x := (px + 0.5) / w * 2.2 - 1.1
+				var y := (py + 0.5) / h
+				var patch := patches.get_noise_2d(gx, py) * 0.5 + 0.5
+				var g := grit.get_noise_2d(gx, py) * 0.5 + 0.5
+				var inside := _sole_half(y, x > 0.0) - absf(x) + (patches.get_noise_2d(gx * 4.0 + 900.0, py * 4.0) * 0.1)
+				var a := 0.0
+				if inside > 0.0:
+					var lug: float
+					if y > 0.7:  # the heel block: bars across
+						lug = 1.0 - smoothstep(0.55, 0.7, fposmod(y * 15.0, 1.0))
+					else:  # the sole: small lugs laid like bricks
+						var row := floorf(y * 19.0)
+						var col := fposmod((x + 1.1) * 2.7 + 0.5 * fposmod(row, 2.0), 1.0)
+						lug = (1.0 - smoothstep(0.62, 0.78, fposmod(y * 19.0, 1.0))) * (1.0 - smoothstep(0.7, 0.85, col))
+					if inside < 0.12:
+						lug = 1.0  # the rim prints whole
+					var packed := smoothstep(0.45, 0.75, patches.get_noise_2d(gx * 2.0 + 400.0, py * 2.0) * 0.5 + 0.5)
+					var arch := smoothstep(0.38, 0.5, y) * (1.0 - smoothstep(0.62, 0.72, y))
+					var press := 1.0 - arch * (0.75 if x < 0.0 else 0.15)
+					a = smoothstep(0.0, 0.05, inside) * press * lerpf(0.35, 1.0, maxf(lug * (0.55 + 0.45 * g), packed))
+					a *= smoothstep(lost - 0.1, lost + 0.1, patch * (0.7 + 0.3 * press))
+					if g < lost * 0.4:
+						a = 0.0  # crumbled away
+				elif inside > -0.25 and g > 0.86 and patch > 0.45:
+					a = 0.6  # crumbs knocked off the edge
+				var l := 0.8 + 0.2 * g  # thicker earth is darker
+				img.set_pixel(gx, py, Color(l, l, l, clampf(a, 0.0, 1.0)))
+	img.generate_mipmaps()
+	_tread = ImageTexture.create_from_image(img)
+	return _tread
+
+
+## The running water's glint along one GLINT_LENGTH of stream (y), the same all the way round (x): a faint sheen
+## broken by bright beads and dashes, as a falling stream breaks the light. It wraps, so it can slide. Made in code.
+static func glint_texture() -> ImageTexture:
+	var h := 64
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 964
+	var glints := []  # [centre, half-length, brightness], in texture heights
+	for i in 5:
+		glints.append([rng.randf(), rng.randf_range(0.006, 0.03), rng.randf_range(0.4, 1.0)])
+	var img := Image.create(2, h, false, Image.FORMAT_L8)
+	for y in h:
+		var v := (y + 0.5) / h
+		var l := 0.1
+		for g: Array in glints:
+			var d := absf(v - g[0])
+			d = minf(d, 1.0 - d)  # wrapped
+			l = maxf(l, g[2] * exp(-pow(d / g[1], 2.0)))
+		for x in 2:
+			img.set_pixel(x, y, Color(l, l, l))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## The mirror's face (size: wide, tall, in metres) fogged with steam, and the three STEAM_LINES a finger wiped through
+## it: [albedo, roughness]. The fog is pale and uneven, piled up a little along each line's soft edges; water has run a
+## little way from two of the lines' ends, and a few beads sit in the fog. Through the lines the glass shows the lit
+## room behind you, dim, cool and blurred. Made in code, once for each size.
+static func steam_textures(size: Vector2) -> Array[ImageTexture]:
+	if _steam.has(size):
+		return _steam[size]
+	var w := 160
+	var h := roundi(w * size.y / size.x)
+	var mist := FastNoiseLite.new()
+	mist.seed = 1155
+	mist.frequency = 0.03
+	var grain := FastNoiseLite.new()
+	grain.seed = 2311
+	grain.frequency = 0.5
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1147
+	var runs := []  # [x, top, bottom], metres: short runs from the first and last lines' ends, then beads in the fog
+	for line: Array in [STEAM_LINES[0], STEAM_LINES[2]]:
+		var end: Vector2 = line[-1]
+		runs.append([end.x + rng.randf_range(-0.002, 0.002), end.y, end.y + rng.randf_range(0.015, 0.035)])
+	for i in 3:
+		var top := rng.randf_range(0.35, 0.7) * size.y
+		runs.append([rng.randf_range(0.06, 0.94) * size.x, top, top])
+	var albedo := Image.create(w, h, false, Image.FORMAT_RGB8)
+	var rough := Image.create(w, h, false, Image.FORMAT_L8)
+	var hw := 0.0105  # half a finger's width
+	var lines := Rect2(STEAM_LINES[0][0], Vector2.ZERO)  # around all three, a finger's width out
+	for line: Array in STEAM_LINES:
+		for q: Vector2 in line:
+			lines = lines.expand(q)
+	lines = lines.grow(hw * 2.0)
+	for py in h:
+		for px in w:
+			var p := Vector2((px + 0.5) / w * size.x, (py + 0.5) / h * size.y)
+			var edge := minf(minf(p.x, size.x - p.x), minf(p.y, size.y - p.y))
+			var m := mist.get_noise_2d(px, py)
+			var fog := (0.9 + 0.07 * m + 0.04 * grain.get_noise_2d(px, py)) * lerpf(0.75, 1.0, smoothstep(0.0, 0.04, edge))
+			var clear := 0.0
+			var ridge := 0.0
+			var wobble := 1.0 + 0.15 * grain.get_noise_2d(px * 0.3, py * 0.3) if lines.has_point(p) else 1.0
+			for line: Array in STEAM_LINES:
+				if not lines.has_point(p) or p.y < line[0].y - 0.03 or p.y > line[-1].y + 0.03:
+					continue
+				for k in range(1, line.size()):
+					var a: Vector2 = line[k - 1]
+					var b: Vector2 = line[k]
+					var t := clampf((p - a).dot(b - a) / (b - a).length_squared(), 0.0, 1.0)
+					var along := (k - 1 + t) / (line.size() - 1.0)  # 0 where the finger went on, 1 where it lifted
+					var r := hw * (1.05 - 0.15 * along) * wobble  # a fingertip keeps its width, lifting a little
+					var d := p.distance_to(a.lerp(b, t))
+					var smear := 0.12 * (0.5 + 0.5 * sin(d / r * 9.0))  # the finger's ridges leave a little behind
+					clear = maxf(clear, (1.0 - smoothstep(r * 0.3, r * 1.3, d)) * (1.0 - smear))
+					ridge = maxf(ridge, 1.0 - smoothstep(r * 1.2, r * 2.1, d))
+			for run: Array in runs:
+				if p.y > run[1] - 0.004 and p.y < run[2] + 0.004:
+					var x: float = run[0] + 0.0005 * sin(p.y * 60.0)
+					var foot := Vector2(x, clampf(p.y, run[1], run[2]))
+					var dr := p.distance_to(foot) * (0.6 if p.y > run[2] else 1.0)  # fatter at the bead
+					clear = maxf(clear, 0.45 * (1.0 - smoothstep(0.001, 0.0025, dr)))
+					ridge = maxf(ridge, 1.0 - smoothstep(0.002, 0.0035, dr))
+			fog = clampf(fog + 0.1 * ridge, 0.0, 1.0) * (1.0 - clear)
+			# The room behind you, out of focus: the bathroom's pale tiles, cool and a little dimmer than the fog.
+			var room := Color(0.47, 0.52, 0.57).lerp(Color(0.55, 0.6, 0.64), smoothstep(0.15, 0.85, p.y / size.y))
+			room = room.lightened(0.06 * m)
+			albedo.set_pixel(px, py, room.lerp(Color(0.7, 0.72, 0.73), fog))
+			var ro := lerpf(0.2, 0.85, fog)  # wet glass, not a polished one: no dark sky in it
+			rough.set_pixel(px, py, Color(ro, ro, ro))
+	albedo.generate_mipmaps()
+	rough.generate_mipmaps()
+	var textures: Array[ImageTexture] = [ImageTexture.create_from_image(albedo), ImageTexture.create_from_image(rough)]
+	_steam[size] = textures
+	return textures
+
+
+## Half the sole's width (1 at the ball) on its inner (arch) or outer side, from the toe (y 0) to the heel (1).
+static func _sole_half(y: float, outer: bool) -> float:
+	for i in range(1, SOLE.size()):
+		if y <= SOLE[i][0]:
+			var k: float = inverse_lerp(SOLE[i - 1][0], SOLE[i][0], y)
+			return lerpf(SOLE[i - 1][2 if outer else 1], SOLE[i][2 if outer else 1], k)
+	return 0.0
 
 
 func _build_label(l: Array) -> void:

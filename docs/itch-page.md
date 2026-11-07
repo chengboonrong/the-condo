@@ -13,18 +13,18 @@ Run it again whenever the game's look changes.
 | Field on *Edit game* | File |
 |---|---|
 | Cover image (630×500) | `builds/itch/cover.png`: the figure in the kitchen, in the phone light |
-| Screenshots | `builds/itch/screenshots/1-hallway.png` … `5-clock.png` (1920×1080), in that order: the figure in the hallway, the bedroom, the tap in the phone light, the front door, the clock at 11:47 |
+| Screenshots | `builds/itch/screenshots/1-bus-stop.png` … `6-front-door.png` (1920×1080), in that order: the couple's car pulling in at the bus stop in the fog, the figure in the hallway, the slow car ahead from the back seat, the tap in the phone light, the clock at 11:47, the front door |
 | Gameplay video or trailer | The YouTube link, once the trailer is uploaded there (the file is in Drive, "The Condo trailer") |
 
-These are the flat's images, made before the road was added. The page now opens on the road, so the cover, the
-screenshots and the trailer need re-shooting, which is separate work after this plan. The cover and the
+The page opens on the road, so a road shot leads; the cover is still the flat's (the figure in the kitchen), and the
+trailer is from before the road and needs re-shooting. The cover and the
 thumbnail show no gore (itch.io's guidelines ask for no explicit cover image, and shock images can get a page delisted
 from browse and search; see `docs/research/2026-11-06-gore-rules.md`).
 
-`tools/road_stills.sh <dir>` renders the road's 46 stills, two of them for checking only (`lunge`, `lunge_phone`).
+`tools/road_stills.sh <dir>` renders the road's 48 stills, two of them for checking only (`lunge`, `lunge_phone`).
 Only the ones that show the road, the car and the couple,
 the mirror, the light and the stall belong on this page: `road_exit`, `road_stop`, `road_bend`, `road_tunnel`,
-`road_tunnel_in`, `road_awas40`, `road_city`, `car_arrives`, `back_seat`, `slow_car`, `overtake`,
+`road_tunnel_in`, `road_awas40`, `road_city`, `car_arrives`, `lorry_pass`, `back_seat`, `slow_car`, `slow_car_ahead`, `overtake`,
 `lay_by`, `couple`, `mei_turns`, `mirror_fourth`, `light_seen`, `walk_mei`, `walk_mei_looks`, `walk_light`, `walk_near`
 and `stall`, and the ten far, fogged glimpses (every `her_glimpse_*`), where she is a few pixels of dark shape. Never
 on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, `lunge`, `lunge_phone`,
@@ -135,7 +135,7 @@ owner's to word. The facts:
 * Decide the *Has sensitive content* box, and the tags (see the table above). The README already carries the content
   warning that GitHub's policy asks for, and has no gore image; keep gore out of the repository's social preview and
   avatar too.
-* Re-shoot the cover, the screenshots and the trailer for the road (see Images above).
+* Re-shoot the trailer for the road (see Images above).
 * The public repository is https://github.com/chengboonrong/the-condo. Push the final game to it before
   2026-12-01 13:37 PST (the jam's rule).
 * Upload the trailer to YouTube and paste the link.

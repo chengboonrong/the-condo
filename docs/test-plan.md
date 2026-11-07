@@ -47,7 +47,7 @@ today's flat). Each test sets the ending itself and puts it back.
 
 | Test | Where | Pins |
 |---|---|---|
-| `test_footprints_only_come_down_from_the_road` | `tests/integration/test_apartment.gd` | red earth from just inside the front door to where he stands, only after a road ending: a trail of even strides, one opaque lit mesh on the floor, and a low box to look at ("Look at the footprints") clear of the furniture |
+| `test_footprints_only_come_down_from_the_road` | `tests/integration/test_apartment.gd` | red earth from just inside the front door to where he stands, only after a road ending: a trail of even strides, one lit mesh of tread prints blended over the floor and fading from the door, and a low box to look at ("Look at the footprints") clear of the furniture |
 | `test_the_footprints_are_walked_over` | `tests/integration/test_apartment.gd` | the player walks across the trail (x 5.9 to 3.4) and stays on the floor, not on the box |
 | `test_from_the_road_the_flat_opens_quiet_and_asking` | `tests/unit/test_story.gd` | the first objective is "How did you get home?", two found lines (phone 12:41, damp uniform), nothing happens for 20 s |
 | `test_lying_down_early_holds_the_ring_until_the_quiet_ends` | `tests/unit/test_story.gd` | the intercom does not ring before 20 s, and rings once the quiet is over |

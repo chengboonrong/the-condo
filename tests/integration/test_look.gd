@@ -112,3 +112,16 @@ func test_the_phone_light_shadow_has_depth_to_spare() -> bool:
 		"the project's shadow atlas has 24-bit depth")
 	check(not tree.root.positional_shadow_atlas_16_bits, "and so does the window that draws the game")
 	return true
+
+
+func test_the_phone_light_shadow_is_filled_and_soft() -> bool:
+	# The phone is held below and right of the eye, so he sees the shadows it casts (the basin's rim inside its
+	# bowl). With no bounce light in the renderer they were black, and the default filter drew them stair-stepped.
+	var phone := (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+	var light := phone.get_node("Head/Camera3D/PhoneLight") as SpotLight3D
+	check(light.shadow_enabled, "the phone light still casts shadows")
+	check(light.shadow_opacity >= 0.5 and light.shadow_opacity < 1.0, "filled a little, as a lit room bounces it back")
+	check(int(ProjectSettings.get_setting("rendering/lights_and_shadows/positional_shadow/soft_shadow_filter_quality")) >= 4,
+		"and filtered soft enough that its edges don't step")
+	phone.free()
+	return true

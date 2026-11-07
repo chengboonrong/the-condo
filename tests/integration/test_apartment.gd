@@ -87,8 +87,14 @@ func test_footprints_only_come_down_from_the_road() -> bool:
 		var stride := trail[i].distance_to(trail[i - 1])
 		check(stride >= 0.55 and stride <= 0.75, "stride %d is %.2f m" % [i, stride])
 	var material := prints.material_override as StandardMaterial3D
-	check(material != null and material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "opaque")
+	check(material != null and material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and material.albedo_texture != null,
+		"earth trodden in: a tread texture blended over the tiles, not solid shapes")
 	check(material != null and material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED, "and lit by the lamps and the phone")
+	var alphas := []
+	var arrays := prints.mesh.surface_get_arrays(0)
+	for c: Color in arrays[Mesh.ARRAY_COLOR]:
+		alphas.append(c.a)
+	check(alphas.front() > alphas.back(), "strongest at the door, fainter where he stands")
 	eq(prints.mesh.get_surface_count(), 1, "one mesh, one draw")
 	check(prints.get_aabb().size.y < 0.001, "flat on the floor")
 	var shape := it.get_child(0) as CollisionShape3D

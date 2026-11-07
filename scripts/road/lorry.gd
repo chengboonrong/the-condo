@@ -1,6 +1,8 @@
 class_name Lorry
 extends Node3D
-## A lorry, built in code: a dark cargo box on a dark cab, red and white reflective strips, and two headlights.
+## A lorry, built in code: a dark cargo box behind a dark cab-over cab with its windscreen and a roof deflector stepping
+## up to the box, on a chassis with six wheels (twin at the back); a bumper, amber marker lamps, red and white
+## reflective strips, and two headlights. Primitives: it is seen in fog, at night.
 ## pass_by() drives it up the road past the bus stop in the other lane; at the road's end it comes down the walkers'
 ## lane and pulls up, behind them or past them at the fruit stall (pull_up), yielding to anyone in its way. The rest of
 ## the time it is not on the road.
@@ -36,13 +38,45 @@ var _body := AABB()  # every box it is built of, in its own space
 
 func _ready() -> void:
 	var dark := _material(DARK, 0.0)
-	_box(Vector3(0.0, 1.95, -0.9), Vector3(2.4, 2.9, 6.4), dark)  # the cargo box
-	_box(Vector3(0.0, 1.45, 3.25), Vector3(2.3, 2.1, 1.9), dark)  # the cab
-	_box(Vector3(0.0, 0.45, 0.3), Vector3(2.1, 0.7, 7.6), dark)  # the chassis and wheels, as one dark mass
+	_box(Vector3(0.0, 2.25, -0.9), Vector3(2.4, 2.4, 6.4), dark)  # the cargo box, on the chassis over the wheels
+	_box(Vector3(0.0, 1.75, 3.25), Vector3(2.3, 1.5, 1.9), dark)  # the cab, over the front wheels
+	_box(Vector3(0.0, 0.68, 4.0), Vector3(2.3, 0.64, 0.4), dark)  # its front, down ahead of them
+	var steel := _material(Color(0.02, 0.02, 0.022), 0.0)
+	for side: float in [-1.0, 1.0]:
+		_box(Vector3(side * 0.45, 0.9, -0.1), Vector3(0.16, 0.24, 7.9), steel)  # the chassis rails
+	_box(Vector3(0.0, 0.45, -4.0), Vector3(2.1, 0.1, 0.08), steel)  # the rear underrun bar
+	_box(Vector3(0.75, 0.55, 0.9), Vector3(0.4, 0.42, 0.9), _material(Color(0.13, 0.13, 0.13), 0.0))  # the fuel tank
+	var tyre := _material(Color(0.025, 0.025, 0.025), 0.0)
+	tyre.roughness = 0.95
+	var hub := _material(Color(0.3, 0.3, 0.28), 0.0)
+	for side: float in [-1.0, 1.0]:
+		for axle: Array in [[3.3, 0.28], [-2.3, 0.5]]:  # the front wheels, and the twins at the back
+			var at := Vector3(side * (1.17 - axle[1] * 0.5), 0.5, axle[0])
+			_wheel(at, 0.5, axle[1], tyre)
+			_wheel(at + Vector3(side * axle[1] * 0.5, 0.0, 0.0), 0.2, 0.02, hub)
+	var glass := _material(Color(0.12, 0.13, 0.15), 0.0)
+	glass.roughness = 0.08
+	glass.metallic_specular = 0.9
+	glass.emission_enabled = true  # the foggy sky it gives back
+	glass.emission = Color(0.1, 0.11, 0.13)
+	_box(Vector3(0.0, 1.98, 4.205), Vector3(2.0, 0.8, 0.02), glass)  # the windscreen
+	for side: float in [-1.0, 1.0]:
+		_box(Vector3(side * 1.155, 2.0, 3.55), Vector3(0.02, 0.6, 0.9), glass)  # the door windows
+	_box(Vector3(0.0, 2.45, 4.27), Vector3(2.2, 0.05, 0.14), dark)  # the sun visor
+	var deflector := PrismMesh.new()  # on the cab roof, sloping up from its front to the box's
+	deflector.size = Vector3(1.6, 0.7, 2.2)  # along the lorry, up, across, before it is turned
+	deflector.left_to_right = 1.0  # its upright side at the back, against the box
+	_part(deflector, Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(0.0, 2.85, 3.1)), dark)
+	_box(Vector3(0.0, 0.48, 4.3), Vector3(2.25, 0.26, 0.14), _material(Color(0.16, 0.16, 0.16), 0.0))  # the bumper
+	for i in 3:
+		_box(Vector3(0.0, 0.66 + i * 0.1, 4.205), Vector3(1.2, 0.03, 0.02), steel)  # the grille's slats
+	var amber := _material(Color(1.0, 0.55, 0.12), 2.0)
+	for x: float in [-1.12, -0.3, 0.3, 1.12]:  # marker lamps along the box's front top
+		_box(Vector3(x, 3.4, 2.31), Vector3(0.08, 0.05, 0.03), amber)
 	var white := _material(Color(0.85, 0.85, 0.8), 0.5)  # tape that catches the light, so it shows in the dark
 	var red := _material(Color(0.8, 0.06, 0.04), 0.5)
 	for side: float in [-1.0, 1.0]:
-		_box(Vector3(side * 1.21, 0.62, -0.9), Vector3(0.02, 0.08, 6.2), white)
+		_box(Vector3(side * 1.21, 1.15, -0.9), Vector3(0.02, 0.08, 6.2), white)
 		var lamp := SpotLight3D.new()
 		lamp.light_color = Color(1.0, 0.9, 0.75)
 		lamp.light_energy = 3.0
@@ -53,7 +87,7 @@ func _ready() -> void:
 		lamp.rotation.y = PI  # its -Z ahead, along the lorry's +Z
 		add_child(lamp)
 		_box(lamp.position + Vector3(0.0, 0.0, -0.02), Vector3(0.3, 0.16, 0.04), _material(Color(1.0, 0.9, 0.75), 3.0))
-	_box(Vector3(0.0, 0.62, -4.11), Vector3(2.3, 0.1, 0.02), red)
+	_box(Vector3(0.0, 1.15, -4.11), Vector3(2.3, 0.1, 0.02), red)
 	visible = false
 	set_process(false)
 
@@ -114,14 +148,34 @@ func _speed(short: float) -> float:
 
 
 func _box(at: Vector3, size: Vector3, material: Material) -> void:
-	var box := MeshInstance3D.new()
+	_part(_box_mesh(size), Transform3D(Basis(), at), material)
+
+
+## A wheel (or its hub) turned on its axle across the lorry, centred at `at`.
+func _wheel(at: Vector3, radius: float, width: float, material: Material) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = width
+	mesh.radial_segments = 16
+	mesh.rings = 1
+	_part(mesh, Transform3D(Basis(Vector3.BACK, PI / 2.0), at), material)
+
+
+func _box_mesh(size: Vector3) -> BoxMesh:
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	box.mesh = mesh
-	box.material_override = material
-	box.position = at
-	add_child(box)
-	var part := AABB(at - size / 2.0, size)
+	return mesh
+
+
+## One piece of it, placed at xf; its bounds grow the body's.
+func _part(mesh: Mesh, xf: Transform3D, material: Material) -> void:
+	var piece := MeshInstance3D.new()
+	piece.mesh = mesh
+	piece.material_override = material
+	piece.transform = xf
+	add_child(piece)
+	var part := xf * mesh.get_aabb()
 	_body = part if _body.size == Vector3.ZERO else _body.merge(part)
 
 
