@@ -332,14 +332,15 @@ func behind(walker: Node3D) -> void:
 		_begin(&"behind", _behind_point())
 
 
-## He looked back, and it counted: she is right behind him. In the same frame she is LUNGE_AT from his eyes along his
-## view (level), at their height, facing him in her own fill, as the stinger and her shriek sound in his head and the
-## caption shows. After LUNGE_HOLD she pulls back to where she follows him (behind), at FOLLOW, from where she is. Only
-## from behind him; a lunge during a lunge starts it over.
+## He looked back, and it counted: she is right behind him. In the same frame she is LUNGE_AT from his eyes in the
+## middle of his view, wherever he looks up or down (the look counts on his yaw alone), upright and facing him in her
+## own fill, as the stinger and her shriek sound in his head and the caption shows. After LUNGE_HOLD she pulls back to
+## where she follows him (behind), at FOLLOW, from where she is. Only from behind him; a lunge during a lunge starts it
+## over.
 func lunge(camera: Camera3D) -> void:
 	if _mode != &"behind" and _mode != &"lunge":
 		return
-	_begin(&"lunge", camera.global_position - camera.global_basis.z.slide(Vector3.UP).normalized() * LUNGE_AT)
+	_begin(&"lunge", camera.global_position - camera.global_basis.z * LUNGE_AT)
 	_face(camera.global_position)
 	audio.play_here(&"stinger", STING_DB)
 	audio.play_here(&"shriek", SHRIEK_DB)

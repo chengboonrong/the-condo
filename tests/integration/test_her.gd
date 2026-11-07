@@ -267,8 +267,9 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	return true
 
 
-## He looks back on the walk and she is right behind him: in his face where he looks, at his eye height, lit by her own
-## fill, captioned; half a second on she pulls back to where she follows, her fill fading out on the way.
+## He looks back on the walk and she is right behind him: in his face in the middle of his view (looking level, at his
+## eye height; looking down, below it), lit by her own fill, captioned; half a second on she pulls back to where she
+## follows, her fill fading out on the way.
 func test_lunge_puts_her_in_his_face_then_back() -> bool:
 	var her := _her()
 	her.director.her_near = 0.36  # one counted look (0.12 x 3): she follows 13 m back
@@ -290,7 +291,7 @@ func test_lunge_puts_her_in_his_face_then_back() -> bool:
 	await _frames(1)
 	var to := her.global_position - camera.global_position
 	near(to.length(), Penanggal.LUNGE_AT, 0.02, "she is LUNGE_AT from his eyes")
-	near(her.global_position.y, camera.global_position.y, 0.02, "at their height")
+	near(her.global_position.y, camera.global_position.y, 0.02, "looking level, at their height")
 	check(to.normalized().dot(-camera.global_basis.z) > 0.98, "where he looks")
 	var face := her.global_basis.z.slide(Vector3.UP).normalized()
 	near(face.dot(-to.slide(Vector3.UP).normalized()), 1.0, 0.02, "her face to him")
@@ -313,6 +314,16 @@ func test_lunge_puts_her_in_his_face_then_back() -> bool:
 	her.hide_her()
 	her.lunge(camera)
 	check(not her.visible, "hidden, she does not lunge")
+	camera.rotation.x = deg_to_rad(-50.0)  # he looks back and down at the road: the look counts on his yaw alone
+	her.behind(walker)
+	await _frames(2)
+	her.lunge(camera)
+	await _frames(1)
+	to = her.global_position - camera.global_position
+	near(to.length(), Penanggal.LUNGE_AT, 0.02, "looking down, she is LUNGE_AT from his eyes")
+	check(to.normalized().dot(-camera.global_basis.z) > 0.98, "in the middle of his view, not above it")
+	face = her.global_basis.z.slide(Vector3.UP).normalized()
+	near(face.dot(-to.slide(Vector3.UP).normalized()), 1.0, 0.02, "and still upright, her face to him")
 	return true
 
 

@@ -326,9 +326,10 @@ the fog, places the car, seats him and drives the loops.
   README and the itch page carry the warning (`docs/research/2026-11-06-gore-rules.md`).
 * **The look-back.** On the walk she follows him (`behind`), and each look back that counts (`her_lunges`) is the
   game's jump-scare (`Penanggal.lunge`). In the same frame she is 0.5 m from his eyes to her skull's centre
-  (`LUNGE_AT`), along his view made level, at his eye height, facing him: her 0.26 m head fills a third of his 72° view
-  from 0.54 m in, so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not
-  positional, so at exactly their play levels) and "[She is right behind you.]" goes out on `subtitle_requested`.
+  (`LUNGE_AT`), in the middle of his view whether he looks up or down (the look counts on his yaw alone, so where he
+  looks outranks his eye height), upright and facing him: her 0.26 m head fills a third of his 72° view from 0.54 m in,
+  so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not positional, so at
+  exactly their play levels) and "[She is right behind you.]" goes out on `subtitle_requested`.
   After 0.5 s (`LUNGE_HOLD`) she is `behind` again from where she is, and goes back to where she follows at 6 m/s; a
   second look back during it starts it over. It only ever happens from `behind`, so never after the endings move her.
   For it she carries her own fill: an unshadowed omni light in front of her face and above it, dim (0.5) and steady,
