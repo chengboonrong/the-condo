@@ -354,7 +354,9 @@ func _set_collision(node: Node, on: bool) -> void:
 		_set_collision(child, on)
 
 
-## Tiles with 2 px grout, projected in world space. size: tile width, and height on walls.
+## Tiles with 2 px grout, projected in world space. size: tile width, and height on walls. Mipmapped and anisotropic,
+## like the road: without mipmaps a far floor samples the grout only now and then, and its lines across the view break
+## into dashes.
 func tile_material(base: Color, grout: Color, size := Vector2(0.6, 0.6)) -> StandardMaterial3D:
 	var img := Image.create(64, 64, false, Image.FORMAT_RGB8)
 	img.fill(base)
@@ -362,8 +364,10 @@ func tile_material(base: Color, grout: Color, size := Vector2(0.6, 0.6)) -> Stan
 		for j in [0, 1]:
 			img.set_pixel(i, j, grout)
 			img.set_pixel(j, i, grout)
+	img.generate_mipmaps()
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.uv1_triplanar = true
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3(1.0 / size.x, 1.0 / size.y, 1.0 / size.x)
