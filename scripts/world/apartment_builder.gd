@@ -152,7 +152,7 @@ void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p) + 0.05 * sin(atan(p.y, p.x) * 5.0 + TIME * 3.0);
 	float ring = pow(0.5 + 0.5 * sin(r * 28.0 - TIME * 40.0), 3.0);
-	float fade = smoothstep(1.0, 0.45, r) * smoothstep(0.05, 0.2, r);
+	float fade = (1.0 - smoothstep(0.45, 1.0, r)) * smoothstep(0.05, 0.2, r);
 	// Troughs darken the white bowl a little, as water does; crests catch the light.
 	ALBEDO = mix(vec3(0.42, 0.47, 0.5), vec3(1.0), ring);
 	ROUGHNESS = 0.08;
@@ -188,6 +188,7 @@ var _materials: Dictionary = {}
 var _fan: Node3D
 var _plaster_tex: ImageTexture
 static var _tread: ImageTexture  # tread_texture(), made once
+static var _steam := {}  # steam_textures() by mirror size, made once each
 var _glint: StandardMaterial3D  # the running water's: _process slides its glints down
 
 
@@ -258,7 +259,8 @@ func _process(delta: float) -> void:
 	if _fan:
 		_fan.rotate_y(delta * 2.6 * fan_speed)
 	if _glint:
-		_glint.uv1_offset.y = fposmod(_glint.uv1_offset.y - delta * GLINT_SPEED / GLINT_LENGTH, 1.0)
+		# Triplanar V runs down the world (Godot flips it), so a growing offset carries the glints down.
+		_glint.uv1_offset.y = fposmod(_glint.uv1_offset.y + delta * GLINT_SPEED / GLINT_LENGTH, 1.0)
 
 
 # --- geometry -----------------------------------------------------------------------------------
@@ -741,7 +743,7 @@ func _build_object(o: Array) -> void:
 
 ## The bathroom mirror on the wall at the back of its click box (size: deep, tall, wide; facing +x): a frameless
 ## pane, its edge the green of thick glass, and on its face the steam with the three lines drawn through it
-## (steam_textures), the dark room showing in them.
+## (steam_textures), the room behind you showing dimly in them.
 func _build_steamed_mirror(it: Node3D, size: Vector3) -> void:
 	var wall := -size.x * 0.5 + 0.012  # on the wall's tiles (Decor._bathroom)
 	_box(it, Vector3(wall + 0.003, 0.0, 0.0), Vector3(0.006, size.y, size.z), Color(0.5, 0.6, 0.57), false)
@@ -897,11 +899,13 @@ static func glint_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
-## The mirror's face (size: wide, tall, in metres) fogged with steam, and the three STEAM_LINES drawn through it:
-## [albedo, roughness]. The fog is pale and uneven, piled up a little along each line's edges, and water runs down
-## from where each line ends and here and there from the fog. Through the lines and the runs the glass shows the
-## dark room behind you, smooth. Made in code, once.
+## The mirror's face (size: wide, tall, in metres) fogged with steam, and the three STEAM_LINES a finger wiped through
+## it: [albedo, roughness]. The fog is pale and uneven, piled up a little along each line's soft edges; water has run a
+## little way from two of the lines' ends, and a few beads sit in the fog. Through the lines the glass shows the lit
+## room behind you, dim, cool and blurred. Made in code, once for each size.
 static func steam_textures(size: Vector2) -> Array[ImageTexture]:
+	if _steam.has(size):
+		return _steam[size]
 	var w := 160
 	var h := roundi(w * size.y / size.x)
 	var mist := FastNoiseLite.new()
@@ -912,18 +916,16 @@ static func steam_textures(size: Vector2) -> Array[ImageTexture]:
 	grain.frequency = 0.5
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1147
-	var runs := []  # [x, top, bottom], metres: from each line's end, then a few from the fog
-	for line: Array in STEAM_LINES:
+	var runs := []  # [x, top, bottom], metres: short runs from the first and last lines' ends, then beads in the fog
+	for line: Array in [STEAM_LINES[0], STEAM_LINES[2]]:
 		var end: Vector2 = line[-1]
-		runs.append([end.x + rng.randf_range(-0.002, 0.002), end.y, end.y + rng.randf_range(0.07, 0.13)])
-		var mid: Vector2 = line[1]
-		runs.append([mid.x + 0.004, mid.y + 0.04, mid.y + rng.randf_range(0.1, 0.16)])
+		runs.append([end.x + rng.randf_range(-0.002, 0.002), end.y, end.y + rng.randf_range(0.015, 0.035)])
 	for i in 3:
-		var top := rng.randf_range(0.4, 0.65) * size.y
-		runs.append([rng.randf_range(0.06, 0.94) * size.x, top, top + rng.randf_range(0.03, 0.08)])
+		var top := rng.randf_range(0.35, 0.7) * size.y
+		runs.append([rng.randf_range(0.06, 0.94) * size.x, top, top])
 	var albedo := Image.create(w, h, false, Image.FORMAT_RGB8)
 	var rough := Image.create(w, h, false, Image.FORMAT_L8)
-	var hw := 0.0095  # half a finger's width
+	var hw := 0.0105  # half a finger's width
 	var lines := Rect2(STEAM_LINES[0][0], Vector2.ZERO)  # around all three, a finger's width out
 	for line: Array in STEAM_LINES:
 		for q: Vector2 in line:
@@ -946,28 +948,30 @@ static func steam_textures(size: Vector2) -> Array[ImageTexture]:
 					var b: Vector2 = line[k]
 					var t := clampf((p - a).dot(b - a) / (b - a).length_squared(), 0.0, 1.0)
 					var along := (k - 1 + t) / (line.size() - 1.0)  # 0 where the finger went on, 1 where it lifted
-					var r := hw * (1.1 - 0.45 * along * along) * wobble
+					var r := hw * (1.05 - 0.15 * along) * wobble  # a fingertip keeps its width, lifting a little
 					var d := p.distance_to(a.lerp(b, t))
 					var smear := 0.12 * (0.5 + 0.5 * sin(d / r * 9.0))  # the finger's ridges leave a little behind
-					clear = maxf(clear, (1.0 - smoothstep(r * 0.7, r, d)) * (1.0 - smear))
-					ridge = maxf(ridge, smoothstep(r * 1.8, r, d))
+					clear = maxf(clear, (1.0 - smoothstep(r * 0.3, r * 1.3, d)) * (1.0 - smear))
+					ridge = maxf(ridge, 1.0 - smoothstep(r * 1.2, r * 2.1, d))
 			for run: Array in runs:
-				if p.y > run[1] and p.y < run[2] + 0.004:
+				if p.y > run[1] - 0.004 and p.y < run[2] + 0.004:
 					var x: float = run[0] + 0.0005 * sin(p.y * 60.0)
-					var dr := absf(p.x - x)
-					if p.y > run[2]:  # the bead at its foot
-						dr = p.distance_to(Vector2(x, run[2])) * 0.6
-					clear = maxf(clear, 0.8 * (1.0 - smoothstep(0.001, 0.0025, dr)))
+					var foot := Vector2(x, clampf(p.y, run[1], run[2]))
+					var dr := p.distance_to(foot) * (0.6 if p.y > run[2] else 1.0)  # fatter at the bead
+					clear = maxf(clear, 0.45 * (1.0 - smoothstep(0.001, 0.0025, dr)))
 					ridge = maxf(ridge, 1.0 - smoothstep(0.002, 0.0035, dr))
-			fog = clampf(fog + 0.18 * ridge, 0.0, 1.0) * (1.0 - clear)
-			var room := Color(0.1, 0.11, 0.12).lerp(Color(0.2, 0.21, 0.22), 1.0 - p.y / size.y)  # lit a little above
-			room = room.lightened(0.04 * m)
+			fog = clampf(fog + 0.1 * ridge, 0.0, 1.0) * (1.0 - clear)
+			# The room behind you, out of focus: the bathroom's pale tiles, cool and a little dimmer than the fog.
+			var room := Color(0.47, 0.52, 0.57).lerp(Color(0.55, 0.6, 0.64), smoothstep(0.15, 0.85, p.y / size.y))
+			room = room.lightened(0.06 * m)
 			albedo.set_pixel(px, py, room.lerp(Color(0.7, 0.72, 0.73), fog))
-			var ro := lerpf(0.05, 0.85, fog)
+			var ro := lerpf(0.2, 0.85, fog)  # wet glass, not a polished one: no dark sky in it
 			rough.set_pixel(px, py, Color(ro, ro, ro))
 	albedo.generate_mipmaps()
 	rough.generate_mipmaps()
-	return [ImageTexture.create_from_image(albedo), ImageTexture.create_from_image(rough)]
+	var textures: Array[ImageTexture] = [ImageTexture.create_from_image(albedo), ImageTexture.create_from_image(rough)]
+	_steam[size] = textures
+	return textures
 
 
 ## Half the sole's width (1 at the ball) on its inner (arch) or outer side, from the toe (y 0) to the heel (1).
