@@ -203,25 +203,45 @@ func test_a_long_caption_grows_up_not_into_the_subtitle() -> bool:
 
 
 ## The road's sounds are captioned the way the flat's are: on subtitle_requested, shown only with "Captions for sounds"
-## on. A set of thumps on the roof gets one caption.
+## on. The first thump on the roof gets its caption and each one after an "again"; every overtake gets the roar.
 func test_road_sounds_are_captioned_with_captions_on() -> bool:
 	var road := await _road()
 	var hud := road.hud
 	var captions: Array[String] = []
-	var heard := func(text: String, _seconds: float) -> void: captions.append(text)
+	var seconds: Array[float] = []
+	var heard := func(text: String, secs: float) -> void:
+		captions.append(text)
+		seconds.append(secs)
 	EventBus.subtitle_requested.connect(heard)
 	EventBus.road_cue.emit(&"thump")
 	eq(captions, ["[Something lands on the roof]"] as Array[String], "a thump is captioned")
 	eq(hud._caption.text, "[Something lands on the roof]", "and it shows, captions on")
 	EventBus.road_cue.emit(&"thump")
-	eq(captions.size(), 1, "once for the set")
+	EventBus.road_cue.emit(&"thump")
+	eq(captions, ["[Something lands on the roof]", "[It moves on the roof.]", "[It moves on the roof.]"] as Array[String],
+			"the first is the landing, each one after it moves")
+	eq(seconds.slice(1), [2.5, 2.5] as Array[float], "for 2.5 s")
+	eq(hud._caption.text, "[It moves on the roof.]", "and it shows")
+	captions.clear()
+	seconds.clear()
+	EventBus.road_cue.emit(&"overtake")
+	EventBus.road_cue.emit(&"overtake")
+	eq(captions, ["[The engine roars.]", "[The engine roars.]"] as Array[String], "every overtake roars")
+	eq(seconds, [2.5, 2.5] as Array[float], "for 2.5 s")
+	eq(hud._caption.text, "[The engine roars.]", "and it shows")
+	captions.clear()
+	EventBus.road_cue.emit(&"knock_window")
+	EventBus.road_cue.emit(&"knock_window")
+	eq(captions, ["[Knocking on Mei's window]"] as Array[String], "the knocks stay one caption for the set")
 	road.queue_free()
 	await tree.process_frame
 	road = await _road()
 	Settings.values["subtitles"] = false
-	EventBus.road_cue.emit(&"thump")
-	eq(captions.size(), 2, "with captions off it goes out on the same signal, as the flat's do")
-	eq(road.hud._caption.text, "", "but does not show")
+	captions.clear()
+	for cue: StringName in [&"thump", &"thump", &"overtake"]:
+		EventBus.road_cue.emit(cue)
+	eq(captions.size(), 3, "with captions off they go out on the same signal, as the flat's do")
+	eq(road.hud._caption.text, "", "but do not show")
 	EventBus.subtitle_requested.disconnect(heard)
 	road.queue_free()
 	return true

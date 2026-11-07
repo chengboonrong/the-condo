@@ -312,9 +312,12 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `rule_broken` | `break_rule` | nothing in the game; the bots and tests count them |
 
 `RoadMain` also captions the cues whose sound carries the moment (`RoadMain.CAPTIONS`): `lorry_passes`, `lights_dying`,
-`crank`, `door_cracked`, `mei_door_cracked`, `thump` and `knock_window` (one caption for each set) and `lorry_stops`. They
-go out on `subtitle_requested`, as the flat's sound captions do, and the HUD shows them on the caption line, only with
-"Captions for sounds" on (see [Captions](#captions)).
+`crank`, `door_cracked`, `mei_door_cracked`, `thump` and `knock_window` (one caption for each set), `lorry_stops` and
+`overtake` ("[The engine roars.]", every time). Each `thump` after the first gets `THUMP_AGAIN` ("[It moves on the
+roof.]") instead. `Her` captions her first wet flap behind him on the walk (`Penanggal.FLAP_CAPTION`, once, and never for
+her flaps in her other places or the door's slap) and the look-back lunge ("[She is right behind you.]"). They go out on
+`subtitle_requested`, as the flat's sound captions do, and the HUD shows them on the caption line, only with "Captions
+for sounds" on (see [Captions](#captions)).
 
 ### What the presentation is
 

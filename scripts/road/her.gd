@@ -49,6 +49,9 @@ const CLOSE := 0.6  # metres from the camera she stops at
 const LUNGE_AT := 0.5
 const LUNGE_HOLD := 0.5  # seconds she stays in his face before she pulls back
 const LUNGE_CAPTION := "[She is right behind you.]"
+## Her first wet flap behind him, captioned once: the same noise after it is not. Her flaps in her other places have no
+## caption, and the door's slap has its own (RoadMain.CAPTIONS).
+const FLAP_CAPTION := "[Behind you, something wet flaps.]"
 ## The stinger's and her shriek's play levels in his head (RoadAudio.play_here, so exact): their file peaks (0.80 and
 ## 0.32) summed at the master's 0.8 come to -6.7 dBFS, under the road's loudest peak now (-6.1). See
 ## docs/architecture.md, "Audio levels".
@@ -218,6 +221,7 @@ var _swing := Vector3.ZERO  # what hangs from her lags her motion: a velocity, o
 var _swing_v := Vector3.ZERO
 var _timers := {}  # sound -> seconds to the next
 var _smelt := false
+var _flapped := false  # her flap behind him has had its caption
 var _rng := RandomNumberGenerator.new()  # presentation only
 
 
@@ -459,6 +463,9 @@ func _process(delta: float) -> void:
 		if _timers[noise[0]] <= 0.0:
 			_timers[noise[0]] = _rng.randf_range(noise[1], noise[2])
 			_play(noise[0])
+			if noise[0] == &"wet_flap" and _mode == &"behind" and not _flapped:
+				_flapped = true
+				EventBus.subtitle_requested.emit(FLAP_CAPTION, 2.5)
 
 
 ## catch: she drops onto his shoulders, he falls, and she stays over him while the pool spreads.

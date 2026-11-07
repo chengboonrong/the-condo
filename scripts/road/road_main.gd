@@ -16,7 +16,8 @@ const ROOF := Vector3(0.4, 1.45, -0.6)
 const MEI_DOOR := Vector3(0.86, 0.9, 0.3)
 const MEI_WINDOW := Vector3(0.82, 1.15, 0.3)
 ## The road's sounds that carry a moment, captioned as the flat's are: [text, seconds] by cue, on subtitle_requested,
-## which the HUD shows only with "Captions for sounds" on. The thumps and the knocks come as one set each: one caption.
+## which the HUD shows only with "Captions for sounds" on. The knocks come as one set: one caption. So do the thumps,
+## but for THUMP_AGAIN. Every overtake has the engine roar: the rev, each time.
 const CAPTIONS := {
 	&"lorry_passes": ["[A lorry passes]", 3.0],
 	&"lights_dying": ["[The engine sputters out]", 3.0],
@@ -26,7 +27,10 @@ const CAPTIONS := {
 	&"thump": ["[Something lands on the roof]", 3.0],
 	&"knock_window": ["[Knocking on Mei's window]", 3.0],
 	&"lorry_stops": ["[A lorry pulls up]", 4.0],
+	&"overtake": ["[The engine roars.]", 2.5],
 }
+## What each thump after the first is captioned as: the first landed, and now it moves about up there.
+const THUMP_AGAIN := ["[It moves on the roof.]", 2.5]
 const ONE_SET: Array[StringName] = [&"thump", &"knock_window"]
 const SHAKE := 0.012  # metres each way a thump on the roof shakes his view, at the most
 const SHAKE_SECONDS := 0.35
@@ -311,6 +315,8 @@ func _on_cue(cue: StringName) -> void:
 		EventBus.subtitle_requested.emit(CAPTIONS[cue][0], CAPTIONS[cue][1])
 		if ONE_SET.has(cue):
 			_captioned.append(cue)
+	elif cue == &"thump":  # one already captioned
+		EventBus.subtitle_requested.emit(THUMP_AGAIN[0], THUMP_AGAIN[1])
 	match cue:
 		&"card_on":
 			hud.show_card("")

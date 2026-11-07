@@ -102,10 +102,15 @@ and she follows closer on the walk). It sends `rule_broken`. What each mission a
 | 4 | `opened_door` (2) | His door opens a hand's width and something slaps it shut. He cannot try again. |
 | 4 | `answered` (1) | Nothing shows but the fog and her. Mei reaches for her door whatever he said. |
 | 4 | `mei_opened` (1) | Mei's door opens a little and is slapped shut. |
-| 5 | `looked_back` (3, at most twice) | Nothing shows but the fog and her, who is nearer behind them. |
+| 5 | `looked_back` (3, at most twice) | She lunges into his face where he looks, with the stinger, her shriek and "[She is right behind you.]", and half a second on pulls back to where she follows, nearer behind them than before. |
 | 5 | `mei_looked` (1) | Mei looks back for 2.5 s: "[Mei looks back.]". |
 
 The count then decides the ending at the light: up to 2 `alive`, 3 to 6 `saved`, more `caught`.
 
-No sound on the road is captioned. What anyone says or thinks (`line_requested`) always shows, whatever the captions
-setting, and so does "[A sour smell, like vinegar.]" after her first glimpse.
+The road's sounds that carry a moment are captioned on `subtitle_requested`, and show only with the captions setting
+on: the cues in `RoadMain.CAPTIONS` (the lorry, the engine dying and cranking, the wet slaps on the doors, the first
+thump on the roof, the knocks on Mei's window, one caption for each set of thumps and of knocks), "[It moves on the
+roof.]" for each thump after the first, "[The engine roars.]" at every overtake, "[Behind you, something wet flaps.]"
+with her first wet flap behind him on the walk (and no other flap of hers), and "[She is right behind you.]" with the
+look-back lunge. What anyone says or thinks (`line_requested`) always shows, whatever the captions setting, and so does
+"[A sour smell, like vinegar.]" after her first glimpse.

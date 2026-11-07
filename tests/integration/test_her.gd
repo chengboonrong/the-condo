@@ -327,6 +327,83 @@ func test_lunge_puts_her_in_his_face_then_back() -> bool:
 	return true
 
 
+## Her first wet flap behind him is captioned, with the flap itself and once: a second flap, and one after a lunge,
+## are not. The caption shows only with captions on, so it goes out on subtitle_requested with the sound.
+func test_her_first_flap_behind_is_captioned() -> bool:
+	var her := _her()
+	her.audio = RoadAudio.new()
+	tree.root.add_child(her.audio)
+	var walker := Node3D.new()
+	tree.root.add_child(walker)
+	walker.global_position = RoadLayout.point(900.0)
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = walker.global_position + Vector3.UP * 1.6
+	camera.rotation.y = RoadBuilder.yaw_along(900.0) + PI
+	var flaps: Array[int] = []  # the frame of each wet flap
+	var captions: Array[String] = []
+	var when: Array[int] = []  # the frame of each caption
+	var length: Array[float] = []  # and its seconds
+	var on_sound := func(id: StringName, _pos: Vector3, _db: float) -> void:
+		if id == &"wet_flap":
+			flaps.append(Engine.get_process_frames())
+	var on_caption := func(text: String, seconds: float) -> void:
+		captions.append(text)
+		when.append(Engine.get_process_frames())
+		length.append(seconds)
+	EventBus.sound_requested.connect(on_sound)
+	EventBus.subtitle_requested.connect(on_caption)
+	her.behind(walker)
+	var frames := 0
+	while flaps.size() < 2 and frames < 1500:  # a flap every 3 to 6 s
+		await tree.process_frame
+		frames += 1
+	eq(flaps.size(), 2, "two flaps behind him")
+	eq(captions, ["[Behind you, something wet flaps.]"] as Array[String], "one caption, hers")
+	eq(length, [2.5] as Array[float], "for 2.5 s")
+	eq(when, [flaps[0]] as Array[int], "with the first flap")
+	her.lunge(camera)
+	flaps.clear()
+	frames = 0
+	while flaps.size() < 1 and frames < 1500:
+		await tree.process_frame
+		frames += 1
+	eq(flaps.size(), 1, "a flap after the lunge")
+	eq(captions.slice(1), [Penanggal.LUNGE_CAPTION] as Array[String], "after it only the lunge's, not another flap's")
+	EventBus.sound_requested.disconnect(on_sound)
+	EventBus.subtitle_requested.disconnect(on_caption)
+	her.queue_free()
+	return true
+
+
+## Her flaps anywhere but behind him have no caption: not as she comes for him, not as she flies.
+func test_her_flaps_elsewhere_are_not_captioned() -> bool:
+	var her := _her()
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = RoadLayout.point(900.0) + Vector3.UP * 1.6
+	var flaps := [0]
+	var captions := []
+	var on_sound := func(id: StringName, _pos: Vector3, _db: float) -> void:
+		if id == &"wet_flap":
+			flaps[0] += 1
+	var on_caption := func(text: String, _seconds: float) -> void: captions.append(text)
+	EventBus.sound_requested.connect(on_sound)
+	EventBus.subtitle_requested.connect(on_caption)
+	her.global_position = camera.global_position + Vector3(0.0, 0.0, 30.0)
+	her.visible = true
+	her.come_for(camera)
+	await _frames(120)
+	her.fly_to(camera.global_position + Vector3(0.0, 6.0, 20.0))
+	await _frames(120)
+	check(flaps[0] >= 3, "she flaps coming and flying (%d)" % flaps[0])
+	eq(captions, [], "and none of it is captioned")
+	EventBus.sound_requested.disconnect(on_sound)
+	EventBus.subtitle_requested.disconnect(on_caption)
+	her.queue_free()
+	return true
+
+
 ## Seen from the back seat her insides hang past his window, but nothing of hers is inside the car's body.
 func test_on_the_roof_nothing_passes_through_the_car() -> bool:
 	var car := CarRig.new()
