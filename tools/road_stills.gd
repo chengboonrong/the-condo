@@ -25,6 +25,7 @@ const SHOTS := [
 	["road_awas431", 0, 426.5, 2.0, 0.8, 0.05, 0.0, true],  # the one behind the rail, before switchback 1
 	["road_city", 0, 360.0, 1.8, 0.0, 0.0, 0.0, false],  # down the road towards KL's glow, in the clearest fog
 	["car_arrives", 0, 2.0, 3.4, PI - 0.15, -0.03, 0.0, false, {"car_s": -10.0, "car_speed": 9.0}],  # from the stop
+	["lorry_pass", 0, -2.0, 4.3, -0.12, -0.04, 0.0, false, {}, &"", [&"lorry_passes", 0.6]],  # from the stop: the lorry coming up the other lane
 	["back_seat", 0, 615.0, 0.0, -0.25, -0.04, 0.0, false, {"seated": true, "car_s": 615.0, "car_speed": 9.0}],  # chevrons 20-40 m on
 	["slow_car", 1, 0.0, 0.0, 0.0, -0.03, 0.0, false, {"seated": true, "car_s": 140.0, "car_speed": 4.0, "slow_gap": 12.0}],  # behind it, in the headlights
 	["overtake", 1, 0.0, 0.0, 0.16, -0.03, 0.12, false, {"seated": true, "car_s": 140.0, "car_speed": 8.0, "lane": 0.0, "slow_gap": 8.0}],  # pulling out, level with its tail, in the headlights
@@ -147,12 +148,15 @@ func _initialize() -> void:
 		var cued: bool = s.size() > 11 and s[11] is String and s[11] == "cued"
 		road.lorry.visible = false  # off the road unless a shot's cues bring it
 		road.lorry.set_process(false)
+		hud._caption.text = ""  # no caption carried over from the last shot's cues
+		hud._caption_left = 0.0
 		road.her.set_process(true)  # the cues play out with her moving
 		for cue: Variant in (s[10] if s.size() > 10 else []):  # once the car is there: Hafiz gets out of it
 			if cue is float:
 				await create_timer(cue).timeout
 			else:
 				bus.road_cue.emit(cue)
+		road.lorry.set_process(false)  # held where the cues left it
 		if cued:
 			road.her.set_process(false)  # held where the cues left her
 		if ride.has("pull_in"):  # the slow car pulls in and goes dark, and the couple go by it
