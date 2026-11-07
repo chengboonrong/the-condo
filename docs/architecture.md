@@ -626,8 +626,9 @@ where each moment is heard; it is not a bound for every place, and for the thump
   −14.0. The rest of the margin is the bed: the engine loop, 1.5 dB lower all ride. At −18.5 the headless mix put its
   peak at −6.4 dBFS summed; the real-play recording (take 2, seed 1147) measured 10.8 dB over its bed and −8.0 dBTP,
   where the sputter passes ahead of and behind him, centred, not to one side. So the file is −17.0, 1.5 dB up: about
-  12.3 dB and −6.5 dBTP in play. As mixed headless (about −5.0) and by the bound with it all to one side (−4.8) it now passes
-  the −6.1 limit; the real play is the measure kept.
+  12.3 dB and −6.5 dBTP in play. As mixed headless (about −5.0) and by the bound with it all to one side (−4.8) it is now
+  over the −6.1 limit, by 1.1 and 1.3 dB; only the real play, with the sputter passing ahead of and behind him, keeps it
+  under.
 * **The rev's bed.** In the second before, the engine (−28.7 dB RMS at −12) and the indicator's ticks (−30.1 at 0)
   were about level, so ducking the engine alone stops at about 12 dB. The indicator at −5 does the rest. Its ticks
   peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` eases in over
