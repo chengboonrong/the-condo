@@ -23,6 +23,7 @@ const CAPTIONS := {
 	&"lights_dying": ["[The engine sputters out]", 3.0],
 	&"crank": ["[The engine cranks and dies]", 2.5],
 	&"door_cracked": ["[Your door opens. A wet slap, and it slams shut]", 3.0],
+	&"doors_locked": ["[The doors lock]", 2.0],
 	&"mei_door_cracked": ["[Mei's door opens. A wet slap, and it slams shut]", 3.0],
 	&"thump": ["[Something lands on the roof]", 3.0],
 	&"knock_window": ["[Knocking on Mei's window]", 3.0],

@@ -31,6 +31,7 @@ const DOOR := &"car_door_inside"
 const LOCK := &"car_lock"
 const LOCK_SECONDS := 5.0  # from the first thump, to lock the doors
 const OBJECTIVE := "Stay in the car. Don't open the door. Don't answer."
+const LOCK_OBJECTIVE := "Lock the doors: the switch on the roof, between the front seats."
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
 const LOCK_LINE := "[Bang Din: \"And if something lands on the roof, lock the doors. Fast.\"]"
 const VOICE := "[Outside, in Hafiz's voice: \"Bro! Open the door, I found help!\"]"
@@ -102,6 +103,7 @@ func tick(delta: float) -> bool:
 					if i == 0:
 						EventBus.road_cue.emit(&"her_on_roof")
 						WorldState.set_prompt(LOCK, "Lock the doors")
+						WorldState.set_objective(LOCK_OBJECTIVE)
 			if not _locked and beat_t >= THUMPS[0] + LOCK_SECONDS:  # always inside this beat, so checked only here
 				d.die(&"not_locked")
 			if beat_t >= THUMPING:
@@ -154,6 +156,7 @@ func interacted(object_id: StringName) -> void:
 	if object_id == LOCK and WorldState.prompts.get(LOCK, "") != "":
 		_locked = true
 		WorldState.set_prompt(LOCK, "")
+		WorldState.set_objective(OBJECTIVE)
 		EventBus.road_cue.emit(&"doors_locked")
 	elif object_id == DOOR and _door:
 		EventBus.road_cue.emit(&"door_cracked")
@@ -164,7 +167,7 @@ func leave() -> void:
 	_door = false
 	WorldState.set_prompt(DOOR, "")
 	WorldState.set_prompt(LOCK, "")
-	if WorldState.objective == OBJECTIVE:
+	if WorldState.objective == OBJECTIVE or WorldState.objective == LOCK_OBJECTIVE:
 		WorldState.set_objective("")
 
 

@@ -6,6 +6,7 @@ extends TestCase
 var _was_changing := true
 var _sounds: Array[StringName] = []  # every sound asked for while the road plays the car dying
 var _last: Array = []  # the last sound asked for: [id, where, volume_db]
+var _caption := ""  # the last sound caption asked for
 
 
 func _frames(n: int) -> void:
@@ -159,7 +160,10 @@ func test_the_road_plays_the_car_dying() -> bool:
 	check(_playing(road, &"thump_roof"), "the roof thumps")
 	var on := road.car.global_transform.affine_inverse() * road.her.global_position
 	check(road.her.visible and on.y > 1.4 and on.x > 0.8, "she is up by the roof on his side (%s)" % on)
+	EventBus.subtitle_requested.connect(_on_caption)
 	EventBus.road_cue.emit(&"doors_locked")
+	EventBus.subtitle_requested.disconnect(_on_caption)
+	eq(_caption, "[The doors lock]", "and it is captioned")
 	eq([_last[0], _last[2]], [&"car_door_close", -14.0], "locking the doors clunks, quietly")
 	near((_last[1] as Vector3).distance_to(road.car.lock.global_position), 0.0, 0.001, "at the lock")
 	EventBus.road_cue.emit(&"door_cracked")
@@ -195,6 +199,10 @@ func test_the_road_plays_the_car_dying() -> bool:
 	road.queue_free()
 	Journey.change_scenes = _was_changing
 	return true
+
+
+func _on_caption(text: String, _seconds: float) -> void:
+	_caption = text
 
 
 func _on_sound(id: StringName, at: Vector3, volume_db: float) -> void:

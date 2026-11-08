@@ -1,7 +1,7 @@
 extends TestCase
 ## Mission 4, the car dies: on the long straight the engine and the lights die, Hafiz walks off to find help, and he
-## and Mei wait while something thumps on the roof, speaks in Hafiz's voice and knocks on her window. The rules: don't
-## open the door, and don't answer.
+## and Mei wait while something thumps on the roof, speaks in Hafiz's voice and knocks on her window. The rules: lock the
+## doors when something lands, don't open the door, and don't answer.
 
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
 const LOCK_LINE := "[Bang Din: \"And if something lands on the roof, lock the doors. Fast.\"]"
@@ -203,6 +203,7 @@ func test_not_locking_within_five_seconds_kills_him() -> bool:
 	near(WorldState.time - thump_at, StallMission.LOCK_SECONDS, 0.15, "5 s after the first thump")
 	check(not cues.has(&"doors_locked"), "(he never locked)")
 	eq(WorldState.prompts.get(&"car_lock", ""), "", "the prompt is gone with him")
+	eq(WorldState.objective, "", "and so is the objective")
 	_teardown()
 	return true
 
@@ -225,6 +226,34 @@ func test_locking_keeps_him_and_the_door_still_kills() -> bool:
 	return true
 
 
+func test_the_objective_points_to_the_lock_until_he_locks() -> bool:
+	_setup()
+	var m: StallMission = d.missions[0]
+	var before := ""  # the objective as the first thump comes
+	for i in 3000:
+		if cues.has(&"thump"):
+			break
+		before = WorldState.objective
+		d.step(0.1)
+	eq(before, StallMission.OBJECTIVE, "the rules, until then")
+	eq(WorldState.objective, StallMission.LOCK_OBJECTIVE, "from the first thump, where the lock is")
+	m.leave()
+	eq(WorldState.objective, "", "leaving the mission clears it")
+	_teardown()
+	_setup()
+	for i in 3000:
+		if cues.has(&"thump"):
+			break
+		d.step(0.1)
+	EventBus.object_interacted.emit(&"car_lock")
+	eq(WorldState.objective, StallMission.OBJECTIVE, "once he has locked up, the rules again")
+	m = d.missions[0]
+	m.leave()
+	eq(WorldState.objective, "", "and leaving clears that too")
+	_teardown()
+	return true
+
+
 func test_opening_the_door_kills_him() -> bool:
 	_setup()
 	_play({&"answer_voice": 1, &"stop_mei": 0}, 2)
@@ -243,7 +272,7 @@ func test_opening_the_door_kills_him() -> bool:
 	return true
 
 
-## Once the light is on and Mei has pointed at it, the door is the way on, not a break: its prompt goes.
+## Once the light is on and Mei has pointed at it, the door no longer kills him: its prompt goes.
 func test_the_door_prompt_goes_when_the_light_comes_on() -> bool:
 	_setup()
 	while not cues.has(&"light_on") and WorldState.time < 300.0:
