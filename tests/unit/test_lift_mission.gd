@@ -147,6 +147,53 @@ func _to_get_in() -> void:
 	_run(0.2)
 
 
+func test_bang_din_warns_him_at_the_stop() -> bool:
+	_setup()
+	_run(14.0)
+	check(not captions.has(LiftMission.WARN), "not on the walk")
+	stage.position = RoadLayout.BUS_STOP
+	_run(0.5)
+	check(captions.has(LiftMission.WARN), "at the stop, Bang Din's warning comes back to him")
+	stage.position = RoadLayout.point(RoadLayout.BUS_STOP_S - 10.0, 4.6)
+	_run(5.0)
+	stage.position = RoadLayout.BUS_STOP
+	_run(10.0)
+	eq(captions.count(LiftMission.WARN), 1, "and only the first time")
+	_teardown()
+	return true
+
+
+func test_too_slow_to_get_in_he_is_left_and_dies() -> bool:
+	_setup()
+	_to_get_in()
+	eq(_lift().beat, &"get_in", "(at the car door)")
+	_run(10.1)
+	check(cues.has(&"couple_leaves"), "10 s with no answer: the couple leave")
+	eq(WorldState.prompts.get(&"car_door"), "", "the door is no use now")
+	_run(1.0)
+	check(d.car_speed > 0.0, "and the car drives off")
+	eq(d.dead, &"", "(he is still standing there)")
+	_run(LiftMission.LEFT_SECONDS)
+	eq(d.dead, &"missed_lift", "left behind on the mountain")
+	EventBus.object_interacted.emit(&"car_door")
+	check(not d.seated, "too late to get in")
+	_teardown()
+	return true
+
+
+func test_getting_in_within_ten_seconds_keeps_him() -> bool:
+	_setup()
+	_to_get_in()
+	_run(9.3)
+	EventBus.object_interacted.emit(&"car_door")
+	_run(20.0)
+	eq(d.dead, &"", "in the car in time")
+	check(d.seated, "and still in it")
+	check(not cues.has(&"couple_leaves"), "they didn't leave")
+	_teardown()
+	return true
+
+
 func test_a_skip_during_the_opening_lifts_the_card() -> bool:
 	_setup(true)
 	_run(2.0)

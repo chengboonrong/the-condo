@@ -2,7 +2,8 @@ class_name LiftMission
 extends RoadMission
 ## Mission 1, the wait for a lift. The opening, in his thoughts on a black card; the walk down from the staff exit to
 ## the bus stop; the wait, which counts only while he is at the stop; and the couple's car, which stops for him. There
-## is no rule to break yet: it teaches the road and puts him in the back seat.
+## is no rule to break yet: it teaches the road and puts him in the back seat. The couple wait only 10 s at the open
+## door: too slow, and they drive off without him.
 
 const OPENING := [
 	["[12:06 AM. The last staff bus went down the mountain at eleven.]", 4.0],
@@ -16,6 +17,9 @@ const CAR_AT := 45.0
 const CAR_FROM := -150.0  # where the couple's car comes down from, out of sight up the road
 const CAR_SPEED := 9.0
 const TALK_SECONDS := 9.0  # the small talk once he is in
+const GET_IN_SECONDS := 10.0  # the couple wait this long at the open door
+const LEFT_SECONDS := 4.0  # from their car leaving to the dark taking him
+const WARN := "[Bang Din: \"If a car stops for you up there, get in fast. Don't make it wait.\"]"
 const OBJECTIVE := "Walk down to the bus stop and wait for a lift."
 
 var _waited := 0.0
@@ -52,6 +56,7 @@ func tick(delta: float) -> bool:
 				go(&"walk")
 		&"walk":
 			if _at_stop():
+				d.say(WARN, 6.0)
 				go(&"wait")
 		&"wait":
 			if _at_stop():
@@ -63,7 +68,15 @@ func tick(delta: float) -> bool:
 				WorldState.set_prompt(&"car_door", "Get in")
 				go(&"get_in")
 		&"get_in":
+			if not d.seated and beat_t >= GET_IN_SECONDS:
+				WorldState.set_prompt(&"car_door", "")
+				d.drive(CAR_SPEED)
+				EventBus.road_cue.emit(&"couple_leaves")
+				go(&"left")
 			return beat_t >= _talk_ends
+		&"left":
+			if beat_t >= LEFT_SECONDS:
+				d.die(&"missed_lift")
 	return false
 
 
