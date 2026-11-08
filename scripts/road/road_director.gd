@@ -200,6 +200,7 @@ func break_rule(rule: StringName, weight := 1) -> void:
 
 
 ## He dies of `cause`, once, and never after the ending. The open choice closes without a break and the mission is left.
+## In the car, it brakes (a car he is not in goes on: the couple drive off from the lift without him).
 func die(cause: StringName) -> void:
 	if dead != &"" or ending != &"":
 		return
@@ -207,6 +208,8 @@ func die(cause: StringName) -> void:
 	_drop_choice()
 	stop_look()
 	_leave()
+	if seated:
+		drive(0.0)
 	EventBus.player_died.emit(cause)
 
 

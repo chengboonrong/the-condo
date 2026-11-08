@@ -410,12 +410,15 @@ func is_card_shown() -> bool:
 	return _card.visible
 
 
-## The death card: the cause's line and Try again, over everything. A choice or a caption still up is closed, and the
-## mouse is shown for the button (on the web that also lets go of the pointer lock).
+## The death card: the cause's line and Try again, over everything. A choice or a caption still up is closed, a line
+## being said is cut off (and the one waiting for it dropped), and the mouse is shown for the button (on the web that
+## also lets go of the pointer lock).
 func show_game_over(line: String) -> void:
 	close_choices(_choice_id)
 	_subtitle.text = ""
 	_caption.text = ""
+	next_voice = null
+	voice.stop()
 	_game_over_line.text = line
 	_game_over.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

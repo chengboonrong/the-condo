@@ -333,26 +333,49 @@ func _score(kept: Array[Dictionary]) -> int:
 
 
 ## He dies in the walk: it is quiet until she reaches him, then the card, with the cause's line, and nothing of the road
-## left over it. A choice and a caption that were up are gone. Its button works in the road itself.
+## left over it, to see or to hear. A choice, a caption and a line being said that were up are gone, and she is silent.
+## Its button works in the road itself.
 func test_a_death_shows_game_over_once_she_reaches_him() -> bool:
 	var road: RoadMain = await _road()
 	road.director.start_at(4)  # mission 5, the walk to the light
 	await _secs(0.2)
 	road.director.ask(&"t", PackedStringArray(["\"Don't.\"", "\"Go.\""]), 30.0, PackedInt32Array([0]), &"r")
 	EventBus.subtitle_requested.emit("[Breathing, close behind you]", 30.0)
+	var saying := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
+	var next := "Hafiz: \"No signal here. I jalan down a bit, find help. You two stay in the car, okay?\""
+	check((Voices.stream(saying) as AudioStream).get_length() > 5.0, "(a line long enough to be still going when she comes)")
+	road.hud.speak(saying)
+	road.hud.speak(next)
 	check(road.hud.is_choosing() and road.hud._caption.text != "", "a choice and a caption are up")
+	check(road.hud.voice.playing and road.hud.next_voice != null, "a line is being said and another waits")
+	var reached: Array[bool] = []  # whether the card was up when she reached him: RoadMain's own handler runs first
+	road.her.reached.connect(func() -> void: reached.append(road.hud.is_game_over_shown()))
 	road.director.die(&"looked_back")
 	await _secs(0.2)
 	check(not road.player.input_enabled, "he is held")
 	check(not road.hud.is_game_over_shown(), "no card before she reaches him")
-	var shown := await _until(func() -> bool: return road.hud.is_game_over_shown(), 10.0)
-	check(shown, "the card comes up within 10 s")
+	var early := false
+	var came := await _until(func() -> bool:
+		early = early or (road.hud.is_game_over_shown() and reached.is_empty())
+		return not reached.is_empty(), 10.0)
+	check(came, "she reaches him within 10 s")
+	check(not early, "and the card was not up before")
+	eq(reached, [true], "the card is up as she reaches him, once")
 	eq(road.hud._game_over_line.text, Journey.DEATHS[&"looked_back"], "with the cause's line")
 	check(not road.hud.is_choosing(), "no choice left")
 	eq(road.hud._caption.text, "", "no caption")
 	eq(road.hud._subtitle.text, "", "and no line")
 	check(road.hud.is_card_shown(), "the black card is under it")
-	await _secs(0.1)  # laid out
+	check(not road.hud.voice.playing and road.hud.next_voice == null, "nothing is being said, and nothing waits")
+	var heard: Array[StringName] = []
+	var on_sound := func(id: StringName, _at: Vector3, _db: float) -> void: heard.append(id)
+	EventBus.sound_requested.connect(on_sound)
+	await _secs(2.0)
+	EventBus.sound_requested.disconnect(on_sound)
+	eq(heard, [] as Array[StringName], "she makes no sound under the card (2 s)")
+	check(not road.her.visible, "she is gone")
+	check(not road.audio.loops.is_empty() and road.audio.loops.values().all(func(p: AudioStreamPlayer) -> bool: return not p.playing),
+			"the engine, the insects and the wind are off")
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.position = road.hud._retry.get_global_rect().get_center()
@@ -364,6 +387,29 @@ func test_a_death_shows_game_over_once_she_reaches_him() -> bool:
 	eq(Journey.retry_mission, 4, "a click on Try again in the road itself retries mission 5")
 	Journey.retry_mission = -1  # nobody loads the road here
 	Journey.retry_broken = []
+	_done(road)
+	return true
+
+
+## He dies in the car at 9 m/s: it brakes at the usual rate until the card is up, not to a stop in one frame. (She reaches
+## him in about a second, with the car still rolling: it is the card that holds it.)
+func test_a_death_in_a_moving_car_brakes_it() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(2)  # mission 3: in the car, cruising
+	await _secs(0.2)
+	near(road.director.car_speed, CountMission.CRUISE_SPEED, 0.01, "he is riding at cruise speed")
+	road.director.die(&"turned_round")
+	var speeds: Array[float] = []
+	var shown := await _until(func() -> bool:
+		speeds.append(road.director.car_speed)
+		return road.hud.is_game_over_shown(), 10.0)
+	check(shown, "the card comes up within 10 s")
+	check(speeds.size() > 30, "after more than half a second (%d frames)" % speeds.size())
+	var hardest := 0.0
+	for i in range(1, speeds.size()):
+		hardest = maxf(hardest, speeds[i - 1] - speeds[i])
+	check(hardest <= RoadDirector.ACCEL / 60.0 + 0.001, "no frame brakes harder than the usual rate (%.3f m/s)" % hardest)
+	check(speeds[0] - speeds[-1] > 1.0, "and it did slow (%.2f to %.2f m/s)" % [speeds[0], speeds[-1]])
 	_done(road)
 	return true
 

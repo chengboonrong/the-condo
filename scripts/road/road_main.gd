@@ -90,6 +90,7 @@ var _duck := 0.0  # dB the engine loop is ducked by now, on its way to ROAR_DUCK
 var _at_light := false  # the walk to the light (LightMission) is the core's mission
 var _captioned: Array[StringName] = []  # the sets (ONE_SET) captioned already
 var _retrying := false  # Try again loaded this scene: it starts at once, with no start card
+var _over := false  # the GAME OVER card is up: the road's loops are off and stay off
 
 
 func _ready() -> void:
@@ -143,7 +144,7 @@ func _ready() -> void:
 	EventBus.road_ended.connect(finish)
 	EventBus.player_died.connect(_on_died)
 	her.reached.connect(_on_her_reached)
-	hud.retry_pressed.connect(_on_retry, CONNECT_ONE_SHOT)  # a second press would reload the road from mission 1
+	hud.retry_pressed.connect(_on_retry, CONNECT_ONE_SHOT)  # one retry: a second press in the same frame would reload again
 	# `-- --mission=N` / `?mission=N`: start at mission N (1 is the lift, and past the last is the last), as if every
 	# earlier one was kept. Without it, mission 1: the car and his seat are then where the road starts them, even on
 	# the start card, before the first mission begins.
@@ -347,10 +348,16 @@ func _on_her_reached() -> void:
 	if director.dead != &"":  # not the caught ending's: that one has its own card
 		hud.show_card("")
 		hud.show_game_over(Journey.DEATHS[director.dead])
+		her.hide_her()  # in her come_for she wet-flaps every second, point blank, under the card
+		_over = true
+		for id: StringName in audio.loops:
+			audio.set_loop(id, false, 0.0)
 
 
-## The scene is freed by the change: the director's count is read first.
+## The scene is freed by the change: the director's count is read first. The pointer lock is asked for here, inside the
+## click: Safari grants it to a gesture only, and the new scene's own request comes after its warm-up.
 func _on_retry() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	Journey.retry_road(director.mission_index, director.broken_at_start)
 
 
@@ -450,8 +457,9 @@ func _sound(id: StringName, at: Vector3, volume_db: float) -> void:
 func _physics_process(delta: float) -> void:
 	to_the_light()
 	# As in the flat: time and the choices' timers stand still on the start card and while paused (the pause menu
-	# pauses the whole tree), so no rule can break then. They keep running while he reads something.
-	if player.input_enabled or hud.is_inspecting():
+	# pauses the whole tree), so no rule can break then. They keep running while he reads something, and for the dead
+	# until the card is up: the car he died in brakes, it does not stop dead.
+	if player.input_enabled or hud.is_inspecting() or (director.dead != &"" and not hud.is_game_over_shown()):
 		director.step(delta)
 
 
@@ -520,6 +528,8 @@ func _ride() -> void:
 		else:  # beside his door, facing the way the car faces
 			player.stand(beside_door())
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
+	if _over:
+		return  # the loops are off (_on_her_reached)
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
 	audio.set_loop(&"engine_loop", shown and not _dead, -13.5 + away - _duck, lerpf(0.78, 1.12, clampf(director.car_speed / 14.0, 0.0, 1.0)))

@@ -308,7 +308,7 @@ func test_game_over_shows_its_title_line_and_try_again() -> bool:
 	check(hud.is_game_over_shown(), "shown")
 	eq(hud._game_over_title.text, "GAME OVER", "with its title")
 	eq(hud._game_over_line.text, "[You looked back.]", "and the line it was given")
-	eq(Input.mouse_mode, Input.MOUSE_MODE_VISIBLE, "the mouse is back")
+	eq(Input.mouse_mode, Input.MOUSE_MODE_VISIBLE, "the mouse is back")  # headless does not keep the mode: this holds there whatever was set
 	near(hud._game_over.color.a, 1.0, 0.001, "the card is opaque")
 	eq(hud._game_over.get_index(), hud._game_over.get_parent().get_child_count() - 1, "and the last child: over the prompt, the captions, the choices, every card")
 	await tree.process_frame  # laid out
@@ -330,7 +330,8 @@ func test_game_over_shows_its_title_line_and_try_again() -> bool:
 	return true
 
 
-## A choice or a caption that is up when he dies is closed, not left to show over the card.
+## A choice or a caption that is up when he dies is closed, not left to show over the card, and a voice is not left to
+## speak under it.
 func test_game_over_closes_choices_and_captions() -> bool:
 	var hud := Hud.new()
 	tree.root.add_child(hud)
@@ -338,8 +339,12 @@ func test_game_over_closes_choices_and_captions() -> bool:
 	hud.show_choices(&"t", PackedStringArray(["\"Don't.\"", "\"Go.\""]))
 	hud.show_subtitle("Mei: \"That's him! I'm opening\u2014\"", 30.0, true)
 	hud.show_subtitle("[Knocking on Mei's window]", 30.0)
+	hud.speak("Hafiz: \"Mei? Bro?\"")
+	hud.speak("Mei: \"Just answer lah. How many?\"")
 	check(hud.is_choosing() and hud._subtitle.text != "" and hud._caption.text != "", "a choice, a line and a caption are up")
+	check(hud.voice.playing and hud.next_voice != null, "a line is being said and another waits")
 	hud.show_game_over("[You opened the door.]")
+	check(not hud.voice.playing and hud.next_voice == null, "the voice is stopped and the one waiting dropped")
 	check(not hud.is_choosing(), "the choice is closed")
 	eq(hud._subtitle.text, "", "the line is cleared")
 	eq(hud._caption.text, "", "and the caption")

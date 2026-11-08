@@ -144,6 +144,25 @@ func test_after_death_only_time_and_the_ride_go_on() -> bool:
 	return true
 
 
+## In the car he dies with the car braking at the usual rate; not in it (the couple drive off from the lift without him),
+## the car goes on.
+func test_a_death_brakes_the_car_he_is_in() -> bool:
+	for seated in [true, false]:
+		var core := RoadDirector.new(RoadStage.new(), 1147, [Idle.new()] as Array[RoadMission])
+		core.seated = seated
+		core.car_speed = 9.0
+		core.drive(9.0)
+		core.step(0.1)
+		core.die(&"turned_round")
+		for i in 10:
+			core.step(0.1)
+		near(core.car_speed, 9.0 - RoadDirector.ACCEL * 1.0 if seated else 9.0, 0.001, "seated %s: a second after it" % seated)
+		for i in 40:
+			core.step(0.1)
+		near(core.car_speed, 0.0 if seated else 9.0, 0.001, "seated %s: and later" % seated)
+	return true
+
+
 func test_death_comes_once_and_never_after_the_ending() -> bool:
 	_setup()
 	var ended: Array[StringName] = []

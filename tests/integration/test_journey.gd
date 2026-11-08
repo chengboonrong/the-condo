@@ -279,3 +279,12 @@ func test_restart_clears_every_retry() -> bool:
 	eq(Journey.road_ending, &"", "and the road's ending")
 	_end()
 	return true
+
+
+## The card has a line for every way he can die: the road's own rules and the core's other causes.
+func test_every_cause_of_death_has_a_line() -> bool:
+	var causes: Array[StringName] = RoadDirector.DEADLY.duplicate()
+	causes.append_array([&"missed_lift", &"not_locked", &"stood_still"] as Array[StringName])
+	for cause in causes:
+		check(Journey.DEATHS.has(cause) and Journey.DEATHS[cause] != "", "%s has a line" % cause)
+	return true
