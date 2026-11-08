@@ -3,7 +3,8 @@ extends RefCounted
 ## The neighbour, as a room and a state only (no body). Events read it: footsteps start from its room,
 ## and some events score higher while it observes or approaches. It never enters the player's room.
 ## From act 3 it comes for him: next to his room it gives itself away with a rattle from that doorway, and he has
-## FACE_SECONDS to turn and look at the doorway. If he doesn't, it kills him (killed).
+## FACE_SECONDS to turn and look at the doorway. If he doesn't, it kills him (killed). While that window runs the flat's
+## beds duck (EventBus.beds_duck_requested), so that the rattle stands out of them wherever he is.
 ##
 ##   dormant ──act 2──▶ observing ──(act 3+, after OBSERVE_TIME)──▶ approaching ──(his back to it FACE_SECONDS)──▶ killed
 ##                         ▲                                            │ he looks at the doorway, sees it, or walks in │
@@ -30,6 +31,7 @@ var _move_left := 0.0
 var _face_clock := -1.0  # seconds since it breathed in `_doorway`; -1 while it is not next to him
 var _doorway := Vector3.ZERO
 var _warned := false
+var _ducking := false  # beds_duck_requested(true) went out, and false has not
 var _open := false  # act 3 has begun: it may come
 
 
@@ -47,6 +49,14 @@ func room() -> StringName:
 
 
 func tick(delta: float) -> void:
+	_tick(delta)
+	var window := _face_clock >= 0.0  # it has breathed and he has not turned, got away or died yet
+	if window != _ducking:
+		_ducking = window
+		EventBus.beds_duck_requested.emit(window)  # so that the rattle stands out of the flat's beds (AudioDirector)
+
+
+func _tick(delta: float) -> void:
 	state_time += delta
 	var open := WorldState.act >= WorldState.Act.IMPOSSIBLE
 	if open and not _open:

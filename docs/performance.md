@@ -306,7 +306,9 @@ average, the darkest the most, and brighter ones moved by under 0.3; the picture
 ## The voices
 
 * **Download**: `index.pck` 9,529,680 bytes, 9307 KiB rounded up, from
-  `godot --headless --path . --export-release Web builds/web/index.html`. The 57 voices are 816,141 bytes (24 kHz,
-  the intercom 16 kHz, at 40 kbps), which put the pck over the 8912 KiB cap, so the cap is 1 MiB larger: 9936 KiB.
+  `godot --headless --path . --export-release Web builds/web/index.html`, measured with 57 voices. The 61 voices are
+  900,837 bytes (24 kHz, the intercom 16 kHz, at 40 kbps; the four added for the game-over warnings are 84,696 of
+  them, and the 57 were 816,141), which put the pck over the 8912 KiB cap, so the cap is 1 MiB larger: 9936 KiB.
+  `tools/smoke.sh` has the pck's current size.
   At 16 kbps they would have fitted (8839 KiB), but Qwen3-ASR understood them less well (mean similarity 0.83 against
   0.87), and the owner kept 40 kbps.

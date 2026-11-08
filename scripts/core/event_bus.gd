@@ -20,6 +20,7 @@ signal light_flicker_requested(room_id: StringName, duration: float)
 signal silhouette_requested(anchor_id: StringName, duration: float)
 signal silhouette_seen(anchor_id: StringName)
 signal door_feet_requested(shown: bool)
+signal beds_duck_requested(on: bool)  # the neighbour breathes in a doorway: the flat's beds duck while he has time to turn (EntityController)
 signal subtitle_requested(text: String, duration: float)  # sound captions and lines that follow the captions setting
 signal line_requested(text: String, duration: float)  # story lines, on the road and in the flat: always shown
 signal inspect_requested(title: String, text: String)

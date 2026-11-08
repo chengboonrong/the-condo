@@ -24,7 +24,7 @@ which is what makes seeded replays and simulated playthroughs possible.
 
 | Module | File | Kind | Responsibility |
 |---|---|---|---|
-| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). Seven are for the road (see [The road](#the-road)). `player_died(cause)` is for both: the road's core and the flat's send it when he dies. |
+| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). Seven are for the road (see [The road](#the-road)). `player_died(cause)` is for both: the road's core and the flat's send it when he dies. `beds_duck_requested(on)` asks the flat's beds to duck while the neighbour's rattle has him in its window. |
 | WorldState | `scripts/core/world_state.gd` | autoload | Authoritative state: act, objective, flags, clues, player room, doors, lights, variants, entity, event history, ending. Mutated only through explicit methods, each of which emits on EventBus. `reset()` for tests. |
 | Settings | `scripts/core/settings.gd` | autoload | Player options in `user://settings.cfg`. |
 | Journey | `scripts/core/journey.gd` | autoload | Carries how the road ended into the flat, sends a restart back to the road, and carries Try again over the scene change that follows a death (what it starts from, and the card's line for each cause). See [The road](#the-road) and [Deaths and Try again](#deaths-and-try-again). |
@@ -36,7 +36,7 @@ which is what makes seeded replays and simulated playthroughs possible.
 | EventScheduler | `scripts/horror/event_scheduler.gd` | RefCounted | Lifecycle `IDLE → VALIDATED → RUNNING → COMPLETED / CANCELLED / FAILED`, cooldowns, channel locks, priority pre-emption, timeouts, queued story requests. |
 | BehaviorProfiler | `scripts/horror/behavior_profiler.gd` | RefCounted | Turns 10 Hz player samples into bounded 0–1 signals (EMAs, decayed room time, last-8 outcome window). |
 | HorrorDirector | `scripts/horror/horror_director.gd` | RefCounted | 4 Hz utility scoring of eligible events, tension model, recovery gaps, seeded pick, explainable decision log. |
-| EntityController | `scripts/horror/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. From act 3, next to his room, it rattles in the doorway and kills him if he keeps his back to it ([Director](#director)). |
+| EntityController | `scripts/horror/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. From act 3, next to his room, it rattles in the doorway and kills him if he keeps his back to it, and the flat's beds duck under the rattle ([Director](#director)). |
 | RoomTransformer | `scripts/horror/room_transformer.gd` | RefCounted | Applies predefined variants only after the five safety checks pass. |
 | StoryDirector | `scripts/story/story_director.gd` | RefCounted | Acts, objectives, dialogue, clues, fail-safes, endings. It keeps the flat as each act begins, for Try again, and kills him if he opens the front door in act 3's knocking. |
 | HorrorRuntime | `scripts/horror/horror_runtime.gd` | Node | Composition root for the core; one seeded RNG; fixed tick order. `die(cause)` is the flat's death: whichever of the visitor, the story and the entity kills him ends up there. |
@@ -90,7 +90,11 @@ him in its tick, the rest of that step does not run, and once he is dead only th
   (`killed(&"faced_away")`). The look is checked before the clock, so a turn on the last tick still saves him. If he
   walks out of its reach the clock stops and is not held against him: it breathes again, at that doorway or another,
   with a fresh 4 s, when it is next to him again. Walking into its room makes it retreat. It never kills in acts 1
-  and 2. A player who turns to the rattle when he hears it always survives: the bots do, within half a second.
+  and 2. A player who turns to the rattle when he hears it always survives: the bots do, within half a second. He must be
+  able to hear it wherever he is, so while the window runs (from the breath until he turns, gets out of reach or is
+  killed) the entity asks the beds to duck (`EventBus.beds_duck_requested`, sent from its `tick`, never by the
+  presentation), and `AudioDirector` ducks the drone and the running tap by `DUCK` (30 dB): in over 0.15 s, out over 1 s.
+  The headless core decides the death with or without it.
 
 ## Room shifts
 
@@ -709,7 +713,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
 | Her wet flap elsewhere, her breath (the road) | −27.0 | 0 | −27.0 |
 | Her drip (the road) | −28.0 | 0 | −28.0 |
-| Tap running (loop) | −19.4 | −8 | −27.4 |
+| Tap running (loop; ducked 30 dB under the neighbour's rattle) | −19.4 | −8 | −27.4 |
 | Indicator (the road, loop: one flash) | −24.0 | −5 | −29.0 |
 | Hatchback engine from the back seat (loop, a recording since 2026-11-08, pitch 0.78× to 1.12× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
 | Slow car's old engine (loop, a recording since 2026-11-08) | −20.0 | −12 | −32.0 |
@@ -718,7 +722,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Ceiling fan (loop) | −17.3 | −18.5 | −35.8 |
 | Fridge (loop) | −11.9 | −26 | −37.9 |
 | Neighbour's TV through the wall (loop) | −17.5 | −22.5 | −40 |
-| Drone (loop, rises with tension) | −13.8 | −30 → −12 | −44 → −26 |
+| Drone (loop, rises with tension; ducked 30 dB under the neighbour's rattle) | −13.8 | −30 → −12 | −44 → −26 |
 | Night wind (the road, loop, all night and on when the insects stop; windows up in the car) | −24.0 | −24 / −30 seated | −48.0 / −54.0 |
 
 The rows marked ※ are set by how loud they sound, not by this table's measure. The door is a recording now (README,
@@ -773,7 +777,7 @@ where each moment is heard; it is not a bound for every place, and for the thump
 | The engine dying | file −17.0 (a recording since 2026-11-08), played 0 in his head | the engine (−13.5) | 8.7 (the synthesised one) | 13.2, in the game | about 13 | −8.2 in the game |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
 | The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
-| The neighbour's rattle in the doorway (the flat, acts 3 and 4) | file −27.0 (loudest 50 ms −26.7), played +12 (`EntityController.RATTLE_DB`) from the doorway, 1.5 m up: held at the cap out to 8.5 m | the flat's room tone, −37.9 to −40.1: the drone at tension 0.34 (−40.2 RMS) and, near the entrance, the corridor's hums | | | 10.2 to 11.9 at the far end of every room but the living room's: 10.1 and 9.0 there (8.3 and 8.5 m); 5.7 to 5.9 in the gap (12 m) | −7.8 |
+| The neighbour's rattle in the doorway (the flat, acts 3 and 4) | file −27.0 (loudest 50 ms −26.7), played +12 (`EntityController.RATTLE_DB`) from the doorway, 1.5 m up: held at the cap out to 8.5 m | the flat's room tone with the drone and the tap ducked 30 dB (`AudioDirector.DUCK`): the corridor's hums, −43.9 at the entrance's far corner to −58.4 in B-11-07, and the drone, −58.3 RMS at tension 1.0 | | | 13.8 to 26.8 in the rooms and 12.3 or more in the gap, at tension 1.0 with the tap running (13.9 and 13.0 at 0.34) | −7.8 |
 | Her breath as she closes in (the road, `she_closes`) | file −27.0, played +4 (`Penanggal.BEHIND_DB`) from where she hangs: 9.5 m behind him at her farthest, 2.6 m at her nearest | the wind (−49.8 RMS, its strongest second): he has stood still for 2.5 s, so there are no steps | | | 10.8 (9.5 m), 22.3 (2.6 m) | −7.3 |
 | The lock's clunk (the road, `doors_locked`) | file −17.0 (loudest 50 ms −14.6), played −14 at the lock, 0.78 m from his eyes | the wind seated (−55.8 RMS): the insects are off and the engine is dead | | | 35.7 | −8.8 |
 
@@ -833,20 +837,34 @@ where each moment is heard; it is not a bound for every place, and for the thump
     +3 dB (`max_db`): at 0 dB it holds only to 2.1 m, so it was 7.0 over the bed at the entrance (3.4 m from the door
     to the room's far corner), 1.8 at the hallway's far end (6.2 m) and −3.0 at the living room's (8.5 m, the farthest
     point of any of the six rooms from a doorway: the entrance 3.4 m, the kitchen 4.8, the bathroom 4.7, the bedroom
-    5.6, the hallway 6.2, B-11-07 5.1). At +12 the cap holds to 3·10^(9/20) = 8.5 m, so it is as loud as a positional player can make it
-    (file + 3, −24.0 at 3 m) in every room; +11 stops short of the living room's far corner. The bed is the flat's room tone in
-    acts 3 and 4: the drone is played at −30 + 18·tension (−23.9 at 0.34, the mean of the director's picks in those acts in
-    `docs/playthroughs.md`; −16.3 RMS in the file); the two corridor hums at −20 (unit size 2) are −42 at the entrance and
-    −59 in B-11-07 each, so together they add up to 2.3 dB to the drone at the entrance; the TV, fridge and fan are off by then (the fan 15 s into act 3, and
-    the first approach comes 25 s after act 3 begins). Two things keep it from the 10 dB bar everywhere. The far end of
-    the living room is 9.0 over from the hallway's doorway (8.5 m: the fade to 30 m costs 2.9 dB after the cap and no
-    play level can make up for it), and the gap, a 12 m corridor (15 m round its long variant) is 5.7 to 5.9 and 1.8 over. And
-    the bar moves with tension: at 0.45 (the highest tension at a pick in acts 3 and 4) every margin is 1.5 to 2.0 dB lower
-    (7.5 to 9.9 in the rooms), and at act 4's target, 0.7, the cap itself is only 3.7 to 5.6 dB over. None of this
-    is the play level's to fix: it is the file's level (a louder rattle would also change her breath, below) or a
-    sound that is not positional. The peak is the rattle at the cap (0.179 at the master, −14.9 dBFS), the flat's beds at
-    their loudest (0.130, the drone at full tension, as in the thumps row) and a walking step (0.100): 0.409, −7.8
-    dBFS, 1.7 dB inside the limit. The cap is why +12 costs nothing: no play level raises the peak.
+    5.6, the hallway 6.2, B-11-07 5.1). At +12 the cap holds to 3·10^(9/20) = 8.5 m, so it is as loud as a positional
+    player can make it (file + 3, −24.0 at 3 m) in every room, and +11 stops short of the living room's far corner.
+    That is as loud as it gets, so the bed has to come down. The bed is the flat's room tone in acts 3 and 4: the drone
+    is played at −30 + 18·tension (−16.3 RMS in the file: −40.2 at 0.34, the mean of the director's picks in those acts in
+    `docs/playthroughs.md`, −33.7 at act 4's target 0.7, −28.3 at 1.0); the two corridor hums at −20 (unit size 2) are −42
+    at the entrance's centre and −59 in B-11-07 each; and when a shift has left the bathroom tap running it is a loud bed
+    (−19.8 RMS in the file, played −8 at Godot's default unit size of 10, so at the cap within 10 m of it: about −20
+    near the tap). The TV, fridge and fan are off by then (the fan 15 s into act 3, and the first approach comes 25 s
+    after act 3 begins). With nothing ducked the rattle stood 9.0 dB over it at the living room's far corner and 1.8 at the
+    long gap's far end at 0.34, and at 1.0 only 0.5 dB at best and −9.9 at the gap's far end: no play level could fix
+    that, because the cap and the fade to 30 m (2.9 dB at 8.5 m, 6.2 at 15.4 m) come after it.
+    So the beds duck. While his window runs (the breath to the turn, the escape or the kill) `EntityController` sends
+    `beds_duck_requested(true)` from its tick and `AudioDirector` takes `DUCK` (30 dB) off the drone and the tap: in over
+    0.15 s (`DUCK_IN`), out over 1 s (`DUCK_OUT`), as `RoadMain.ROAR_DUCK` ducks the road's engine. The hums stay: they are
+    the room tone, and ducked they would only widen the margin. What remains is the hums (−43.9 at the entrance's far corner
+    to −58.4 in B-11-07) and the ducked drone (−58.3 at tension 1.0, −70.2 at 0.34) and tap (−49.8 or less), so the rattle
+    is 13.8 to 26.8 dB over it in the six rooms and B-11-07 and 12.3 or more at the gap's far end (15.4 m from the mirror
+    door in the long variant), at tension 1.0 with the tap running; at 0.34 it is 13.9 in the rooms and 13.0 in the gap.
+    26 dB is the least that clears every point with the tap running at 1.0 (10.2); 30 leaves 2.1 dB over that. The bed is
+    the one under the rattle's loudest 50 ms, not "the second before": it comes unannounced, so the duck cannot be in
+    place a second ahead, but it is in place (0.15 s) before the rattle's first burst (0.5 s into the file, −33.8) and its
+    loudest 50 ms (1.5 s in). The entity does not have to wait for him to come within some distance of the doorway
+    (a `HEAR_DISTANCE`): the duck alone clears every point of every room he can be in, so there is none. His own steps
+    are not in the bed: standing to turn, he has none; with a walking player's (−41.9 RMS as mixed) every room is still 10.0
+    or more over (the living room's far corner is the weakest) and the gap 7.1 to 7.5, 3.2 at the long gap's far end. The
+    peak is the rattle at the cap (0.179 at the master, −14.9 dBFS), the flat's beds at their loudest (0.130, the drone at
+    full tension, as in the thumps row: ducked they are lower) and a walking step (0.100): 0.409, −7.8 dBFS, 1.7 dB inside
+    the limit. The cap is why +12 costs nothing: no play level raises the peak.
   * **Her breath as she closes in** (`she_closes`) comes when `closing` passes 0.5, so he has been under 0.5 m/s for
     2.5 s: there are no steps in the second before, only the wind (−49.8 outside). She hangs 2.45 m above the road, 0.7 m
     over his eyes, `behind_distance(her_near, 0.5)` behind him: 9.5 m with no rule of the others' broken

@@ -14,6 +14,7 @@ var sounds: Array = []  # [id, position, db] of every sound the entity asked for
 var lines: Array[String] = []
 var captions: Array[String] = []
 var kills: Array[StringName] = []
+var ducks: Array[bool] = []  # every beds_duck_requested
 
 
 ## He stands in `room` at its centre looking `yaw`; the neighbour is in `entity_room`, coming for him.
@@ -33,6 +34,7 @@ func _setup(room: StringName, yaw: float, entity_room: StringName, state := &"ap
 	lines.clear()
 	captions.clear()
 	kills.clear()
+	ducks.clear()
 	_listen()
 
 
@@ -45,12 +47,14 @@ func _listen() -> void:
 	EventBus.sound_requested.connect(_on_sound)
 	EventBus.line_requested.connect(_on_line)
 	EventBus.subtitle_requested.connect(_on_caption)
+	EventBus.beds_duck_requested.connect(_on_duck)
 
 
 func _unlisten() -> void:
 	EventBus.sound_requested.disconnect(_on_sound)
 	EventBus.line_requested.disconnect(_on_line)
 	EventBus.subtitle_requested.disconnect(_on_caption)
+	EventBus.beds_duck_requested.disconnect(_on_duck)
 
 
 ## The whole core, its story running, with him in the hallway looking `yaw` and the neighbour in the living room
@@ -105,6 +109,10 @@ func _on_caption(text: String, _duration: float) -> void:
 	captions.append(text)
 
 
+func _on_duck(on: bool) -> void:
+	ducks.append(on)
+
+
 func _run(seconds: float, dt := 0.5) -> void:
 	var t := 0.0
 	while t < seconds - 0.0001:
@@ -134,6 +142,38 @@ func test_it_breathes_at_the_doorway_when_next_to_him() -> bool:
 	eq(sounds[0][2], EntityController.RATTLE_DB, "at its level")
 	_run(1.5)
 	eq(sounds.size(), 1, "and it does not go on breathing while he has the time to turn")
+	_teardown()
+	return true
+
+
+## The flat's beds duck for the rattle (AudioDirector), so that it stands out of them wherever he is: from the breath
+## until he turns, gets away or is killed.
+func test_the_beds_duck_while_he_has_time_to_turn() -> bool:
+	_setup(&"hallway", BACK_TURNED, &"living")
+	eq(ducks, [], "nothing ducks while it only watches")
+	entity.tick(0.1)  # it breathes
+	eq(ducks, [true], "the beds duck with the rattle")
+	_run(3.0)
+	eq(ducks, [true], "and stay ducked once, while his back is turned")
+	stage.yaw = FACING
+	_run(0.5)
+	eq(ducks, [true, false], "he turns to it: they come back")
+	_run(5.0)
+	eq(ducks, [true, false], "and nothing more while it is away")
+	_teardown()
+	return true
+
+
+func test_the_beds_come_back_when_he_gets_away() -> bool:
+	_setup(&"hallway", BACK_TURNED, &"living")
+	entity.tick(0.1)
+	eq(ducks, [true], "ducked for the rattle")
+	_place(&"bedroom", BACK_TURNED)  # out of reach: not next to the living room
+	entity.tick(0.1)
+	eq(ducks, [true, false], "he is out of its reach: the window is over, and so is the duck")
+	_place(&"hallway", BACK_TURNED)
+	_until_it_breathes_again()
+	eq(ducks, [true, false, true], "it breathes again when it is next to him again: ducked again")
 	_teardown()
 	return true
 
@@ -349,6 +389,15 @@ func test_walking_into_its_room_makes_it_leave() -> bool:
 
 
 ## The gap and the mirror room exist only with the bedroom's door variant: the doorway is the one that is there.
+## Ticks until it has breathed once more than `sounds` holds now.
+func _until_it_breathes_again() -> void:
+	var n := sounds.size()
+	var t := 0.0
+	while sounds.size() == n and t < 200.0:
+		entity.tick(0.5)
+		t += 0.5
+
+
 func test_the_doorway_is_the_one_the_variants_give() -> bool:
 	_setup(&"bedroom", BACK_TURNED, &"hallway")
 	WorldState.set_variant(&"bedroom", &"door")  # the graph shares WorldState.variants

@@ -59,7 +59,7 @@ These are not `HorrorEvent`s either, but the visitor is where two of them are de
 |---|---|---|
 | `front_door` | `visitor`: the run's `kill`; or `StoryDirector` in act 3 | opening the front door from the lift's chime to the end of the visit (act 2), or from the first knock to the reveal (act 3: the `front_door` and `reveal_pending` beats, his own hand only). Armed by Rosnah's warning |
 | `lights_on` | `visitor` | any light of the six rooms, or his phone's, on when the footsteps stop. Armed by Rosnah's warning |
-| `faced_away` | `EntityController` | acts 3 and 4: the neighbour rattles in the doorway of the room next to his, and his back is to it for 4 s. The first time a line says to face it; he never dies of it before act 3 |
+| `faced_away` | `EntityController` | acts 3 and 4: the neighbour rattles in the doorway of the room next to his, and his back is to it for 4 s. The flat's beds duck under the rattle so that he can hear it. The first time a line says to face it; he never dies of it before act 3 |
 
 The peephole never kills. Looking through it in act 3 says "[Nobody there. The corridor is empty.]", once.
 
