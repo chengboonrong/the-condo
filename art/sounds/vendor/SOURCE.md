@@ -1,13 +1,14 @@
 # Recorded sounds
 
-Five sounds are built from recordings, not synthesised: the flat's door opening, the car door opening, the starter
-cranking, the engine dying and the engine cruising (`door_open()`, `car_door_open()`, `starter_crank()`,
-`engine_sputter()` and `engine_loop()` in `tools/gen_audio.py`, which cuts, filters and levels them). Each file here is
-a mono 16-bit 44.1 kHz excerpt of the recording, taken from the site's MP3 of it. All five are released under CC0 1.0
+Seven sounds are built from recordings, not synthesised: the flat's door opening, the car door opening, the starter
+cranking, the engine dying, the engine cruising, its rev at the overtake and the slow car's old engine (`door_open()`,
+`car_door_open()`, `starter_crank()`, `engine_sputter()`, `engine_loop()`, `rev()` and `old_engine_loop()` in
+`tools/gen_audio.py`, which cuts, filters and levels them). Each file here is
+a mono 16-bit 44.1 kHz excerpt of the recording, taken from the site's MP3 of it. All seven are released under CC0 1.0
 (public domain): https://creativecommons.org/publicdomain/zero/1.0/. Fetched 2026-11-08.
 
 The four `bsb-` files are by Joseph Sardin, BigSoundBank (https://bigsoundbank.com/licenses.html), from its full-length
-320 kbps MP3s. The `fs-` file is by Daphne_in_Wonderland on Freesound, from its high-quality preview MP3.
+320 kbps MP3s. The `fs-` files are from Freesound's high-quality preview MP3s: two by Daphne_in_Wonderland, one by chiliwau.
 
 ## bsb-1702-apartment-door-opening.wav
 
@@ -35,3 +36,16 @@ URL: https://bigsoundbank.com/damaged-muffler-3-parked-car-s1571.html
 Car interior driving 02.wav (Freesound no. 383476, by Daphne_in_Wonderland): "Car interior engine sound while driving
 (I don't remember what car it was). Constant speed, smooth sound, some crickets, windows closed." 30.0 to 36.5 s.
 URL: https://freesound.org/people/Daphne_in_Wonderland/sounds/383476/
+
+## fs-383470-car-interior-driving-01.wav
+
+Car interior driving 01.wav (Freesound no. 383470, by Daphne_in_Wonderland): "Car interior engine sound while driving
+(I don't remember what car it was). Start from idle, fast acceleration, changing speeds, presence of the driver, soft
+honks at some point, slows down, turns." 6.0 to 11.0 s (the rev uses 6.5 to 10.75 s: a hard pull, then easing off).
+URL: https://freesound.org/people/Daphne_in_Wonderland/sounds/383470/
+
+## fs-772236-old-toyota-idle.wav
+
+Old big Toyota car idle (Freesound no. 772236, by chiliwau): "An old, large Toyota car idling in a parking place. The
+engine hums steadily, with a noticeable rumble as the vehicle remains stationary." 0.5 to 5.5 s.
+URL: https://freesound.org/people/chiliwau/sounds/772236/

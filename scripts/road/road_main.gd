@@ -342,8 +342,7 @@ func _on_cue(cue: StringName) -> void:
 		&"overtake":
 			_signalling = false
 			_roar = (RoadAudio.SOUNDS[&"rev"] as AudioStream).get_length()
-			# At max_db: the car pulls away from where it plays (a pool player stays put), so past 3 m the level counts.
-			EventBus.sound_requested.emit(&"rev", player.camera.global_position, 3.0)
+			audio.play_here(&"rev", 0.0)  # in his head: a pool player would stay put as the car pulls out
 		&"slow_car_gone":
 			slow_car.pull_in()
 		&"mirror_on":
@@ -490,7 +489,7 @@ func _ride() -> void:
 	audio.set_loop(&"wind_loop", true, WIND_DB_IN if inside else WIND_DB_OUT)
 	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)
 	audio.set_loop(&"old_engine_loop", slow_car.visible and slow_car.speed > 0.0, -12.0 + linear_to_db(1.0 / maxf(slow_away / 10.0, 1.0)),
-		lerpf(0.6, 1.0, slow_car.speed / SlowCarMission.SLOW_SPEED))
+		lerpf(0.85, 1.0, slow_car.speed / SlowCarMission.SLOW_SPEED))
 	if is_nan(director.slow_gap):
 		_signalling = false  # the slow car is gone, by the lay-by or a skip: so is the indicator
 	audio.set_loop(&"indicator", _signalling, -5.0)  # under the rev's roar: with the engine ducked it was most of its bed

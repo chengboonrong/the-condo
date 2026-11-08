@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Makes every sound in assets/audio/ (stdlib only, deterministic). Run: python3 tools/gen_audio.py
 
-All but five are synthesised here: they are original and carry the project licence. The five (the flat's door opening,
-the car door opening, the starter, the engine dying and the engine cruising) are cut from CC0 recordings in
-art/sounds/vendor/ (SOURCE.md).
+All but seven are synthesised here: they are original and carry the project licence. The seven (the flat's door
+opening, the car door opening, the starter, the engine dying, the engine cruising, its rev at the overtake and the slow
+car's old engine) are cut from CC0 recordings in art/sounds/vendor/ (SOURCE.md).
 """
 import math
 import random
@@ -206,9 +206,6 @@ def tick(r, sec, lo, hi, decay):
     return [s * e for s, e in zip(x, env_exp(len(x), decay))]
 
 
-BODIES = (82, 104, 92, 118)  # the four cylinders' booms, a little apart so no engine speed makes them all line up
-
-
 def cabin(x):
     """What the car's body does to an engine: a 12 dB/octave roll-off from 900 Hz, and no drift below 30 Hz (a train
     of damped sines has a net area, so it would otherwise carry a DC offset)."""
@@ -230,47 +227,6 @@ def firings(rate, n, shapes, amp, r, spread=0.07):
             k += 1
             put(out, shapes[k % len(shapes)], i / SR, amp(i / SR) * r.uniform(1 - spread, 1 + spread))
     return out
-
-
-def old_engine_loop():
-    """The slow car ahead: an old engine at a crawl, 25 firings a second, unevenly worn, a few firings missed, with
-    a tappet tick on each. 40 firings in 1.6 s, seamless. Heard from outside, so it is dull at the top."""
-    r = random.Random(1302)
-    n = int(1.6 * SR)
-    cyl = [firing(r, b, s) for b, s in ((70, 1.0), (66, 0.7), (74, 0.9), (62, 0.55))]
-    out = [0.0] * n
-    for k in range(40):
-        if k in (9, 23, 34):  # misses
-            continue
-        t = k / 25 + r.uniform(-0.002, 0.002)
-        put(out, cyl[k % 4], t, r.uniform(0.8, 1.2), wrap=True)
-        put(out, tick(r, 0.006, 1500, 4500, 0.002), t + 0.007, r.uniform(0.3, 0.6), wrap=True)
-    return circ(lambda x: highpass(lowpass(x, 1500), 30), out)
-
-
-def rev():
-    """The hatchback's engine opened up for the overtake: from idle to a high rev in 0.8 s, held a moment, then
-    letting go. Synthesised from the four cylinders' firings (BODIES)."""
-    r = random.Random(1303)
-    n = int(1.9 * SR)
-    cyl = [firing(r, b) for b in BODIES]
-
-    def rate(t):
-        if t < 0.12:
-            return 45.0
-        if t < 0.95:
-            s = min(1.0, (t - 0.12) / 0.83)
-            return 45 + 95 * s * s * (3 - 2 * s)
-        if t < 1.05:
-            return 140.0
-        return 55 + 85 * math.exp(-(t - 1.05) / 0.3)
-
-    def amp(t):  # the throttle: louder as it opens, quieter on the way down
-        return 0.4 + 1.0 * (rate(t) - 45) / 95 if t < 1.05 else 0.3 + 0.9 * (rate(t) - 55) / 85
-
-    air = lowpass(noise(1.9, r), 900)
-    roar = [a * amp(i / SR) ** 2 * 0.5 for i, a in enumerate(air)]
-    return fade(cabin(mix(firings(rate, n, cyl, amp, r), roar)), 0.01, 0.2)
 
 
 def indicator():
@@ -533,7 +489,7 @@ def wind_loop():
 
 
 # ---- Recorded sounds (art/sounds/vendor/SOURCE.md) -------------------------------------------------------------------
-# Five sounds that read as a synthesiser, a drum, a helicopter and a bouncing ball when they were synthesised, cut
+# Seven sounds that read as a synthesiser, a drum, a helicopter and a bouncing ball when they were synthesised, cut
 # from recordings.
 
 VENDOR = Path(__file__).resolve().parent.parent / "art" / "sounds" / "vendor"
@@ -580,16 +536,34 @@ def varispeed(x, rate):
     return out
 
 
-def engine_loop():
-    """The couple's hatchback cruising, from the back seat: a car at a steady speed with its windows up and crickets
-    outside. The recording's last 0.5 s crossfades (equal power) into its first, so the 6 s loop is seamless. RoadMain
-    plays it at its own speed at the 9 m/s cruise, 0.78x standing and 1.12x at 14 m/s."""
-    x, k = recording("fs-383476-car-interior-driving", 0.0, 6.5), int(0.5 * SR)
+def seamless(x, xfade=0.5):
+    """A loop from x: its last xfade seconds crossfade (equal power) into its first, so its end flows into its start."""
+    k = int(xfade * SR)
     out = x[k:]
     for i in range(k):
         a = 0.5 * math.pi * i / k
         out[len(out) - k + i] = x[len(x) - k + i] * math.cos(a) + x[i] * math.sin(a)
     return out
+
+
+def engine_loop():
+    """The couple's hatchback cruising, from the back seat: a car at a steady speed with its windows up and crickets
+    outside, a seamless 6 s loop. RoadMain plays it at its own speed at the 9 m/s cruise, 0.78x standing and 1.12x at
+    14 m/s."""
+    return seamless(recording("fs-383476-car-interior-driving", 0.0, 6.5))
+
+
+def rev():
+    """The hatchback opened up for the overtake, from inside (by engine_loop's recordist): 4.25 s of a car pulling hard,
+    its revs climbing, then easing off. Played in his head, so it rides with the car as it pulls out (RoadMain,
+    overtake)."""
+    return fade(recording("fs-383470-car-interior-driving-01", 0.5, 4.75), 0.15, 0.6)
+
+
+def old_engine_loop():
+    """The slow car ahead: an old engine at a crawl (an old Toyota idling in a car park), heard from outside and dull at
+    the top, a seamless 4.5 s loop."""
+    return circ(lambda y: highpass(lowpass(y, 1500), 30), seamless(recording("fs-772236-old-toyota-idle", 0.0, 5.0)))
 
 
 def door_open():
@@ -644,7 +618,7 @@ def road_sounds():
     save_db("old_engine_loop", old_engine_loop(), -20.0, loop=True, half=True)
     save_db("insects_loop", insects_loop(), -27.0, loop=True)  # full rate: 13% of its power is above 11 kHz
     save_db("wind_loop", wind_loop(), -24.0, loop=True, half=True)
-    save_db("rev", rev(), KNOCK_DB, half=True)  # as loud as a road sound may be: RoadMain plays it at max_db
+    save_db("rev", rev(), KNOCK_DB, half=True)  # as loud as a road sound may be, played in his head at 0 dB
     save_db("indicator", indicator(), -24.0, loop=True)
     save_db("car_door_close", car_door_close(), -17.0)
     save_db("car_door_open", car_door_open(), -23.0)

@@ -524,10 +524,9 @@ player's own noise near the bottom, beds underneath.
 Closer than 3 m a sound gets louder, but not without limit: `AudioStreamPlayer3D` holds its played level plus the gain
 from being close to `max_db`, which is +3 dB, and that cap applies after the played level. So a sound played at 0 dB
 within about 1 m of his head is heard at its file level + 3 dB, whatever the table's arithmetic says. A sound placed at
-his camera, as the lorry passing and the rev are, is at distance 0, so it is capped whatever it is played at, for as
-long as it stays there: the rev does not (see the key sounds, below). Rows marked † are those: the roof thump (0.4 m
-from his head), the window knock and the car doors (Mei's door and window are 1.2 m away; his own door is beside him),
-the lorry passing and the rev. Their "Heard at" is
+his camera, as the lorry passing is, is at distance 0, so it is capped whatever it is played at, for as long as it
+stays there. Rows marked † are those: the roof thump (0.4 m from his head), the window knock and the car doors (Mei's
+door and window are 1.2 m away; his own door is beside him) and the lorry passing. Their "Heard at" is
 file + 3 dB, worked out from that rule. The knocks after the intercom's call are † too: at +8 the cap holds to 5.3 m,
 so at 3 m they are at it, but they are played at +8 only from the front door, 9.6 m and more away (see the key sounds).
 Her breath is the same when she comes to his face (0.6 m), and so is the wet
@@ -545,9 +544,9 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Door slam | −11.8 | 0 | −11.8 |
 | Knock ×3 (story) | −14.7 | +2 / +3 | −12.7 / −11.7 |
 | Thump ×3 (the bedroom wall and the knock back at DOWNSTAIRS, after the road) | −14.6 | +2 / 0 (the beacon) | −12.6 / −14.6 |
-| Hatchback revving for the overtake (the road) † | −14.6 | +3 (see the key sounds, below) | −11.6, less as the car pulls away |
 | Car door shut (the road) † | −17.0 | 0 | −14.0 |
 | Lorry passing in the other lane (the road) † | −17.0 | 0 (no effect: see †) | −14.0 |
+| Hatchback revving for the overtake (the road, in his head, so it rides with the car: `RoadAudio.play_here`) | −14.6 | 0 | −14.6 |
 | Knock ×1 (the wall answers) | −14.6 | 0 | −14.6 |
 | Thump ×1 (the wall answers, after the road) | −14.6 | 0 | −14.6 |
 | Door opening by itself (event) ※ | −14.3 | −1 | −15.3 |
@@ -579,7 +578,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Tap running (loop) | −19.4 | −8 | −27.4 |
 | Indicator (the road, loop: one flash) | −24.0 | −5 | −29.0 |
 | Hatchback engine from the back seat (loop, a recording since 2026-11-08, pitch 0.78× to 1.12× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
-| Slow car's old engine (loop) | −20.0 | −12 | −32.0 |
+| Slow car's old engine (loop, a recording since 2026-11-08) | −20.0 | −12 | −32.0 |
 | Night insects (loop, stop when the car dies; windows up in the car) | −27.0 | −6 / −12 seated | −33.0 / −39.0 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
 | Ceiling fan (loop) | −17.3 | −18.5 | −35.8 |
@@ -603,8 +602,8 @@ indicator (while Hafiz signals), the rev (as he pulls out), the stall's sounds (
 the starter cranking twice, the thump on the roof, the knocks on Mei's window and the slap of her door), her wet flap,
 drip and breath (from where she is, falling off past 3 m), and, in one ending, the phone ringing on the fruit stall's
 table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
-than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: the rev (−11.6) is 3.0 dB over
-it, and his car door and the lorry passing (−14.0) 0.6 dB, while the roof thump (−15.5) and the
+than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: his car door and the lorry
+passing (−14.0) by 0.6 dB, while the roof thump (−15.5) and the
 window knock (−16.0) stay under it. Seven of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the four `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
 (2 s). The rest play once. Eleven of them (both engine loops, the wind, the rev, the lorry passing, idling and braking,
@@ -636,14 +635,20 @@ where each moment is heard; it is not a bound for every place, and for the thump
 
 | Key sound | Its levels | Bed, the second before | Recorded | Mixed now | Expected | Peak, summed |
 |---|---|---|---|---|---|---|
-| The rev at the overtake | file −14.6, played +3 | the engine (ducked 6 dB from the signal), the indicator (−5), the slow car | 4.8 | 13.9 to 14.6 | about 13 | −7.0 (−6.7 with the slow car close) |
+| The rev at the overtake | file −14.6 (a recording since 2026-11-08), played 0 in his head | Hafiz's voiced line, the engine (ducked 6 dB from the signal), the slow car | 4.8 (the synthesised one) | 7.8, in the game (see below) | about 13 | −7.8 in the game |
 | The engine dying | file −17.0 (a recording since 2026-11-08), played 0 in his head | the engine (−13.5) | 8.7 (the synthesised one) | 13.2, in the game | about 13 | −8.2 in the game |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
 | The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
 
-* **The rev** plays from a pool player that stays where it started, and the car leaves it. At the overtake the car
-  pulls out at 4 m/s and speeds up at 2.5 m/s², so the rev is 5 m behind him by the file's loudest, 1 s in: the cap no
-  longer holds there and the play level counts (at +3 it is at the cap to 3 m).
+* **The rev** used to play from a pool player that stayed where it started, so the car left it, 5 m behind him by its
+  loudest. Since 2026-11-08 it is a recording (README, Licence) of a car pulling hard, its revs climbing for about 3 s
+  and then easing off, played in his head at 0 dB. Hafiz's voiced line ("Okay, hold tight! Potong!") starts with the
+  indicator and is still going when he pulls out, so the second before the rev is mostly his voice. Recorded in the
+  game with Movie Maker (`-- --mission=2`, from the master; with nobody playing, the rule breaks and he overtakes), the
+  rev's loudest 50 ms in the 5 s after the cue (it is loudest about 3 s in) is 7.8 dB over that second; the
+  synthesised rev, played as it was, made 5.7. Over the road alone (the second before his line, −32.1 dB RMS) it is
+  15.7 dB, and it holds at −18 to −20 dB for about 2.5 s once the car is out. Its loudest sample is −7.8 dBFS with the
+  beds under it, 1.7 dB inside the limit.
 * **The engine dying** used to play the same way, so as the car rolled on its cough was heard far behind it. Since
   2026-11-08 it is a recording (README, Licence) played in his head at 0 dB, as loud as the pool player at the cap had
   it, and it rides with the car: the revs fall from the cruise to a rough idle that stumbles twice, it coughs and stops,
@@ -652,14 +657,13 @@ where each moment is heard; it is not a bound for every place, and for the thump
   RMS), and its loudest sample is −8.2 dBFS with the beds under it, 2.1 dB inside the limit.
 * **The engine loop** has been a recording since 2026-11-08 too (it was synthesised, and heard as a helicopter). The
   margins above were measured with the synthesised loop. At the same loudest 100 ms (−16.0) the recording is 1.4 dB
-  quieter in RMS (−18.1 against −16.7 dBFS), so the beds under the rev and the dying engine are a little quieter and
-  their margins can only grow. Its peak is 1.2 dB higher (−6.3 against −7.5 dBFS), which moves the rev's summed peak
-  from −7.1 to −7.0 (−6.7 with the slow car close).
+  quieter in RMS (−18.1 against −16.7 dBFS), so the bed under the dying engine is a little quieter and its margin can
+  only grow. The rev was measured with it.
 * **The rev's bed.** In the second before, the engine (−28.7 dB RMS at −12) and the indicator's ticks (−30.1 at 0)
   were about level, so ducking the engine alone stops at about 12 dB. The indicator at −5 does the rest. Its ticks
   peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` eases in over
   0.3 s from the signal (`indicator`, 2.5 s before the overtake), so it is in place 2.2 s before, and eases out over
-  0.5 s from the rev's end, 1.9 s after it.
+  0.5 s from the rev's end, 4.25 s after it.
 * **The thumps after the call.** The 7.0 dB recorded is the thumps with the bed under them, so alone they were
   10·log10(10^0.7 − 1) = 6.0 dB over it. 6 dB more makes 12.0, and 12.3 with the bed under them again. They are played
   at +8 only while he is at the front door (the entrance or the corridor, 9.6 m and more from that wall); anywhere else

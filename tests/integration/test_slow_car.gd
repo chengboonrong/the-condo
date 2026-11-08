@@ -178,9 +178,7 @@ func test_the_road_plays_the_slow_cars_sounds() -> bool:
 	EventBus.road_cue.emit(&"overtake")
 	await road.get_tree().process_frame
 	check(not road.audio.loops[&"indicator"].playing, "and stops when he pulls out")
-	var revs := road.audio.find_children("*", "AudioStreamPlayer3D", true, false).filter(
-		func(a: AudioStreamPlayer3D) -> bool: return a.playing and a.stream == RoadAudio.SOUNDS[&"rev"])
-	eq(revs.size(), 1, "with a rev")
+	check(road.audio.here[&"rev"].playing, "with a rev, in his head so it rides with the car")
 	road.director.slow_gap = NAN
 	await road.get_tree().process_frame
 	check(not road.slow_car.visible and not road.audio.loops[&"old_engine_loop"].playing, "no slow car, no old engine")

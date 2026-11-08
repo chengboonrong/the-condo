@@ -306,7 +306,7 @@ func test_the_engine_ducks_under_the_overtake() -> bool:
 	EventBus.road_cue.emit(&"overtake")
 	await _secs(1.5)
 	near(base - engine.volume_db, 6.0, 0.01, "and stays under the rev")
-	await _secs(0.4 + 0.5 + 0.1)  # the rev ends, then 0.5 s back up
+	await _secs((RoadAudio.SOUNDS[&"rev"] as AudioStream).get_length() - 1.5 + 0.5 + 0.1)  # the rev ends, then 0.5 s back up
 	near(base - engine.volume_db, 0.0, 0.01, "and is back at its level once the rev is done")
 	_done(road)
 	return true
