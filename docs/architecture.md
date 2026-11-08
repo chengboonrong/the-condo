@@ -578,7 +578,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Her drip (the road) | −28.0 | 0 | −28.0 |
 | Tap running (loop) | −19.4 | −8 | −27.4 |
 | Indicator (the road, loop: one flash) | −24.0 | −5 | −29.0 |
-| Hatchback engine from the back seat (loop, pitch 0.7× to 1.6× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
+| Hatchback engine from the back seat (loop, a recording since 2026-11-08, pitch 0.78× to 1.12× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
 | Slow car's old engine (loop) | −20.0 | −12 | −32.0 |
 | Night insects (loop, stop when the car dies; windows up in the car) | −27.0 | −6 / −12 seated | −33.0 / −39.0 |
 | Corridor hum (loop) | −14.7 | −20 | −34.7 |
@@ -636,7 +636,7 @@ where each moment is heard; it is not a bound for every place, and for the thump
 
 | Key sound | Its levels | Bed, the second before | Recorded | Mixed now | Expected | Peak, summed |
 |---|---|---|---|---|---|---|
-| The rev at the overtake | file −14.6, played +3 | the engine (ducked 6 dB from the signal), the indicator (−5), the slow car | 4.8 | 13.9 to 14.6 | about 13 | −7.1 (−6.8 with the slow car close) |
+| The rev at the overtake | file −14.6, played +3 | the engine (ducked 6 dB from the signal), the indicator (−5), the slow car | 4.8 | 13.9 to 14.6 | about 13 | −7.0 (−6.7 with the slow car close) |
 | The engine dying | file −17.0 (a recording since 2026-11-08), played 0 in his head | the engine (−13.5) | 8.7 (the synthesised one) | 13.2, in the game | about 13 | −8.2 in the game |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
 | The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
@@ -650,6 +650,11 @@ where each moment is heard; it is not a bound for every place, and for the thump
   and the tyres roll on under it until the car stands. Recorded in the game with Movie Maker (`-- --mission=4`, from
   the master), its loudest 50 ms in the 2 s after the cue is 13.2 dB over the second before (the engine loop, −32.1 dB
   RMS), and its loudest sample is −8.2 dBFS with the beds under it, 2.1 dB inside the limit.
+* **The engine loop** has been a recording since 2026-11-08 too (it was synthesised, and heard as a helicopter). The
+  margins above were measured with the synthesised loop. At the same loudest 100 ms (−16.0) the recording is 1.4 dB
+  quieter in RMS (−18.1 against −16.7 dBFS), so the beds under the rev and the dying engine are a little quieter and
+  their margins can only grow. Its peak is 1.2 dB higher (−6.3 against −7.5 dBFS), which moves the rev's summed peak
+  from −7.1 to −7.0 (−6.7 with the slow car close).
 * **The rev's bed.** In the second before, the engine (−28.7 dB RMS at −12) and the indicator's ticks (−30.1 at 0)
   were about level, so ducking the engine alone stops at about 12 dB. The indicator at −5 does the rest. Its ticks
   peaked at −4.6 dBFS, −2.1 summed with what is under them; at −5, −9.6 and −6.3. `RoadMain.ROAR_DUCK` eases in over

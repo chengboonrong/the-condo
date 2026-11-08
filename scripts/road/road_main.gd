@@ -467,8 +467,9 @@ func _shake_view(delta: float) -> void:
 
 ## The car, the slow car, his seat and the ride's loops follow the core. The car stands out of sight up the road,
 ## hidden and not solid, until it comes for him; it is solid only standing still or with him in it (CarRig.set_solid).
-## The engine's pitch follows the car's speed; outside, it fades with distance, as does the slow car's old engine from
-## 10 m. The engine ducks under the overtake's rev (ROAR_DUCK), and the wind blows all the while.
+## The engine's pitch follows the car's speed (a recording, at its own speed at the 9 m/s cruise); outside, it fades
+## with distance, as does the slow car's old engine from 10 m. The engine ducks under the overtake's rev (ROAR_DUCK), and
+## the wind blows all the while.
 func _ride() -> void:
 	var shown := director.seated or director.car_speed > 0.0 or director.car_s > LiftMission.CAR_FROM
 	car.visible = shown
@@ -484,7 +485,7 @@ func _ride() -> void:
 		car.door_rear_left.object_id = &"car_door_inside" if director.seated else &"car_door"
 	var inside := player.is_seated()
 	var away := 0.0 if inside else linear_to_db(1.0 / maxf(player.camera.global_position.distance_to(car.global_position), 1.0))
-	audio.set_loop(&"engine_loop", shown and not _dead, -13.5 + away - _duck, lerpf(0.7, 1.6, clampf(director.car_speed / 15.0, 0.0, 1.0)))
+	audio.set_loop(&"engine_loop", shown and not _dead, -13.5 + away - _duck, lerpf(0.78, 1.12, clampf(director.car_speed / 14.0, 0.0, 1.0)))
 	audio.set_loop(&"insects_loop", not _quiet, -12.0 if inside else -6.0)  # the windows are up
 	audio.set_loop(&"wind_loop", true, WIND_DB_IN if inside else WIND_DB_OUT)
 	var slow_away := player.camera.global_position.distance_to(slow_car.global_position)

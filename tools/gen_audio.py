@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Makes every sound in assets/audio/ (stdlib only, deterministic). Run: python3 tools/gen_audio.py
 
-All but four are synthesised here: they are original and carry the project licence. The four (the flat's door opening,
-the car door opening, the starter and the engine dying) are cut from CC0 recordings in art/sounds/vendor/ (SOURCE.md).
+All but five are synthesised here: they are original and carry the project licence. The five (the flat's door opening,
+the car door opening, the starter, the engine dying and the engine cruising) are cut from CC0 recordings in
+art/sounds/vendor/ (SOURCE.md).
 """
 import math
 import random
@@ -208,12 +209,10 @@ def tick(r, sec, lo, hi, decay):
 BODIES = (82, 104, 92, 118)  # the four cylinders' booms, a little apart so no engine speed makes them all line up
 
 
-def cabin(x, loop=False):
+def cabin(x):
     """What the car's body does to an engine: a 12 dB/octave roll-off from 900 Hz, and no drift below 30 Hz (a train
     of damped sines has a net area, so it would otherwise carry a DC offset)."""
-    def f(y):
-        return highpass(lowpass(lowpass(y, 900), 900), 30)
-    return circ(f, x) if loop else f(x)
+    return highpass(lowpass(lowpass(x, 900), 900), 30)
 
 
 def firing(r, body, size=1.0):
@@ -231,19 +230,6 @@ def firings(rate, n, shapes, amp, r, spread=0.07):
             k += 1
             put(out, shapes[k % len(shapes)], i / SR, amp(i / SR) * r.uniform(1 - spread, 1 + spread))
     return out
-
-
-def engine_loop():
-    """The couple's hatchback cruising, from the back seat: 100 firings of a four-cylinder in 1.5 s (66.7 Hz) over
-    a low road rumble. Built from a whole number of firings so it is seamless; played at 0.7x to 1.6x."""
-    r = random.Random(1301)
-    n, fire = int(1.5 * SR), 200 / 3
-    cyl = [firing(r, b) for b in BODIES]
-    out = [0.0] * n
-    for k in range(100):
-        put(out, cyl[k % 4], k / fire, (1.0, 0.9, 1.06, 0.95)[k % 4] * r.uniform(0.93, 1.07), wrap=True)
-    road = circ(lambda x: lowpass(x, 160), noise(1.5, r))
-    return cabin(mix(out, gain(road, 1.5)), loop=True)
 
 
 def old_engine_loop():
@@ -264,7 +250,7 @@ def old_engine_loop():
 
 def rev():
     """The hatchback's engine opened up for the overtake: from idle to a high rev in 0.8 s, held a moment, then
-    letting go. Same engine as engine_loop."""
+    letting go. Synthesised from the four cylinders' firings (BODIES)."""
     r = random.Random(1303)
     n = int(1.9 * SR)
     cyl = [firing(r, b) for b in BODIES]
@@ -547,11 +533,12 @@ def wind_loop():
 
 
 # ---- Recorded sounds (art/sounds/vendor/SOURCE.md) -------------------------------------------------------------------
-# Four sounds that read as a synthesiser, a drum and a bouncing ball when they were synthesised, cut from recordings.
+# Five sounds that read as a synthesiser, a drum, a helicopter and a bouncing ball when they were synthesised, cut
+# from recordings.
 
 VENDOR = Path(__file__).resolve().parent.parent / "art" / "sounds" / "vendor"
 ROLL = 14.0 / 2.25  # s: StallMission's car rolls to a stop from CRUISE_SPEED at ROLL_DECEL
-ROAD_DB = -45.4  # engine_loop's road rumble as heard in the car (the loop's file at -16.0, played at -13.5)
+ROAD_DB = -45.4  # the synthesised engine_loop's road rumble as heard in the car (its file at -16.0, played at -13.5)
 
 
 def recording(name, start, end):
@@ -590,6 +577,18 @@ def varispeed(x, rate):
         i = int(pos)
         out.append(x[i] + (x[i + 1] - x[i]) * (pos - i))
         pos += rate(len(out) / SR)
+    return out
+
+
+def engine_loop():
+    """The couple's hatchback cruising, from the back seat: a car at a steady speed with its windows up and crickets
+    outside. The recording's last 0.5 s crossfades (equal power) into its first, so the 6 s loop is seamless. RoadMain
+    plays it at its own speed at the 9 m/s cruise, 0.78x standing and 1.12x at 14 m/s."""
+    x, k = recording("fs-383476-car-interior-driving", 0.0, 6.5), int(0.5 * SR)
+    out = x[k:]
+    for i in range(k):
+        a = 0.5 * math.pi * i / k
+        out[len(out) - k + i] = x[len(x) - k + i] * math.cos(a) + x[i] * math.sin(a)
     return out
 
 
@@ -681,7 +680,8 @@ def intercom_road():
     n = 3 * SR
     wind = lowpass(noise(3.0, r), 1200)
     wind = [s * 1.5 * (0.3 + 0.7 * math.sin(math.pi * i / n)) for i, s in enumerate(wind)]
-    engine = gain(engine_loop() * 2, 0.5)  # the loop is 1.5 s: its first 3 s
+    engine = engine_loop()[:n]
+    engine = gain(engine, 10 ** ((loudest_100ms_db(wind) - loudest_100ms_db(engine)) / 20))  # as loud as the wind
     return fade(highpass(lowpass(mix(wind, engine), 3400), 300), 0.05, 0.4)
 
 
