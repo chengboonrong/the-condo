@@ -1,9 +1,9 @@
 class_name CarRig
 extends Node3D
 ## The couple's hatchback (assets/models/hatchback.glb) as the road uses it: where it stands on the road, its seats and
-## mirror mount, its rear left door as something he can use, Hafiz's door, its lights (which die with the engine), and
-## the materials it draws with. The model's origin is the ground at the centre of the wheelbase, facing +Z, with its
-## left at +X.
+## mirror mount, its rear left door and its lock as things he can use, Hafiz's door, its lights (which die with the
+## engine), and the materials it draws with. The model's origin is the ground at the centre of the wheelbase, facing +Z,
+## with its left at +X.
 
 const DOOR_OPEN := 60.0  # degrees a door swings out when someone gets in or out
 const CRACK := 7.0  # degrees his door opens before it is slapped shut: a hand's width at its back edge
@@ -13,6 +13,8 @@ const HEADLIGHT := Color(1.0, 0.93, 0.8)
 const TAIL := Color(0.9, 0.05, 0.03)
 const DASH := Color(1.0, 0.6, 0.25)
 const BEAM := 14.0  # metres of each headlight's cone in the fog
+const LOCK_AT := Vector3(0.0, 0.6, -0.2)  # the rear of the centre console, low and ahead of his seat: nowhere near his door
+const LOCK_SIZE := 0.06  # metres, the lock's cube
 const CLEAR := 0.35  # metres he must be from its body before it turns solid: his capsule's radius and a little
 const GLARE_AHEAD := 0.18  # metres the glare sits ahead of the lamp, so the housing and nose never hide its centre
 const BEAM_SHADER := """
@@ -60,6 +62,7 @@ var seat_rear_right: Node3D  # the fourth's
 var mirror_mount: Node3D
 var mirror: Mirror  # on mirror_mount, with the fourth passenger in the rear right seat
 var door_rear_left: Interactable  # car_door from outside; car_door_inside once he sits
+var lock: Interactable  # car_lock, in reach of his seat
 var door_driver: MeshInstance3D  # Hafiz's, the front right; its origin is on its hinge line
 var headlights: Array[SpotLight3D] = []
 
@@ -115,6 +118,14 @@ func _ready() -> void:
 	_colliders.append(_collider(door.get_aabb()))
 	door_rear_left.add_child(_colliders[-1])
 	_footprint = _footprint.merge(door_rear_left.transform * door.get_aabb())
+	lock = Interactable.new()
+	lock.name = "Lock"
+	lock.object_id = &"car_lock"
+	lock.prompt = ""  # only usable while a mission prompts it
+	lock.position = LOCK_AT
+	_model.add_child(lock)
+	_colliders.append(_collider(AABB(Vector3.ONE * -LOCK_SIZE / 2.0, Vector3.ONE * LOCK_SIZE)))
+	lock.add_child(_colliders[-1])
 	_build_lights(body)
 
 

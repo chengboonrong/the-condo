@@ -365,6 +365,8 @@ func _on_cue(cue: StringName) -> void:
 			couple.hafiz_leaves()
 		&"door_cracked":
 			car.crack_door()
+		&"doors_locked":  # a short clunk at the lock, under the door's: it is within a metre of his head
+			_sound(&"car_door_close", car.lock.position, -14.0)
 		&"mei_reaches_door":
 			couple.mei_faces(&"door")
 		&"mei_door_cracked":  # her door opens a little and is slapped shut: heard, as it never moves

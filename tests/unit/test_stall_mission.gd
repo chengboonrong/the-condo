@@ -4,11 +4,12 @@ extends TestCase
 ## open the door, and don't answer.
 
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
+const LOCK_LINE := "[Bang Din: \"And if something lands on the roof, lock the doors. Fast.\"]"
 const VOICE := "[Outside, in Hafiz's voice: \"Bro! Open the door, I found help!\"]"
 const MEI := "Mei: \"That's him! I'm opening—\""
 const MEI_LIGHT := "Mei: \"Eh, look. Got a light down there.\""
 const KEPT_CUES: Array[StringName] = [
-	&"lights_dying", &"crank", &"crank", &"hafiz_leaves", &"insects_stop", &"thump", &"her_on_roof", &"thump", &"thump",
+	&"lights_dying", &"crank", &"crank", &"hafiz_leaves", &"insects_stop", &"thump", &"her_on_roof", &"doors_locked", &"thump", &"thump",
 	&"mei_reaches_door", &"knock_window", &"knock_window", &"knock_window", &"light_on",
 ]
 
@@ -82,8 +83,15 @@ func _on_died(_cause: StringName) -> void:
 	cues_at_death = cues.size()
 
 
+## One step, in which he locks the doors the moment its prompt is up.
+func _step() -> void:
+	if WorldState.prompts.get(&"car_lock", "") != "":
+		EventBus.object_interacted.emit(&"car_lock")
+	d.step(0.1)
+
+
 ## Plays the mission to the end. `answers` by choice id, one second after it opens (-1 or missing: silence); the door
-## is used `door` times, one second apart, once its prompt is up.
+## is used `door` times, one second apart, once its prompt is up. He locks the doors the moment he can.
 func _play(answers: Dictionary, door := 0, limit := 300.0) -> void:
 	var open_for := 0.0
 	var door_for := 0.0
@@ -105,7 +113,7 @@ func _play(answers: Dictionary, door := 0, limit := 300.0) -> void:
 				door -= 1
 				EventBus.object_interacted.emit(&"car_door_inside")
 		var moving := d.car_speed > 0.0
-		d.step(0.1)
+		_step()
 		if moving and d.car_speed == 0.0 and is_nan(stopped_at):
 			stopped_at = d.car_s
 			stopped_after = WorldState.time - _dying_at
@@ -152,6 +160,71 @@ func test_the_door_prompt_comes_only_after_hafiz_leaves() -> bool:
 	return true
 
 
+func test_bang_din_tells_him_to_lock_up() -> bool:
+	_setup()
+	_play({&"answer_voice": 1, &"stop_mei": 0})
+	var said := lines.map(func(l: Array) -> String: return l[0])
+	var recall := said.find(RECALL)
+	check(recall >= 0 and recall + 1 < said.size(), "(Bang Din's rule is said)")
+	eq(lines[recall + 1], [LOCK_LINE, &""], "and straight after it, the lock: his line, with no speaker in the car")
+	eq(said.count(LOCK_LINE), 1, "once")
+	_teardown()
+	return true
+
+
+func test_the_lock_prompt_comes_with_the_first_thump() -> bool:
+	_setup()
+	var early := false  # the lock's prompt was up before the first thump
+	for i in 3000:
+		if cues.has(&"thump"):
+			break
+		if WorldState.prompts.get(&"car_lock", "") != "":
+			early = true
+		EventBus.object_interacted.emit(&"car_lock")  # he tries it all the while
+		d.step(0.1)
+	check(cues.has(&"thump"), "(something lands on the roof)")
+	check(not early, "no prompt on the lock before then")
+	check(not cues.has(&"doors_locked"), "and trying it does nothing")
+	eq(WorldState.prompts.get(&"car_lock", ""), "Lock the doors", "with the first thump, he can lock up")
+	_teardown()
+	return true
+
+
+func test_not_locking_within_five_seconds_kills_him() -> bool:
+	_setup()
+	var thump_at := NAN
+	for i in 3000:
+		if d.dead != &"":
+			break
+		if is_nan(thump_at) and cues.has(&"thump"):
+			thump_at = WorldState.time
+		d.step(0.1)
+	eq([d.dead, _rules()], [&"not_locked", []], "not locking kills him, and counts for nothing")
+	near(WorldState.time - thump_at, StallMission.LOCK_SECONDS, 0.15, "5 s after the first thump")
+	check(not cues.has(&"doors_locked"), "(he never locked)")
+	eq(WorldState.prompts.get(&"car_lock", ""), "", "the prompt is gone with him")
+	_teardown()
+	return true
+
+
+func test_locking_keeps_him_and_the_door_still_kills() -> bool:
+	_setup()
+	for i in 3000:
+		if cues.has(&"thump"):
+			break
+		d.step(0.1)
+	EventBus.object_interacted.emit(&"car_lock")
+	eq(WorldState.prompts.get(&"car_lock", ""), "", "locked: the prompt is gone")
+	eq(cues.count(&"doors_locked"), 1, "and the lock is heard")
+	for i in 100:
+		d.step(0.1)
+	eq([d.dead, _rules()], [&"", []], "10 s on, he is alive")
+	EventBus.object_interacted.emit(&"car_door_inside")
+	eq(d.dead, &"opened_door", "but the door is still the death")
+	_teardown()
+	return true
+
+
 func test_opening_the_door_kills_him() -> bool:
 	_setup()
 	_play({&"answer_voice": 1, &"stop_mei": 0}, 2)
@@ -176,7 +249,7 @@ func test_the_door_prompt_goes_when_the_light_comes_on() -> bool:
 	while not cues.has(&"light_on") and WorldState.time < 300.0:
 		if d.pending != &"":
 			EventBus.choice_made.emit(d.pending, 1 if d.pending == &"answer_voice" else 0)
-		d.step(0.1)
+		_step()
 	eq(WorldState.prompts.get(&"car_door_inside", ""), "", "no prompt on the door once the light is on")
 	EventBus.object_interacted.emit(&"car_door_inside")
 	eq([d.dead, d.broken], [&"", [] as Array[Dictionary]], "and using it breaks nothing")
@@ -230,7 +303,7 @@ func test_staying_quiet_is_safe_on_the_short_clock() -> bool:
 	for i in 3000:
 		if d.pending == &"answer_voice":
 			break
-		d.step(0.1)
+		_step()
 	eq(d.pending, &"answer_voice", "(the voice's choice is open)")
 	for i in 31:
 		d.step(0.1)
@@ -245,7 +318,7 @@ func test_every_choice_closes_after_three_seconds() -> bool:
 	for i in 3000:
 		if d.pending != &"":
 			break
-		d.step(0.1)
+		_step()
 	eq(d.pending, &"answer_voice", "the first choice is open")
 	for i in 29:
 		d.step(0.1)

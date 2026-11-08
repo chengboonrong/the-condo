@@ -5,6 +5,7 @@ extends TestCase
 
 var _was_changing := true
 var _sounds: Array[StringName] = []  # every sound asked for while the road plays the car dying
+var _last: Array = []  # the last sound asked for: [id, where, volume_db]
 
 
 func _frames(n: int) -> void:
@@ -60,6 +61,30 @@ func test_dying_lights_respect_reduced_flashing() -> bool:
 	return true
 
 
+func test_the_car_has_a_lock_within_reach() -> bool:
+	var car := CarRig.new()
+	tree.root.add_child(car)
+	await tree.process_frame
+	check(car.lock != null, "the car has a lock")
+	eq(car.lock.object_id, &"car_lock", "its id")
+	eq(car.lock.prompt, "", "usable only while a mission prompts it")
+	var lock := _box(car, car.lock)
+	var door := _box(car, car.door_rear_left)
+	var at := lock.get_center()
+	check(at.distance_to(Penanggal.SEAT) <= 1.0, "within a metre of his eyes (%.2f m)" % at.distance_to(Penanggal.SEAT))
+	check(not lock.intersects(door), "its collider is clear of his door's")
+	check(not door.intersects_segment(Penanggal.SEAT, at), "and a look from his eyes to it never crosses the door")
+	car.queue_free()
+	return true
+
+
+## The box collider of a body, in the car's space.
+func _box(car: CarRig, body: Node3D) -> AABB:
+	var collider: CollisionShape3D = body.find_children("*", "CollisionShape3D", false, false)[0]
+	var size := (collider.shape as BoxShape3D).size
+	return AABB(car.to_local(collider.global_position) - size / 2.0, size)
+
+
 func test_the_road_plays_the_car_dying() -> bool:
 	_was_changing = Journey.change_scenes
 	Journey.change_scenes = false
@@ -109,6 +134,9 @@ func test_the_road_plays_the_car_dying() -> bool:
 	check(_playing(road, &"thump_roof"), "the roof thumps")
 	var on := road.car.global_transform.affine_inverse() * road.her.global_position
 	check(road.her.visible and on.y > 1.4 and on.x > 0.8, "she is up by the roof on his side (%s)" % on)
+	EventBus.road_cue.emit(&"doors_locked")
+	eq([_last[0], _last[2]], [&"car_door_close", -14.0], "locking the doors clunks, quietly")
+	near((_last[1] as Vector3).distance_to(road.car.lock.global_position), 0.0, 0.001, "at the lock")
 	EventBus.road_cue.emit(&"door_cracked")
 	var opened := 0.0
 	for i in 60:
@@ -144,8 +172,9 @@ func test_the_road_plays_the_car_dying() -> bool:
 	return true
 
 
-func _on_sound(id: StringName, _at: Vector3, _volume_db: float) -> void:
+func _on_sound(id: StringName, at: Vector3, volume_db: float) -> void:
 	_sounds.append(id)
+	_last = [id, at, volume_db]
 
 
 ## Which way Mei's face points, in the car's space (+X its left, +Z its front).

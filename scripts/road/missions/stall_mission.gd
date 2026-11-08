@@ -2,8 +2,8 @@ class_name StallMission
 extends RoadMission
 ## Mission 4, the car dies. On the long straight the engine and the lights die and the car rolls to a stop; it won't
 ## start. Hafiz walks off down the road to find help, and he and Mei wait in the car. The insects stop, something lands
-## on the roof, a voice outside sounds like Hafiz's, and Mei wants to open her door. The rules: don't open the door,
-## and don't answer. When it goes quiet, a light shows far down the road, and Mei sees it.
+## on the roof, a voice outside sounds like Hafiz's, and Mei wants to open her door. The rules: lock the doors when
+## it lands, don't open the door, and don't answer. When it goes quiet, a light shows far down the road, and Mei sees it.
 ##
 ## Beats: cruise (to the long straight), dying, cranking, hafiz_leaves, waiting, thumps, voice, mei, knocks, quiet,
 ## light.
@@ -28,13 +28,17 @@ const KNOCKING := 5.0
 const QUIET := 10.0  # after the knocks, until the light
 const LIGHT := 4.0  # Mei's line about the light, before the mission is over
 const DOOR := &"car_door_inside"
+const LOCK := &"car_lock"
+const LOCK_SECONDS := 5.0  # from the first thump, to lock the doors: it ends inside the thumps beat, which is where it is checked
 const OBJECTIVE := "Stay in the car. Don't open the door. Don't answer."
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
+const LOCK_LINE := "[Bang Din: \"And if something lands on the roof, lock the doors. Fast.\"]"
 const VOICE := "[Outside, in Hafiz's voice: \"Bro! Open the door, I found help!\"]"
 const MEI_LINE := "Mei: \"That's him! I'm opening—\""
 
 var _rolling := 0.0  # m/s when it died
 var _door := false  # the door's prompt is up: he can still open it
+var _locked := false  # he has locked the doors
 var _asked := false  # the current beat's choice has been asked
 
 
@@ -45,11 +49,13 @@ func set_up_skipped() -> void:
 	d.car_speed = CRUISE_SPEED
 	d.slow_gap = NAN
 	d.light_s = -1.0
+	_locked = false
 	d.drive(CRUISE_SPEED)
 
 
 func begin() -> void:
 	_door = false
+	_locked = false
 	d.light_s = -1.0
 	d.drive(CRUISE_SPEED)
 	go(&"cruise")
@@ -80,6 +86,7 @@ func tick(delta: float) -> bool:
 			if beat_t >= LEAVE_AT:
 				EventBus.road_cue.emit(&"hafiz_leaves")
 				d.say(RECALL, 6.0)
+				d.say(LOCK_LINE, 5.0)
 				WorldState.set_objective(OBJECTIVE)
 				WorldState.set_prompt(DOOR, "Open the door")
 				_door = true
@@ -94,6 +101,9 @@ func tick(delta: float) -> bool:
 					EventBus.road_cue.emit(&"thump")
 					if i == 0:
 						EventBus.road_cue.emit(&"her_on_roof")
+						WorldState.set_prompt(LOCK, "Lock the doors")
+			if not _locked and beat_t >= THUMPS[0] + LOCK_SECONDS:
+				d.die(&"not_locked")
 			if beat_t >= THUMPING:
 				d.say(VOICE, 5.0)
 				_asked = false
@@ -123,7 +133,7 @@ func tick(delta: float) -> bool:
 				go(&"quiet")
 		&"quiet":
 			if beat_t >= QUIET:
-				_door = false  # the light is the way on now: opening the door is no longer a break
+				_door = false  # the light is the way on now: the door no longer kills
 				WorldState.set_prompt(DOOR, "")
 				EventBus.road_cue.emit(&"light_on")
 				d.say("Mei: \"Eh, look. Got a light down there.\"", 3.5, &"mei")
@@ -138,18 +148,22 @@ static func roll_distance(speed: float) -> float:
 	return speed * speed / (2.0 * ROLL_DECEL)
 
 
-## He opens his door: it opens a hand's width before something slaps it shut, and that kills him (leave() takes the
-## prompt down). The cue comes first: nothing of the mission comes after his death.
+## He locks the doors (once its prompt is up), or opens his: it opens a hand's width before something slaps it shut,
+## and that kills him (leave() takes the prompt down). The cue comes first: nothing of the mission comes after his death.
 func interacted(object_id: StringName) -> void:
-	if object_id != DOOR or not _door:
-		return
-	EventBus.road_cue.emit(&"door_cracked")
-	d.break_rule(&"opened_door")
+	if object_id == LOCK and WorldState.prompts.get(LOCK, "") != "":
+		_locked = true
+		WorldState.set_prompt(LOCK, "")
+		EventBus.road_cue.emit(&"doors_locked")
+	elif object_id == DOOR and _door:
+		EventBus.road_cue.emit(&"door_cracked")
+		d.break_rule(&"opened_door")
 
 
 func leave() -> void:
 	_door = false
 	WorldState.set_prompt(DOOR, "")
+	WorldState.set_prompt(LOCK, "")
 	if WorldState.objective == OBJECTIVE:
 		WorldState.set_objective("")
 
