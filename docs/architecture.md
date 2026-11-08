@@ -642,10 +642,10 @@ where each moment is heard; it is not a bound for every place, and for the thump
 
 * **The rev** used to play from a pool player that stayed where it started, so the car left it, 5 m behind him by its
   loudest. Since 2026-11-08 it is a recording (README, Licence) of a car pulling hard, its revs climbing for about 3 s
-  and then easing off, played in his head at 0 dB. Hafiz's voiced line ("Okay, hold tight! Potong!") starts with the
-  indicator and is still going when he pulls out, so the second before the rev is mostly his voice. Recorded in the
-  game with Movie Maker (`-- --mission=2`, from the master; with nobody playing, the rule breaks and he overtakes), the
-  rev's loudest 50 ms in the 5 s after the cue (it is loudest about 3 s in) is 7.8 dB over that second; the
+  and then easing off, played in his head at 0 dB. Hafiz's voiced line ("Okay, hold tight! Potong!", 2.2 s) starts
+  with the indicator and ends about 0.5 s before he pulls out, so the second before the rev holds its last word. Recorded
+  in the game with Movie Maker (`-- --mission=2`, from the master; with nobody playing, the rule breaks and he
+  overtakes), the rev's loudest 50 ms in the 5 s after the cue (it is loudest about 3 s in) is 7.8 dB over that second; the
   synthesised rev, played as it was, made 5.7. Over the road alone (the second before his line, −32.1 dB RMS) it is
   15.7 dB, and it holds at −18 to −20 dB for about 2.5 s once the car is out. Its loudest sample is −7.8 dBFS with the
   beds under it, 1.7 dB inside the limit.
