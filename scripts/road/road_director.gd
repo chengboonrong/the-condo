@@ -3,6 +3,7 @@ extends RefCounted
 ## The road's simulation core. It runs the missions in order and keeps one weighted count of the rules he breaks,
 ## which decides how the road ends. Headless and deterministic: no nodes, and randomness only from rng.
 ## Each step, in this order: time, captions, the open choice's timer, the look rule, the current mission, the ride.
+## A dead director only advances time and the ride.
 ## The presentation reads the state below each frame; one-off moments go out on EventBus (road_cue, the choices,
 ## line_requested and road_line, road_ended, player_died).
 
@@ -225,10 +226,10 @@ func outcome() -> StringName:
 	return &"saved" if n <= SAVED_MAX else &"caught"
 
 
-## The road is over, once only. `decided`: an ending already played, kept even if a rule breaks after it was
+## The road is over, once only, and never after he died. `decided`: an ending already played, kept even if a rule breaks after it was
 ## decided; without it, the count decides.
 func end(decided: StringName = &"") -> void:
-	if ending != &"":
+	if ending != &"" or dead != &"":
 		return
 	ending = decided if decided != &"" else outcome()
 	EventBus.road_ended.emit(ending)

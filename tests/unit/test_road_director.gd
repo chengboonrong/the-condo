@@ -130,9 +130,15 @@ func test_after_death_only_time_and_the_ride_go_on() -> bool:
 
 func test_death_comes_once_and_never_after_the_ending() -> bool:
 	_setup()
+	var ended: Array[StringName] = []
+	var on_end := func(e: StringName) -> void: ended.append(e)
+	EventBus.road_ended.connect(on_end)
 	d.die(&"answered")
 	d.die(&"looked_back")
 	eq([d.dead, died], [&"answered", [&"answered"]], "a second death emits nothing")
+	d.end(&"alive")
+	EventBus.road_ended.disconnect(on_end)
+	eq([d.ending, ended], [&"", []], "and no ending follows a death")
 	_teardown()
 
 	_setup()

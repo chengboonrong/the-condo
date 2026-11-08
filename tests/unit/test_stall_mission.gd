@@ -112,6 +112,7 @@ func test_keeping_breaks_nothing() -> bool:
 	eq([d.seated, d.car_s, d.car_speed], [true, 1800.0, StallMission.CRUISE_SPEED], "skipped to: seated, cruising at 1800, Hafiz driving faster since the empty seat")
 	_play({&"answer_voice": 1, &"stop_mei": 0})
 	eq(d.score(), 0, "nothing broken")
+	eq(d.dead, &"", "and he is alive")
 	eq(cues, KEPT_CUES, "every cue, in order")
 	eq(asked, [[&"answer_voice", ["\"Hafiz? That you?\"", "Stay quiet."]], [&"stop_mei", ["\"Mei, don't. That's not him.\"", "\"Okay, open.\""]]], "the two choices, word for word")
 	eq(lines.filter(func(l: Array) -> bool: return l[0] == RECALL).size(), 1, "Bang Din's rule, once")
@@ -136,7 +137,7 @@ func test_the_door_prompt_comes_only_after_hafiz_leaves() -> bool:
 		d.step(0.1)
 	check(cues.has(&"hafiz_leaves"), "(Hafiz leaves)")
 	check(not prompt_before_leaving, "no prompt on the door before then")
-	eq(d.broken, [] as Array[Dictionary], "and trying it does nothing")
+	eq([d.dead, d.broken], [&"", [] as Array[Dictionary]], "and trying it does nothing")
 	eq(WorldState.prompts.get(&"car_door_inside", ""), "Open the door", "from then, the door can be opened")
 	eq(WorldState.objective, "Stay in the car. Don't open the door. Don't answer.", "the objective")
 	_teardown()
@@ -168,7 +169,7 @@ func test_the_door_prompt_goes_when_the_light_comes_on() -> bool:
 		d.step(0.1)
 	eq(WorldState.prompts.get(&"car_door_inside", ""), "", "no prompt on the door once the light is on")
 	EventBus.object_interacted.emit(&"car_door_inside")
-	eq(d.broken, [] as Array[Dictionary], "and using it breaks nothing")
+	eq([d.dead, d.broken], [&"", [] as Array[Dictionary]], "and using it breaks nothing")
 	_teardown()
 	return true
 

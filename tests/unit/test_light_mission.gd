@@ -138,6 +138,7 @@ func test_getting_out_and_keeping_every_rule() -> bool:
 	check(cues.size() > 0 and cues[0] == &"get_out", "using it gets him out first (%s)" % [cues])
 	check(not d.seated, "and he stands")
 	eq(d.score(), 0, "nothing broken: getting out is not a break")
+	eq(d.dead, &"", "and he is alive")
 	eq(lines.filter(func(l: Array) -> bool: return l == [RECALL, &""]).size(), 1, "Bang Din's rule, once, as a thought")
 	check(cues.has(&"her_behind"), "she follows behind them")
 	eq(asked, [[&"mei_look_1", OPTIONS], [&"mei_look_2", OPTIONS]], "Mei wants to look twice: the choices, word for word")
@@ -191,6 +192,7 @@ func test_looking_back_kills_him() -> bool:
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [128.0])  # past the point where the ending is decided
 	eq(_rules(), [], "once the ending is decided, a look back costs nothing")
+	eq(d.dead, &"", "and does not kill him")
 	_teardown()
 	return true
 

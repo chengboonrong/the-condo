@@ -118,6 +118,7 @@ func test_keeping_breaks_nothing() -> bool:
 	_run(0.3)  # the thought is said on the step after the mission ends
 	eq(captions.back(), CountMission.NOBODY, "and nobody says anything: Hafiz drives faster")
 	eq(d.score(), 0, "nothing broken")
+	eq(d.dead, &"", "and he is alive")
 	eq([d.look_rule, WorldState.objective], [&"", ""], "the look watch and the objective end with it")
 	eq(ended, [&"alive"], "the road ends after it, all alive")
 	_teardown()
@@ -131,6 +132,7 @@ func test_turning_before_bang_din_says_the_rule_costs_nothing() -> bool:
 	_run(8.0)
 	eq(captions.find(RECALL), -1, "(Bang Din has not said it yet)")
 	eq(_rules(), [], "turning to her breaks nothing")
+	eq(d.dead, &"", "and does not kill him")
 	check(not cues.has(&"fourth_glimpse"), "and shows her to him no more than before")
 	_run(4.0)  # he is still turned when the rule is said: now it breaks
 	check(captions.has(RECALL), "(Bang Din has said it)")
@@ -154,6 +156,7 @@ func test_looking_out_of_his_own_window_is_allowed() -> bool:
 	stage.view_yaw = 1.6  # to his left, out of his own window
 	_run(13.0)  # past the rule's being said
 	eq(_rules(), [], "his own window: no break")
+	eq(d.dead, &"", "and no death")
 	check(not cues.has(&"fourth_glimpse"), "and no glimpse of her")
 	_teardown()
 	return true
@@ -167,6 +170,7 @@ func test_why_asks_again_and_silence_keeps() -> bool:
 	eq(d.answer(&"count_again"), -1, "he says nothing")
 	check(not captions.has(COUNTING), "so Mei doesn't count")
 	eq(d.score(), 0, "which keeps the rule")
+	eq(d.dead, &"", "and he lives")
 	eq(cues.slice(-2), [&"fourth_gone", &"mirror_off"], "and the mission ends as kept")
 	_teardown()
 	return true
