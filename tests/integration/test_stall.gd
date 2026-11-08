@@ -73,9 +73,34 @@ func test_the_car_has_a_lock_within_reach() -> bool:
 	var at := lock.get_center()
 	check(at.distance_to(Penanggal.SEAT) <= 1.0, "within a metre of his eyes (%.2f m)" % at.distance_to(Penanggal.SEAT))
 	check(not lock.intersects(door), "its collider is clear of his door's")
-	check(not door.intersects_segment(Penanggal.SEAT, at), "and a look from his eyes to it never crosses the door")
+	check(door.intersects_segment(Penanggal.SEAT, at) == null, "and a look from his eyes to it never crosses the door")  # null: no hit
+	for seat in _front_seats(car):
+		check(seat.intersects_segment(Penanggal.SEAT, at) == null, "nor a front seat (%s): he sees it over them" % seat)
+	var angle := rad_to_deg(Vector3.BACK.angle_to(at - Penanggal.SEAT))  # BACK is +Z, the way the car faces
+	check(angle <= 45.0, "within 45 degrees of straight ahead, so he finds it looking forward (%.0f)" % angle)
+	near(lock.size.x, 0.12, 0.001, "its collider is about 12 cm, a target he can hit")
+	var meshes := car.lock.find_children("*", "MeshInstance3D", false, false)
+	check(not meshes.is_empty() and meshes.all(func(m: MeshInstance3D) -> bool: return m.visible), "and it has a mesh he can see")
 	car.queue_free()
 	return true
+
+
+## Each front seat's box in the car's space: its cloth in the model, forward of the rear bench.
+func _front_seats(car: CarRig) -> Array[AABB]:
+	var body: MeshInstance3D = car.find_children("hatchback", "MeshInstance3D", true, false)[0]
+	var seats: Array[AABB] = []
+	for side in [1.0, -1.0]:
+		var box := AABB()
+		var found := false
+		for s in body.mesh.get_surface_count():
+			if body.mesh.surface_get_material(s).resource_name != "cloth":
+				continue
+			for p: Vector3 in body.mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]:
+				if p.z > -0.6 and p.x * side > 0.0:
+					box = box.expand(p) if found else AABB(p, Vector3.ZERO)
+					found = true
+		seats.append(box)
+	return seats
 
 
 ## The box collider of a body, in the car's space.

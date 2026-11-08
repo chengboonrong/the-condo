@@ -29,7 +29,7 @@ const QUIET := 10.0  # after the knocks, until the light
 const LIGHT := 4.0  # Mei's line about the light, before the mission is over
 const DOOR := &"car_door_inside"
 const LOCK := &"car_lock"
-const LOCK_SECONDS := 5.0  # from the first thump, to lock the doors: it ends inside the thumps beat, which is where it is checked
+const LOCK_SECONDS := 5.0  # from the first thump, to lock the doors
 const OBJECTIVE := "Stay in the car. Don't open the door. Don't answer."
 const RECALL := "[Bang Din: \"If the car dies, stay inside. Don't open the door. Don't answer, even if it sounds like your own mother.\"]"
 const LOCK_LINE := "[Bang Din: \"And if something lands on the roof, lock the doors. Fast.\"]"
@@ -102,7 +102,7 @@ func tick(delta: float) -> bool:
 					if i == 0:
 						EventBus.road_cue.emit(&"her_on_roof")
 						WorldState.set_prompt(LOCK, "Lock the doors")
-			if not _locked and beat_t >= THUMPS[0] + LOCK_SECONDS:
+			if not _locked and beat_t >= THUMPS[0] + LOCK_SECONDS:  # always inside this beat, so checked only here
 				d.die(&"not_locked")
 			if beat_t >= THUMPING:
 				d.say(VOICE, 5.0)

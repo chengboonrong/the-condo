@@ -13,8 +13,8 @@ const HEADLIGHT := Color(1.0, 0.93, 0.8)
 const TAIL := Color(0.9, 0.05, 0.03)
 const DASH := Color(1.0, 0.6, 0.25)
 const BEAM := 14.0  # metres of each headlight's cone in the fog
-const LOCK_AT := Vector3(0.0, 0.6, -0.2)  # the rear of the centre console, low and ahead of his seat: nowhere near his door
-const LOCK_SIZE := 0.06  # metres, the lock's cube
+const LOCK_AT := Vector3(0.0, 1.432, -0.15)  # on the roof lining between the front seats: seen over their backs, far from his door
+const LOCK_SIZE := 0.12  # metres, the lock's collider: a cube he can hit, much bigger than the switch
 const CLEAR := 0.35  # metres he must be from its body before it turns solid: his capsule's radius and a little
 const GLARE_AHEAD := 0.18  # metres the glare sits ahead of the lamp, so the housing and nose never hide its centre
 const BEAM_SHADER := """
@@ -126,6 +126,8 @@ func _ready() -> void:
 	_model.add_child(lock)
 	_colliders.append(_collider(AABB(Vector3.ONE * -LOCK_SIZE / 2.0, Vector3.ONE * LOCK_SIZE)))
 	lock.add_child(_colliders[-1])
+	_lock_part(Vector3(0.06, 0.03, 0.04), Vector3.ZERO, Color(0.05, 0.05, 0.05), false)  # the switch
+	_lock_part(Vector3(0.012, 0.012, 0.004), Vector3(0.0, 0.0, -0.02), DASH, true)  # its dot, on the face toward his seat
 	_build_lights(body)
 
 
@@ -285,6 +287,24 @@ func _build_lights(body: MeshInstance3D) -> void:
 	fill.position = Vector3(0.0, 1.0, -1.3)
 	fill.rotation = Vector3(-0.15, PI, 0.0)  # ahead, a little down
 	add_child(fill)
+
+
+## A box of the lock's switch, dark or (`lit`) a dot of `color` that glows: it is no part of the lights that die with the
+## engine, so it still shows in the dead car. The road's warm-up draws it with the rest, whatever its material.
+func _lock_part(size: Vector3, at: Vector3, color: Color, lit: bool) -> void:
+	var part := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	part.mesh = box
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	if lit:
+		material.emission_enabled = true
+		material.emission = color
+	part.material_override = material
+	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	part.position = at
+	lock.add_child(part)
 
 
 ## The model's lens surfaces are plain gloss: a copy of each, lit.
