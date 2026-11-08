@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Synthesises every sound in assets/audio/ (stdlib only, deterministic). Run: python3 tools/gen_audio.py
+"""Makes every sound in assets/audio/ (stdlib only, deterministic). Run: python3 tools/gen_audio.py
 
-All sounds are original and generated here, so they carry the project licence. Replace with recorded
-or CC0 sounds later; keep the file names.
+All but four are synthesised here: they are original and carry the project licence. The four (the flat's door opening,
+the car door opening, the starter and the engine dying) are cut from CC0 recordings in art/sounds/vendor/ (SOURCE.md).
 """
 import math
 import random
@@ -104,18 +104,6 @@ def footstep(seed):
     return mix(gain(thud, 3.0), at(scuff, 0.02, 0.16))
 
 
-def creak(sec, f0, f1):
-    n = int(sec * SR)
-    out, ph = [], 0.0
-    for i in range(n):
-        t = i / n
-        f = f0 + (f1 - f0) * t + 40 * math.sin(2 * math.pi * 7 * t) + rng.uniform(-25, 25)
-        ph += 2 * math.pi * f / SR
-        saw = (ph / math.pi % 2) - 1
-        out.append(saw * (0.6 + 0.4 * math.sin(2 * math.pi * 3 * t)) * math.sin(math.pi * t))
-    return lowpass(out, 1800)
-
-
 def thud(sec, cutoff, decay):
     x = lowpass(noise(sec), cutoff)
     return [s * e for s, e in zip(x, env_exp(len(x), decay))]
@@ -145,7 +133,7 @@ def loopable(x, xfade=0.5):
 
 
 # ---- The road down (docs/superpowers/specs/2026-11-06-the-road-down-design.md) -------------------------------------
-# Each sound has its own Random (never the module's rng or thud()/creak(), which use it), so the files above never
+# Each sound has its own Random (never the module's rng or thud(), which uses it), so the files above never
 # change. They are saved with save_db(): the loudest 100 ms is set on purpose, the same figure docs/architecture.md's
 # audio table lists, and nothing is louder than the flat's knock.
 
@@ -323,21 +311,6 @@ def car_door_close():
     return fade(out, 0.002, 0.05)
 
 
-def car_door_open():
-    """A car door opened from outside, near: the handle's clack, the latch let go, the seal's soft pop and the
-    door-check clunk as it swings out."""
-    r = random.Random(1306)
-    out = [0.0] * int(0.55 * SR)
-    put(out, tick(r, 0.012, 1200, 5000, 0.004), 0.0, 0.8)
-    put(out, tick(r, 0.012, 2000, 5500, 0.004), 0.06, 0.6)
-    put(out, puff(r, 0.1, 300, 0.03), 0.1, 1.4)
-    put(out, [s * math.sin(math.pi * i / (0.17 * SR)) for i, s in enumerate(lowpass(noise(0.17, r), 600))], 0.1, 0.5)  # the swing
-    put(out, puff(r, 0.08, 500, 0.02), 0.27, 1.8)
-    put(out, tick(r, 0.01, 1500, 4000, 0.003), 0.27, 0.5)
-    put(out, tone(165, 0.2, 0.03, 0.4), 0.27)
-    return fade(out, 0.002, 0.08)
-
-
 def road_step(seed):
     """A shoe on asphalt: a heel thud, a hard tick, and grit scattered after it."""
     r = random.Random(seed)
@@ -407,51 +380,6 @@ def insects_loop():
                 put(out, pulse, t + j * gap, g * a * 0.7, wrap=True)
     floor = circ(lambda x: lowpass(x, 3000), noise(L, r))
     return mix(out, gain(floor, 0.1))
-
-
-def engine_sputter():
-    """The hatchback dying, from inside: firings that come further and further apart, some with an exhaust pop,
-    then one heavy cough and the body shuddering as it stops."""
-    r = random.Random(1307)
-    n = int(2.9 * SR)
-    cyl = [firing(r, b) for b in BODIES]
-    out = [0.0] * n
-    t, gap, k = 0.0, 0.02, 0
-    while t < 2.2:
-        size = r.uniform(0.5, 1.0)
-        put(out, cyl[k % 4], t, size)
-        if size < 0.7:
-            put(out, puff(r, 0.05, 1200, 0.015), t + 0.004, 2.0)
-        t += gap
-        gap = gap * 1.22 + r.uniform(0, 0.01)
-        k += 1
-    put(out, puff(r, 2.2, 120, 1.2), 0.0, 0.5)  # the crank still turning, running down
-    put(out, firing(r, 88, 1.5), 2.25)
-    put(out, puff(r, 0.5, 55, 0.12), 2.25, 3.0)
-    return fade(cabin(out), 0.005, 0.2)
-
-
-def starter_crank():
-    """A starter motor turning an engine that will not catch, from inside: the clack as it engages, a whine that
-    dips on every compression, a thump on each, all slowing as the battery tires, then winding down."""
-    r = random.Random(1308)
-    n = int(1.8 * SR)
-    out = [0.0] * n
-    put(out, tick(r, 0.02, 1000, 3500, 0.006), 0.0, 1.5)
-    thump = puff(r, 0.08, 130, 0.022)
-    ph, mph = 0.0, 0.0
-    k = 0
-    for i in range(n):
-        t = i / SR
-        spin = max(0.0, min(1.0, (1.65 - t) / 0.15))  # the motor winds down at the end
-        ph += (6.2 - 2.4 * min(t, 1.5) / 1.5) * spin / SR
-        if ph >= k + 1:
-            k += 1
-            put(out, thump, t, 2.6 * r.uniform(0.8, 1.1))
-        mph += 2 * math.pi * (330 - 70 * min(t, 1.5) / 1.5 - 25 * math.sin(2 * math.pi * ph)) * spin / SR
-        saw = sum(math.sin(h * mph) / h for h in (1, 2, 3, 4))
-        out[i] += 0.28 * spin * (1 - 0.35 * math.cos(2 * math.pi * ph)) * saw * min(1.0, t / 0.03)
-    return fade(lowpass(out, 1800), 0.002, 0.02)
 
 
 def thump_roof():
@@ -618,6 +546,97 @@ def wind_loop():
     return out
 
 
+# ---- Recorded sounds (art/sounds/vendor/SOURCE.md) -------------------------------------------------------------------
+# Four sounds that read as a synthesiser, a drum and a bouncing ball when they were synthesised, cut from recordings.
+
+VENDOR = Path(__file__).resolve().parent.parent / "art" / "sounds" / "vendor"
+ROLL = 14.0 / 2.25  # s: StallMission's car rolls to a stop from CRUISE_SPEED at ROLL_DECEL
+ROAD_DB = -45.4  # engine_loop's road rumble as heard in the car (the loop's file at -16.0, played at -13.5)
+
+
+def recording(name, start, end):
+    """Seconds start to end of one of the recordings in VENDOR, as floats: they are mono, 16-bit, 44.1 kHz."""
+    with wave.open(str(VENDOR / f"{name}.wav")) as w:
+        assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, SR)
+        w.setpos(int(start * SR))
+        raw = w.readframes(int((end - start) * SR))
+    return [v / 32768 for (v,) in struct.iter_unpack("<h", raw)]
+
+
+def splice(*parts, xfade=0.02):
+    """Joins pieces end to end, each crossfading into the next over xfade seconds."""
+    out, k = list(parts[0]), int(xfade * SR)
+    for p in parts[1:]:
+        for i in range(k):
+            out[len(out) - k + i] += (p[i] - out[len(out) - k + i]) * i / k
+        out += p[k:]
+    return out
+
+
+def curve(keys, t):
+    """Piecewise-linear through (seconds, value) keys, held flat past both ends."""
+    if t <= keys[0][0]:
+        return keys[0][1]
+    for (t0, v0), (t1, v1) in zip(keys, keys[1:]):
+        if t <= t1:
+            return v0 + (v1 - v0) * (t - t0) / (t1 - t0)
+    return keys[-1][1]
+
+
+def varispeed(x, rate):
+    """Plays x at rate(t) times its speed (t in seconds of output), as a tape would: pitch and pace together."""
+    out, pos = [], 0.0
+    while pos < len(x) - 1:
+        i = int(pos)
+        out.append(x[i] + (x[i + 1] - x[i]) * (pos - i))
+        pos += rate(len(out) / SR)
+    return out
+
+
+def door_open():
+    """The flat's door opening: the handle and latch, then the hinge grinding as it swings (a Paris apartment door,
+    with the wait between them cut). Close to the microphone the handle was 20 dB over its loudness; it is brought
+    down to 2 dB over the hinge's peaks, as the file is peak-normalised like the flat's others."""
+    src = "bsb-1702-apartment-door-opening"
+    latch, hinge = recording(src, 0.0, 0.42), recording(src, 1.25, 2.25)
+    latch = gain(latch, max(abs(s) for s in hinge) * 10 ** (2 / 20) / max(abs(s) for s in latch))
+    return fade(splice(latch, hinge, xfade=0.03), 0.002, 0.15)
+
+
+def car_door_open():
+    """A car door opened from outside, near: the handle, then the latch letting go and the door swinging out (a
+    Peugeot 107's, with the wait between them cut)."""
+    src = "bsb-1526-car-door"
+    return fade(splice(recording(src, 0.0, 0.3), recording(src, 0.66, 1.2)), 0.002, 0.08)
+
+
+def starter_crank():
+    """A starter turning an engine that will not catch, through the car's body: 1.7 s of the first try of a hard
+    start, then the key let go."""
+    src = "bsb-0872-car-difficult-start"
+    x = splice(recording(src, 0.1, 1.8), recording(src, 2.75, 3.25), xfade=0.05)
+    return fade(lowpass(lowpass(x, 2500), 2500), 0.002, 0.08)
+
+
+def engine_sputter():
+    """The hatchback dying as it rolls, from inside: its revs fall from the cruise to a rough idle that stumbles twice,
+    then it coughs and stops (an engine with a damaged muffler), through the car's body. Under it the tyres roll on,
+    at the loop's road level and fading as the car slows, until it stands ROLL seconds on. Played in his head, so it
+    rides with the car (RoadMain, lights_dying)."""
+    src = "bsb-1571-damaged-muffler"
+    revs = [(0.0, 1.6), (0.3, 1.0), (0.55, 0.92), (0.7, 0.98), (0.95, 0.85), (1.1, 0.93), (1.3, 0.8)]
+    run = varispeed(recording(src, 0.0, 2.2), lambda t: curve(revs, t))[:int(1.35 * SR)]
+    dips = [(0.5, 1.0), (0.53, 0.3), (0.62, 0.3), (0.66, 1.0), (0.92, 1.0), (0.95, 0.2), (1.08, 0.25), (1.12, 1.0)]
+    run = [s * curve(dips, i / SR) for i, s in enumerate(run)]
+    engine = splice(run, recording(src, 2.3, 3.25), xfade=0.04)  # the last cough, and it stops
+    engine = highpass(lowpass(lowpass(engine, 1500), 1500), 30)
+    engine = gain(engine, 10 ** ((-17.0 - loudest_100ms_db(engine)) / 20))
+    road = lowpass(noise(ROLL + 0.3, random.Random(1307)), 246)  # engine_loop's road, at its pitch at 14 m/s (1.54x)
+    road = cabin([s * max(0.0, 1 - i / SR / ROLL) ** 1.2 for i, s in enumerate(road)])
+    road = gain(road, 10 ** ((ROAD_DB - loudest_100ms_db(road[int(0.1 * SR):int(0.6 * SR)])) / 20))
+    return fade(mix(engine, road), 0.0, 0.2)
+
+
 def road_sounds():
     """Every sound the road's tasks name. Seven are loops, imported with edit/loop_mode=2 and only ever started with
     RoadAudio.set_loop: the four _loop files, the indicator (one flash), the phone (one ring) and the lorry's idle.
@@ -635,9 +654,7 @@ def road_sounds():
         x = normalize(fade(road_step(i + 20), 0.0015, 0.01), 0.7)  # a 1.5 ms fade-in: no step at the first sample
         save(f"road_step_{i + 1}", x, 0.7)
         print(f"road_step_{i + 1}: loudest 100 ms {loudest_100ms_db(x):.1f} dBFS")
-    # Its peak as heard comes in the first half-second, as it passes his head at max_db. The real-play recording (take 2)
-    # measured it at -8.0 dBTP from -18.5, so -17.0 is about -6.5. The file's own loudest 50 ms and sample are at
-    # 2.25 s, heard far behind the car.
+    # Played in his head at 0 dB, as loud as the pool player at max_db had it (docs/architecture.md, Audio levels).
     save_db("engine_sputter", engine_sputter(), -17.0, half=True)
     save_db("starter_crank", starter_crank(), -19.0, half=True)
     save_db("thump_roof", thump_roof(), -18.5)  # heard at the +3 dB max_db cap near his head: -15.5
@@ -682,7 +699,9 @@ def main():
     save("knock1", knock())
     for i in range(4):
         save(f"footstep_{i + 1}", footstep(i + 10), 0.7)
-    save("door_open", fade(mix(creak(0.9, 260, 420), at(thud(0.05, 4000, 0.006), 0.0, 0.9))))
+    for _ in range(int(0.9 * SR) + int(0.05 * SR)):  # the synthesised door's draws on rng: every sound after it is unchanged
+        rng.random()
+    save("door_open", door_open())
     save("door_close", fade(mix(gain(thud(0.35, 400, 0.05), 2.0), at(thud(0.04, 5000, 0.004), 0.02, 0.35))))
     slam = mix(gain(thud(0.8, 250, 0.12), 3.0), at(gain(highpass(thud(0.5, 3500, 0.08), 800), 0.6), 0.03, 0.8))
     save("door_slam", fade(slam), 1.0)

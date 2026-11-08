@@ -359,7 +359,7 @@ func _on_cue(cue: StringName) -> void:
 		&"lights_dying":
 			_dead = true
 			car.lights_dying()
-			_sound(&"engine_sputter", ENGINE, 1.0)  # at max_db from his seat, 2.35 m: the car rolls on past it
+			audio.play_here(&"engine_sputter", 0.0)  # in his head: a pool player would stay put as the car rolls on
 		&"crank":
 			_sound(&"starter_crank", ENGINE, -2.0)
 		&"hafiz_leaves":

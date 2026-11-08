@@ -81,7 +81,7 @@ func test_the_road_plays_the_car_dying() -> bool:
 	EventBus.road_cue.emit(&"lights_dying")
 	await _frames(2)
 	check(not road.audio.loops[&"engine_loop"].playing, "the engine stops when the car dies")
-	check(_playing(road, &"engine_sputter"), "with a sputter")
+	check(road.audio.here[&"engine_sputter"].playing, "with a sputter, in his head so it rides with the car")
 	EventBus.road_cue.emit(&"crank")
 	EventBus.road_cue.emit(&"hafiz_leaves")
 	await _frames(60)
@@ -134,7 +134,7 @@ func test_the_road_plays_the_car_dying() -> bool:
 	var lean := (mei.get_node("Chest") as Node3D).rotation.x
 	check(face.z > 0.9 and lean > 0.15, "Mei leans in to the windscreen to see it, not round to him (%s, %.2f rad)" % [face, lean])
 	EventBus.sound_requested.disconnect(_on_sound)
-	for id: StringName in [&"engine_sputter", &"starter_crank", &"car_door_open", &"car_door_close", &"wet_flap",
+	for id: StringName in [&"starter_crank", &"car_door_open", &"car_door_close", &"wet_flap",
 			&"thump_roof", &"knock_glass"]:
 		check(_sounds.has(id), "the car dying plays %s" % id)
 	var unknown := _sounds.filter(func(id: StringName) -> bool: return not RoadAudio.SOUNDS.has(id))

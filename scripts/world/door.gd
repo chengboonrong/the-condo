@@ -52,7 +52,7 @@ func _on_door_changed(id: StringName, open: bool, source: StringName) -> void:
 	# A door opening by itself is a scare: up with the slam, still under the stinger.
 	var gain := 0.0
 	if sound == &"door_open":
-		gain = -11.0 if source == &"player" else -4.0
+		gain = -8.0 if source == &"player" else -1.0
 	EventBus.sound_requested.emit(sound, global_position + global_basis.x * 0.45 + Vector3.UP, gain)
 
 

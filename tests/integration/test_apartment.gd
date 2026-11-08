@@ -196,7 +196,7 @@ func test_a_door_opening_by_itself_is_louder_than_the_players() -> bool:
 	WorldState.set_door(&"bathroom_door", false, &"player")
 	WorldState.set_door(&"bathroom_door", true, &"door_event")
 	EventBus.sound_requested.disconnect(on_sound)
-	eq(heard.values(), [-11.0, -4.0], "the player's door is quiet; a door opening by itself is a scare")
+	eq(heard.values(), [-8.0, -1.0], "the player's door is quiet; a door opening by itself is a scare")
 	main.queue_free()
 	return true
 

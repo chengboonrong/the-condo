@@ -86,8 +86,9 @@ every ending (`ending_saved`, `ending_alive`,
 > captions for sounds (spoken lines always show), and reduced flashing (flickering lights dim slowly instead).
 >
 > **Credits:** made by Chris Cheng in Godot 4.7. The rooms and the road are built in code, the objects, the car and
-> the people in Blender from scripts, and every sound is synthesised in code; no third-party asset files are used.
-> The clock's numerals use the Inter font (SIL Open Font License 1.1). Source code (MIT licence): https://github.com/chengboonrong/the-condo
+> the people in Blender from scripts, and the sounds are synthesised in code, except four cut from public-domain (CC0)
+> recordings by Joseph Sardin, BigSoundBank. The voices were generated with mesolitica/Malaysian-Podcast-Dia-1.6B, in its
+> own voices. The clock's numerals use the Inter font (SIL Open Font License 1.1). Source code (MIT licence): https://github.com/chengboonrong/the-condo
 
 The macOS line goes only if the macOS app is uploaded. The Windows and Linux builds have never been run, so they
 stay off the page until someone has run them.
@@ -122,7 +123,7 @@ The jam asks about AI use at submission, and itch.io's *Edit game* page has its 
 owner's to word. The facts:
 
 * The code was written with an AI coding assistant. That includes the scripts that build every 3D model in Blender
-  and the code that synthesises every sound.
+  and the code that synthesises the sounds (four are cut from CC0 recordings, not generated).
 * The in-game text (the dialogue and the captions) and this page's text were drafted with it. Every commit in the
   repository carries its co-author line.
 * The spoken lines were generated with a voice model, mesolitica/Malaysian-Podcast-Dia-1.6B, in its own voices
