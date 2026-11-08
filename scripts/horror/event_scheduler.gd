@@ -160,6 +160,8 @@ func mark(id: StringName, key: String) -> void:
 
 func tick(delta: float) -> void:
 	for run in running.duplicate():
+		if run["state"] != State.RUNNING:  # a run before it in this tick ended and cancelled it (a death)
+			continue
 		run["elapsed"] += delta
 		var ev: HorrorEvent = events[run["id"]]
 		var done := ev.update(ctx, run, delta)

@@ -1,6 +1,25 @@
 extends TestCase
 ## Phase 2: event lifecycle, preconditions, cooldowns, mutual exclusion, pre-emption, failure recovery.
 
+## Two stand-ins for a death inside a tick: one ends at once with a "kill"; the other would end on its next update.
+class KillerEvent extends HorrorEvent:
+	func update(_ctx: EventContext, run: Dictionary, _delta: float) -> bool:
+		run["kill"] = &"test"
+		return true
+
+
+class BystanderEvent extends HorrorEvent:
+	var updates := 0
+	var finishes := 0
+
+	func update(_ctx: EventContext, _run: Dictionary, _delta: float) -> bool:
+		updates += 1
+		return true
+
+	func finish(_ctx: EventContext, _run: Dictionary, _result: StringName) -> void:
+		finishes += 1
+
+
 var sched: EventScheduler
 var ctx: EventContext
 var sounds: Array = []
@@ -253,5 +272,32 @@ func test_a_cut_short_door_is_not_swung_at_the_player() -> bool:
 	ctx.stage.position = Vector3(6.75, 0, 3.0)  # the player walks up to the shut door
 	sched.cancel(run)
 	eq(WorldState.is_door_open(&"bedroom_door"), false, "it stays shut instead of swinging open into them")
+	_teardown()
+	return true
+
+
+## HorrorRuntime.die(), answering the end of a run (a visitor's kill) in the middle of a tick, cancels the others: the tick
+## must not then run them again, or the dead would see them finish a second time.
+func test_a_run_cancelled_by_another_runs_end_is_not_run_again() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	var killer := KillerEvent.new()
+	killer.id = &"killer"
+	killer.channels = PackedStringArray(["a"])
+	var bystander := BystanderEvent.new()
+	bystander.id = &"bystander"
+	bystander.channels = PackedStringArray(["b"])
+	sched.register(killer)
+	sched.register(bystander)
+	sched.run_finished.connect(func(run: Dictionary) -> void:
+		if run.has("kill"):
+			for other in sched.running.duplicate():
+				sched.cancel(other, "died"))
+	sched.start(&"killer")
+	var other := sched.start(&"bystander")
+	sched.tick(0.1)
+	eq(other["state"], EventScheduler.State.CANCELLED, "the other run is cancelled by the death")
+	eq(bystander.updates, 0, "and is not updated again")
+	eq(bystander.finishes, 1, "nor finished a second time")
+	check(sched.running.is_empty(), "nothing is left running")
 	_teardown()
 	return true

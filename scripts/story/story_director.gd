@@ -78,6 +78,9 @@ const LAST_CALL := {
 }
 ## B-11-07's call after `saved`: the one the road took, in the voice that called them out of the car (mimic_open_door).
 const HAFIZ_CALL := "\"Bro! Open the door, I found help!\""
+## The last of Rosnah's call: the rules of the flat's night, told before they can kill him (the visitor's lights and front
+## door, VisitorEvent; the front door in act 3's knocking). Armed by answering her (the `answered_intercom` flag).
+const ROSNAH_WARNING := "\"One more thing. At night, if you hear footsteps outside, switch off all your lights. Even your phone. And don't open the door.\""
 
 var scheduler: EventScheduler
 var transformer: RoomTransformer
@@ -107,6 +110,7 @@ func _init(event_scheduler: EventScheduler, room_transformer: RoomTransformer) -
 	EventBus.object_interacted.connect(_on_interacted)
 	EventBus.room_entered.connect(_on_room_entered)
 	EventBus.variant_changed.connect(_on_variant_changed)
+	EventBus.door_changed.connect(_on_door_changed)
 	scheduler.run_finished.connect(_on_run_finished)
 
 
@@ -382,7 +386,6 @@ func _request_reveal() -> void:
 
 
 func _at_front_door() -> void:
-	say("[Nobody there. The corridor is empty.]", 3.0, true)
 	say("[Deeper in the flat, something heavy settles.]", 3.5)
 	_request_reveal()
 
@@ -474,6 +477,9 @@ func _on_interacted(object_id: StringName) -> void:
 				say("[You can't sleep. Not now.]", 2.5, true)
 		&"footprints":
 			_end_question()
+		&"peephole":
+			if WorldState.act == WorldState.Act.IMPOSSIBLE and _once_ever("nobody_there"):
+				say("[Nobody there. The corridor is empty.]", 3.0, true)
 		&"intercom":
 			if beat == &"ringing" and scheduler.is_running(&"phone_ring"):
 				_answer_rosnah()
@@ -522,6 +528,7 @@ func _answer_rosnah() -> void:
 	say("\"This is Rosnah. Downstairs, 11-07.\"", 3.0)
 	say("\"Every night also the same. Knock, knock, knock. From your bedroom.\"", 4.0)
 	say("\"Please. Can you stop the knocking?\"", 3.5)
+	say(ROSNAH_WARNING, 6.5)
 	say("[The line goes dead.]", 2.5)
 	_call_pending = LAST_CALL.has(road)  # alive, or no road: no recording
 	WorldState.set_objective("You haven't knocked on anything.")
@@ -565,6 +572,14 @@ func _on_variant_changed(area_id: StringName, variant: StringName) -> void:
 		_next_beacon = now() + 60.0
 		WorldState.set_objective("Something moved in the bedroom.")
 		_go(&"revealed")
+
+
+## Act 3's knocking at the front door, from the first knock until the reveal: opening it kills him, once she has warned
+## him. Only his own hand counts: a door the flat opens, or a retry puts back (&"restore"), is not him opening it.
+func _on_door_changed(door_id: StringName, open: bool, source: StringName) -> void:
+	if door_id == &"main_door" and open and source == &"player" and [&"front_door", &"reveal_pending"].has(beat) \
+			and WorldState.has_flag(&"answered_intercom"):
+		killed.emit(&"front_door")
 
 
 func _on_run_finished(run: Dictionary) -> void:

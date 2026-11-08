@@ -5,6 +5,8 @@ extends TestCase
 const ENTRANCE := Vector3(1.5, 0, 8.5)  # by the intercom
 const CRACKLE := "[The speaker crackles. Wind, and an engine idling.]"
 const WALL_ANSWER := "[The wall is cold. Something on the other side knocks back. Once.]"
+const NOBODY := "[Nobody there. The corridor is empty.]"
+const SETTLES := "[Deeper in the flat, something heavy settles.]"
 
 var stage: HorrorStage
 var rt: HorrorRuntime
@@ -815,7 +817,7 @@ func test_a_pending_last_call_is_kept_for_the_retry() -> bool:
 	return _done()
 
 
-## A dead step only keeps the clock: what he saw or peeped at before it is not applied.
+## A dead step only keeps the clock: what he saw before it is not applied.
 func test_a_dead_step_applies_no_sighting() -> bool:
 	_setup(ApartmentLayout.SPAWN)
 	rt.story.debug_skip()  # act 2: the thing in the flat stirs
@@ -824,10 +826,9 @@ func test_a_dead_step_applies_no_sighting() -> bool:
 	var state := WorldState.entity_state
 	rt.die(&"front_door")
 	EventBus.silhouette_seen.emit(&"still_hallway")
-	EventBus.object_interacted.emit(&"peephole")
 	rt.step(0.1)
 	eq(WorldState.entity_state, state, "the sighting did not send it back")
-	check(rt._sightings.size() == 1 and rt._peeked, "and both wait unapplied")
+	eq(rt._sightings.size(), 1, "and it waits unapplied")
 	return _done()
 
 
@@ -875,6 +876,161 @@ func test_the_flat_dies_once_and_stops() -> bool:
 	eq(rt.dead, &"", "he is not dead")
 	EventBus.player_died.disconnect(on_died)
 	return _done()
+
+
+## Her call ends on the rule he must keep, and he has answered: the flag arms the flat's deaths.
+func test_rosnah_warns_about_the_footsteps() -> bool:
+	eq(StoryDirector.ROSNAH_WARNING, "\"One more thing. At night, if you hear footsteps outside, switch off all your lights. Even your phone. And don't open the door.\"", "the warning's words")
+	var call := ["\"Hello? Sorry ah, so late.\"", "\"This is Rosnah. Downstairs, 11-07.\"",
+		"\"Every night also the same. Knock, knock, knock. From your bedroom.\"", "\"Please. Can you stop the knocking?\"",
+		StoryDirector.ROSNAH_WARNING, "[The line goes dead.]"]
+	for road: StringName in [&"caught", &""]:
+		_rosnah_answers(road, ENTRANCE)
+		check(WorldState.has_flag(&"answered_intercom"), "road %s: he has answered her" % road)
+		_wait(40.0)
+		eq(heard.filter(func(h: String) -> bool: return call.has(h)), call, "road %s: her call, the warning after her plea and before the line goes dead" % road)
+		_done()
+	return true
+
+
+## Opening the front door kills him from the first knock at it until the reveal, once Rosnah has warned him. Only his own
+## hand does: a door put back by a retry, or opened by the flat, does not.
+func test_opening_the_front_door_in_act_three_kills() -> bool:
+	for beat: StringName in [&"front_door", &"reveal_pending"]:
+		WorldState.reset()
+		var story := _setup(Vector3(8.5, 0, 0.5))  # in the bedroom, away from the door
+		WorldState.set_flag(&"answered_intercom")
+		story.debug_skip()  # act 2
+		story.debug_skip()  # act 3: knocking at the front door
+		if beat == &"reveal_pending":
+			check(_until(func() -> bool: return story.beat == &"reveal_pending", 61.0), "the knocking goes on to the reveal")
+		eq(story.beat, beat, "(the %s beat)" % beat)
+		var deaths: Array[StringName] = []
+		story.killed.connect(func(cause: StringName) -> void: deaths.append(cause))
+		WorldState.set_door(&"main_door", true, &"event")
+		WorldState.set_door(&"main_door", false, &"restore")
+		eq(deaths, [] as Array[StringName], "%s: the flat's own doors and a restore are not his hand" % beat)
+		WorldState.set_door(&"main_door", true, &"player")
+		eq(deaths, [&"front_door"] as Array[StringName], "%s: opening it himself kills him" % beat)
+		eq(rt.dead, &"front_door", "%s: he is dead of it" % beat)
+		_done()
+	return true
+
+
+func test_unwarned_opening_the_front_door_in_act_three_is_safe() -> bool:
+	var story := _setup(Vector3(8.5, 0, 0.5))
+	story.debug_skip()
+	story.debug_skip()
+	check(not WorldState.has_flag(&"answered_intercom"), "(he never answered her)")
+	WorldState.set_door(&"main_door", true, &"player")
+	eq(rt.dead, &"", "nothing kills him: today's behaviour")
+	return _done()
+
+
+## The door is only deadly while it is the knocking's: before the first knock and after the reveal it is a door.
+func test_the_front_door_is_safe_outside_the_knocking() -> bool:
+	var story := _setup(Vector3(8.5, 0, 0.5))  # in the bedroom
+	WorldState.set_flag(&"answered_intercom")
+	WorldState.set_door(&"main_door", true, &"player")
+	eq(rt.dead, &"", "in act 1")
+	WorldState.set_door(&"main_door", false, &"player")
+	story.debug_skip()  # act 2
+	WorldState.set_door(&"main_door", true, &"player")
+	eq(rt.dead, &"", "in act 2 (the visitor's rule is its own)")
+	WorldState.set_door(&"main_door", false, &"player")
+	story.debug_skip()  # act 3
+	check(_until(func() -> bool: return story.beat == &"reveal_pending", 61.0), "the knocking goes on to the reveal")
+	WorldState.set_variant(&"bedroom", &"door")
+	eq(story.beat, &"revealed", "the reveal happens")
+	WorldState.set_door(&"main_door", true, &"player")
+	eq(rt.dead, &"", "after the reveal")
+	return _done()
+
+
+## A retry puts the door back as it was, and that is not him opening it, though act 3 begins from it.
+func test_a_door_put_back_by_a_retry_does_not_kill() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	WorldState.set_flag(&"answered_intercom")
+	story.debug_skip()  # act 2
+	WorldState.set_door(&"main_door", true, &"player")  # left open as act 3 begins
+	story.debug_skip()  # act 3
+	var snapshot := story.act_snapshot
+	check(snapshot["doors"][&"main_door"], "(the snapshot has the front door open)")
+	_done()
+	WorldState.reset()
+	story = _setup(ApartmentLayout.SPAWN)
+	story.start_at_act(snapshot)
+	eq(story.beat, &"front_door", "act 3 begins again")
+	check(WorldState.is_door_open(&"main_door"), "with the front door open, put back")
+	eq(rt.dead, &"", "and he is alive")
+	WorldState.set_door(&"main_door", false, &"restore")
+	WorldState.set_door(&"main_door", true, &"restore")
+	_wait(5.0)
+	eq(rt.dead, &"", "and he stays so")
+	return _done()
+
+
+## Walking to the door is safe: only opening it kills. The fail-safe knocks that call him out of the bedroom stay.
+func test_walking_to_the_door_in_act_three_is_safe() -> bool:
+	var story := _setup(ENTRANCE)
+	WorldState.set_flag(&"answered_intercom")
+	story.debug_skip()  # act 2
+	story.debug_skip()  # act 3
+	var deaths: Array[StringName] = []
+	story.killed.connect(func(cause: StringName) -> void: deaths.append(cause))
+	_wait(60.0)
+	eq(deaths, [] as Array[StringName], "a minute in the entrance and nothing kills him")
+	eq(rt.dead, &"", "he is alive")
+	_place(Vector3(1.5, 0, 9.4))  # right at the door
+	_wait(10.0)
+	eq(rt.dead, &"", "even at the door")
+	return _done()
+
+
+## He looks through the peephole, and only then is the corridor empty: reaching the door says something else.
+func test_nobody_there_is_said_at_the_peephole() -> bool:
+	var story := _setup(Vector3(8.5, 0, 0.5))  # in the bedroom
+	_listen()
+	EventBus.object_interacted.emit(&"peephole")
+	story.debug_skip()  # act 2
+	EventBus.object_interacted.emit(&"peephole")
+	_wait(5.0)
+	eq(lines.count(NOBODY), 0, "in acts 1 and 2 the peephole says nothing of it")
+	story.debug_skip()  # act 3: knocking at the front door
+	_place(ENTRANCE)  # he reaches the door
+	_wait(10.0)
+	check(heard.has(SETTLES), "reaching the entrance: something heavy settles")
+	eq(lines.count(NOBODY), 0, "but the corridor is not said to be empty")
+	EventBus.object_interacted.emit(&"peephole")
+	_wait(10.0)
+	eq(lines.count(NOBODY), 1, "he looks through the peephole: nobody there")
+	EventBus.object_interacted.emit(&"peephole")
+	_wait(10.0)
+	eq(lines.count(NOBODY), 1, "and it is said once")
+	return _done()
+
+
+## The kill reaches him through the core: a visitor's run ends with a cause, and HorrorRuntime makes it a death.
+func test_a_visitors_kill_is_a_death() -> bool:
+	for cause: StringName in [&"lights_on", &"front_door"]:
+		WorldState.reset()
+		_setup(ApartmentLayout.SPAWN)  # the living room, its light on
+		WorldState.set_act(WorldState.Act.DISTURBANCE)
+		WorldState.set_flag(&"answered_intercom")
+		var deaths: Array[StringName] = []
+		var on_died := func(c: StringName) -> void: deaths.append(c)
+		EventBus.player_died.connect(on_died)
+		var run := rt.scheduler.start(&"visitor")
+		eq(run["state"], EventScheduler.State.RUNNING, "(a visit starts)")
+		if cause == &"front_door":
+			_wait(3.0)
+			WorldState.set_door(&"main_door", true, &"player")
+		check(_until(func() -> bool: return rt.dead != &"", 60.0), "%s: it kills him" % cause)
+		eq(rt.dead, cause, "%s: of this" % cause)
+		eq(deaths, [cause] as Array[StringName], "%s: player_died, once" % cause)
+		EventBus.player_died.disconnect(on_died)
+		_done()
+	return true
 
 
 func _shifts_done() -> int:

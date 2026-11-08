@@ -1,8 +1,11 @@
 class_name VisitorEvent
 extends HorrorEvent
 ## Someone comes to the front door. The lift chimes, footsteps come up the corridor to the door and stop,
-## the presentation shows feet under it, and then they vanish without a sound. Opening the door or looking
-## through the peephole (the run is marked "peeked") ends it: nobody is there.
+## the presentation shows feet under it, and then they vanish without a sound. Opening the door ends it: nobody is there.
+## Looking through the peephole does not: the empty corridor is all he sees, and the visit runs on.
+## Once he has heard Rosnah's warning (the answered_intercom flag) breaking her rule kills him: the run ends with
+## run["kill"] set to the cause (HorrorRuntime makes it his death). Opening the door at any time kills (&"front_door");
+## so does any light on when the footsteps stop, his phone's included (&"lights_on"). Unwarned, nothing kills him.
 
 const DOOR := Vector3(1.5, 0, 10.0)  # the front door on the floor (the doorway in ApartmentLayout.CONNECTIONS)
 const MIN_DISTANCE := 2.5
@@ -12,7 +15,7 @@ const FIRST_STEP := 2.5  # after the chime: long enough to read its caption befo
 const WALK_Z := 10.6
 const LAST_STEP := Vector3(1.5, 0, 10.35)
 
-@export var steps := 16
+@export var steps := 24  # chime to feet must outlast a round of every switch: tests/unit/test_visitor.gd
 @export var hold := 15.0  # seconds the feet stay under the door
 
 
@@ -39,8 +42,11 @@ func start(_ctx: EventContext, run: Dictionary) -> void:
 	run["next_step"] = FIRST_STEP
 
 
-func update(_ctx: EventContext, run: Dictionary, _delta: float) -> bool:
-	if run.get("peeked", false) or WorldState.is_door_open(&"main_door"):
+func update(ctx: EventContext, run: Dictionary, _delta: float) -> bool:
+	var warned := WorldState.has_flag(&"answered_intercom")
+	if WorldState.is_door_open(&"main_door"):
+		if warned:
+			run["kill"] = &"front_door"
 		return true
 	var path: Array = run["steps"]
 	var i := int(run.get("step_index", 0))
@@ -59,7 +65,15 @@ func update(_ctx: EventContext, run: Dictionary, _delta: float) -> bool:
 		run["feet_at"] = run["elapsed"]
 		EventBus.door_feet_requested.emit(true)
 		EventBus.subtitle_requested.emit("[The footsteps stop outside your door]", 4.0)
+		if warned and _a_light_is_on(ctx):
+			run["kill"] = &"lights_on"
+			return true
 	return false
+
+
+## Any light of the flat, or his phone's. The corridor's is the building's, not his.
+func _a_light_is_on(ctx: EventContext) -> bool:
+	return ctx.stage.phone_light_on() or ApartmentLayout.APARTMENT_ROOMS.any(func(room: StringName) -> bool: return WorldState.is_light_on(room))
 
 
 func finish(_ctx: EventContext, run: Dictionary, _result: StringName) -> void:

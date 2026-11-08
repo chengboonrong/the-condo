@@ -1,6 +1,7 @@
 extends TestCase
 ## Someone at the door: the lift chimes, footsteps come up the corridor to the front door, the feet show
-## under it, then go without a sound. Opening the door, looking through the peephole or a story knock end it.
+## under it, then go without a sound. A story knock ends it. Once Rosnah has warned him (answered_intercom), opening
+## the door or a light left on when the feet stop kills him; unwarned, opening the door ends the visit as before.
 
 var sched: EventScheduler
 var ctx: EventContext
@@ -52,12 +53,30 @@ func _run_for(seconds: float) -> void:
 		t += 0.1
 
 
+## Until the feet are under the door (the walk's length is the event's to choose), as far as a minute.
+func _run_until_feet() -> void:
+	var t := 0.0
+	while not trail.has(["feet", true]) and t < 60.0:
+		_run_for(0.1)
+		t += 0.1
+
+
+## He has heard Rosnah's warning: the door and the lights can kill him.
+func _arm() -> void:
+	WorldState.set_flag(&"answered_intercom")
+
+
+func _lights_off() -> void:
+	for room: StringName in ApartmentLayout.APARTMENT_ROOMS:
+		WorldState.set_light(room, false)
+
+
 func test_the_visitor_comes_to_the_door_and_waits() -> bool:
 	_setup(&"living", Vector3(6.5, 0, 8.4))
 	var run := sched.start(&"visitor")
 	eq(run["state"], EventScheduler.State.RUNNING, "a visit starts in the living room with the door shut")
 	eq(run["room"], &"corridor", "it happens in the corridor")
-	_run_for(14.0)
+	_run_until_feet()
 	var sounds := trail.filter(func(e: Array) -> bool: return e[0] == "sound")
 	eq(sounds[0][1], &"lift_ding", "the lift chimes first")
 	var steps := sounds.filter(func(e: Array) -> bool: return e[1] == &"footstep")
@@ -110,32 +129,205 @@ func test_the_visitor_needs_the_door_shut_and_the_player_inside() -> bool:
 	return true
 
 
-func test_opening_the_door_or_peeking_ends_the_visit() -> bool:
+func test_unwarned_the_door_ends_the_visit_as_before() -> bool:
+	for when: String in ["on the way", "at the door"]:
+		_setup(&"living", Vector3(6.5, 0, 8.4))  # no warning; the living light is on
+		var run := sched.start(&"visitor")
+		if when == "on the way":
+			_run_for(4.0)
+		else:
+			_run_until_feet()
+		WorldState.set_door(&"main_door", true, &"player")
+		_run_for(0.2)
+		eq(run["state"], EventScheduler.State.COMPLETED, "%s: opening the door ends it, nobody there" % when)
+		check(not run.has("kill"), "%s: and nobody dies" % when)
+		if when == "at the door":
+			eq(trail.filter(func(e: Array) -> bool: return e[0] == "feet")[-1], ["feet", false], "the feet are gone")
+		_teardown()
+	return true
+
+
+func test_opening_the_door_while_the_feet_are_there_kills() -> bool:
 	_setup(&"living", Vector3(6.5, 0, 8.4))
+	_arm()
+	_lights_off()
 	var run := sched.start(&"visitor")
-	_run_for(14.0)
+	_run_until_feet()
+	eq(run["state"], EventScheduler.State.RUNNING, "(the feet are there, and he lives: every light is off)")
 	WorldState.set_door(&"main_door", true, &"player")
 	_run_for(0.2)
-	eq(run["state"], EventScheduler.State.COMPLETED, "opening the door ends it: nobody there")
-	eq(trail.filter(func(e: Array) -> bool: return e[0] == "feet")[-1], ["feet", false], "and the feet are gone")
-	_teardown()
-	_setup(&"living", Vector3(6.5, 0, 8.4))
-	run = sched.start(&"visitor")
-	_run_for(4.0)  # still walking
-	var at := trail.size()
-	sched.mark(&"visitor", "peeked")
-	_run_for(5.0)
-	eq(run["state"], EventScheduler.State.COMPLETED, "looking through the peephole ends it, even on the way")
-	check(trail.slice(at).all(func(e: Array) -> bool: return e[0] != "sound"), "the steps stop when you look")
-	check(not trail.has(["feet", true]) or trail.filter(func(e: Array) -> bool: return e[0] == "feet")[-1] == ["feet", false], "no feet left under the door")
+	eq(run["state"], EventScheduler.State.COMPLETED, "opening the door ends the visit")
+	eq(run.get("kill"), &"front_door", "and kills him")
+	eq(trail.filter(func(e: Array) -> bool: return e[0] == "feet")[-1], ["feet", false], "the feet are taken away with the run")
 	_teardown()
 	return true
+
+
+## The way round the lights: open the door before the feet stop and nothing can be checked.
+func test_opening_the_door_while_the_footsteps_come_kills() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	_arm()
+	_lights_off()
+	var run := sched.start(&"visitor")
+	_run_for(4.0)
+	check(trail.any(func(e: Array) -> bool: return e[0] == "sound" and e[1] == &"footstep") and not trail.has(["feet", true]), "(the footsteps are coming)")
+	WorldState.set_door(&"main_door", true, &"player")
+	_run_for(0.2)
+	eq(run["state"], EventScheduler.State.COMPLETED, "opening the door ends the visit")
+	eq(run.get("kill"), &"front_door", "and kills him")
+	_teardown()
+	return true
+
+
+## The peephole shows the empty corridor and kills nothing, and it is not the end of the visit: it goes on to the lights
+## check, so looking cannot skip the rule. The look comes through EventBus, as it does in the game.
+func test_peeking_no_longer_ends_the_visit() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	_arm()
+	var rt := HorrorRuntime.new()
+	rt.setup(ctx.stage, 3)
+	var run := rt.scheduler.start(&"visitor")
+	for i in 40:
+		rt.step(0.1)
+	EventBus.object_interacted.emit(&"peephole")  # on the way
+	for i in 5:
+		rt.step(0.1)
+	eq(run["state"], EventScheduler.State.RUNNING, "looking through the peephole does not end the visit")
+	check(not run.has("kill") and rt.dead == &"", "and does not kill him")
+	var t := 0.0
+	while not run.has("kill") and t < 60.0:  # the living light is on: the lights check gets him
+		rt.step(0.1)
+		t += 0.1
+	eq(rt.dead, &"lights_on", "the visit runs on to the lights check")
+	rt.free()
+	_teardown()
+	return true
+
+
+func test_a_room_light_on_when_the_feet_stop_kills() -> bool:
+	for room: StringName in ApartmentLayout.APARTMENT_ROOMS:
+		_setup(&"living", Vector3(6.5, 0, 8.4))
+		_arm()
+		_lights_off()
+		WorldState.set_light(room, true)
+		var run := sched.start(&"visitor")
+		_run_until_feet()
+		eq(run["state"], EventScheduler.State.COMPLETED, "%s light on: the visit ends when the feet stop" % room)
+		eq(run.get("kill"), &"lights_on", "%s light on: it knew he was home" % room)
+		_teardown()
+	return true
+
+
+func test_the_phone_light_counts() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	_arm()
+	_lights_off()
+	ctx.stage.phone_light = true
+	var run := sched.start(&"visitor")
+	_run_until_feet()
+	eq(run.get("kill"), &"lights_on", "the phone's light is a light")
+	_teardown()
+	return true
+
+
+func test_every_light_off_he_lives() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	_arm()
+	_lights_off()
+	check(WorldState.is_light_on(&"corridor"), "(the corridor's light is on: it is not his)")
+	var run := sched.start(&"visitor")
+	_run_until_feet()
+	eq(run["state"], EventScheduler.State.RUNNING, "the feet are under the door and nothing happens")
+	_run_for(30.0)
+	eq(run["state"], EventScheduler.State.COMPLETED, "the visit ends by itself")
+	check(not run.has("kill"), "and he lives")
+	_teardown()
+	return true
+
+
+## Unwarned, the lights do not matter: the living room's is on, and the feet go.
+func test_unwarned_the_lights_do_not_matter() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	ctx.stage.phone_light = true
+	var run := sched.start(&"visitor")
+	_run_until_feet()
+	_run_for(30.0)
+	eq(run["state"], EventScheduler.State.COMPLETED, "the visit ends by itself")
+	check(not run.has("kill"), "with a light on and no warning he lives")
+	_teardown()
+	return true
+
+
+## The time from the lift's chime to the feet stopping must reach every switch from anywhere he can be with every
+## light on (docs/superpowers/specs/2026-11-09-game-over-design.md, "Hide from the footsteps"): the worst start the visit
+## allows (prepare: the entrance, living room or kitchen, MIN_DISTANCE from the door), the shortest tour of the six
+## switches at the walking pace, through the doorways, and two seconds to spare.
+func test_the_walk_is_long_enough_to_switch_every_light_off() -> bool:
+	var event: VisitorEvent = load("res://resources/horror_events/visitor.tres")
+	var chime_to_feet := VisitorEvent.FIRST_STEP + event.steps * VisitorEvent.STEP_TIME
+	var graph := RoomGraph.new({})
+	var switches: Array = []  # [position, room]
+	for room: StringName in ApartmentLayout.APARTMENT_ROOMS:
+		var at: Vector3 = ApartmentLayout.LIGHTS[room]["switch"]
+		switches.append([at, ApartmentLayout.room_at(at, {})])
+	var worst := 0.0
+	var worst_from := ""
+	for room: StringName in [&"entrance", &"living", &"kitchen"]:
+		for rect: Rect2 in ApartmentLayout.ROOMS[room]["rects"]:
+			for corner: Vector2 in [rect.position, rect.position + Vector2(rect.size.x, 0), rect.position + Vector2(0, rect.size.y), rect.end]:
+				if corner.distance_to(Vector2(VisitorEvent.DOOR.x, VisitorEvent.DOOR.z)) < VisitorEvent.MIN_DISTANCE:
+					continue
+				var tour := _tour(graph, Vector3(corner.x, 0, corner.y), room, switches) / PlayerController.WALK_SPEED
+				if tour > worst:
+					worst = tour
+					worst_from = "%s %s" % [room, corner]
+	print("    switching every light off from the worst start (%s): %.1f m, %.1f s; chime to feet: %.1f s" % [worst_from, worst * PlayerController.WALK_SPEED, worst, chime_to_feet])
+	check(chime_to_feet >= worst + 2.0, "the walk (%.1f s) is %.1f s short of the %.1f s he needs from %s, plus 2 s" % [chime_to_feet, worst + 2.0 - chime_to_feet, worst, worst_from])
+	return true
+
+
+## Every step stays in the corridor, between the front door and the lift.
+func test_every_step_is_in_the_corridor_between_the_door_and_the_lift() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	var run := sched.check(&"visitor")
+	var path: Array = run["steps"]
+	check(path.size() == (load("res://resources/horror_events/visitor.tres") as VisitorEvent).steps, "one position for every step")
+	for p: Vector3 in path:
+		eq(ApartmentLayout.room_at(p, WorldState.variants), &"corridor", "step at %s is in the corridor" % p)
+		check(p.x >= VisitorEvent.DOOR.x and p.x < ApartmentLayout.LIFT_POS.x, "step at %s is between the door and the lift" % p)
+	_teardown()
+	return true
+
+
+## The walking distance of the shortest tour from `at` (in `room`) past every switch ([position, room]), through the doorways.
+func _tour(graph: RoomGraph, at: Vector3, room: StringName, left: Array) -> float:
+	if left.is_empty():
+		return 0.0
+	var best := INF
+	for i in left.size():
+		var rest := left.duplicate()
+		rest.remove_at(i)
+		var next: Array = left[i]
+		best = minf(best, _walk(graph, at, room, next[0], next[1]) + _tour(graph, next[0], next[1], rest))
+	return best
+
+
+## The distance walked from a to b, through the doorways of the rooms between (ApartmentLayout.CONNECTIONS' positions).
+func _walk(graph: RoomGraph, a: Vector3, a_room: StringName, b: Vector3, b_room: StringName) -> float:
+	var rooms := graph.path(a_room, b_room)
+	var total := 0.0
+	var at := a
+	for i in rooms.size() - 1:
+		var door: Vector3 = graph.connection(rooms[i], rooms[i + 1])["pos"]
+		total += Vector2(at.x, at.z).distance_to(Vector2(door.x, door.z))
+		at = door
+	return total + Vector2(at.x, at.z).distance_to(Vector2(b.x, b.z))
 
 
 func test_a_story_knock_preempts_the_visit() -> bool:
 	_setup(&"living", Vector3(6.5, 0, 8.4))
 	var run := sched.start(&"visitor")
-	_run_for(14.0)
+	_run_until_feet()
 	sched.request(&"knock_wall", {"anchor": &"knock_entrance_door"})
 	eq(run["state"], EventScheduler.State.CANCELLED, "the act 3 knock pre-empts the visit (same channel)")
 	eq(trail.filter(func(e: Array) -> bool: return e[0] == "feet")[-1], ["feet", false], "and takes the feet away")

@@ -20,7 +20,6 @@ var story: StoryDirector
 var story_running := false
 var dead: StringName = &""  # what killed him (EventBus.player_died), once
 var _sightings: Array[StringName] = []  # silhouettes seen since the last step
-var _peeked := false  # looked through the peephole since the last step
 var last_step_usec := 0
 
 
@@ -40,18 +39,16 @@ func setup(stage: HorrorStage, seed_value: int) -> void:
 	scheduler = EventScheduler.new(ctx)
 	scheduler.load_dir(EVENTS_DIR)
 	scheduler.run_started.connect(_on_run_started)
+	scheduler.run_finished.connect(_on_run_finished)
 	director = HorrorDirector.new(scheduler, profiler)
 	story = StoryDirector.new(scheduler, transformer)
 	story.killed.connect(die)
 	EventBus.silhouette_seen.connect(_on_silhouette_seen)
-	EventBus.object_interacted.connect(_on_object_interacted)
 
 
 func _exit_tree() -> void:
 	if EventBus.silhouette_seen.is_connected(_on_silhouette_seen):
 		EventBus.silhouette_seen.disconnect(_on_silhouette_seen)
-	if EventBus.object_interacted.is_connected(_on_object_interacted):
-		EventBus.object_interacted.disconnect(_on_object_interacted)
 
 
 ## Advances the whole simulation by delta seconds.
@@ -64,9 +61,6 @@ func step(delta: float) -> void:
 		scheduler.mark(&"silhouette", "seen")
 		entity.notice()
 	_sightings.clear()
-	if _peeked:  # nobody is there
-		scheduler.mark(&"visitor", "peeked")
-		_peeked = false
 	WorldState.advance_time(delta)
 	profiler.observe(delta, ctx.stage.sample())
 	entity.tick(delta)
@@ -117,10 +111,11 @@ func _on_run_started(run: Dictionary) -> void:
 		profiler.note_stimulus(run["room"])
 
 
+## A run that ended with a rule he broke (VisitorEvent's "kill") is his death.
+func _on_run_finished(run: Dictionary) -> void:
+	if run.has("kill"):
+		die(run["kill"])
+
+
 func _on_silhouette_seen(anchor: StringName) -> void:
 	_sightings.append(anchor)
-
-
-func _on_object_interacted(object_id: StringName) -> void:
-	if object_id == &"peephole":
-		_peeked = true

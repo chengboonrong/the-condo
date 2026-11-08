@@ -352,7 +352,7 @@ func test_no_corridor_figure_stands_in_the_peepholes_lens() -> bool:
 	return true
 
 
-func test_peeking_during_a_visit_ends_it() -> bool:
+func test_peeking_during_a_visit_does_not_end_it() -> bool:
 	var main := await _main()
 	main.player.global_position = Vector3(6.5, 0, 8.4)
 	await _frames(2)
@@ -361,7 +361,7 @@ func test_peeking_during_a_visit_ends_it() -> bool:
 	var hole: Peephole = main.builder.doors[&"main_door"].get_node("peephole")
 	hole.interact(main.player)
 	await _frames(3)
-	eq(run["state"], EventScheduler.State.COMPLETED, "looking through the peephole ends it")
+	eq(run["state"], EventScheduler.State.RUNNING, "looking through the peephole does not end it")
 	main.hud.close_peephole()
 	main.queue_free()
 	return true
