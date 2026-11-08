@@ -258,31 +258,40 @@ func test_unwarned_the_lights_do_not_matter() -> bool:
 	return true
 
 
-## The time from the lift's chime to the feet stopping must reach every switch from anywhere he can be with every
-## light on (docs/superpowers/specs/2026-11-09-game-over-design.md, "Hide from the footsteps"): the worst start the visit
-## allows (prepare: the entrance, living room or kitchen, MIN_DISTANCE from the door), the shortest tour of the six
-## switches at the walking pace, through the doorways, and two seconds to spare.
+## Rosnah says "if you hear footsteps outside", so the time that counts runs from the first footstep, not the chime, to the
+## feet stopping. It must reach every switch from anywhere he can be with every light on
+## (docs/superpowers/specs/2026-11-09-game-over-design.md, "Hide from the footsteps"): the worst start the visit allows
+## (prepare: the entrance, living room or kitchen, at least MIN_DISTANCE from the door; every 0.25 m along the rooms'
+## edges, where the worst start is), the shortest tour of the six switches at the walking pace, through the doorways,
+## and two seconds to spare.
 func test_the_walk_is_long_enough_to_switch_every_light_off() -> bool:
 	var event: VisitorEvent = load("res://resources/horror_events/visitor.tres")
-	var chime_to_feet := VisitorEvent.FIRST_STEP + event.steps * VisitorEvent.STEP_TIME
+	var first_footstep_to_feet := event.steps * VisitorEvent.STEP_TIME  # the first step at FIRST_STEP, then one STEP_TIME each
 	var graph := RoomGraph.new({})
 	var switches: Array = []  # [position, room]
 	for room: StringName in ApartmentLayout.APARTMENT_ROOMS:
 		var at: Vector3 = ApartmentLayout.LIGHTS[room]["switch"]
 		switches.append([at, ApartmentLayout.room_at(at, {})])
+	var between: Array = []  # between[i][j]: the walk from switch i to switch j
+	for i in switches.size():
+		between.append(switches.map(func(to: Array) -> float: return _walk(graph, switches[i][0], switches[i][1], to[0], to[1])))
+	var all: Array = range(switches.size())
 	var worst := 0.0
 	var worst_from := ""
 	for room: StringName in [&"entrance", &"living", &"kitchen"]:
 		for rect: Rect2 in ApartmentLayout.ROOMS[room]["rects"]:
-			for corner: Vector2 in [rect.position, rect.position + Vector2(rect.size.x, 0), rect.position + Vector2(0, rect.size.y), rect.end]:
-				if corner.distance_to(Vector2(VisitorEvent.DOOR.x, VisitorEvent.DOOR.z)) < VisitorEvent.MIN_DISTANCE:
+			for start: Vector2 in _edge_points(rect):
+				if start.distance_to(Vector2(VisitorEvent.DOOR.x, VisitorEvent.DOOR.z)) < VisitorEvent.MIN_DISTANCE:
 					continue
-				var tour := _tour(graph, Vector3(corner.x, 0, corner.y), room, switches) / PlayerController.WALK_SPEED
+				var first: Array = switches.map(func(to: Array) -> float: return _walk(graph, Vector3(start.x, 0, start.y), room, to[0], to[1]))
+				var tour := _tour(first, between, -1, all) / PlayerController.WALK_SPEED
 				if tour > worst:
 					worst = tour
-					worst_from = "%s %s" % [room, corner]
-	print("    switching every light off from the worst start (%s): %.1f m, %.1f s; chime to feet: %.1f s" % [worst_from, worst * PlayerController.WALK_SPEED, worst, chime_to_feet])
-	check(chime_to_feet >= worst + 2.0, "the walk (%.1f s) is %.1f s short of the %.1f s he needs from %s, plus 2 s" % [chime_to_feet, worst + 2.0 - chime_to_feet, worst, worst_from])
+					worst_from = "%s %s" % [room, start]
+	print("    switching every light off from the worst start (%s): %.1f m, %.2f s; first footstep to feet: %.2f s (chime to feet %.2f s)" % [
+		worst_from, worst * PlayerController.WALK_SPEED, worst, first_footstep_to_feet, VisitorEvent.FIRST_STEP + first_footstep_to_feet])
+	check(first_footstep_to_feet >= worst + 2.0, "the walk from the first footstep (%.2f s) is %.2f s short of the %.2f s he needs from %s, plus 2 s" % [
+		first_footstep_to_feet, worst + 2.0 - first_footstep_to_feet, worst, worst_from])
 	return true
 
 
@@ -299,17 +308,30 @@ func test_every_step_is_in_the_corridor_between_the_door_and_the_lift() -> bool:
 	return true
 
 
-## The walking distance of the shortest tour from `at` (in `room`) past every switch ([position, room]), through the doorways.
-func _tour(graph: RoomGraph, at: Vector3, room: StringName, left: Array) -> float:
+## The shortest walk past every switch in `left` (indices into the switches), from the start (`at` = -1; `first[j]` is its
+## walk to switch j) or from switch `at` (`between[at][j]`), in any order.
+func _tour(first: Array, between: Array, at: int, left: Array) -> float:
 	if left.is_empty():
 		return 0.0
 	var best := INF
-	for i in left.size():
+	for k in left.size():
+		var j: int = left[k]
 		var rest := left.duplicate()
-		rest.remove_at(i)
-		var next: Array = left[i]
-		best = minf(best, _walk(graph, at, room, next[0], next[1]) + _tour(graph, next[0], next[1], rest))
+		rest.remove_at(k)
+		best = minf(best, (first[j] if at < 0 else between[at][j]) + _tour(first, between, j, rest))
 	return best
+
+
+## Points every 0.25 m along the four edges of a rect (the corners included).
+func _edge_points(rect: Rect2) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for i in roundi(rect.size.x / 0.25) + 1:
+		out.append(Vector2(rect.position.x + i * 0.25, rect.position.y))
+		out.append(Vector2(rect.position.x + i * 0.25, rect.end.y))
+	for i in roundi(rect.size.y / 0.25) + 1:
+		out.append(Vector2(rect.position.x, rect.position.y + i * 0.25))
+		out.append(Vector2(rect.end.x, rect.position.y + i * 0.25))
+	return out
 
 
 ## The distance walked from a to b, through the doorways of the rooms between (ApartmentLayout.CONNECTIONS' positions).

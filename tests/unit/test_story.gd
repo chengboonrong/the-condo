@@ -962,11 +962,15 @@ func test_a_door_put_back_by_a_retry_does_not_kill() -> bool:
 	story.start_at_act(snapshot)
 	eq(story.beat, &"front_door", "act 3 begins again")
 	check(WorldState.is_door_open(&"main_door"), "with the front door open, put back")
+	check(WorldState.has_flag(&"answered_intercom"), "and he is still armed: Rosnah's warning is back with him")
 	eq(rt.dead, &"", "and he is alive")
 	WorldState.set_door(&"main_door", false, &"restore")
 	WorldState.set_door(&"main_door", true, &"restore")
 	_wait(5.0)
 	eq(rt.dead, &"", "and he stays so")
+	WorldState.set_door(&"main_door", false, &"restore")
+	WorldState.set_door(&"main_door", true, &"player")  # the same door, opened by his own hand
+	eq(rt.dead, &"front_door", "while his own hand on it kills him: the rule is live")
 	return _done()
 
 

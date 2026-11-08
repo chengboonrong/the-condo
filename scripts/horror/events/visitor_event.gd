@@ -10,12 +10,12 @@ extends HorrorEvent
 const DOOR := Vector3(1.5, 0, 10.0)  # the front door on the floor (the doorway in ApartmentLayout.CONNECTIONS)
 const MIN_DISTANCE := 2.5
 const STEP_LENGTH := 0.7
-const STEP_TIME := 0.55
+const STEP_TIME := 0.66  # slow: from the first footstep to the feet he has time for every switch (tests/unit/test_visitor.gd)
 const FIRST_STEP := 2.5  # after the chime: long enough to read its caption before the steps' caption replaces it
 const WALK_Z := 10.6
 const LAST_STEP := Vector3(1.5, 0, 10.35)
 
-@export var steps := 24  # chime to feet must outlast a round of every switch: tests/unit/test_visitor.gd
+@export var steps := 24  # at most 25 fit between the door and the lift at STEP_LENGTH
 @export var hold := 15.0  # seconds the feet stay under the door
 
 
