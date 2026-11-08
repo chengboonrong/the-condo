@@ -45,6 +45,8 @@ func test_a_bot_that_meets_a_visit_keeps_its_rules() -> bool:
 		var r: Dictionary = Playthrough.run("explorer", seed_value)
 		var visits: Array = r["events"].filter(func(e: Dictionary) -> bool: return e["id"] == &"visitor")
 		check(not visits.is_empty(), "explorer/%d meets the visitor" % seed_value)
+		var armed: Array = r["visits_armed"]
+		check(not armed.is_empty() and armed.all(func(a: bool) -> bool: return a), "and it is armed when it comes (it had Rosnah's warning: %s)" % [armed])
 		eq(r["dead"], &"", "explorer/%d lives through it" % seed_value)
 		check(r["ending"] != &"", "explorer/%d reaches an ending after it" % seed_value)
 	return true

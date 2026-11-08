@@ -29,11 +29,15 @@ const STEPS := [
 ]
 const POOL_SIZE := 14
 ## The neighbour's rattle must be heard from anywhere in his room (docs/architecture.md, "Audio levels"): while he has
-## time to turn, the drone and the running tap duck by DUCK dB, in over DUCK_IN seconds and out over DUCK_OUT.
+## time to turn, the drone, the corridor's hums and the running tap duck by DUCK dB, in over DUCK_IN seconds and out
+## over DUCK_OUT. A positional player adds volume_db to its distance gain and only then clamps the sum to max_db, so a
+## close one would be down by less than DUCK: its max_db goes down by DUCK with it.
 const DUCK := 30.0
 const DUCK_IN := 0.15
 const DUCK_OUT := 1.0
 const TAP_DB := -8.0
+const HUM_DB := -20.0
+const MAX_DB := 3.0  # AudioStreamPlayer3D's default
 ## Each bed fades out for good once due (bed_due): `act` and `after` (s into that act) say when, `fade` how long.
 ## db = its heard level in docs/architecture.md "Audio levels" minus the file's loudest 100 ms.
 const BEDS := {
@@ -46,7 +50,7 @@ const BEDS := {
 }
 
 var beds: Dictionary = {}  # bed id -> AudioStreamPlayer3D
-var duck := 0.0  # dB the drone and the tap are ducked by now, on its way to DUCK or back to 0
+var duck := 0.0  # dB the drone, the hums and the tap are ducked by now, on its way to DUCK or back to 0
 var builder: ApartmentBuilder  # the fan's blades slow with its sound
 
 var _pool: Array[AudioStreamPlayer3D] = []
@@ -54,6 +58,7 @@ var _next := 0
 var _rng := RandomNumberGenerator.new()  # presentation only
 var _drone: AudioStreamPlayer
 var _tap: AudioStreamPlayer3D
+var _hums: Array[AudioStreamPlayer3D] = []
 var _act := 0  # the act _process last saw, and the WorldState.time it began at
 var _act_began := 0.0
 var _stopped: Dictionary = {}  # bed id -> true once its fade has begun
@@ -77,9 +82,10 @@ func _ready() -> void:
 		var hum := AudioStreamPlayer3D.new()
 		hum.stream = preload("res://assets/audio/hum.wav")
 		hum.position = pos
-		hum.volume_db = -20.0
+		hum.volume_db = HUM_DB
 		hum.unit_size = 2.0
 		add_child(hum)
+		_hums.append(hum)
 		hum.play()
 	_tap = AudioStreamPlayer3D.new()
 	_tap.stream = preload("res://assets/audio/tap_running.wav")
@@ -99,6 +105,7 @@ func _ready() -> void:
 	EventBus.sound_requested.connect(play_at)
 	EventBus.variant_changed.connect(_on_variant)
 	EventBus.beds_duck_requested.connect(_on_duck)
+	EventBus.ending_reached.connect(_on_ending)
 
 
 ## The GAME OVER card: everything that loops stops, the drone, the hums, the tap and the beds. A sound still going runs out.
@@ -131,7 +138,9 @@ func _process(delta: float) -> void:
 	duck = move_toward(duck, DUCK if _ducking else 0.0, delta * DUCK / (DUCK_IN if _ducking else DUCK_OUT))
 	var tension: float = WorldState.behavior.get("tension", 0.0)
 	_drone.volume_db = lerpf(-30.0, -12.0, tension) - duck
-	_tap.volume_db = TAP_DB - duck
+	_duck_player(_tap, TAP_DB)
+	for hum in _hums:
+		_duck_player(hum, HUM_DB)
 	if WorldState.act != _act:
 		_act = WorldState.act
 		_act_began = WorldState.time
@@ -159,8 +168,19 @@ func _stop_bed(id: StringName) -> void:
 	tween.chain().tween_callback(p.stop)
 
 
+## `base` less the duck, however close he stands: the clamp goes down with the level.
+func _duck_player(p: AudioStreamPlayer3D, base: float) -> void:
+	p.volume_db = base - duck
+	p.max_db = MAX_DB - duck
+
+
 func _on_duck(on: bool) -> void:
 	_ducking = on
+
+
+## An ending inside the window: the core has stopped, so nothing ends the duck, and the card must not play over a silent flat.
+func _on_ending(_ending_id: StringName) -> void:
+	_ducking = false
 
 
 func _on_variant(area_id: StringName, variant: StringName) -> void:

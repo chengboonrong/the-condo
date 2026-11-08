@@ -388,7 +388,6 @@ func test_walking_into_its_room_makes_it_leave() -> bool:
 	return true
 
 
-## The gap and the mirror room exist only with the bedroom's door variant: the doorway is the one that is there.
 ## Ticks until it has breathed once more than `sounds` holds now.
 func _until_it_breathes_again() -> void:
 	var n := sounds.size()
@@ -398,6 +397,7 @@ func _until_it_breathes_again() -> void:
 		t += 0.5
 
 
+## The gap and the mirror room exist only with the bedroom's door variant: the doorway is the one that is there.
 func test_the_doorway_is_the_one_the_variants_give() -> bool:
 	_setup(&"bedroom", BACK_TURNED, &"hallway")
 	WorldState.set_variant(&"bedroom", &"door")  # the graph shares WorldState.variants

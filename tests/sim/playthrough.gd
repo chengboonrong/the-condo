@@ -59,6 +59,7 @@ var heard_look_back := false  # the look-back line was said
 var _rattle_at := Vector3.ZERO  # where the neighbour breathed, and when the bot turns to it
 var _turn_due := INF
 var _visit_at := INF  # when the visitor last came
+var visits_armed: Array[bool] = []  # for each visit, whether Rosnah's warning had been heard when it came
 var _next_turn := 8.0
 var _passive_next := PASSIVE_STEP
 
@@ -114,7 +115,7 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 		"events": events, "decisions": decisions, "progress": rt.story.progress, "signs": rt.story.signs(),
 		"clues": WorldState.clues.keys(), "errors": catch.errors, "warnings": catch.warnings,
 		"violations": violations, "max_eval_usec": max_eval, "behavior": rt.profiler.summary(), "dead": rt.dead,
-		"last_call": heard_last_call, "look_back": heard_look_back,
+		"last_call": heard_last_call, "look_back": heard_look_back, "visits_armed": visits_armed,
 	}
 	rt.free()
 	return result
@@ -230,6 +231,7 @@ func _face_rattle() -> void:
 func _on_event_started(event_id: StringName, _room: StringName) -> void:
 	if event_id == &"visitor":
 		_visit_at = WorldState.time
+		visits_armed.append(WorldState.has_flag(&"answered_intercom"))
 
 
 ## The visitor is at the door (from his chime until the feet are gone).

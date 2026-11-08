@@ -91,10 +91,13 @@ him in its tick, the rest of that step does not run, and once he is dead only th
   walks out of its reach the clock stops and is not held against him: it breathes again, at that doorway or another,
   with a fresh 4 s, when it is next to him again. Walking into its room makes it retreat. It never kills in acts 1
   and 2. A player who turns to the rattle when he hears it always survives: the bots do, within half a second. He must be
-  able to hear it wherever he is, so while the window runs (from the breath until he turns, gets out of reach or is
-  killed) the entity asks the beds to duck (`EventBus.beds_duck_requested`, sent from its `tick`, never by the
-  presentation), and `AudioDirector` ducks the drone and the running tap by `DUCK` (30 dB): in over 0.15 s, out over 1 s.
-  The headless core decides the death with or without it.
+  able to hear it wherever he is, so while the window runs (from the breath until he turns or gets out of reach)
+  the entity asks the beds to duck (`EventBus.beds_duck_requested`, sent from its `tick`, never by the
+  presentation), and `AudioDirector` ducks the drone, the corridor's two hums and the running tap by `DUCK` (30 dB): in
+  over 0.15 s, out over 1 s. A positional player adds its `volume_db` to its distance gain and only then clamps the sum to
+  `max_db` (+3), so one he stands close to would be down by less than 30 dB: each one's `max_db` goes down by the duck
+  with it. An ending inside the window lets them back (`ending_reached`); after a kill the duck stays until the card
+  silences the beds. The headless core decides the death with or without any of it.
 
 ## Room shifts
 
@@ -493,7 +496,7 @@ the fog, places the car, seats him and drives the loops.
   now, so nothing sends `her_lunges`. `lunge`, her fill and the two sounds are still in the code and tested on their own
   (`tests/integration/test_her.gd`); on the walk she follows (`behind`) and, when he dies, comes for his face.
 * **Render layer 11** (see the layers table) is the mirror's alone: the fourth passenger and the wet patch she leaves.
-  The mirror's camera draws it, the player's camera (cull mask 1047551) leaves it out, except for the 0.3 s glimpse.
+  The mirror's camera draws it, the player's camera (cull mask 1047551) leaves it out. (It used to show her to his own camera for 0.3 s when he turned round to her, `Mirror.glimpse`; turning round kills him now, so that no longer happens.)
   In the warm-up only, a picture of a viewport goes on layer 20 (`PICTURE_LAYER`) so the mirror's camera leaves it
   out: drawn into its own viewport it would read the texture it writes, which WebGL refuses.
 * **Render layer 12** is hers (`Penanggal.LAYER`): her mesh is on it as well as layer 1, and her fill lights it alone,
@@ -687,8 +690,8 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Roof thump ×3 (the road, something lands on the car) † | −18.5 | 0 | −15.5 |
 | Knock on the car window ×3 (the road) † | −19.0 | 0 | −16.0 |
 | Spoken lines: Hafiz and Mei (the HUD's `voice`, not positional; `scripts/ui/voices.gd`) | −15.5 to −15.3 | 0 | −15.5 to −15.3 |
-| Stinger, as he looks back and she is right behind him (the road, in his head) ‡ | −8.5 | −8 | −16.5 |
-| Her shriek, with it (the road, in his head) ‡ | −14.6 | −2 | −16.6 |
+| Stinger, as he looked back and she was right behind him (the road, in his head; not played now: looking back kills him) ‡ | −8.5 | −8 | −16.5 |
+| Her shriek, with it (the road, in his head; not played now) ‡ | −14.6 | −2 | −16.6 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
 | His answers; the intercom's voices (Rosnah, his own, the last call); the voice outside the car | −16.7 to −16.3 | 0 | −16.7 to −16.3 |
 | Engine dying (the road, in his head, so it rides with the car: `RoadAudio.play_here`) | −17.0 | 0 | −17.0 |
@@ -718,7 +721,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Hatchback engine from the back seat (loop, a recording since 2026-11-08, pitch 0.78× to 1.12× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
 | Slow car's old engine (loop, a recording since 2026-11-08) | −20.0 | −12 | −32.0 |
 | Night insects (loop, stop when the car dies; windows up in the car) | −27.0 | −6 / −12 seated | −33.0 / −39.0 |
-| Corridor hum (loop) | −14.7 | −20 | −34.7 |
+| Corridor hum (loop; ducked 30 dB under the neighbour's rattle) | −14.7 | −20 | −34.7 |
 | Ceiling fan (loop) | −17.3 | −18.5 | −35.8 |
 | Fridge (loop) | −11.9 | −26 | −37.9 |
 | Neighbour's TV through the wall (loop) | −17.5 | −22.5 | −40 |
@@ -740,7 +743,7 @@ indicator (while Hafiz signals), the rev (as he pulls out), the stall's sounds (
 the starter cranking twice, the thump on the roof, the knocks on Mei's window and the slap of her door), her wet flap,
 drip and breath (from where she is, falling off past 3 m), and, in one ending, the phone ringing on the fruit stall's
 table as a loop (falling off past 3 m). Their "Heard at" is that level's result, not a measurement of the game. At 3 m none is louder
-than the single knock (−14.6) and none is a sting, but for the look-back's (‡, below). Close to his head the † rows pass it: his car door and the lorry
+than the single knock (−14.6) and none is a sting (the look-back's, ‡ below, is not played now). Close to his head the † rows pass it: his car door and the lorry
 passing (−14.0) by 0.6 dB, while the roof thump (−15.5) and the
 window knock (−16.0) stay under it. Seven of them are seamless loops, imported with `edit/loop_mode=2` and only ever started and stopped with `RoadAudio.set_loop`: the four `_loop` files, the
 indicator (one flash, 0.667 s, 90 flashes a minute), the phone (one ring, 2.1 s, ending in a pause) and the lorry's idle
@@ -749,18 +752,18 @@ the sputter, the crank, her breath and the phone) are saved at 22.05 kHz, becaus
 audio: at 44.1 kHz less than 0.05% of the power of all but the lorry is above 8 kHz, and the lorry loses about 1.3% of
 its power above 11 kHz (its tyre hiss). The insects are saved at 44.1 kHz because 13% of their power is above 11 kHz.
 
-The rows marked ‡ are the look-back's sting (`Penanggal.lunge`): the flat's stinger and her shriek (`shriek()` in
+The rows marked ‡ were the look-back's sting (`Penanggal.lunge`) and are not played now: looking back kills him at once,
+so nothing reaches `lunge`, and the stinger and her shriek are never heard on the road. They stay here with the code and
+the measurements, in case the lunge comes back. They were the flat's stinger and her shriek (`shriek()` in
 `tools/gen_audio.py`: a woman's voice torn high and rough, 0.8 s at 44.1 kHz, 0.7% of its power above 8 kHz, saved at
-the knock's −14.6). They are played together in his head with `RoadAudio.play_here`, one non-positional player each,
-so they are heard at exactly file + play level and the +3 dB cap never applies. Their play levels are set by their
-peaks, not their loudness: in the real-play recording at the master volume as shipped (0.8, −1.94 dB on bus 0) nothing
-may peak above the loudest peak there now (−6.1 dBTP). The files peak at 0.800 (the stinger, −1.94 dBFS) and 0.325 (the
-shriek, −9.78 dBFS). At −8 and −2 dB and then the master they peak at 0.255 (−11.88 dBFS) and 0.206 (−13.71 dBFS), and
-the two peaks summed, as if they fell on the same sample, are 0.461: −6.73 dBFS, 0.63 dB under the limit. As mixed,
-started together, the pair peaks at −7.13 dBFS. Their loudest 100 ms together is −13.8 dB before the master, so the
-sting is the loudest sound of the walk by loudness (his steps on asphalt are about −34, her wet flap −27), not by peak.
-The stinger's file level here is measured as `tools/gen_audio.py` measures the road's (its loudest 100 ms, −8.49); the
-flat's row above has −8.8.
+the knock's −14.6), played together in his head with `RoadAudio.play_here`, one non-positional player each, so heard at
+exactly file + play level with no +3 dB cap. Their play levels were set by their peaks, not their loudness: at the master
+volume as shipped (0.8, −1.94 dB on bus 0) nothing may peak above the loudest peak in the real-play recording (−6.1
+dBTP). The files peak at 0.800 (the stinger, −1.94 dBFS) and 0.325 (the shriek, −9.78 dBFS). At −8 and −2 dB and then the
+master they peak at 0.255 (−11.88 dBFS) and 0.206 (−13.71 dBFS), and the two peaks summed, as if they fell on the same
+sample, are 0.461: −6.73 dBFS, 0.63 dB under the limit. As mixed, started together, the pair peaked at −7.13 dBFS. The
+stinger's file level here is measured as `tools/gen_audio.py` measures the road's (its loudest 100 ms, −8.49); the flat's
+row above has −8.8.
 
 **The key sounds.** The real-play recording of 2026-11-07 had four key sounds under 10 dB over their beds (level: the
 loudest 50 ms RMS from the cue to 2 s on; bed: the RMS of the second before it, so a duck counts only if it is already
@@ -777,7 +780,7 @@ where each moment is heard; it is not a bound for every place, and for the thump
 | The engine dying | file −17.0 (a recording since 2026-11-08), played 0 in his head | the engine (−13.5) | 8.7 (the synthesised one) | 13.2, in the game | about 13 | −8.2 in the game |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
 | The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
-| The neighbour's rattle in the doorway (the flat, acts 3 and 4) | file −27.0 (loudest 50 ms −26.7), played +12 (`EntityController.RATTLE_DB`) from the doorway, 1.5 m up: held at the cap out to 8.5 m | the flat's room tone with the drone and the tap ducked 30 dB (`AudioDirector.DUCK`): the corridor's hums, −43.9 at the entrance's far corner to −58.4 in B-11-07, and the drone, −58.3 RMS at tension 1.0 | | | 13.8 to 26.8 in the rooms and 12.3 or more in the gap, at tension 1.0 with the tap running (13.9 and 13.0 at 0.34) | −7.8 |
+| The neighbour's rattle in the doorway (the flat, acts 3 and 4) | file −27.0 (loudest 50 ms −26.7), played +12 (`EntityController.RATTLE_DB`) from the doorway, 1.5 m up: held at the cap out to 8.5 m | the flat's room tone with the drone, the hums and the tap all ducked 30 dB (`AudioDirector.DUCK`): at most −49.3 anywhere (within 2.8 m of the tap it is the loudest part, at −49.8, over the drone's −58.3 RMS at tension 1.0) | | | 21.2 or more in the six rooms and B-11-07, 15.8 or more in the gap, at tension 1.0 with the tap running, over every point of a 0.25 m grid (21.8 and 16.6 at 0.34); 22.1 at the basin | −7.8 |
 | Her breath as she closes in (the road, `she_closes`) | file −27.0, played +4 (`Penanggal.BEHIND_DB`) from where she hangs: 9.5 m behind him at her farthest, 2.6 m at her nearest | the wind (−49.8 RMS, its strongest second): he has stood still for 2.5 s, so there are no steps | | | 10.8 (9.5 m), 22.3 (2.6 m) | −7.3 |
 | The lock's clunk (the road, `doors_locked`) | file −17.0 (loudest 50 ms −14.6), played −14 at the lock, 0.78 m from his eyes | the wind seated (−55.8 RMS): the insects are off and the engine is dead | | | 35.7 | −8.8 |
 
@@ -841,27 +844,38 @@ where each moment is heard; it is not a bound for every place, and for the thump
     player can make it (file + 3, −24.0 at 3 m) in every room, and +11 stops short of the living room's far corner.
     That is as loud as it gets, so the bed has to come down. The bed is the flat's room tone in acts 3 and 4: the drone
     is played at −30 + 18·tension (−16.3 RMS in the file: −40.2 at 0.34, the mean of the director's picks in those acts in
-    `docs/playthroughs.md`, −33.7 at act 4's target 0.7, −28.3 at 1.0); the two corridor hums at −20 (unit size 2) are −42
-    at the entrance's centre and −59 in B-11-07 each; and when a shift has left the bathroom tap running it is a loud bed
-    (−19.8 RMS in the file, played −8 at Godot's default unit size of 10, so at the cap within 10 m of it: about −20
-    near the tap). The TV, fridge and fan are off by then (the fan 15 s into act 3, and the first approach comes 25 s
-    after act 3 begins). With nothing ducked the rattle stood 9.0 dB over it at the living room's far corner and 1.8 at the
-    long gap's far end at 0.34, and at 1.0 only 0.5 dB at best and −9.9 at the gap's far end: no play level could fix
-    that, because the cap and the fade to 30 m (2.9 dB at 8.5 m, 6.2 at 15.4 m) come after it.
-    So the beds duck. While his window runs (the breath to the turn, the escape or the kill) `EntityController` sends
-    `beds_duck_requested(true)` from its tick and `AudioDirector` takes `DUCK` (30 dB) off the drone and the tap: in over
-    0.15 s (`DUCK_IN`), out over 1 s (`DUCK_OUT`), as `RoadMain.ROAR_DUCK` ducks the road's engine. The hums stay: they are
-    the room tone, and ducked they would only widen the margin. What remains is the hums (−43.9 at the entrance's far corner
-    to −58.4 in B-11-07) and the ducked drone (−58.3 at tension 1.0, −70.2 at 0.34) and tap (−49.8 or less), so the rattle
-    is 13.8 to 26.8 dB over it in the six rooms and B-11-07 and 12.3 or more at the gap's far end (15.4 m from the mirror
-    door in the long variant), at tension 1.0 with the tap running; at 0.34 it is 13.9 in the rooms and 13.0 in the gap.
-    26 dB is the least that clears every point with the tap running at 1.0 (10.2); 30 leaves 2.1 dB over that. The bed is
-    the one under the rattle's loudest 50 ms, not "the second before": it comes unannounced, so the duck cannot be in
-    place a second ahead, but it is in place (0.15 s) before the rattle's first burst (0.5 s into the file, −33.8) and its
-    loudest 50 ms (1.5 s in). The entity does not have to wait for him to come within some distance of the doorway
-    (a `HEAR_DISTANCE`): the duck alone clears every point of every room he can be in, so there is none. His own steps
-    are not in the bed: standing to turn, he has none; with a walking player's (−41.9 RMS as mixed) every room is still 10.0
-    or more over (the living room's far corner is the weakest) and the gap 7.1 to 7.5, 3.2 at the long gap's far end. The
+    `docs/playthroughs.md`, −33.7 at act 4's target 0.7, −28.3 at 1.0); the two corridor hums at −20 (unit size 2), through
+    the wall at the entrance's corner (−37.1 there, 1.9 m from one) and −59 in B-11-07; and when a shift has left the
+    bathroom tap running it is a loud bed (−19.8 RMS in the file, played −8 at Godot's default unit size of 10: its
+    `volume_db` plus the gain, clamped to `max_db` +3, is at that clamp within 2.8 m of it, so about −20 RMS near it).
+    The TV, fridge and fan are off by then (the fan 15 s into act 3, and the first approach comes 25 s after act 3
+    begins). With nothing ducked the rattle stood 9.0 dB over it at the living room's far corner and 1.8 at the long gap's
+    far end at 0.34, and at 1.0 only 0.5 dB at best and −9.9 at the gap's far end: no play level could fix that, because
+    the cap and the fade to 30 m (2.9 dB at 8.5 m, 6.2 at 15.4 m) come after it.
+    So the beds duck. While his window runs (the breath to the turn or the escape) `EntityController` sends
+    `beds_duck_requested(true)` from its tick and `AudioDirector` takes `DUCK` (30 dB) off the drone, the two hums and the
+    tap: in over 0.15 s (`DUCK_IN`), out over 1 s (`DUCK_OUT`), as `RoadMain.ROAR_DUCK` ducks the road's engine. The
+    drone is not positional, so its volume is all there is. The hums and the tap are, and a positional player's gain is
+    clamped after its `volume_db` is added: ducking only the tap's volume left it down by 21 dB of 30 at 1 m (−38 dB plus
+    the gain of +20 dB is still under the cap, at −18, where the unducked tap is at +3) and by about 18 dB with his head over
+    the basin (0.7 m), where the rattle then stood only 10.5 dB over it (9.7 by the review's reckoning). So each one's `max_db` goes
+    down by the duck with its volume, and the duck is the full 30 dB at every distance (`test_home_beds.gd` checks the
+    gain at 0.65, 1, 2, 5 and 12 m). The hums are ducked because they are a bed too: with only the drone and the tap
+    ducked, the entrance's far corner, 1.9 m from the corridor's hum, was the weakest point, 9.5 dB over it.
+    What remains is at most −49.3 anywhere (within 2.8 m of the tap, including his head over the basin: the tap, −49.8, with
+    the drone, −58.3 at tension 1.0, and the hums), and the rattle is over it by 22.1 at the basin, and by 21.2 or more at every point of a 0.25 m grid over the six
+    rooms and B-11-07 (21.8 at 0.34), and 15.8 or more over the gap (16.6 at 0.34; the weakest point is 12.9 m from the
+    mirror door in the long variant), at tension 1.0 with the tap running. 25 dB is the least that clears every grid point
+    with the tap running at 1.0 (10.8, in the gap); 30 leaves 5.8 dB over that. The bed is the one under the rattle's
+    loudest 50 ms, not "the second before": it comes unannounced, so the duck cannot be in place a second ahead, but it is
+    in place (0.15 s) before the rattle's first burst (0.5 s into the file, −33.8) and its loudest 50 ms (1.5 s in). The
+    entity does not have to wait for him to come within some distance of the doorway (a `HEAR_DISTANCE`): the duck alone
+    clears every point of every room he can be in, so there is none. His own steps are not in the bed: standing to turn,
+    he has none; with a walking player's (−41.9 RMS as mixed) the six rooms and B-11-07 are still 12.4 or more over and
+    the gap 4.0. The far gap figures (12 to 15 m, past the cap's 8.5 m) leave out the pool's attenuation filter
+    (`attenuation_filter_db` −24 by default, a high shelf at the pool's 6 kHz cutoff that engages once the level is below
+    0 dB: past about 8.8 m, −9.6 dB at 12 m and −14.9 dB at 15.4 m above 6 kHz). They are right for what the rattle is made
+    of: 0.1% of its loudest 50 ms is above 6 kHz (its centroid is 510 Hz), so the filter takes under 0.01 dB off it. The
     peak is the rattle at the cap (0.179 at the master, −14.9 dBFS), the flat's beds at their loudest (0.130, the drone at
     full tension, as in the thumps row: ducked they are lower) and a walking step (0.100): 0.409, −7.8 dBFS, 1.7 dB inside
     the limit. The cap is why +12 costs nothing: no play level raises the peak.
@@ -912,7 +926,7 @@ the slam.
 | Render layer | Used by |
 |---|---|
 | 1 | everything the player's camera draws (Godot's default) |
-| 11 | mirror only: the road's fourth passenger and the wet patch she leaves (`Mirror`). The rear-view mirror's camera draws it; the player's camera (`scenes/player/player.tscn`, cull mask 1047551) leaves it out, except for her 0.3 s glimpse when he turns round to her. Her fill light lights layer 11 alone. |
+| 11 | mirror only: the road's fourth passenger and the wet patch she leaves (`Mirror`). The rear-view mirror's camera draws it; the player's camera (`scenes/player/player.tscn`, cull mask 1047551) leaves it out (her 0.3 s glimpse when he turned round to her, `Mirror.glimpse`, no longer happens: turning round kills him). Her fill light lights layer 11 alone. |
 | 12 | the penanggal (`Penanggal.LAYER`), on it as well as layer 1: her own fill (only the look-back lunge uses it, which nothing reaches now) lights layer 12 alone, so it lights her and nothing else. Every camera draws it. |
 
 Room membership comes from `ApartmentLayout.room_at(position)` (a point-in-rect test against the

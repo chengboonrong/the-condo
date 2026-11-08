@@ -58,8 +58,8 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
    *Vacant*).
 
 The flat has deaths too, each told first (Rosnah's last words in act 1, a line the first time the neighbour comes), and
-Try again puts him back at the start of the act: opening the front door while the visitor's feet are under it or while
-something knocks (act 3), leaving a light on, or his phone's, when the footsteps stop (act 2), and keeping his back to
+Try again puts him back at the start of the act: opening the front door at any time from the visitor's lift chime to the end of
+his visit (act 2), or while something knocks (act 3), leaving a light on, or his phone's, when the footsteps stop (act 2), and keeping his back to
 the neighbour breathing in a doorway for 4 s (acts 3 and 4). See [architecture.md](architecture.md#deaths-and-try-again).
 
 ## Known risks

@@ -70,7 +70,7 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 	OS.add_logger(catch)
 	EventBus.choices_requested.connect(_on_choices)
 	EventBus.road_cue.connect(_on_cue)
-	while d.ending == &"" and WorldState.time < LIMIT:
+	while d.ending == &"" and d.dead == &"" and WorldState.time < LIMIT:
 		_act()
 		d.step(DT)
 	OS.remove_logger(catch)

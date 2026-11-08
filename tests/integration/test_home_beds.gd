@@ -65,8 +65,13 @@ func test_a_new_shift_brings_the_home_sounds_back() -> bool:
 	return true
 
 
-## The neighbour's rattle has to stand out of the flat's room tone wherever he is: while he has time to turn, the drone
-## and the running tap duck by AudioDirector.DUCK, in over 0.15 s, and come back over a second.
+## What a positional player is heard at, `d` metres off: its volume plus the inverse-distance gain, clamped to max_db.
+func _gain(p: AudioStreamPlayer3D, d: float) -> float:
+	return minf(p.volume_db - 20.0 * log(d / p.unit_size) / log(10.0), p.max_db)
+
+
+## The neighbour's rattle has to stand out of the flat's room tone wherever he is: while he has time to turn, the drone,
+## the corridor's hums and the running tap duck by AudioDirector.DUCK, in over 0.15 s, and come back over a second.
 func test_the_drone_ducks_under_the_rattle_and_comes_back() -> bool:
 	var main := await _main()
 	var audio: AudioDirector = main.audio
@@ -86,5 +91,43 @@ func test_the_drone_ducks_under_the_rattle_and_comes_back() -> bool:
 	await _frames(60)
 	eq(audio.duck, 0.0, "and is gone after a second")
 	near(drone.volume_db, before, 0.5, "the drone is where it was")
+	main.queue_free()
+	return true
+
+
+## A positional player adds its volume to its distance gain and only then clamps to max_db, so with only the volume
+## ducked a close one is down by less than the duck (the tap, with his head over the basin, by about 21 dB of 30).
+func test_the_tap_and_the_hums_are_down_the_whole_duck_however_close() -> bool:
+	var main := await _main()
+	var audio: AudioDirector = main.audio
+	var players: Array[AudioStreamPlayer3D] = [audio._tap]
+	players.append_array(audio._hums)
+	await _frames(5)
+	var plain: Array[float] = []
+	for d in [0.65, 1.0, 2.0, 5.0, 12.0]:
+		for p in players:
+			plain.append(_gain(p, d))
+	EventBus.beds_duck_requested.emit(true)
+	await _frames(20)
+	var i := 0
+	for d in [0.65, 1.0, 2.0, 5.0, 12.0]:
+		for p in players:
+			near(plain[i] - _gain(p, d), AudioDirector.DUCK, 0.01, "%s is the full duck down at %.2f m" % [p.name, d])
+			i += 1
+	main.queue_free()
+	return true
+
+
+## An ending that comes inside the window stops the core, so nothing else would end the duck: the card is not played
+## over a silent flat. (After a kill the duck stays on until the card silences the beds, as intended.)
+func test_an_ending_in_the_window_lets_the_beds_back() -> bool:
+	var main := await _main()
+	var audio: AudioDirector = main.audio
+	EventBus.beds_duck_requested.emit(true)
+	await _frames(20)
+	near(audio.duck, AudioDirector.DUCK, 0.01, "ducked")
+	WorldState.set_ending(&"vacant")
+	await _frames(70)
+	eq(audio.duck, 0.0, "the ending lets the beds back, over a second")
 	main.queue_free()
 	return true
