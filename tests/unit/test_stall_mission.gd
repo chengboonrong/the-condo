@@ -143,10 +143,10 @@ func test_the_door_prompt_comes_only_after_hafiz_leaves() -> bool:
 	return true
 
 
-func test_opening_the_door_costs_two_once() -> bool:
+func test_opening_the_door_kills_him() -> bool:
 	_setup()
 	_play({&"answer_voice": 1, &"stop_mei": 0}, 2)
-	eq(_rules(), [[&"opened_door", 2]], "one broken rule, weight 2, for two tries")
+	eq([d.dead, _rules()], [&"opened_door", []], "opening the door kills him, and counts for nothing")
 	eq(cues.count(&"door_cracked"), 1, "the door opens a hand's width and is slapped shut once")
 	check(cues.find(&"door_cracked") > cues.find(&"hafiz_leaves"), "after Hafiz has gone")
 	eq(WorldState.prompts.get(&"car_door_inside", ""), "", "the prompt is gone after it")
@@ -190,7 +190,7 @@ func test_silence_lets_mei_open() -> bool:
 	_teardown()
 	_setup()
 	_play({&"answer_voice": 0, &"stop_mei": 0})
-	eq(_rules(), [[&"answered", 1]], "answering the voice breaks it")
+	eq([d.dead, _rules()], [&"answered", []], "answering the voice kills him")
 	_teardown()
 	return true
 

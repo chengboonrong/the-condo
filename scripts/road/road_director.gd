@@ -4,10 +4,12 @@ extends RefCounted
 ## which decides how the road ends. Headless and deterministic: no nodes, and randomness only from rng.
 ## Each step, in this order: time, captions, the open choice's timer, the look rule, the current mission, the ride.
 ## The presentation reads the state below each frame; one-off moments go out on EventBus (road_cue, the choices,
-## line_requested and road_line, road_ended).
+## line_requested and road_line, road_ended, player_died).
 
-const ALIVE_MAX := 2  # a score up to this: all three get down alive
-const SAVED_MAX := 6  # up to this: he gets Mei out; above it, all three are caught
+const ALIVE_MAX := 1  # a score up to this: all three get down alive
+const SAVED_MAX := 5  # up to this: he gets Mei out; above it, all three are caught
+const DEADLY: Array[StringName] = [&"turned_round", &"counted_her", &"answered", &"opened_door", &"looked_back"]  # his own rules: breaking one kills him
+const CHOICE_SECONDS := 3.0  # how long a choice stays open
 const CLOCK_START := 6  # minutes past midnight when the road starts
 const NONE := -2  # answer(): the choice is still open, or was never asked
 const ACCEL := 2.5  # m/s², the car speeding up, slowing down and braking for a stop
@@ -32,8 +34,11 @@ var mission_index := 0
 var pending: StringName = &""  # the open choice
 var look_rule: StringName = &""  # the rule his look is watched for
 var broken: Array[Dictionary] = []  # {"rule", "weight", "t", "mission"}
+var broken_at_start: Array[Dictionary] = []  # `broken` as it was when the current mission began: what a retry keeps
 var progress: Array[Dictionary] = []  # {"t", "mission", "beat"}: every beat change
 var ending: StringName = &""
+var dead: StringName = &""  # the rule that killed him; once set, only time and the ride go on
+var closing := 0.0  # 0 to 1: on the walk, how near she has come because he stood still
 
 var _begun := false
 var _lines: Array = []  # queued [text, seconds, speaker]
@@ -78,16 +83,20 @@ static func default_missions() -> Array[RoadMission]:
 
 func step(delta: float) -> void:
 	WorldState.advance_time(delta)
+	if dead != &"":
+		_ride(delta)
+		return
 	_speak(delta)
 	if pending != &"":
 		_choice_left -= delta
 		if _choice_left <= 0.0:
 			_close(-1)
 	_watch(delta)
-	if mission_index < missions.size():
+	if mission_index < missions.size() and dead == &"":
 		var m := missions[mission_index]
 		if not _begun:
 			_begun = true
+			broken_at_start = broken.duplicate(true)
 			m.begin()
 		m.beat_t += delta
 		if m.tick(delta):
@@ -102,11 +111,10 @@ func step(delta: float) -> void:
 ## left first. Past the last mission, the road ends.
 func start_at(index: int) -> void:
 	_leave()
-	if pending != &"":
-		var id := pending
-		pending = &""
-		EventBus.choices_closed.emit(id)
+	_drop_choice()
 	stop_look()
+	closing = 0.0
+	broken_at_start = broken.duplicate(true)
 	_lines.clear()
 	_line_left = 0.0
 	_target_speed = 0.0
@@ -174,11 +182,33 @@ func stop_look() -> void:
 	look_rule = &""
 
 
+## One of his own rules kills him at once, and counts for nothing.
 func break_rule(rule: StringName, weight := 1) -> void:
+	if DEADLY.has(rule):
+		die(rule)
+		return
 	broken.append({"rule": rule, "weight": weight, "t": snappedf(WorldState.time, 0.1), "mission": mission_index})
 	fog = minf(1.0, fog + 0.12 * weight)
 	her_near = minf(1.0, her_near + 0.12 * weight)
 	EventBus.road_cue.emit(&"rule_broken")
+
+
+## He dies of `cause`, once, and never after the ending. The open choice closes without a break and the mission is left.
+func die(cause: StringName) -> void:
+	if dead != &"" or ending != &"":
+		return
+	dead = cause
+	_drop_choice()
+	stop_look()
+	_leave()
+	EventBus.player_died.emit(cause)
+
+
+## A retry: the count as it was kept, with the fog and her nearness it had by then.
+func restore(kept: Array[Dictionary]) -> void:
+	broken = kept.duplicate(true)
+	fog = minf(1.0, 0.12 * score())
+	her_near = fog
 
 
 func score() -> int:
@@ -250,6 +280,14 @@ func _on_choice_made(choice_id: StringName, index: int) -> void:
 		_close(index)
 
 
+## The open choice, if any, closes with no answer and no break.
+func _drop_choice() -> void:
+	if pending != &"":
+		var id := pending
+		pending = &""
+		EventBus.choices_closed.emit(id)
+
+
 func _close(index: int) -> void:
 	var id := pending
 	pending = &""
@@ -271,7 +309,7 @@ func _watch(delta: float) -> void:
 			_look_count += 1
 			_look_armed = false
 			break_rule(look_rule, _look_weight)
-			if _look_cue != &"":
+			if _look_cue != &"" and dead == &"":
 				EventBus.road_cue.emit(_look_cue)
 	else:
 		_look_held = 0.0

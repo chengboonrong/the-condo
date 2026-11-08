@@ -134,28 +134,17 @@ func test_turning_before_bang_din_says_the_rule_costs_nothing() -> bool:
 	check(not cues.has(&"fourth_glimpse"), "and shows her to him no more than before")
 	_run(4.0)  # he is still turned when the rule is said: now it breaks
 	check(captions.has(RECALL), "(Bang Din has said it)")
-	eq(_rules(), [&"turned_round"], "turning to her after it breaks the rule")
-	eq(cues.count(&"fourth_glimpse"), 1, "and he sees her")
+	eq(d.dead, &"turned_round", "turning to her after it kills him")
 	_teardown()
 	return true
 
 
-func test_turning_to_her_breaks_once() -> bool:
+func test_turning_to_her_kills_him() -> bool:
 	_setup({&"count": 0})
 	_run(10.0)  # the rule is said at 9 s
 	stage.view_yaw = -1.3  # to his right, where she sits
 	_run(2.0)
-	eq(_rules(), [&"turned_round"], "turning to her breaks the rule")
-	eq(cues.count(&"fourth_glimpse"), 1, "and he sees her, once")
-	stage.view_yaw = 0.0
-	_run(1.0)
-	stage.view_yaw = -1.3
-	_run(5.0)
-	eq(_rules(), [&"turned_round"], "a second look doesn't break it again")
-	eq(cues.count(&"fourth_glimpse"), 1, "nor show her again")
-	stage.view_yaw = 0.0
-	_finish()
-	eq(d.score(), 1, "one broken rule in all")
+	eq([d.dead, d.score()], [&"turned_round", 0], "turning to her kills him, and counts for nothing")
 	_teardown()
 	return true
 
@@ -183,16 +172,12 @@ func test_why_asks_again_and_silence_keeps() -> bool:
 	return true
 
 
-func test_four_counts_her() -> bool:
+func test_four_kills_him() -> bool:
 	_setup({&"count": 1})
 	_finish()
-	eq(_rules(), [&"counted_her"], "\"Four.\" counts her")
+	eq(d.dead, &"counted_her", "\"Four.\" counts her: he dies")
 	eq(asked, [&"count"], "and isn't asked again")
-	var counting := captions.find(COUNTING)
-	check(counting > 0 and captions.find(THREE) == counting + 1, "Mei counts heads, then: three?")
-	check(d.progress.any(func(p: Dictionary) -> bool: return p["beat"] == &"counting"), "the counting beat")
-	check(not d.progress.any(func(p: Dictionary) -> bool: return p["beat"] == &"asked_again"), "no asked_again")
-	eq(cues.slice(-3), [&"brake", &"fourth_gone", &"mirror_off"], "the seat is still empty after")
+	check(not captions.has(COUNTING), "Mei counts no heads")
 	_teardown()
 	return true
 

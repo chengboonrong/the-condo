@@ -12,6 +12,16 @@ var stage: RoadStage
 var d: RoadDirector
 var cues: Array[StringName] = []
 var closed: Array[StringName] = []
+var died: Array[StringName] = []
+
+
+## A mission that never finishes and counts its ticks.
+class Counter extends RoadMission:
+	var ticks := 0
+
+	func tick(_delta: float) -> bool:
+		ticks += 1
+		return false
 
 
 func _setup() -> void:
@@ -20,13 +30,16 @@ func _setup() -> void:
 	d = RoadDirector.new(stage, 1147, list)
 	cues.clear()
 	closed.clear()
+	died.clear()
 	EventBus.road_cue.connect(_on_cue)
 	EventBus.choices_closed.connect(_on_closed)
+	EventBus.player_died.connect(_on_died)
 
 
 func _teardown() -> void:
 	EventBus.road_cue.disconnect(_on_cue)
 	EventBus.choices_closed.disconnect(_on_closed)
+	EventBus.player_died.disconnect(_on_died)
 
 
 func _on_cue(cue: StringName) -> void:
@@ -35,6 +48,10 @@ func _on_cue(cue: StringName) -> void:
 
 func _on_closed(choice_id: StringName) -> void:
 	closed.append(choice_id)
+
+
+func _on_died(cause: StringName) -> void:
+	died.append(cause)
 
 
 func _run(seconds: float) -> void:
@@ -46,18 +63,123 @@ func test_score_decides_the_outcome() -> bool:
 	_setup()
 	eq(d.outcome(), &"alive", "nothing broken")
 	d.break_rule(&"a")
+	eq(d.outcome(), &"alive", "1: all alive")
 	d.break_rule(&"b")
 	eq(d.score(), 2, "weights add up")
-	eq(d.outcome(), &"alive", "2: all alive")
-	d.break_rule(&"c")
-	eq(d.outcome(), &"saved", "3: he gets Mei out")
-	d.break_rule(&"d", 3)
-	eq(d.score(), 6, "a weight counts as its weight")
-	eq(d.outcome(), &"saved", "6: still saved")
+	eq(d.outcome(), &"saved", "2: he gets Mei out")
+	d.break_rule(&"c", 3)
+	eq(d.score(), 5, "a weight counts as its weight")
+	eq(d.outcome(), &"saved", "5: still saved")
 	d.break_rule(&"e")
-	eq(d.outcome(), &"caught", "7: caught")
+	eq(d.outcome(), &"caught", "6: caught")
 	d.end()
 	eq(d.ending, &"caught", "end() keeps the outcome")
+	_teardown()
+	return true
+
+
+func test_his_own_rules_kill_at_once() -> bool:
+	for rule: StringName in RoadDirector.DEADLY:
+		_setup()
+		d.break_rule(rule, 3)
+		eq(d.dead, rule, "%s kills him" % rule)
+		eq([d.broken.size(), d.score()], [0, 0], "%s: and counts for nothing" % rule)
+		eq(died, [rule], "%s: player_died once, with the rule" % rule)
+		eq(cues, [], "%s: no rule_broken cue" % rule)
+		_teardown()
+	return true
+
+
+func test_the_others_rules_still_count() -> bool:
+	_setup()
+	d.break_rule(&"overtook")
+	eq([d.dead, d.score()], [&"", 1], "overtaking only counts")
+	_teardown()
+	return true
+
+
+func test_dying_closes_the_choice_without_a_break() -> bool:
+	_setup()
+	d.ask(&"c", PackedStringArray(["a", "b"]), 3.0, PackedInt32Array([0]), &"overtook")
+	d.die(&"answered")
+	eq(d.pending, &"", "nothing open")
+	eq(closed, [&"c"], "the choice is closed")
+	eq(d.score(), 0, "and breaks nothing")
+	_teardown()
+	return true
+
+
+func test_after_death_only_time_and_the_ride_go_on() -> bool:
+	var count := Counter.new()
+	var list: Array[RoadMission] = [count]
+	var core := RoadDirector.new(RoadStage.new(), 1147, list)
+	core.car_speed = 5.0
+	core.drive(5.0)
+	core.step(0.1)
+	core.die(&"answered")
+	var ticks := count.ticks
+	var time := WorldState.time
+	var car_s := core.car_s
+	for i in 10:
+		core.step(0.1)
+	eq(count.ticks, ticks, "the mission is not ticked")
+	near(WorldState.time - time, 1.0, 0.001, "time goes on")
+	near(core.car_s - car_s, 5.0, 0.001, "and so does the car")
+	return true
+
+
+func test_death_comes_once_and_never_after_the_ending() -> bool:
+	_setup()
+	d.die(&"answered")
+	d.die(&"looked_back")
+	eq([d.dead, died], [&"answered", [&"answered"]], "a second death emits nothing")
+	_teardown()
+
+	_setup()
+	d.end(&"alive")
+	d.die(&"answered")
+	eq([d.dead, died], [&"", []], "no death once the road has ended")
+	_teardown()
+	return true
+
+
+func test_a_death_in_a_step_stops_that_steps_mission() -> bool:
+	_setup()
+	var count := Counter.new()
+	var list: Array[RoadMission] = [count]
+	d = RoadDirector.new(stage, 1147, list)
+	d.step(0.1)
+	var ticks := count.ticks
+	d.ask(&"c", PackedStringArray(["a"]), 0.05, PackedInt32Array([0]), &"answered")
+	d.step(0.1)
+	eq([d.dead, count.ticks], [&"answered", ticks], "the choice runs out and kills him: the mission isn't ticked after")
+	_teardown()
+	return true
+
+
+func test_restore_sets_the_count_and_its_fog() -> bool:
+	_setup()
+	d.restore([{"rule": &"overtook", "weight": 1, "t": 0.0, "mission": 1}, {"rule": &"mei_opened", "weight": 2, "t": 0.0, "mission": 3}])
+	eq(d.score(), 3, "the kept count")
+	near(d.fog, 0.36, 0.001, "and its fog")
+	near(d.her_near, 0.36, 0.001, "and how near she is")
+	_teardown()
+	return true
+
+
+func test_broken_at_start_is_the_count_when_the_mission_began() -> bool:
+	_setup()
+	var first := Recorder.new()
+	var list: Array[RoadMission] = [first, Idle.new()]
+	d = RoadDirector.new(stage, 1147, list)
+	d.step(0.1)
+	d.break_rule(&"overtook")
+	first.done = true
+	d.step(0.1)
+	d.step(0.1)
+	eq(d.mission_index, 1, "(the next mission)")
+	d.break_rule(&"overtook")
+	eq(d.broken_at_start.size(), 1, "the count when it began, not now")
 	_teardown()
 	return true
 
@@ -352,7 +474,7 @@ func test_end_keeps_a_decided_ending() -> bool:
 	var ended: Array[StringName] = []
 	var on_end := func(e: StringName) -> void: ended.append(e)
 	EventBus.road_ended.connect(on_end)
-	d.break_rule(&"a", 2)
+	d.break_rule(&"a")
 	var decided := d.outcome()
 	d.break_rule(&"b")
 	d.end(decided)

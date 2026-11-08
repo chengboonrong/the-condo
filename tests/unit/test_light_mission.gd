@@ -183,10 +183,10 @@ func test_skipped_to_he_stands_beside_the_car() -> bool:
 	return true
 
 
-func test_looking_back_costs_three_twice_at_most() -> bool:
+func test_looking_back_kills_him() -> bool:
 	_setup()
-	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])  # back to the front between each
-	eq(_rules(), [[&"looked_back", 3], [&"looked_back", 3]], "three looks back: 3 each, twice at the most")
+	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])
+	eq([d.dead, d.score()], [&"looked_back", 0], "a look back kills him, and counts for nothing")
 	_teardown()
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [128.0])  # past the point where the ending is decided
@@ -195,11 +195,11 @@ func test_looking_back_costs_three_twice_at_most() -> bool:
 	return true
 
 
-## Each look back that counts is the presentation's cue for her to lunge; keeping every rule gives none.
-func test_looking_back_makes_her_lunge() -> bool:
+## A look back kills him, and the death gives no lunge cue; keeping every rule gives none either.
+func test_looking_back_gives_no_lunge() -> bool:
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])
-	eq(cues.count(&"her_lunges"), 2, "one for each look back that cost three")
+	eq(cues.count(&"her_lunges"), 0, "a look back that kills him: no lunge")
 	_teardown()
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0})
@@ -237,7 +237,7 @@ func test_reaching_the_light_ends_the_road() -> bool:
 
 func test_two_get_out_alone() -> bool:
 	_setup()
-	d.break_rule(&"answered", 3)  # as if broken earlier on the road
+	d.break_rule(&"overtook", 3)  # as if broken earlier on the road
 	_play({&"mei_look_1": 0, &"mei_look_2": 0})
 	check(not cues.has(&"hafiz_at_stall"), "nobody at the stall")
 	var order := [&"phone_rings", &"lorry_stops", &"card_on"].map(func(c: StringName) -> int: return cues.find(c))
@@ -251,7 +251,7 @@ func test_two_get_out_alone() -> bool:
 
 func test_caught_ends_before_the_light() -> bool:
 	_setup()
-	d.break_rule(&"answered", 7)  # score 7 before the walk
+	d.break_rule(&"overtook", 7)  # score 7 before the walk
 	_play({&"mei_look_1": 0, &"mei_look_2": 0})
 	near(cue_s[&"light_out"], d.light_s - 30.0, WALK * 0.1 + 0.01, "the light dies 30 m short")
 	near(walk_ended_s, d.light_s - 30.0, WALK * 0.1 + 0.01, "and the walk is over there")

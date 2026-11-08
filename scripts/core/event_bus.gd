@@ -32,6 +32,7 @@ signal choice_made(choice_id: StringName, index: int)
 signal road_cue(cue: StringName)
 signal road_line(speaker: StringName, seconds: float)  # who speaks, so the presentation can turn heads
 signal road_ended(ending: StringName)
+signal player_died(cause: StringName)  # he broke one of his own rules: RoadDirector.DEADLY
 
 # Story
 signal act_changed(act: int)
