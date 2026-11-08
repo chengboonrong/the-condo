@@ -118,6 +118,8 @@ func test_both_endings_and_the_decision_fail_safe() -> bool:
 		for i in 3:
 			story.debug_skip()
 		eq(WorldState.act, WorldState.Act.DECISION, "act 4")
+		if ending != &"":
+			check(_until(func() -> bool: return story.choice_open(), StoryDirector.DECISION_WAIT), "the choice opens")
 		match ending:
 			&"downstairs":
 				EventBus.object_interacted.emit(&"mirror_wall")
@@ -145,7 +147,7 @@ func test_from_the_road_the_flat_opens_quiet_and_asking() -> bool:
 	check(WorldState.event_history.is_empty(), "nothing happens in the quiet")
 	eq(WorldState.objective, "How did you get home?", "the question stays for the whole quiet")
 	_wait(0.5)
-	eq(WorldState.objective, "Wash up, then get some sleep.", "then the usual objective, without the mamak")
+	eq(WorldState.objective, StoryDirector.ROAD_OBJECTIVE, "then the road's objective: he is still lost")
 	eq(lines.size(), 2, "and the opening lines are not said again")
 	return _done()
 
@@ -169,7 +171,7 @@ func test_washing_during_the_question_leaves_get_some_sleep() -> bool:
 	_wait(1.0)
 	eq(WorldState.objective, "How did you get home?", "washing doesn't answer the question")
 	_wait(14.4)
-	eq(WorldState.objective, "Get some sleep.", "at the end of the quiet")
+	eq(WorldState.objective, StoryDirector.ROAD_WASHED, "at the end of the quiet")
 	return _done()
 
 
@@ -178,7 +180,7 @@ func test_inspecting_the_footprints_ends_the_question() -> bool:
 	story.road = &"caught"
 	_wait(5.0)
 	EventBus.object_interacted.emit(&"footprints")
-	eq(WorldState.objective, "Wash up, then get some sleep.", "the question gives way")
+	eq(WorldState.objective, StoryDirector.ROAD_OBJECTIVE, "the question gives way")
 	_wait(1.0)
 	EventBus.object_interacted.emit(&"bed")  # lie down at 6 s
 	check(not _until(func() -> bool: return story.beat == &"ringing", 13.8), "the quiet still holds the ring")
@@ -437,6 +439,7 @@ func test_the_downstairs_knock_back_follows_the_road() -> bool:
 		_listen()
 		for i in 3:
 			story.debug_skip()
+		_until(func() -> bool: return story.choice_open(), StoryDirector.DECISION_WAIT)
 		EventBus.object_interacted.emit(&"mirror_wall")
 		var pos: Vector3 = ApartmentLayout.ANCHORS[&"knock_mirror"]["pos"]
 		check(sounds.has([&"thump3" if road != &"" else &"knock3", pos]), "the knock back for road %s" % road)
@@ -455,7 +458,69 @@ func test_ending_cards_follow_the_road() -> bool:
 	check(StoryDirector.ending_card(&"downstairs", &"saved")[1].ends_with("He's been knocking all night."), "saved: Hafiz")
 	check(StoryDirector.ending_card(&"vacant", &"saved")[1].ends_with("Some nights you still hear him knocking."), "saved: Hafiz")
 	for id: StringName in [&"downstairs", &"vacant"]:
-		check(StoryDirector.ending_card(id, &"alive")[1].ends_with("Something else came down the mountain too."), "alive: %s" % id)
+		var alive: String = StoryDirector.ending_card(id, &"alive")[1]
+		check(alive.contains("Something else came down the mountain too."), "alive: %s" % id)
+		check(alive.ends_with("On the road it had Hafiz's voice. Tonight it has yours."), "alive: the voice was his, %s" % id)
+	return true
+
+
+func test_after_the_road_he_washes_the_mountain_off_and_cannot_remember_getting_home() -> bool:
+	for road: StringName in [&"caught", &"saved", &"alive"]:
+		WorldState.reset()
+		lines.clear()
+		var story := _setup(ApartmentLayout.SPAWN)
+		story.road = road
+		_listen()
+		_wait(StoryDirector.QUIET + 1.0)
+		eq(WorldState.objective, StoryDirector.ROAD_OBJECTIVE, "road %s: the road's objective" % road)
+		EventBus.object_interacted.emit(&"sink")
+		eq(WorldState.objective, StoryDirector.ROAD_WASHED, "road %s: washed" % road)
+		EventBus.object_interacted.emit(&"bed")
+		_wait(12.0)
+		var memory: String = StoryDirector.LAST_MEMORY[road]
+		check(memory.contains("fruit stall" if road == &"caught" else "lorry"), "road %s: the road's last thing" % road)
+		eq(lines.slice(-3), [StoryDirector.ROAD_WASH, memory, "[Somewhere in the building, a lift hums and stops.]"], "road %s: earth, the memory, the lift" % road)
+		check(not lines.any(func(l: String) -> bool: return l.contains("teh tarik")), "road %s: no mamak at the sink" % road)
+		_done()
+	return true
+
+
+func test_the_choice_opens_only_after_the_call_and_the_call_follows_the_road() -> bool:
+	for road: StringName in [&"caught", &"saved", &"alive", &""]:
+		for answer: bool in [true, false]:
+			WorldState.reset()
+			lines.clear()
+			subtitles.clear()
+			var story := _setup(Vector3(8.0, 0, -16.0))  # B-11-07
+			story.road = road
+			_listen()
+			for i in 3:
+				story.debug_skip()
+			EventBus.object_interacted.emit(&"mirror_wall")
+			EventBus.object_interacted.emit(&"lift_button")
+			eq(WorldState.ending, &"", "%s/%s: no choice before the call" % [road, answer])
+			check(not WorldState.prompts.has(&"mirror_wall"), "%s/%s: the wall only says touch" % [road, answer])
+			if answer:
+				check(_until(func() -> bool: return rt.scheduler.is_running(&"phone_ring"), 10.0), "%s: the intercom rings" % road)
+				check(not story.choice_open(), "%s: ringing is not the choice" % road)
+				EventBus.object_interacted.emit(&"intercom_mirror")
+				check(story.choice_open(), "%s: answered, the choice opens" % road)
+			else:
+				check(not _until(func() -> bool: return story.choice_open(), 39.5), "%s: unanswered, not before 40 s" % road)
+				check(_until(func() -> bool: return story.choice_open(), 1.0), "%s: unanswered, at 40 s" % road)
+			eq(WorldState.prompts.get(&"mirror_wall"), "Answer it: knock back three times", "%s/%s: knock" % [road, answer])
+			eq(WorldState.prompts.get(&"lift_button"), "Don't answer: take the lift", "%s/%s: lift" % [road, answer])
+			_wait(30.0)
+			var rule := "[Don't answer, Bang Din said. Even if it sounds like %s.]" % ("Hafiz" if road == &"saved" else "you")
+			eq(lines.count(rule), 1 if road != &"" else 0, "%s/%s: Bang Din's rule after the road only" % [road, answer])
+			if answer:
+				var hafiz := road == &"saved"
+				eq(subtitles.has(StoryDirector.HAFIZ_CALL), hafiz, "%s: Hafiz calls only after saved" % road)
+				eq(lines.has("[It's Hafiz's voice.]"), hafiz, "%s: he knows Hafiz's voice" % road)
+				eq(lines.has("[It's your voice.]"), not hafiz, "%s: or his own" % road)
+				check(lines.find(rule) > lines.find("[It's Hafiz's voice.]" if hafiz else "[It's your voice.]") or road == &"", "%s: the rule after the voice: %s" % [road, lines])
+			story.debug_skip()  # ends it: a story left open would still take the next one's wall
+			_done()
 	return true
 
 

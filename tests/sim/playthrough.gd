@@ -246,8 +246,8 @@ func _story_action() -> bool:
 			if rt.scheduler.is_running(&"phone_ring") and not WorldState.has_flag(&"answered_mirror"):
 				_use(&"intercom_mirror")
 				return true
-			if profile == "explorer" and not WorldState.has_flag(&"answered_mirror") and s.beat_time() < 40.0:
-				actions.append({"wait": 1.0})  # it wants to hear the call before choosing
+			if not s.choice_open():
+				actions.append({"wait": 1.0})  # the choice opens with the call
 				return true
 			_use(&"lift_button" if profile == "avoider" else &"mirror_wall")
 			return true

@@ -33,6 +33,7 @@ const LINES := {
 	"Hafiz: \"No signal here. I jalan down a bit, find help. You two stay in the car, okay?\"": &"hafiz_no_signal",
 	"[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]": &"mimic_wait",
 	"[Outside, in Hafiz's voice: \"Bro! Open the door, I found help!\"]": &"mimic_open_door",
+	"\"Bro! Open the door, I found help!\"": &"mimic_open_door",  # B-11-07's call after saved (StoryDirector)
 	"Mei: \"Eh, your friend so quiet one. Shy ah?\"": &"mei_shy",
 	"Mei: \"Eh, how many of us ah? I want to buy drinks at the R&R.\"": &"mei_how_many",
 	"Mei: \"Just answer lah. How many?\"": &"mei_answer",
