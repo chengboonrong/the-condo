@@ -24,10 +24,10 @@ which is what makes seeded replays and simulated playthroughs possible.
 
 | Module | File | Kind | Responsibility |
 |---|---|---|---|
-| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). Seven are for the road (see [The road](#the-road)). |
+| EventBus | `scripts/core/event_bus.gd` | autoload | Typed signals only. No logic. Two are for the visitor: `door_feet_requested(shown: bool)` (the core shows or takes away the feet under the front door) and `peephole_requested(view: Camera3D)` (the peephole asks the HUD to look through it). Seven are for the road (see [The road](#the-road)). `player_died(cause)` is for both: the road's core and the flat's send it when he dies. |
 | WorldState | `scripts/core/world_state.gd` | autoload | Authoritative state: act, objective, flags, clues, player room, doors, lights, variants, entity, event history, ending. Mutated only through explicit methods, each of which emits on EventBus. `reset()` for tests. |
 | Settings | `scripts/core/settings.gd` | autoload | Player options in `user://settings.cfg`. |
-| Journey | `scripts/core/journey.gd` | autoload | Carries how the road ended into the flat, and sends a restart back to the road. See [The road](#the-road). |
+| Journey | `scripts/core/journey.gd` | autoload | Carries how the road ended into the flat, sends a restart back to the road, and carries Try again over the scene change that follows a death (what it starts from, and the card's line for each cause). See [The road](#the-road) and [Deaths and Try again](#deaths-and-try-again). |
 | ApartmentLayout | `scripts/world/apartment_layout.gd` | static data | Rooms, walls, doors, lights, anchors, variant areas. The builder, RoomGraph and the tests all read this one file. |
 | RoomGraph | `scripts/world/room_graph.gd` | RefCounted | Room connectivity for any variant set: neighbours, BFS paths, reachability. |
 | PlayerController | `scripts/player/player_controller.gd` | CharacterBody3D | Walk, sprint, crouch (with headroom check), mouse look, phone light, footsteps. `scripted_move` lets tests drive it. |
@@ -36,11 +36,11 @@ which is what makes seeded replays and simulated playthroughs possible.
 | EventScheduler | `scripts/horror/event_scheduler.gd` | RefCounted | Lifecycle `IDLE → VALIDATED → RUNNING → COMPLETED / CANCELLED / FAILED`, cooldowns, channel locks, priority pre-emption, timeouts, queued story requests. |
 | BehaviorProfiler | `scripts/horror/behavior_profiler.gd` | RefCounted | Turns 10 Hz player samples into bounded 0–1 signals (EMAs, decayed room time, last-8 outcome window). |
 | HorrorDirector | `scripts/horror/horror_director.gd` | RefCounted | 4 Hz utility scoring of eligible events, tension model, recovery gaps, seeded pick, explainable decision log. |
-| EntityController | `scripts/horror/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. |
+| EntityController | `scripts/horror/entity_controller.gd` | RefCounted | Unseen presence: `dormant → observing → approaching → retreating`, located in a room of the RoomGraph. From act 3, next to his room, it rattles in the doorway and kills him if he keeps his back to it ([Director](#director)). |
 | RoomTransformer | `scripts/horror/room_transformer.gd` | RefCounted | Applies predefined variants only after the five safety checks pass. |
-| StoryDirector | `scripts/story/story_director.gd` | RefCounted | Acts, objectives, dialogue, clues, fail-safes, endings. |
-| HorrorRuntime | `scripts/horror/horror_runtime.gd` | Node | Composition root for the core; one seeded RNG; fixed tick order. |
-| RoadDirector | `scripts/road/road_director.gd` | RefCounted | The road's core: runs five missions in order and keeps one weighted count of the rules he breaks. See [The road](#the-road). |
+| StoryDirector | `scripts/story/story_director.gd` | RefCounted | Acts, objectives, dialogue, clues, fail-safes, endings. It keeps the flat as each act begins, for Try again, and kills him if he opens the front door in act 3's knocking. |
+| HorrorRuntime | `scripts/horror/horror_runtime.gd` | Node | Composition root for the core; one seeded RNG; fixed tick order. `die(cause)` is the flat's death: whichever of the visitor, the story and the entity kills him ends up there. |
+| RoadDirector | `scripts/road/road_director.gd` | RefCounted | The road's core: runs five missions in order. His own rules and three clocks kill him; the others' rules go into one weighted count that decides how the road ends. See [The road](#the-road). |
 | RoadMain | `scripts/road/road_main.gd` | Node3D (`scenes/road.tscn`) | The road's composition root, and the game's first scene. |
 
 ## Determinism
@@ -53,14 +53,16 @@ which is what makes seeded replays and simulated playthroughs possible.
 * Presentation randomness (flicker patterns, footstep variation) uses its own RNG and never feeds
   back into the core.
 * Input from the presentation reaches the core inside the tick: a silhouette sighting is detected on the
-  physics tick and applied at the start of the next `step()`, and so is a look through the peephole
-  (`object_interacted(&"peephole")` marks the running visit "peeked").
+  physics tick and applied at the start of the next `step()`. A death is decided by the core in the tick too
+  (`HorrorRuntime.die`, `RoadDirector.die`), never by the presentation.
 * The game steps the core only while the player is playing (or reading): not on the start card, while
   paused or after the ending, so pauses don't count as idle time or time spent in a room.
 
 ## Director
 
-Every tick: time → `BehaviorProfiler` → `EntityController` → `EventScheduler` → `HorrorDirector`.
+Every tick: time → `BehaviorProfiler` → `EntityController` → `EventScheduler` → `HorrorDirector`. If the entity has killed
+him in its tick, the rest of that step does not run, and once he is dead only the clock goes on (see
+[Deaths and Try again](#deaths-and-try-again)).
 
 * **Behaviour signals** (0–1, sampled at 10 Hz): curiosity and avoidance (share of the last 8 sounds from
   another room that the player walked towards or away from), look-behind (sharp turns, decaying),
@@ -76,7 +78,19 @@ Every tick: time → `BehaviorProfiler` → `EntityController` → `EventSchedul
   three is drawn with the simulation RNG, weighted by score. Each pick is logged with its parts (F3).
 * **Entity.** A room and a state, no body: dormant (act 1) → observing (two rooms away) →
   approaching (act 3+, one room closer every 12 s, never into the player's room) → retreating (when seen
-  or walked in on, to the farthest room) → observing. Footsteps start from its room.
+  or walked in on, to the farthest room) → observing. Footsteps start from its room. It starts watching from the
+  moment act 3 begins, so the first approach comes `OBSERVE_TIME` (25 s) after it, as it does after a retry.
+* **Face the sound.** From act 3 to the end, when the entity is in a room next to his it gives itself away: a
+  `rattle` (`RATTLE_DB`) from the doorway between the rooms, 1.5 m up. The first time, a line says what to do
+  (`EntityController.WARN`, "[Something is breathing in the doorway behind you. Face it.]"). It goes through the
+  story's queue (`StoryDirector.speaking()`), so it waits, with the entity silent next to him, while the story is
+  speaking, and the story's next line waits for it. Every time after, it is the caption "[Breathing in the doorway]"
+  (`CAPTION`) and never cuts a line. He has `FACE_SECONDS` (4 s) from the rattle to turn so that his back is no
+  longer to the doorway (`HorrorStage.is_behind`): it then retreats, as when it is seen. If he does not, it kills him
+  (`killed(&"faced_away")`). The look is checked before the clock, so a turn on the last tick still saves him. If he
+  walks out of its reach the clock stops and is not held against him: it breathes again, at that doorway or another,
+  with a fresh 4 s, when it is next to him again. Walking into its room makes it retreat. It never kills in acts 1
+  and 2. A player who turns to the rattle when he hears it always survives: the bots do, within half a second.
 
 ## Room shifts
 
@@ -112,8 +126,8 @@ reaches act 4, and both endings are only a choice away. Story events go through 
 | 1 | `ringing` | answer the intercom (Rosnah's call) | unanswered after 90 s, the story goes on |
 | 1 | `knocked` | touch the bedroom wall, or stay 15 s in the bedroom | the wall answers after 120 s; knocks repeat at 45 s |
 | 2 | `disturbance` | 4 signs (clues + moved things noticed) and 240 s | act 3 at 420 s; a shift every 75 s at most |
-| 3 | `front_door` | go to the front door | the reveal is requested after 60 s |
-| 3 | `reveal_pending` | leave the bedroom, look away | every 30 s: knock at the front door if the player is in the bedroom, else shut the bedroom door |
+| 3 | `front_door` | go to the front door (opening it kills him) | the reveal is requested after 60 s |
+| 3 | `reveal_pending` | leave the bedroom, look away (opening the front door still kills him) | every 30 s: knock at the front door if the player is in the bedroom, else shut the bedroom door |
 | 3 | `revealed` / `in_gap` | through the new door, along the corridor to B-11-07 | knocks behind the door every 30 s |
 | 4 | `decision` | knock back on the wall (*Downstairs*) or take the lift (*Vacant*) | after 210 s, waiting is a choice: *Downstairs* |
 
@@ -138,7 +152,79 @@ on; `StoryDirector.choice_open()`): until then the wall is only cold and the lif
 is not answering, with Bang Din's rule as a thought after the road. Waiting out `DECISION_WAIT` still ends it.
 
 The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
-`tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds.
+`tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds, and that none of the bots dies.
+
+## Deaths and Try again
+
+Nothing in the game stops him unless he breaks one of his own rules or is too slow. Then he dies, the death plays, a
+GAME OVER card follows, and Try again puts him back at the start of the mission or the act he died in. The core decides
+every death and its timing, so the bots play it with no presentation: `RoadDirector.die(cause)` on the road and
+`HorrorRuntime.die(cause)` in the flat. Each happens once, keeps the first cause, and never after an ending. Each sends
+`EventBus.player_died(cause)`, and the scene answers it.
+
+| Cause | Where | He dies when | Told by | The card says |
+|---|---|---|---|---|
+| `missed_lift` | road, Mission 1 | the couple's car has stood open at the stop for 10 s (`LiftMission.GET_IN_SECONDS`) and he is not in: they drive off, and 4 s later the dark takes him | Bang Din, at the stop (`LiftMission.WARN`) | [The car left without you.] |
+| `turned_round` | road, Mission 3 | his look goes past 2.2 rad to his left or 1.0 rad to his right for 0.4 s, once Bang Din has said the rule | Bang Din (`CountMission.RECALL`) | [You turned round to look at her.] |
+| `counted_her` | road, Mission 3 | he answers "Four." when Mei counts, the first time or after "Why you ask?" | Bang Din (`CountMission.RECALL`) | [You counted her.] |
+| `answered` | road, Mission 4 | he answers the voice outside | Bang Din (`StallMission.RECALL`) | [You answered it.] |
+| `opened_door` | road, Mission 4 | he opens his door, until the light comes on | Bang Din (`StallMission.RECALL`) | [You opened the door.] |
+| `not_locked` | road, Mission 4 | the doors are not locked 5 s after the first thump on the roof (`StallMission.LOCK_SECONDS`) | Bang Din (`StallMission.LOCK_LINE`) | [You didn't lock the doors.] |
+| `looked_back` | road, Mission 5 | his look goes past 1.9 rad either way for 0.25 s | Bang Din (`LightMission.RECALL`) | [You looked back.] |
+| `stood_still` | road, Mission 5 | he goes slower than 0.5 m/s for 5 s in a row (`LightMission.STILL_SECONDS`, `MIN_PACE`), counted from the step after Bang Din has said so | Bang Din (`LightMission.KEEP_WALKING`) | [You stopped walking.] |
+| `front_door` | flat, act 2's visitor, and act 3's knocking | he opens the front door | Rosnah (`StoryDirector.ROSNAH_WARNING`) | [You opened the front door.] |
+| `lights_on` | flat, act 2's visitor | when the feet stop outside his door, any light of the six rooms or his phone's is on | Rosnah | [Your light was on. It knew you were home.] |
+| `faced_away` | flat, acts 3 and 4 | he keeps his back to the rattle in the doorway for 4 s (see [Director](#director)) | its own line, the first time (`EntityController.WARN`) | [You kept your back to it.] |
+
+The card's lines are `Journey.DEATHS`. Every one of these rules is told before it can kill: Bang Din's are bracketed
+memory lines said as the rule applies (the three new ones with the clocks: `LiftMission.WARN`, `StallMission.LOCK_LINE`,
+`LightMission.KEEP_WALKING`), Rosnah's is the end of her call in act 1, and the rattle has its own line.
+
+**The flat's deaths.**
+
+* **The visitor** (`VisitorEvent`, act 2 only) has two ways to kill. He opens the front door at any time from the lift's
+  chime to the end of the visit (`front_door`), or a light is on when the feet stop (`lights_on`: any of the six rooms,
+  or his phone light; the corridor's is the building's, not his). Both are armed only once he has heard Rosnah's warning:
+  the `answered_intercom` flag is set when he answers her call, and unwarned he cannot be killed, as before. The visit
+  is 2.5 s from the chime to the first of 24 footsteps (`steps`), 0.66 s apart (`STEP_TIME`), so the feet stop 18.3 s
+  after the chime, and they stay 15 s (`hold`): 34 s in all (`duration`). That is long enough to reach a switch from any
+  point of the flat with a light on (`tests/unit/test_visitor.gd`). The event does not kill by itself: it sets the run's
+  `kill`, and `HorrorRuntime._on_run_finished` makes it his death.
+* **The peephole** never kills and no longer ends the visit: he sees the empty corridor, and the visit runs on to the
+  lights check, so looking cannot skip the rule. In act 3 the first look through it says "[Nobody there. The corridor
+  is empty.]" (it used to be said when he reached the entrance).
+* **Act 3's knocking** is the `front_door` and `reveal_pending` beats: from the first knock until the reveal, opening the
+  front door kills him (`StoryDirector.killed`, from `door_changed` with the source `&"player"`; a door the flat opens, or
+  a retry puts back, is not his hand). Walking to the door is safe.
+* **Face the sound** is the entity's ([Director](#director)).
+* **`HorrorRuntime.die`** stops the story, cancels every running event, empties the scheduler's queue and sends
+  `player_died`. Once he is dead `step()` only advances the clock.
+
+**What he sees.** The scene holds him (no input, a peephole or a note he was reading is closed) and she comes for his
+face (`Penanggal.come_for`), the same head that comes for the camera in the `caught` ending. When she has reached it
+(`reached`), a black card cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button
+(`Hud.show_game_over`). The card is opaque and over everything: a choice or a caption still up is closed and a line
+being said is cut off. The mouse is shown for the button. The road's loops are switched off (`RoadMain`), and the flat's
+beds and drone are (`AudioDirector.silence`). On the road, a car he is in brakes (`RoadDirector.die` stops it) and the
+director keeps stepping until the card is up, so it does not stop dead; a car he is not in goes on (the couple drive off
+from the lift without him). In the flat she has no director and is hidden otherwise; she is drawn once behind the start card under each of its
+four lights (the shader warm-up), so nothing compiles when she comes.
+
+**Try again** is one click. The pointer lock is asked for inside the click (Safari grants it only to a gesture), then
+the scene is reloaded and what it starts from waits in `Journey`.
+
+* **On the road** `Journey.retry_road(mission, kept)` is given the mission he died in and the count the mission began
+  with (`RoadDirector.broken_at_start`). The road scene starts at once with a plain black card, no start card: it calls
+  `RoadDirector.start_at(mission)` (as `-- --mission=N` does) and `restore(kept)`, which gives back the fog and her
+  nearness that count had. Whatever he broke in the failed try is dropped, and dying adds nothing to the count.
+* **In the flat** `Journey.retry_flat(snapshot)` is given `StoryDirector.act_snapshot`, the flat as the act began
+  (`_keep`, first thing in acts 2, 3 and 4): flags, clues, variants, lights, doors, how many things he had noticed,
+  the pending last call and the one-shot lines already said. `scenes/main.tscn` loads with a plain black card, puts him
+  where the act's lines say he is (`ApartmentLayout.ACT_STARTS`: in the bedroom at the north wall for act 2, at the
+  spawn for act 3, just inside B-11-07 for act 4), and `StoryDirector.start_at_act` puts the world back (doors as
+  `&"restore"`, not opened by him) and begins the act again. The road's ending is kept; the road's quiet and the opening's
+  lines are over for him. The entity is a new one, so its first warning is said again.
+* A restart from the pause menu or the ending card (`Journey.restart()`) clears all of it.
 
 ## Captions
 
@@ -181,7 +267,14 @@ the flat's: headless, deterministic, and talking to the presentation only throug
   footprints (flat red-earth quads from the front door, built only after the road), and the HUD for the ending
   cards (see [Story](#story)); separate flats for each ending (part 2) are not built.
 * A restart (the pause menu's Restart, or a click on the flat's ending card) calls `Journey.restart()`, which clears
-  `road_ending` and loads the road again. The game never restarts into the flat.
+  `road_ending` (and any retry waiting) and loads the road again. The game never restarts into the flat.
+* **Dying.** When the core kills him (`RoadDirector.die`, `EventBus.player_died`), `RoadMain` holds him and has her
+  come for his face (`Penanggal.come_for`); when she has reached it, a black card with GAME OVER, the cause's line
+  (`Journey.DEATHS`) and "Try again" cuts in (`Hud.show_game_over`) and the road's loops go off. Try again calls
+  `Journey.retry_road(director.mission_index, director.broken_at_start)`, which reloads the road scene; the scene reads
+  `Journey.retry_mission` and `retry_broken`, starts there with no start card behind a plain black card, and clears them.
+  The flat's deaths work the same way through `Journey.retry_flat`. All of it is in
+  [Deaths and Try again](#deaths-and-try-again).
 * `-- --flat` / `?flat`: the road hands straight over with `Journey.arrive(&"")`, so the flat shows its own start card
   (the flat's checks use it). `-- --mission=N` / `?mission=N`: the road starts at mission N, as if every earlier one was
   kept (`RoadDirector.start_at`); F10 in a debug build skips the current mission the same way. `-- --smoke` and
@@ -190,10 +283,12 @@ the flat's: headless, deterministic, and talking to the presentation only throug
 
 ### The core
 
-`RoadDirector` runs five `RoadMission`s in order and keeps one weighted count of the rules he breaks. It holds what the
-presentation reads each frame: the ride (`car_s`, `car_speed`, `lane`, `seated`, `slow_gap`, `light_s`), `fog` and
-`her_near` (both 0 to 1), `broken` (every broken rule, with its weight, time and mission) and `progress` (every beat
-change). One seeded `rng`; no mission draws from it today.
+`RoadDirector` runs five `RoadMission`s in order. His own rules (`DEADLY`) and three clocks kill him; the other rules
+he breaks go into one weighted count that decides how the road ends. It holds what the presentation reads each frame:
+the ride (`car_s`, `car_speed`, `lane`, `seated`, `slow_gap`, `light_s`), `fog` and `her_near` (both 0 to 1), `closing`
+(0 to 1: how near she has come on the walk because he stood still), `broken` (every rule of the others he broke, with
+its weight, time and mission), `broken_at_start` (`broken` as the current mission began: what Try again keeps), `dead`
+(what killed him) and `progress` (every beat change). One seeded `rng`; no mission draws from it today.
 
 * **Stage.** `RoadStage` says where he is and how far his head has turned from facing the way the car goes (or the walk
   goes): `relative_yaw`, in radians, positive to his left, wrapped to [−π, π], so a full turn of the mouse is facing
@@ -206,15 +301,19 @@ change). One seeded `rng`; no mission draws from it today.
 * **Tick order.** `step(delta)` does these in order:
   1. time (`WorldState.advance_time`; the clock reads 12:06 AM when the road starts);
   2. captions (`say()` queues lines; one shows at a time, 0.3 s apart);
-  3. the open choice's timer, which closes it as silence when it runs out;
+  3. the open choice's timer, which closes it as silence when it runs out (a choice stays open `CHOICE_SECONDS`, 3 s);
   4. the look rule (`watch_look`);
   5. the current mission (`begin()` once, then `tick`; when it is done it is left, the next starts, and after the last
      `end()` is called);
   6. the ride (the car speeds up and slows at 2.5 m/s², brakes in time for `stop_at`, and changes lane at 1.5 m/s).
+
+  A dead director only does 1 and 6.
 * **Pausing.** The game steps the director only while he can play (on the road or reading a note), not on the start card
   or in the pause menu, so no timer runs and no rule breaks while paused, or when focus or pointer lock is lost.
-* **Breaking a rule** (`break_rule(rule, weight)`) adds it to `broken`, raises `fog` and `her_near` by 0.12 × weight
-  each (to at most 1) and sends the cue `rule_broken`. A rule breaks in three ways:
+* **Breaking a rule** (`break_rule(rule, weight)`): if the rule is one of his own (`DEADLY`: `turned_round`,
+  `counted_her`, `answered`, `opened_door`, `looked_back`) it kills him at once and counts for nothing. Any other adds
+  it to `broken`, raises `fog` and `her_near` by 0.12 × weight each (to at most 1) and sends the cue `rule_broken`. A
+  rule breaks in three ways:
   * a choice (`ask(choice_id, options, seconds, keeps, rule, weight)`): one to three options, one open at a time,
     answered with the keys 1 to 3. The answers in `keeps` (and `-1`, silence, if listed) keep the rule; any other
     breaks it;
@@ -222,41 +321,64 @@ change). One seeded `rng`; no mission draws from it today.
     `hold` seconds, at most `max_count` times, and it can break again only after it has come back within 0.8 rad of
     forward;
   * something he does (opening the car's door in Mission 4).
+* **Dying** (`die(cause)`) happens once and never after the ending. The open choice closes without a break
+  (`choices_closed`), the look watch stops, the mission is left (its prompts, objective and card go), and a car he is in
+  brakes. It sends `player_died(cause)`, and `end()` does nothing after it. `restore(kept)` is Try again's: it gives
+  `broken` back as it was and the fog and her nearness that count had.
+* **The clocks** are the missions': a mission counts them in its own `tick` and calls `die(cause)` when one runs out
+  (see the table below). The presentation never decides a death or its timing.
 
 ### Missions
 
-Weights and what keeps each rule, as the code has them. "Silence" is the choice's timer running out. Every rule's
-break also thickens the fog and brings her nearer, as above.
+Weights, clocks and what keeps each rule, as the code has them. "Silence" is the choice's timer running out. His own
+rules kill him and are not in the count, so they have no weight. Every rule of the others' that breaks also thickens the
+fog and brings her nearer, as above. Every choice lasts `CHOICE_SECONDS` (3 s).
 
-| # | Class | Beats | Rule (weight) | Choices (seconds) and their keeps |
-|---|---|---|---|---|
-| 1 | `LiftMission` | `opening` (his thoughts on a black card), `walk` (to the bus stop), `wait` (counts only at the stop: the lorry passes at 20 s, the couple's car comes at 45 s), `get_in` (he uses the car's rear door; 9 s of small talk) | none | none |
-| 2 | `SlowCarMission` | `cruise`, `seen`; then for each of three attempts `follow`, `urge`, `ask` and either `kept` or `signal`, `pass`, `away`; then `lay_by`, `gone` | `overtook` (1 each, at most 3) | `overtake_1`, `overtake_2`, `overtake_3` (6 s): three options each; the first two keep the rule, the third and silence break it |
-| 3 | `CountMission` | `quiet`, `asked`, `asked_again`, `counting`, `empty` | `turned_round` (1, once: his look past 2.2 rad to his left or 1.0 rad to his right for 0.4 s, watched only from Bang Din's reminder at 9 s: before it, turning costs nothing); `counted_her` (1) | `count` (6 s): "Three." and "Why you ask?" keep it, "Four." breaks it, silence keeps it; "Why you ask?" opens `count_again` (5 s): "Three." and silence keep it, "Four." breaks it |
-| 4 | `StallMission` | `cruise`, `dying`, `cranking`, `hafiz_leaves`, `waiting`, `thumps`, `voice`, `mei`, `knocks`, `quiet`, `light` | `opened_door` (2, once: he uses his door before the light comes on); `answered` (1); `mei_opened` (1) | `answer_voice` (6 s): "Hafiz? That you?" breaks `answered`, "Stay quiet." and silence keep it; `stop_mei` (4 s): "Mei, don't. That's not him." keeps `mei_opened`, "Okay, open." and silence break it |
-| 5 | `LightMission` | `get_out`, `walk`, then `alive`, `saved` or `caught` | `looked_back` (3, at most twice: his look past 1.9 rad either way for 0.25 s); `mei_looked` (1 each) | `mei_look_1` and `mei_look_2` (5 s), 30% and 65% of the way to the light: "Don't look. Hold my hand." keeps `mei_looked`, "Maybe it's him." and silence break it |
+| # | Class | Beats | His own rules (they kill him) | The others' rules (weight) | Choices and their keeps | Clocks (they kill him) |
+|---|---|---|---|---|---|---|
+| 1 | `LiftMission` | `opening` (his thoughts on a black card), `walk` (to the bus stop), `wait` (counts only at the stop: the lorry passes at 20 s, the couple's car comes at 45 s), `get_in` (he uses the car's rear door; 9 s of small talk), `left` (only if he was too slow) | none | none | none | `get_in`: 10 s from `couple_stops` to get in, or `couple_leaves`: the car drives off, and after `left` (4 s) he dies of `missed_lift` |
+| 2 | `SlowCarMission` | `cruise`, `seen`; then for each of three attempts `follow`, `urge`, `ask` and either `kept` or `signal`, `pass`, `away`; then `lay_by`, `gone` | none | `overtook` (1 each, at most 3) | `overtake_1`, `overtake_2`, `overtake_3`: three options each; the first two keep the rule, the third and silence break it | the choices' 3 s |
+| 3 | `CountMission` | `quiet`, `asked`, `asked_again`, `empty` | `turned_round` (his look past 2.2 rad to his left or 1.0 rad to his right for 0.4 s, watched only from Bang Din's reminder at 9 s: before it, turning costs nothing); `counted_her` | none | `count`: "Three.", "Why you ask?" and silence keep it, "Four." kills him; "Why you ask?" opens `count_again`: "Three." and silence keep it, "Four." kills him | the choices' 3 s: silence is safe |
+| 4 | `StallMission` | `cruise`, `dying`, `cranking`, `hafiz_leaves`, `waiting`, `thumps`, `voice`, `mei`, `knocks`, `quiet`, `light` | `opened_door` (he uses his door before the light comes on); `answered` | `mei_opened` (2) | `answer_voice`: "Hafiz? That you?" kills him (`answered`), "Stay quiet." and silence keep it; `stop_mei`: "Mei, don't. That's not him." keeps `mei_opened`, "Okay, open." and silence break it | `thumps`: lock the doors (`car_lock`) within 5 s of the first thump (`LOCK_SECONDS`), or `not_locked` |
+| 5 | `LightMission` | `get_out`, `walk`, then `alive`, `saved` or `caught` | `looked_back` (his look past 1.9 rad either way for 0.25 s, once) | `mei_looked` (2 each) | `mei_look_1` and `mei_look_2`, 30% and 65% of the way to the light: "Don't look. Hold my hand." keeps `mei_looked`, "Maybe it's him." and silence break it | the walk: under 0.5 m/s (`MIN_PACE`) for 5 s in a row (`STILL_SECONDS`), counted from the step after Bang Din has said so, or `stood_still` |
 
-The most that can break is 17: 3 (overtakes), 2 (Mission 3), 4 (Mission 4) and 8 (Mission 5, where looking back counts
-most).
+The most that can break is 9: 3 (the overtakes, 1 each), 2 (Mei's door) and 4 (Mei looking back, 2 each).
 
+* Mission 1: Bang Din's `LiftMission.WARN` ("If a car stops for you up there, get in fast. Don't make it wait.") is said
+  when he reaches the stop. The couple stop only while he is at the stop, and the car's door says "Get in" for 10 s. Too
+  slow: the prompt goes, the car drives off at 9 m/s (`couple_leaves`) and nothing brings it back.
 * Mission 2: the same car is ahead again about 20 s after each overtake, round a bend. After the third attempt, kept or
   not, it pulls into a lay-by and goes dark. Each overtake sends `her_glimpse`.
-* Mission 3: whatever he answers, Mei counts three for herself, Hafiz brakes and the seat in the mirror is empty and
-  wet. Turning to her shows her to him for 0.3 s (`fourth_glimpse`). Then a thought says nobody speaks and Hafiz drives
+* Mission 3: whatever he answers (the answers that keep the rule), Mei counts three for herself, Hafiz brakes and the
+  seat in the mirror is empty and wet. Then a thought says nobody speaks and Hafiz drives
   faster: Mission 4's cruise is 14 m/s (`StallMission.CRUISE_SPEED`, Mission 2's `PASS_SPEED`), 71 s to the car dying
   in the keeper bot where 9 m/s took 112 s. The car dies `roll_distance` short of `STOP_S` and rolls to a stop at
   2.25 m/s² (6.2 s from 14 m/s), as the ride lets it slow no faster than 2.5.
-* Mission 4: opening his door cracks it a hand's width before something slaps it shut. If Mei is not stopped, her door
-  does the same. The voice outside sounds like Hafiz's. Mei reaches for her door whatever he answers the voice.
+* Mission 4: when Hafiz has gone, Bang Din's reminder and `StallMission.LOCK_LINE` ("And if something lands on the roof,
+  lock the doors. Fast.") are said, and his door says "Open the door": using it cracks it a hand's width, and something
+  slaps it shut and kills him. At the first thump the lock's prompt ("Lock the doors") shows and the objective points to
+  it ("Lock the doors: the switch on the roof, between the front seats."). Using it (`CarRig.lock`, id `car_lock`: a
+  12 cm collider on the roof lining, 0.78 m from his eyes) locks every door, takes the prompt away, sends `doors_locked`
+  and puts the objective back. Locking protects him only: Mei's door is still the `stop_mei` choice, and if she is not
+  stopped her door cracks and is slapped shut. The voice outside sounds like Hafiz's. Mei reaches for her door whatever
+  he answers the voice.
 * Mission 5: the light is 150 m on from where the car died. The walk is over 4 m short of it (`alive`, `saved`) or where
   the bulb dies (`caught`). Every beat is timed by the core, never by the presentation, because the bots play it with
-  none. Each look back that counts sends `her_lunges` right after its `rule_broken` (`watch_look`'s cue): the scare.
+  none. Bang Din's `LightMission.KEEP_WALKING` ("And keep walking. Stop, and it catches up.") is said as the walk
+  starts, and standing still is counted from the step after it has gone out. `closing` (0 to 1) is the share of the 5 s
+  he has stood still; she comes nearer behind him as it grows (`Penanggal.behind_distance`: on from her usual distance
+  to 1 m behind him at 1), and it falls back to 0 the moment he walks again. Once it passes 0.5 (2.5 s) the core sends
+  `she_closes`, her breath close behind him, and sends it again only after he has walked on and stopped again. At 5 s he
+  dies of `stood_still`. None of it runs once the ending is decided, 30 m short of the light.
 
 ### How the road ends
 
-`outcome()` reads the weighted count: up to 2 is `alive` (`ALIVE_MAX`), 3 to 6 is `saved` (`SAVED_MAX`), above 6 is
-`caught`. Two looks back make 6 on their own. `LightMission` decides it once, 30 m short of the light and once no
-choice is open (`DECIDE`), then stops the look rule, so a rule broken after that changes nothing. That ending plays and
+`outcome()` reads the weighted count of the others' rules: up to 1 is `alive` (`ALIVE_MAX`), 2 to 5 is `saved`
+(`SAVED_MAX`), above 5 is `caught`. The count is 0 for the keeper bot, 3 for the wobbly one (an overtake and Mei's door)
+and 9 for the breaker; one overtake alone still gets all three down, Mei's door or one of her looks (2) gets him Mei out,
+and `caught` takes 6 or more, such as all three overtakes, her door and her looking twice. His own rules never reach it:
+they kill him first. `LightMission` decides it once, 30 m short of the light and once no choice is open (`DECIDE`), then
+stops the look rule and the stand-still clock, so a rule broken after that changes nothing. That ending plays and
 the road is over (`end(decided)`, which emits `road_ended` once):
 
 * `alive`: Hafiz walks up to the bulb out of the fog below, torch on. The lorry he flagged down comes down behind them,
@@ -270,7 +392,7 @@ the road is over (`end(decided)`, which emits `road_ended` once):
 
 ### Signals and cues
 
-The road adds seven signals to `EventBus` (`line_requested` sits among the presentation requests):
+The road adds seven signals to `EventBus` (`line_requested` sits among the presentation requests), and `player_died` is for both the road and the flat:
 
 | Signal | Sent by | Heard by |
 |---|---|---|
@@ -281,6 +403,7 @@ The road adds seven signals to `EventBus` (`line_requested` sits among the prese
 | `choices_closed(choice_id)` | the director, when it closes a choice (answered, silent or skipped) | the HUD, through `RoadMain` |
 | `road_cue(cue)` | the director and the missions, for one-off moments | `RoadMain` and `Endings`; tests, bots and stills listen too |
 | `road_ended(ending)` | `RoadDirector.end` | `RoadMain.finish`, which hands over to `Journey` |
+| `player_died(cause)` | `RoadDirector.die` on the road, `HorrorRuntime.die` in the flat | `RoadMain` or `Main`: it holds him and has her come for his face, and the GAME OVER card follows ([Deaths and Try again](#deaths-and-try-again)) |
 
 Every cue, who sends it and what the presentation does (`RoadMain._on_cue` and `Endings._on_cue`). A cue with no
 effect in the game is still sent: it marks a moment for the tests, the bots and the stills.
@@ -290,6 +413,7 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `card_on`, `card_off` | Mission 1 (the opening card); Mission 5 (the endings' card) | the HUD's black card goes up, or fades over 1 s; `Endings` stops the phone and the lorry's diesel |
 | `lorry_passes` | Mission 1, 20 s into the wait | the lorry passes in the other lane, with its sound |
 | `couple_stops` | Mission 1, once the car that set off at 45 s has stopped at the stop (about 60 to 65 s in) | nothing: the car is the core's ride |
+| `couple_leaves` | Mission 1, 10 s after `couple_stops` if he has not got in | nothing: the core drives the car off at 9 m/s. He dies 4 s later (`missed_lift`) |
 | `seated` | Mission 1, when he gets in | his door swings open and shut |
 | `slow_car_seen`, `slow_car_ahead` | Mission 2 | nothing: the slow car follows the core's `slow_gap` |
 | `indicator` | Mission 2, before an overtake | the indicator loop ticks |
@@ -297,7 +421,6 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `her_glimpse` | Mission 2, after an overtake | she shows at the roadside ahead, for 1.2 s at the most |
 | `slow_car_gone` | Mission 2, after the third attempt | the slow car pulls into its lay-by and its lights go out |
 | `mirror_on`, `mirror_off` | Mission 3 | the rear-view mirror starts and stops drawing |
-| `fourth_glimpse` | Mission 3, when he turns to her | his own camera sees her for 0.3 s |
 | `brake`, `fourth_gone` | Mission 3, at the end | `brake`: nothing (the core brakes the car); `fourth_gone`: the mirror shows her seat empty, and wet |
 | `lights_dying` | Mission 4 | the car's lights die over 4 s, the engine sputters and its loop stops |
 | `crank` | Mission 4, twice | the starter cranks |
@@ -305,13 +428,14 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `insects_stop` | Mission 4 | the insects' loop stops |
 | `thump`, `her_on_roof` | Mission 4, three thumps; she lands at the first | the roof thump sounds and his view shakes a little; she hangs over the roof |
 | `mei_reaches_door` | Mission 4, after he answers the voice | Mei turns to her door |
+| `doors_locked` | Mission 4, when he uses the lock | the lock's clunk (`car_door_close`, played at −14 dB at the lock, 0.78 m from his eyes) and the caption "[The doors lock]" |
 | `mei_door_cracked` | Mission 4, if he did not stop Mei | her door opens a little and is slapped shut: heard only |
-| `door_cracked` | Mission 4, if he opens his door | his door opens a hand's width and is slapped shut |
+| `door_cracked` | Mission 4, if he opens his door | his door opens a hand's width and is slapped shut; he dies |
 | `knock_window` | Mission 4, three times | a knock on Mei's window |
 | `light_on` | Mission 4, when it goes quiet | the fruit stall's bulb and the far light come on, Mei leans in to see it, she is gone from the roof |
 | `get_out` | Mission 5 | his door swings, Mei's is heard, and Mei gets out and walks beside him |
 | `her_behind` | Mission 5 | she follows him along the road, 18 m behind with no rule broken, 4 m at her nearest |
-| `her_lunges` | Mission 5, each time a look back counts (at most twice) | she is right behind him: in his face where he looks, with the stinger, her shriek and "[She is right behind you.]"; half a second later she pulls back to where she follows |
+| `she_closes` | Mission 5, once `closing` passes 0.5: he has stood still for 2.5 s | her breath, close behind him (`Penanggal.breathe`: `rattle` at +4 dB from where she hangs) and the caption "[Breathing, close behind you]" |
 | `mei_looks` | Mission 5, if he did not hold her hand | Mei looks back for 2.5 s |
 | `hafiz_at_stall` | Mission 5, `alive` decided | `Endings`: Hafiz walks up to the stall |
 | `walk_over` | Mission 5, 4 m short of the light (`caught`: where it is decided) | `Endings`: Mei stops where she is |
@@ -321,13 +445,17 @@ effect in the game is still sent: it marks a moment for the tests, the bots and 
 | `light_out` | Mission 5, `caught` | `Endings`: the bulb dies in 0.25 s and Hafiz walks out of the fog |
 | `her_catches_hafiz` | Mission 5, `caught` | `Endings`: she flies over them and drops onto him |
 | `her_comes` | Mission 5, `caught` | she comes for the camera |
-| `rule_broken` | `break_rule` | nothing in the game; the bots and tests count them |
+| `rule_broken` | `break_rule`, for a rule of the others' | nothing in the game; the bots and tests count them |
+
+A death is not a cue: it is `player_died`, and its cause is one of `Journey.DEATHS`' keys. `fourth_glimpse` (Mission 3's
+turn to her) and `her_lunges` (Mission 5's look back) are no longer sent, because turning to her and looking back kill
+him. `RoadMain` still answers both, and `Penanggal.lunge` and the mirror's glimpse are still tested on their own.
 
 `RoadMain` also captions the cues whose sound carries the moment (`RoadMain.CAPTIONS`): `lorry_passes`, `lights_dying`,
-`crank`, `door_cracked`, `mei_door_cracked`, `thump` and `knock_window` (one caption for each set), `lorry_stops` and
-`overtake` ("[The engine roars.]", every time). Each `thump` after the first gets `THUMP_AGAIN` ("[It moves on the
+`crank`, `door_cracked`, `doors_locked`, `mei_door_cracked`, `thump` and `knock_window` (one caption for each set),
+`lorry_stops`, `overtake` ("[The engine roars.]", every time) and `she_closes`. Each `thump` after the first gets `THUMP_AGAIN` ("[It moves on the
 roof.]") instead. `Her` captions her first wet flap behind him on the walk (`Penanggal.FLAP_CAPTION`, once, and never for
-her flaps in her other places or the door's slap) and the look-back lunge ("[She is right behind you.]"). They go out on
+her flaps in her other places or the door's slap). They go out on
 `subtitle_requested`, as the flat's sound captions do, and the HUD shows them on the caption line, only with "Captions
 for sounds" on (see [Captions](#captions)).
 
@@ -339,16 +467,16 @@ the fog, places the car, seats him and drives the loops.
 | Node | File | What it does |
 |---|---|---|
 | `Player` | `scripts/player/player_controller.gd` | The flat's controller. `sit(seat)` puts him in the car's rear left seat with no collision and only the look; `stand(at)` puts him back on the road. |
-| `Hud` | `scripts/ui/hud.gd` | The flat's HUD, with the black card, the choices and the two caption lines (see [Captions](#captions)). |
+| `Hud` | `scripts/ui/hud.gd` | The flat's HUD, with the black card, the choices, the two caption lines (see [Captions](#captions)) and the GAME OVER card: opaque and over everything, with the cause's line and a "Try again" button (`retry_pressed`). |
 | `RoadBuilder` | `scripts/road/road_builder.gd` | The road in code from `RoadLayout` (3,200 m, a constant 6% downhill: a tunnel, six switchbacks, a long straight), in 100 m chunks with a visibility range, with the signs, lamps, tunnel, resort wall, bus stop and the far light. `set_fog(director.fog)` runs from density 0.035 (no rule broken) to 0.11. |
 | `Look` | `scripts/world/look.gd` | The flat's grade, held on `&"road"` (`grade_override`). |
-| `Car` (`CarRig`) | `scripts/road/car_rig.gd` | The couple's hatchback: its seats, its rear left door (an interactable: `car_door` outside, `car_door_inside` once he is seated), Hafiz's door, headlights that die with the engine. It is solid only when it stands still or with him in it. |
+| `Car` (`CarRig`) | `scripts/road/car_rig.gd` | The couple's hatchback: its seats, its rear left door (an interactable: `car_door` outside, `car_door_inside` once he is seated), Hafiz's door, headlights that die with the engine, and its lock (`CarRig.lock`, id `car_lock`: a switch on the roof lining between the front seats with a lit dot on its face, and a 12 cm collider he can hit; its prompt is empty unless Mission 4 sets it). It is solid only when it stands still or with him in it. |
 | `Mirror` (on the car) | `scripts/road/mirror.gd` | The rear-view mirror and the fourth passenger. A 320×112 picture, 42° across (keeping the width), drawn only while the mirror is on. It is 42° across rather than the plan's 30° vertical so that his own seat stays out of it. Her own fill light lights layer 11 alone. Its camera uses the player camera's shaders: its environment keeps the colour adjustment switched on but neutral. |
 | `Couple` (on the car) | `scripts/road/couple.gd` | Hafiz and Mei in the front seats, turning when they speak; Hafiz walks off and back, and Mei walks beside him. |
 | `Lorry` | `scripts/road/lorry.gd` | Passes in Mission 1; in the endings it comes down the walkers' lane and pulls up, yielding to anyone in its way. |
 | `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`, 1 m in from the lane's centre towards the line so that it shows past Mei's head. |
-| `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, the seven loops (`RoadAudio.LOOPS`), and `play_here`: one non-positional player for each sound played in his head (the look-back's stinger and her shriek). |
-| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, right behind him when he looks back (`lunge`), flying, catching someone, or coming for the camera. Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Her sounds are wet, but for the look-back's sting. |
+| `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, the seven loops (`RoadAudio.LOOPS`), and `play_here`: one non-positional player for each sound played in his head (the look-back's stinger and her shriek, which nothing reaches now that looking back kills him). |
+| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, flying, catching someone, or coming for the camera, which is also how he dies, on the road and in the flat (`come_for`, then `reached`). Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Behind a walker she is 18 m back with no rule broken and 4 m at her nearest (`her_near`), and closer as he stands still: `behind_distance(her_near, closing)` goes on to 1 m (`BEHIND_STILL`) as `closing` goes to 1, and `breathe()` is her breath there (`she_closes`). Her sounds are wet. She also has a look-back lunge (`lunge`), which nothing reaches now (below). |
 | `Endings` | `scripts/road/endings.gd` | The fruit stall, its bulb, the phones, Hafiz's walk and each ending's moments. |
 | `PauseMenu` | `scripts/ui/pause_menu.gd` | The flat's, with its web guard for a lost pointer lock. |
 
@@ -356,28 +484,18 @@ the fog, places the car, seats him and drives the loops.
   intestines hanging beneath it (`art/penanggal/`). In the `caught` ending a man is knocked down and a dark pool spreads
   under him (a shader in `her.gd`). Both stay out of every published image and the README, and the start card, the
   README and the itch page carry the warning (`docs/research/2026-11-06-gore-rules.md`).
-* **The look-back.** On the walk she follows him (`behind`), and each look back that counts (`her_lunges`) is the
-  game's jump-scare (`Penanggal.lunge`). In the same frame she is 0.45 m from his eyes to her skull's centre
-  (`LUNGE_AT`), in the middle of his view whether he looks up or down (the look counts on his yaw alone, so where he
-  looks outranks his eye height), upright and facing him: her head, crown to chin, fills 0.38 of his 72° view's height
-  there (measured on the `lunge` still; at 0.5 m it was 0.33), so size wins over distance. The stinger and her shriek play in his head (`RoadAudio.play_here`, not positional, so at
-  exactly their play levels) and "[She is right behind you.]" goes out on `subtitle_requested`.
-  Through the hold she goes where he goes (his eyes' place plus her first offset, which does not turn with his view), so
-  walking into her never takes his eyes inside her head. After 0.5 s (`LUNGE_HOLD`) she is `behind` again from where she
-  is, and goes back to where she follows at 6 m/s; a second look back during it starts it over. It only ever happens from `behind`, so never after the endings move her.
-  For it she carries her own fill: an unshadowed omni light off to her left, above her and a little in front, so her
-  eyes stay in deep sockets and her right cheek in shadow; dim (0.5) and steady,
-  that fades out as she goes back, by the share of the way left, and is off in every other place. Without it her
-  face, with his phone light off (it starts off), is a black shape in the fog. It lights render layer 12 alone, which
-  only her mesh is on. The warm-up's omni light draws her under it (an unshadowed omni light is one of its states).
+* **The look-back** used to be the walk's jump-scare: each look back that counted sent `her_lunges` and she lunged into his
+  face (`Penanggal.lunge`, with the stinger, her shriek and a fill light of her own on layer 12). Looking back kills him
+  now, so nothing sends `her_lunges`. `lunge`, her fill and the two sounds are still in the code and tested on their own
+  (`tests/integration/test_her.gd`); on the walk she follows (`behind`) and, when he dies, comes for his face.
 * **Render layer 11** (see the layers table) is the mirror's alone: the fourth passenger and the wet patch she leaves.
   The mirror's camera draws it, the player's camera (cull mask 1047551) leaves it out, except for the 0.3 s glimpse.
   In the warm-up only, a picture of a viewport goes on layer 20 (`PICTURE_LAYER`) so the mirror's camera leaves it
   out: drawn into its own viewport it would read the texture it writes, which WebGL refuses.
 * **Render layer 12** is hers (`Penanggal.LAYER`): her mesh is on it as well as layer 1, and her fill lights it alone,
   so it lights nothing else on the road.
-* **Sounds.** The road's sounds go through `EventBus.sound_requested` like the flat's, but for the look-back's sting,
-  which plays in his head (`RoadAudio.play_here`). The levels are in "Audio levels".
+* **Sounds.** The road's sounds go through `EventBus.sound_requested` like the flat's (`RoadAudio.play_here` plays one in
+  his head, and only the look-back's sting used it). The levels are in "Audio levels".
   The stall's sounds are played now: the lorry idling and braking, the phone ringing as a loop, her wet flap and drip.
 * **Text.** He never speaks: his options are captions he chooses between. Every line is a caption: `Name: "…"`
   for what is said, `[…]` for a sound or a thought.
@@ -398,10 +516,21 @@ clicked is not.
 ### Bots, stills and tools
 
 * `tests/sim/road_playthrough.gd` (`RoadPlaythrough`) plays the core headless with a `RoadStage`: three bots, on seeds
-  1147, 7 and 2026. `keeper` keeps every rule and ends `alive` with score 0, `wobbly` ends `saved` with 4 and `breaker`
-  ends `caught` with 16. They are bots, not people. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
-  minutes) on all three seeds. That is a lower bound for a person, because the bot answers in a second and walks
-  straight, and it is not a playtest.
+  1147, 7 and 2026. Since his own rules kill him, none of them breaks one, and none dies (`run()` returns `dead`, which
+  `test_no_bot_dies` checks). `keeper` keeps every rule of the others' too and ends `alive` with score 0; `wobbly`
+  overtakes at the third slow car and leaves Mei to open her door, and ends `saved` with 3; `breaker` stays silent
+  at every choice that is not one of his own rules, so Hafiz overtakes three times, Mei opens her door and looks back
+  twice, and it ends `caught` with 9. All three get in half a second after the car's prompt shows (the couple wait
+  10 s), lock the doors half a second after the lock's prompt (5 s) and keep walking at 2.2 m/s on the walk (the stand-still
+  clock is under 0.5 m/s for 5 s): the checks are against those clocks, not only the endings. They are bots, not people.
+  The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15 minutes) on all three seeds.
+  That is a lower bound for a person, because the bot answers in a second and walks straight, and it is not a playtest.
+* `tests/sim/playthrough.gd` (`Playthrough`) is the flat's three bots, and they keep the flat's rules too: when
+  `horror_event_started(&"visitor", …)` comes, every lit room's light and the phone light go off within 2 s; the bot
+  never opens the front door while a visit runs or in act 3 (and does not light rooms during a visit); and within half
+  a second of a `rattle` it turns to face it (`test_no_flat_bot_dies`). On seeds 3 and 5 the explorer, which goes out to
+  investigate a sound, meets an armed visitor (it died of `front_door` in both before the rules, and of `lights_on` if
+  it only kept the door shut); `test_a_bot_that_meets_a_visit_keeps_its_rules` runs them.
 * `tools/road_stills.sh <dir>` renders 49 stills of the road, one PNG per shot, and a contact sheet. Each starts its
   mission as `--mission` does and the simulation stands still. Stills made for checking stay out of the repository.
 * `-- --perf` runs `RoadPerf`, about 49 s through the road's heaviest moments, before the flat's tour
@@ -526,7 +655,8 @@ from being close to `max_db`, which is +3 dB, and that cap applies after the pla
 within about 1 m of his head is heard at its file level + 3 dB, whatever the table's arithmetic says. A sound placed at
 his camera, as the lorry passing is, is at distance 0, so it is capped whatever it is played at, for as long as it
 stays there. Rows marked † are those: the roof thump (0.4 m from his head), the window knock and the car doors (Mei's
-door and window are 1.2 m away; his own door is beside him) and the lorry passing. Their "Heard at" is
+door and window are 1.2 m away; his own door is beside him), the lorry passing, and her wet flap and breath when she comes
+for his face (0.6 m). Their "Heard at" is
 file + 3 dB, worked out from that rule. The knocks after the intercom's call are † too: at +8 the cap holds to 5.3 m,
 so at 3 m they are at it, but they are played at +8 only from the front door, 9.6 m and more away (see the key sounds).
 Her breath is the same when she comes to his face (0.6 m), and so is the wet
@@ -560,6 +690,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Engine dying (the road, in his head, so it rides with the car: `RoadAudio.play_here`) | −17.0 | 0 | −17.0 |
 | The voice behind him on the walk (the road) | −17.4 | 0 | −17.4 |
 | Phone ringing on the table (the road, loop: one ring) | −19.0 | 0 | −19.0 |
+| Car lock's clunk (the road: `car_door_close` at the lock, 0.78 m from his eyes, for `doors_locked`) | −17.0 | −14 | −19.3 at the lock (−31.0 at 3 m) |
 | Car door opened (the road) † | −23.0 | 0 | −20.0 |
 | Door closing | −20.6 | 0 | −20.6 |
 | Lorry's air brakes as it pulls up (the road) | −21.0 | 0 | −21.0 |
@@ -568,7 +699,10 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Bang Din, remembered (an echo) | −21.4 | 0 | −21.4 |
 | Door opening (the player) ※ | −14.3 | −8 | −22.3 |
 | Her wet flap behind him on the walk (the road) | −27.0 | +4 | −23.0 |
+| Her breath as she closes in behind him (the road, `she_closes`: `rattle` from where she hangs) | −27.0 | +4 | −23.0 |
 | Lorry's diesel idling (the road, loop: 60 firings) | −20.0 | −4 | −24.0 |
+| The neighbour's rattle in the doorway (the flat, acts 3 and 4: `EntityController.RATTLE_DB`) | −27.0 | +12 | −24.0, at the cap (file + 3) out to 8.5 m |
+| Her wet flap and her breath as she comes for his face (a death, on the road and in the flat) † | −27.0 | 0 | −24.0 |
 | Footsteps that aren't yours | −19.8 to −15.9 | −10 → −2 | −30 to −18, getting closer |
 | Your footsteps (walk / sprint / crouch) | −19.8 to −15.9 | −15 / −10 / −22 | about −33 / −28 / −40 |
 | Your footsteps on asphalt (the road: walk / sprint / crouch) | −20.7 to −17.8 | −15 / −10 / −22 | about −34 / −29 / −41 |
@@ -639,6 +773,9 @@ where each moment is heard; it is not a bound for every place, and for the thump
 | The engine dying | file −17.0 (a recording since 2026-11-08), played 0 in his head | the engine (−13.5) | 8.7 (the synthesised one) | 13.2, in the game | about 13 | −8.2 in the game |
 | Her wet flap behind him | played +4 (`Penanggal.BEHIND_DB`), 4.1 m from his eyes | his steps, and now the wind | 9.4 | 13.5 | about 13.3 | −9.7 |
 | The bedroom's thumps after the call | played +8 (`StoryDirector.KNOCK_AT_CALL_DB`) while he is at the front door; heard by the intercom, 11.6 m away | the flat's room tone, unchanged | 7.0 | | 12.3 | −10.3 (−8.8 at the entrance's nearest point) |
+| The neighbour's rattle in the doorway (the flat, acts 3 and 4) | file −27.0 (loudest 50 ms −26.7), played +12 (`EntityController.RATTLE_DB`) from the doorway, 1.5 m up: held at the cap out to 8.5 m | the flat's room tone, −37.9 to −40.1: the drone at tension 0.34 (−40.2 RMS) and, near the entrance, the corridor's hums | | | 10.2 to 11.9 at the far end of every room but the living room's: 10.1 and 9.0 there (8.3 and 8.5 m); 5.7 to 5.9 in the gap (12 m) | −7.8 |
+| Her breath as she closes in (the road, `she_closes`) | file −27.0, played +4 (`Penanggal.BEHIND_DB`) from where she hangs: 9.5 m behind him at her farthest, 2.6 m at her nearest | the wind (−49.8 RMS, its strongest second): he has stood still for 2.5 s, so there are no steps | | | 10.8 (9.5 m), 22.3 (2.6 m) | −7.3 |
+| The lock's clunk (the road, `doors_locked`) | file −17.0 (loudest 50 ms −14.6), played −14 at the lock, 0.78 m from his eyes | the wind seated (−55.8 RMS): the insects are off and the engine is dead | | | 35.7 | −8.8 |
 
 * **The rev** used to play from a pool player that stayed where it started, so the car left it, 5 m behind him by its
   loudest. Since 2026-11-08 it is a recording (README, Licence) of a car pulling hard, its revs climbing for about 3 s
@@ -682,6 +819,53 @@ where each moment is heard; it is not a bound for every place, and for the thump
   outside and −30 seated, as the insects drop 6 dB, so nothing starts at the quiet. Its strongest second outside is
   −49.8 dB RMS (−52.6 on average): 8 dB under his steps (−41.9 RMS as mixed) and 10 dB under the insects (−39.6). It
   raises the flap's bed by 0.6 dB.
+* **The deaths' sounds.** The three rows above were not recorded or mixed in Godot: "Expected" is arithmetic, by the
+  method the rows above use. The level is the sound's loudest 50 ms RMS (the files are measured with
+  `tools/gen_audio.py`'s `loudest_100ms_db`, and the same sum over 50 ms), plus its played level less 20·log10(d/3) with
+  the cap at +3 on that sum, plus 20·log10(1 − d/30) for the fade to the player's `max_distance`, less 3 dB because a
+  positional player is 3 dB under a non-positional one at the same level (the bed's levels are as mixed, so a positional
+  bed gets the same 3 dB). The same sum gives the "Her wet flap behind him" row's 13.3. A peak is the file's loudest
+  sample through the same gain, 1 dB under for all to one side, and the master's 0.8, summed with what plays under it as
+  if on one sample; the limit is −6.1 dBFS (0.495). A recording in Godot (Movie Maker, from the master) is the next step
+  and would replace "Expected" with "Mixed now".
+  * **The neighbour's rattle** is what he must turn to within 4 s, so it has to be heard from wherever he stands in his
+    room. Its file is quiet (−27.0), and a positional player holds the played level plus the gain from being close to
+    +3 dB (`max_db`): at 0 dB it holds only to 2.1 m, so it was 7.0 over the bed at the entrance (3.4 m from the door
+    to the room's far corner), 1.8 at the hallway's far end (6.2 m) and −3.0 at the living room's (8.5 m, the farthest
+    point of any of the six rooms from a doorway: the entrance 3.4 m, the kitchen 4.8, the bathroom 4.7, the bedroom
+    5.6, the hallway 6.2, B-11-07 5.1). At +12 the cap holds to 3·10^(9/20) = 8.5 m, so it is as loud as a positional player can make it
+    (file + 3, −24.0 at 3 m) in every room; +11 stops short of the living room's far corner. The bed is the flat's room tone in
+    acts 3 and 4: the drone is played at −30 + 18·tension (−23.9 at 0.34, the mean of the director's picks in those acts in
+    `docs/playthroughs.md`; −16.3 RMS in the file); the two corridor hums at −20 (unit size 2) are −42 at the entrance and
+    −59 in B-11-07 each, so together they add up to 2.3 dB to the drone at the entrance; the TV, fridge and fan are off by then (the fan 15 s into act 3, and
+    the first approach comes 25 s after act 3 begins). Two things keep it from the 10 dB bar everywhere. The far end of
+    the living room is 9.0 over from the hallway's doorway (8.5 m: the fade to 30 m costs 2.9 dB after the cap and no
+    play level can make up for it), and the gap, a 12 m corridor (15 m round its long variant) is 5.7 to 5.9 and 1.8 over. And
+    the bar moves with tension: at 0.45 (the highest tension at a pick in acts 3 and 4) every margin is 1.5 to 2.0 dB lower
+    (7.5 to 9.9 in the rooms), and at act 4's target, 0.7, the cap itself is only 3.7 to 5.6 dB over. None of this
+    is the play level's to fix: it is the file's level (a louder rattle would also change her breath, below) or a
+    sound that is not positional. The peak is the rattle at the cap (0.179 at the master, −14.9 dBFS), the flat's beds at
+    their loudest (0.130, the drone at full tension, as in the thumps row) and a walking step (0.100): 0.409, −7.8
+    dBFS, 1.7 dB inside the limit. The cap is why +12 costs nothing: no play level raises the peak.
+  * **Her breath as she closes in** (`she_closes`) comes when `closing` passes 0.5, so he has been under 0.5 m/s for
+    2.5 s: there are no steps in the second before, only the wind (−49.8 outside). She hangs 2.45 m above the road, 0.7 m
+    over his eyes, `behind_distance(her_near, 0.5)` behind him: 9.5 m with no rule of the others' broken
+    (her_near 0), 2.5 m with all of them. At +4 it is under the cap at 9.5 m and over it at 2.6 m. So it is 10.8 dB over the wind at her farthest
+    and 22.3 at her nearest, and needs no change: +4 is the flap's level on the walk. Her peak at 2.6 m is the breath
+    (0.169), her wet flap at the same distance (0.252) and the wind (0.010): 0.432, −7.3 dBFS, 1.2 dB inside the limit (with her
+    drip on the same sample too, which three independent timers make vanishingly unlikely, it would be −5.6).
+  * **The lock's clunk** is `car_door_close` played at −14 at the lock, 0.78 m from his eyes: being that close adds
+    11.7 dB, which puts its level at −2.3, under the +3 cap, so he hears it at −19.3 (−31.0 at 3 m), quieter than the car
+    door's −14.0. The bed is the wind seated (−55.8 RMS in its strongest second) with the insects stopped and the car dead.
+    The roof's thumps (2, 8 and 13 s into the thumps beat) cannot be under it: the prompt shows at the first, whose peak
+    is in its first 50 ms and which is under −39 dBFS in the file 0.3 s on, and the 5 s clock runs out at 7 s, before the
+    second. Its peak is 0.361 (−8.8 dBFS) with the wind under it.
+  * **Her wet flap and breath coming for his face** play at 0 dB 0.6 m from the camera (`CLOSE`), so they are at the cap
+    (file + 3, −24.0): the same on the road, where the caught ending already has her come for the camera, and in the flat,
+    where `rattle` and `wet_flap` are in `AudioDirector.SOUNDS`. A flap is 0.270 at the master (−11.4 dBFS) and the
+    breath 0.182 (−14.8). While she comes the beds are on: a flap and the beds' 0.130 is 0.400, −7.9 dBFS. At the arrival
+    the card and `AudioDirector.silence` stop the beds in the same frame the breath starts, so it is a breath and the
+    tail of a flap: 0.452, −6.9 dBFS, 0.8 dB inside the limit.
 
 The rows marked "after the road" are the flat's own sounds that the road changes (`bridge_sounds()` in `tools/gen_audio.py`).
 The thumps are `thump_roof`'s body at knock3's timing and the knock's level, so the story's bedroom knocks are the roof's
@@ -695,8 +879,10 @@ The "Heard at" levels compare like for like between the event sounds and the hom
 so any distance moves them by the same amount. The corridor hum uses 2, the tap keeps Godot's default, and the
 drone is not positional.
 
-Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pass, opening a door
-(−6.9 dB) was the loudest sound in the game, louder than the stinger and the slam.
+Every file peaks below 0 dBFS, and nothing is heard above its file level + 3 dB, whatever it is played at (the players'
+cap). The knocks after the intercom's call are played at +8 and the neighbour's rattle at +12 so that the cap holds from
+further away. Before this pass, opening a door (−6.9 dB) was the loudest sound in the game, louder than the stinger and
+the slam.
 
 ## Collision and render layers
 
@@ -709,7 +895,7 @@ Every file peaks below 0 dBFS and nothing is played above +3 dB. Before this pas
 |---|---|
 | 1 | everything the player's camera draws (Godot's default) |
 | 11 | mirror only: the road's fourth passenger and the wet patch she leaves (`Mirror`). The rear-view mirror's camera draws it; the player's camera (`scenes/player/player.tscn`, cull mask 1047551) leaves it out, except for her 0.3 s glimpse when he turns round to her. Her fill light lights layer 11 alone. |
-| 12 | the penanggal (`Penanggal.LAYER`), on it as well as layer 1: her own fill at the look-back lights layer 12 alone, so it lights her and nothing else. Every camera draws it. |
+| 12 | the penanggal (`Penanggal.LAYER`), on it as well as layer 1: her own fill (only the look-back lunge uses it, which nothing reaches now) lights layer 12 alone, so it lights her and nothing else. Every camera draws it. |
 
 Room membership comes from `ApartmentLayout.room_at(position)` (a point-in-rect test against the
 active variant's rects), not from Area3D triggers, so it is exact and identical in simulation.

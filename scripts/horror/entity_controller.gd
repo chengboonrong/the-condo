@@ -17,7 +17,7 @@ const MOVE_TIME := 12.0
 const FACE_SECONDS := 4.0  # how long he has, once it breathes in the doorway, to turn and look at it
 const RETREAT_TIME := 20.0
 const WATCH_DISTANCE := 2
-const RATTLE_DB := 0.0
+const RATTLE_DB := 12.0  # the +3 dB cap holds out to 8.5 m, the far end of the living room (docs/architecture.md, "Audio levels")
 const WARN := "[Something is breathing in the doorway behind you. Face it.]"  # the first time it comes
 const CAPTION := "[Breathing in the doorway]"  # every time after
 

@@ -9,14 +9,20 @@ extends RefCounted
 ##             once it has been stuck on it for a while; runs for the lift
 ##   passive   waits; every minute takes one step towards the objective; rarely interacts
 ##
+## All three keep the flat's rules, so none of them dies (`dead` is &""): when the visitor comes they put every light of
+## the flat and the phone's out within LIGHTS_OUT_AFTER, and during a visit and in act 3 they never open the front door;
+## in acts 3 and 4 they turn to a rattle within TURN_AFTER.
+##
 ## run(profile, seed, road_ending) returns the record the brief asks for: event sequence and count, director scores,
-## progression, completion and the errors/warnings logged during the run.
+## progression, completion, what killed it (`dead`) and the errors/warnings logged during the run.
 
 const DT := 0.1
 const WALK := 2.2
 const LIMIT := 40.0 * 60.0  # sim seconds before we call it stuck
 const RELUCTANCE := 45.0  # avoider: seconds on an objective before it gives in
 const PASSIVE_STEP := 60.0
+const LIGHTS_OUT_AFTER := 2.0  # seconds after the visitor comes: every light out (the rule's own limit is the 18 s to the feet)
+const TURN_AFTER := 0.5  # seconds after a rattle: he turns to it (the rule's limit is EntityController.FACE_SECONDS)
 ## From the bedroom end of the long corridor to the B-11-07 end.
 const GAP_LOOP: Array[Vector3] = [Vector3(7.72, 0, -2.7), Vector3(-1.3, 0, -2.7), Vector3(-1.3, 0, -8.7), Vector3(7.72, 0, -8.7)]
 
@@ -52,6 +58,7 @@ var heard_last_call := false  # the intercom's last call went out (only after so
 var heard_look_back := false  # the look-back line was said
 var _rattle_at := Vector3.ZERO  # where the neighbour breathed, and when the bot turns to it
 var _turn_due := INF
+var _visit_at := INF  # when the visitor last came
 var _next_turn := 8.0
 var _passive_next := PASSIVE_STEP
 
@@ -88,9 +95,10 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 	rt.start_story()
 	EventBus.sound_requested.connect(_on_sound)
 	EventBus.line_requested.connect(_on_line)
+	EventBus.horror_event_started.connect(_on_event_started)
 
 	var max_eval := 0
-	while WorldState.ending == &"" and WorldState.time < LIMIT:
+	while WorldState.ending == &"" and rt.dead == &"" and WorldState.time < LIMIT:
 		_act(DT)
 		_face_rattle()
 		rt.step(DT)
@@ -100,11 +108,12 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 	OS.remove_logger(catch)
 	EventBus.sound_requested.disconnect(_on_sound)
 	EventBus.line_requested.disconnect(_on_line)
+	EventBus.horror_event_started.disconnect(_on_event_started)
 	var result := {
 		"profile": profile, "seed": seed_value, "ending": WorldState.ending, "time": snappedf(WorldState.time, 0.1),
 		"events": events, "decisions": decisions, "progress": rt.story.progress, "signs": rt.story.signs(),
 		"clues": WorldState.clues.keys(), "errors": catch.errors, "warnings": catch.warnings,
-		"violations": violations, "max_eval_usec": max_eval, "behavior": rt.profiler.summary(),
+		"violations": violations, "max_eval_usec": max_eval, "behavior": rt.profiler.summary(), "dead": rt.dead,
 		"last_call": heard_last_call, "look_back": heard_look_back,
 	}
 	rt.free()
@@ -118,6 +127,8 @@ const RESULT_NAMES := {3: "completed", 4: "cancelled", 5: "failed"}
 
 func _act(dt: float) -> void:
 	stage.speed = 0.0
+	if _visiting() and WorldState.time - _visit_at >= LIGHTS_OUT_AFTER:
+		_lights_out()
 	if actions.is_empty():
 		_decide()
 		if actions.is_empty():
@@ -136,6 +147,10 @@ func _act(dt: float) -> void:
 			read[a["use"]] = true
 			EventBus.object_interacted.emit(a["use"])
 	elif a.has("go"):
+		if a.get("door") == &"main_door" and not WorldState.is_door_open(&"main_door") \
+				and (_visiting() or WorldState.act == WorldState.Act.IMPOSSIBLE):
+			actions.clear()  # a visit, or the knocking in act 3: he stays in and does not open the front door
+			return
 		var target: Vector3 = a["go"]
 		var to := Vector3(target.x - stage.position.x, 0, target.z - stage.position.z)
 		var step := WALK * dt
@@ -151,7 +166,7 @@ func _act(dt: float) -> void:
 		var room := ApartmentLayout.room_at(stage.position, WorldState.variants)
 		if room != &"":
 			WorldState.set_player_room(room)
-			if profile != "passive" and not WorldState.is_light_on(room) and ApartmentLayout.LIGHTS.get(room, {}).get("switch") != null:
+			if profile != "passive" and not _visiting() and not WorldState.is_light_on(room) and ApartmentLayout.LIGHTS.get(room, {}).get("switch") != null:
 				WorldState.set_light(room, true)  # explorers light rooms; avoiders only enter lit ones
 
 
@@ -201,7 +216,7 @@ func _on_sound(id: StringName, pos: Vector3, _db: float) -> void:
 	heard_last_call = heard_last_call or id == &"intercom_road"
 	if id == &"rattle":
 		_rattle_at = pos
-		_turn_due = WorldState.time + 0.5
+		_turn_due = WorldState.time + TURN_AFTER
 
 
 ## Like a player who hears something breathing in a doorway: within a second he turns to look at it
@@ -210,6 +225,24 @@ func _face_rattle() -> void:
 	if WorldState.time >= _turn_due:
 		_turn_due = INF
 		stage.yaw = atan2(-(_rattle_at.x - stage.position.x), -(_rattle_at.z - stage.position.z))
+
+
+func _on_event_started(event_id: StringName, _room: StringName) -> void:
+	if event_id == &"visitor":
+		_visit_at = WorldState.time
+
+
+## The visitor is at the door (from his chime until the feet are gone).
+func _visiting() -> bool:
+	return rt.scheduler.is_running(&"visitor")
+
+
+## Like a player told to switch everything off: every light of the flat and his phone's.
+func _lights_out() -> void:
+	stage.phone_light = false
+	for room: StringName in ApartmentLayout.APARTMENT_ROOMS:
+		if WorldState.is_light_on(room):
+			WorldState.set_light(room, false)
 
 
 func _on_line(text: String, _seconds: float) -> void:

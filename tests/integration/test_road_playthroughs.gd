@@ -18,6 +18,16 @@ func test_road_bots_reach_an_ending() -> bool:
 	return true
 
 
+## Every bot keeps his own rules, gets in within 10 s, locks the doors within 5 s of the thumps and keeps walking at the
+## light, so none of them dies: not on a rule, not on a clock.
+func test_no_bot_dies() -> bool:
+	for seed_value: int in SEEDS:
+		for profile: String in PROFILES:
+			var r: Dictionary = RoadPlaythrough.run(profile, seed_value)
+			eq(r["dead"], &"", "%s/%d is alive at the end" % [profile, seed_value])
+	return true
+
+
 func test_same_seed_same_road() -> bool:
 	var a: Dictionary = RoadPlaythrough.run("keeper", 1147)
 	var b: Dictionary = RoadPlaythrough.run("keeper", 1147)
@@ -28,7 +38,7 @@ func test_same_seed_same_road() -> bool:
 
 
 func test_each_bot_meets_its_ending() -> bool:
-	var want := {"keeper": [&"alive", 0], "wobbly": [&"saved", 4], "breaker": [&"caught", 16]}
+	var want := {"keeper": [&"alive", 0], "wobbly": [&"saved", 3], "breaker": [&"caught", 9]}
 	for seed_value: int in SEEDS:
 		for profile: String in PROFILES:
 			var r: Dictionary = RoadPlaythrough.run(profile, seed_value)

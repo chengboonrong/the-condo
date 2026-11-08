@@ -31,14 +31,16 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
 
 0. **The Road Down.** The game now starts here, before the flat. 12:06 AM at a mountain resort above KL. The last staff
    bus has gone, and Bang Din at the stall, the older colleague, has told him the road down has rules. A couple, Hafiz
-   and Mei, stop and give him a lift. He rides in the back seat and never drives. Five missions, each with rules to keep
-   (one weighted count of the broken ones decides the ending): **the lift** (wait for the car), **the slow car**
+   and Mei, stop and give him a lift. He rides in the back seat and never drives. Five missions, each with rules to keep.
+   Breaking one of his own rules, or being too slow, kills him: GAME OVER, then Try again at the start of the mission. The
+   rules of Hafiz and Mei that he fails to stop go into one weighted count that decides the ending: **the lift** (get in
+   the car within 10 s), **the slow car**
    (follow it, never overtake, however long), **the extra passenger** (a fourth in the mirror: don't turn round, don't
-   count her), **the car dies** (stay in, don't open the door, don't answer the voice) and **don't look back** (walk to
-   the light and keep Mei from looking). A penanggal, a flying head with its insides hanging beneath it, follows the
-   car. Breaking a rule costs something he can feel: thicker fog, her nearer, the same car ahead again. Three road
+   count her), **the car dies** (stay in, lock the doors when something lands on the roof, don't open the door, don't
+   answer the voice) and **don't look back** (walk to the light without stopping, and keep Mei from looking). A penanggal, a flying head with its insides hanging beneath it, follows the
+   car. A rule of theirs that breaks costs something he can feel: thicker fog, her nearer, the same car ahead again. Three road
    endings: all three get down alive, he gets Mei out, or she catches Hafiz and comes for the two of them. Every one
-   wakes him at home at 11:47 PM. Part 1 runs the flat unchanged after every road ending; part 2 will make it differ
+   wakes him at home at 11:47 PM. Part 1 runs the same flat after every road ending; part 2 will make it differ
    (see [architecture.md](architecture.md#the-road)).
 1. **The Complaint.** 11:47 PM, just home from a shift at the mamak on the corner. Wash up, lie down (this walks the player
    past the shoes, the tap and the chair that will later move). The intercom rings: Puan Rosnah from
@@ -54,6 +56,11 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
 4. **The Decision.** Inside B-11-07 the intercom rings again. Once the call is over, answer it by knocking back three
    times (ending: *Downstairs*), or don't: run, along a corridor that is now longer than before, to the lift (ending:
    *Vacant*).
+
+The flat has deaths too, each told first (Rosnah's last words in act 1, a line the first time the neighbour comes), and
+Try again puts him back at the start of the act: opening the front door while the visitor's feet are under it or while
+something knocks (act 3), leaving a light on, or his phone's, when the footsteps stop (act 2), and keeping his back to
+the neighbour breathing in a doorway for 4 s (acts 3 and 4). See [architecture.md](architecture.md#deaths-and-try-again).
 
 ## Known risks
 

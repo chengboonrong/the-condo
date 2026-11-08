@@ -4,6 +4,9 @@ extends TestCase
 ## both endings must be reached. Seeds other than the default show the fail-safes don't rely on luck.
 
 const SEEDS := [1147, 7, 2026]
+## The explorer meets an armed visitor in these (it answered Rosnah, and the footsteps come to the door), and goes out to
+## investigate: without the rules it dies of the front door, or of a light left on.
+const VISIT_SEEDS := [3, 5]
 
 
 func test_three_players_reach_both_endings() -> bool:
@@ -24,6 +27,26 @@ func test_three_players_reach_both_endings() -> bool:
 			if seed_value == SEEDS[0]:
 				print("    %s: %s at %.0f s, %d events, %d signs" % [tag, r["ending"], r["time"], r["events"].size(), r["signs"]])
 	check(endings.has(&"downstairs") and endings.has(&"vacant"), "both endings are reached (%s)" % endings)
+	return true
+
+
+## Opening the front door in a visit or in act 3, a light on when the feet stop, or his back to the breathing in the
+## doorway: all kill. The bots keep every rule, so none of them dies.
+func test_no_flat_bot_dies() -> bool:
+	for seed_value: int in SEEDS + VISIT_SEEDS:
+		for profile: String in ["explorer", "avoider", "passive"]:
+			var r: Dictionary = Playthrough.run(profile, seed_value)
+			eq(r["dead"], &"", "%s/%d is alive at the end (%s)" % [profile, seed_value, r["ending"]])
+	return true
+
+
+func test_a_bot_that_meets_a_visit_keeps_its_rules() -> bool:
+	for seed_value: int in VISIT_SEEDS:
+		var r: Dictionary = Playthrough.run("explorer", seed_value)
+		var visits: Array = r["events"].filter(func(e: Dictionary) -> bool: return e["id"] == &"visitor")
+		check(not visits.is_empty(), "explorer/%d meets the visitor" % seed_value)
+		eq(r["dead"], &"", "explorer/%d lives through it" % seed_value)
+		check(r["ending"] != &"", "explorer/%d reaches an ending after it" % seed_value)
 	return true
 
 

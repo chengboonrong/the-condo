@@ -19,23 +19,25 @@ Godot otherwise uses a square one, which sees less at the sides than a player do
 
 | Level | Where | Covers |
 |---|---|---|
-| The road, unit | `tests/unit/test_road_director.gd`, `test_road_layout.gd`, `test_lift_mission.gd`, `test_slow_car_mission.gd`, `test_count_mission.gd`, `test_stall_mission.gd`, `test_light_mission.gd` | the road's core with no nodes: the weighted rule count and the outcome thresholds, the choices (one open at a time, silence) and the look rule, the road's data, and each mission's beats, cues and what breaks its rules |
+| The road, unit | `tests/unit/test_road_director.gd`, `test_road_layout.gd`, `test_lift_mission.gd`, `test_slow_car_mission.gd`, `test_count_mission.gd`, `test_stall_mission.gd`, `test_light_mission.gd` | the road's core with no nodes: the weighted count of the others' rules and the outcome thresholds, the choices (3 s, one open at a time, silence) and the look rule, the road's data, each mission's beats and cues, what kills him (his own rules and the clocks: the lift's 10 s, the lock's 5 s, standing still for 5 s) and what Try again keeps |
 | The road, in the scene | `tests/integration/test_journey.gd`, `test_ride.gd`, `test_couple.gd`, `test_her.gd`, `test_mirror.gd`, `test_slow_car.gd`, `test_stall.gd`, `test_endings.gd`, `test_road_builder.gd`, `test_road_warm_up.gd` | the road hands over to the flat at 11:47 and both restarts go back to the road; he rides in the car; the penanggal's places and that she never passes through the car; the mirror shows the fourth passenger only while Mission 3 has it on; the lights, the roof and the three endings; the road built in code; every material drawn once behind the start card |
-| The road, simulated players | `tests/integration/test_road_playthroughs.gd` | three bots (`keeper`, `wobbly`, `breaker`, `tests/sim/road_playthrough.gd`) drive the road's core to `alive`, `saved` and `caught` on three seeds; same seed, same run |
+| The road, simulated players | `tests/integration/test_road_playthroughs.gd` | three bots (`keeper`, `wobbly`, `breaker`, `tests/sim/road_playthrough.gd`) drive the road's core to `alive`, `saved` and `caught` on three seeds, and none dies (`test_no_bot_dies`); same seed, same run |
+| Deaths and Try again | `tests/unit/test_road_director.gd`, `test_lift_mission.gd`, `test_count_mission.gd`, `test_stall_mission.gd`, `test_light_mission.gd`, `test_visitor.gd`, `test_entity.gd`, `test_story.gd`, `tests/integration/test_journey.gd`, `test_ride.gd`, `test_hud.gd` | each death happens, and in the core (the road's `die` and clocks, the visitor's front door and lights, the entity's rattle, act 3's front door), only after the warning where there is one; the GAME OVER card with the cause's line and Try again; Try again starts the mission or act he died in, with the road's kept count or the flat's snapshot |
 | The road's HUD | `tests/integration/test_hud.gd` | the start card says "blood and gore" on the road and on the flat (`test_start_card_warns_of_gore`); a choice stays open until the core closes it, even paused; stray keys do nothing; the choices fit the screen; what people say shows with captions off; a sound caption has its own line above and never cuts a spoken line short (`test_a_sound_caption_never_cuts_a_spoken_line`) |
 | Unit (the flat) | `tests/unit/` | room graph, event eligibility, cooldowns, utility scoring, behaviour aggregation, tension decay, lifecycle transitions, seeded selection |
 | Integration (the flat) | `tests/integration/` | doors, scheduling, world-state updates, room transformations, story progression, endings, a physics walk through every room |
 | Story | `tests/unit/test_story.gd` | act 1–3 fail-safes with an idle player, the reveal never in front of the player, noticing moved things, both endings and the decision fail-safe |
-| Simulated playthroughs | `tests/integration/test_playthroughs.gd` | Explorer, Avoider and Passive bots (`tests/sim/playthrough.gd`) driving the simulation core to an ending on three seeds; same seed, same run |
+| Simulated playthroughs | `tests/integration/test_playthroughs.gd` | Explorer, Avoider and Passive bots (`tests/sim/playthrough.gd`) driving the simulation core to an ending on three seeds, and none dies (`test_no_flat_bot_dies`: they put the lights out for the visitor, keep the front door shut in a visit and in act 3, and turn to the rattle); the explorer meets an armed visitor on seeds 3 and 5 and lives through it; same seed, same run |
 
 Simulated playthroughs are bots, not people. They are never reported as human playtests.
 `godot --headless --path . --script res://tools/playthroughs.gd` rewrites `docs/playthroughs.md` with each
-bot's event sequence, director scores, progression, completion, errors and warnings. The road's bots are checked by
-`test_road_playthroughs.gd` and write no record: the keeper ends `alive` with score 0, the wobbly one `saved` with 4 and
-the breaker `caught` with 16. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test accepts 7 to 15
-minutes), a lower bound for a person, because the bot answers in a second and walks straight.
+bot's event sequence, director scores, progression, completion, errors and warnings, and the road's bots. The road's
+bots are checked by `test_road_playthroughs.gd`: the keeper ends `alive` with score 0, the wobbly one `saved` with 3 and
+the breaker `caught` with 9, and none of them dies. The keeper reaches `alive` at 538 s of sim time (9.0 minutes; the test
+accepts 7 to 15 minutes), a lower bound for a person, because the bot answers in a second and walks straight.
 
-`docs/playthroughs.md` also has `## After the road`: the same three bots in the flat after each road ending
+`docs/playthroughs.md` also has `## Meeting the visitor` (the explorer on seeds 3 and 5, where an armed visitor comes) and
+`## After the road`: the same three bots in the flat after each road ending
 (`Playthrough.run(profile, seed, road_ending)`, which sets `Journey.road_ending` for the run and puts it back). Every
 row ends the flat (explorer `downstairs`, avoider `vacant`, passive `downstairs`) with no errors or warnings. The
 record is generated by the tool, not checked by the suite.
