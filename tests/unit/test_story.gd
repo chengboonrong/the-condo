@@ -23,6 +23,7 @@ func _setup(pos: Vector3) -> StoryDirector:
 	rt = HorrorRuntime.new()
 	rt.setup(stage, 3)
 	rt.start_story()
+	EventBus.sound_requested.connect(_turn_to_the_rattle)
 	return rt.story
 
 
@@ -61,7 +62,15 @@ func _on_sound(id: StringName, pos: Vector3, _db: float) -> void:
 	sounds.append([id, pos])
 
 
+## From act 3 the neighbour breathes in a doorway next to him, and a player who does not turn to it dies (EntityController).
+## These tests are about the story, so their player always does.
+func _turn_to_the_rattle(id: StringName, at: Vector3, _db: float) -> void:
+	if id == &"rattle":
+		stage.yaw = atan2(-(at.x - stage.position.x), -(at.z - stage.position.z))
+
+
 func _done() -> bool:
+	EventBus.sound_requested.disconnect(_turn_to_the_rattle)
 	if EventBus.line_requested.is_connected(_on_line):
 		EventBus.line_requested.disconnect(_on_line)
 		EventBus.subtitle_requested.disconnect(_on_subtitle)

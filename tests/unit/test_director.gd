@@ -175,11 +175,17 @@ func test_entity_never_enters_the_player_room() -> bool:
 	eq(WorldState.entity_state, &"observing", "act 2 never approaches")
 	WorldState.act = 3
 	var rooms: Array[StringName] = []
+	var turn := func(id: StringName, at: Vector3, _db: float) -> void:  # he turns to the sound, as he must
+		if id == &"rattle":
+			var stage := rt.ctx.stage
+			stage.yaw = atan2(-(at.x - stage.position.x), -(at.z - stage.position.z))
+	EventBus.sound_requested.connect(turn)
 	for i in 1200:
 		rt.step(0.1)
 		rooms.append(WorldState.entity_room)
 		if WorldState.entity_room == WorldState.player_room:
 			break
+	EventBus.sound_requested.disconnect(turn)
 	check(not rooms.has(WorldState.player_room), "never in the player's room")
 	check(rooms.has(&"hallway") or rooms.has(&"entrance"), "it came next door")
 	rt.entity.notice()

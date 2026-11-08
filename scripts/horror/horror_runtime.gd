@@ -32,6 +32,8 @@ func setup(stage: HorrorStage, seed_value: int) -> void:
 	ctx.rng = rng
 	profiler = BehaviorProfiler.new(graph)
 	entity = EntityController.new(graph, rng)
+	entity.stage = stage
+	entity.killed.connect(die)
 	transformer = RoomTransformer.new(graph, stage)
 	ctx.profiler = profiler
 	ctx.entity = entity
@@ -64,6 +66,8 @@ func step(delta: float) -> void:
 	WorldState.advance_time(delta)
 	profiler.observe(delta, ctx.stage.sample())
 	entity.tick(delta)
+	if dead != &"":  # it got him: the story and the scheduler do not run on after that
+		return
 	if story_running:
 		story.tick(delta)
 	scheduler.tick(delta)

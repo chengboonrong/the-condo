@@ -50,6 +50,8 @@ var decisions: Array[Dictionary] = []
 var violations: Array[String] = []
 var heard_last_call := false  # the intercom's last call went out (only after some roads of the road)
 var heard_look_back := false  # the look-back line was said
+var _rattle_at := Vector3.ZERO  # where the neighbour breathed, and when the bot turns to it
+var _turn_due := INF
 var _next_turn := 8.0
 var _passive_next := PASSIVE_STEP
 
@@ -90,6 +92,7 @@ func _run(profile_name: String, seed_value: int) -> Dictionary:
 	var max_eval := 0
 	while WorldState.ending == &"" and WorldState.time < LIMIT:
 		_act(DT)
+		_face_rattle()
 		rt.step(DT)
 		max_eval = maxi(max_eval, rt.director.max_eval_usec)
 		if WorldState.entity_room != &"" and WorldState.entity_room == WorldState.player_room and WorldState.entity_state != &"retreating":
@@ -194,8 +197,19 @@ func _exists(id: StringName) -> bool:
 	return ApartmentLayout.requires_met(objects[id][1], WorldState.variants)
 
 
-func _on_sound(id: StringName, _pos: Vector3, _db: float) -> void:
+func _on_sound(id: StringName, pos: Vector3, _db: float) -> void:
 	heard_last_call = heard_last_call or id == &"intercom_road"
+	if id == &"rattle":
+		_rattle_at = pos
+		_turn_due = WorldState.time + 0.5
+
+
+## Like a player who hears something breathing in a doorway: within a second he turns to look at it
+## (after the move, which turns him to where he walks).
+func _face_rattle() -> void:
+	if WorldState.time >= _turn_due:
+		_turn_due = INF
+		stage.yaw = atan2(-(_rattle_at.x - stage.position.x), -(_rattle_at.z - stage.position.z))
 
 
 func _on_line(text: String, _seconds: float) -> void:

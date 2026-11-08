@@ -20,6 +20,8 @@ const SOUNDS := {
 	&"thump3": preload("res://assets/audio/thump3.wav"),
 	&"thump1": preload("res://assets/audio/thump1.wav"),
 	&"intercom_road": preload("res://assets/audio/intercom_road.wav"),
+	&"rattle": preload("res://assets/audio/rattle.wav"),  # the neighbour in the doorway, and her breath when she comes for him
+	&"wet_flap": preload("res://assets/audio/wet_flap.wav"),  # her, as on the road
 }
 const STEPS := [
 	preload("res://assets/audio/footstep_1.wav"), preload("res://assets/audio/footstep_2.wav"),
