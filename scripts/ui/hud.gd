@@ -1,9 +1,11 @@
 class_name Hud
 extends CanvasLayer
 ## Crosshair, interaction prompt, objective, clock, subtitles, the road's choices, inspection panel, the peephole's
-## lens, the start card and a black card for scene changes.
+## lens, the start card, a black card for scene changes and the GAME OVER card.
 
 signal started
+## Try again was pressed on the GAME OVER card.
+signal retry_pressed
 
 const FILM_SHADER := """
 shader_type canvas_item;
@@ -83,6 +85,10 @@ var _ending: ColorRect
 var _ending_title: Label
 var _ending_text: Label
 var _ending_in := -1.0  # seconds until the ending card fades in
+var _game_over: ColorRect
+var _game_over_title: Label
+var _game_over_line: Label
+var _retry: Button
 var _lens: ColorRect
 var _lens_material := ShaderMaterial.new()
 var _lens_hint: Label
@@ -167,6 +173,7 @@ func _ready() -> void:
 	# The HUD only displays; clicks belong to the game's _unhandled_input (start, interact, phone light).
 	for c: Node in root.find_children("*", "Control", true, false):
 		(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_build_game_over(root)  # after the loop: its button takes the mouse. Last, so it is over everything else
 
 	EventBus.objective_changed.connect(func(t: String) -> void: _objective.text = t)
 	EventBus.subtitle_requested.connect(show_subtitle)
@@ -301,6 +308,32 @@ func _build_ending(root: Control) -> void:
 	again.modulate = Color(1, 1, 1, 0.5)
 
 
+## Opaque, and the last thing in the root: nothing of the prompt, the captions or the choices shows over it.
+func _build_game_over(root: Control) -> void:
+	_game_over = ColorRect.new()
+	_game_over.color = Color.BLACK
+	_game_over.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_game_over.visible = false
+	root.add_child(_game_over)
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.position = Vector2(-380, -120)
+	box.custom_minimum_size = Vector2(760, 240)
+	box.add_theme_constant_override("separation", 22)
+	_game_over.add_child(box)
+	_game_over_title = _label(box, 44, HORIZONTAL_ALIGNMENT_CENTER)
+	_game_over_title.text = "GAME OVER"
+	_game_over_line = _label(box, 20, HORIZONTAL_ALIGNMENT_CENTER)
+	_game_over_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_game_over_line.modulate = Color(1, 1, 1, 0.8)
+	_retry = Button.new()
+	_retry.text = "Try again"
+	_retry.custom_minimum_size = Vector2(200, 48)
+	_retry.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_retry.pressed.connect(retry_pressed.emit)
+	box.add_child(_retry)
+
+
 func is_ending_shown() -> bool:
 	return _ending.visible
 
@@ -375,6 +408,22 @@ func hide_card(seconds: float) -> void:
 
 func is_card_shown() -> bool:
 	return _card.visible
+
+
+## The death card: the cause's line and Try again, over everything. A choice or a caption still up is closed, and the
+## mouse is shown for the button (on the web that also lets go of the pointer lock).
+func show_game_over(line: String) -> void:
+	close_choices(_choice_id)
+	_subtitle.text = ""
+	_caption.text = ""
+	_game_over_line.text = line
+	_game_over.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_retry.grab_focus()
+
+
+func is_game_over_shown() -> bool:
+	return _game_over.visible
 
 
 func card_text() -> String:

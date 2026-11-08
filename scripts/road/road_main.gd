@@ -29,7 +29,7 @@ const CAPTIONS := {
 	&"knock_window": ["[Knocking on Mei's window]", 3.0],
 	&"lorry_stops": ["[A lorry pulls up]", 4.0],
 	&"overtake": ["[The engine roars.]", 2.5],
-	&"she_closes": ["[Breathing, right behind you]", 2.0],
+	&"she_closes": ["[Breathing, close behind you]", 2.0],
 }
 ## What each thump after the first is captioned as: the first landed, and now it moves about up there.
 const THUMP_AGAIN := ["[It moves on the roof.]", 2.5]
@@ -89,6 +89,7 @@ var _roar := 0.0  # seconds left of the overtake's rev, which the engine loop du
 var _duck := 0.0  # dB the engine loop is ducked by now, on its way to ROAR_DUCK or back to 0
 var _at_light := false  # the walk to the light (LightMission) is the core's mission
 var _captioned: Array[StringName] = []  # the sets (ONE_SET) captioned already
+var _retrying := false  # Try again loaded this scene: it starts at once, with no start card
 
 
 func _ready() -> void:
@@ -140,11 +141,22 @@ func _ready() -> void:
 	EventBus.choices_closed.connect(hud.close_choices)
 	EventBus.road_cue.connect(_on_cue)
 	EventBus.road_ended.connect(finish)
+	EventBus.player_died.connect(_on_died)
+	her.reached.connect(_on_her_reached)
+	hud.retry_pressed.connect(_on_retry, CONNECT_ONE_SHOT)  # a second press would reload the road from mission 1
 	# `-- --mission=N` / `?mission=N`: start at mission N (1 is the lift, and past the last is the last), as if every
 	# earlier one was kept. Without it, mission 1: the car and his seat are then where the road starts them, even on
 	# the start card, before the first mission begins.
 	var mission := Main.flag_value("mission")
-	director.start_at(clampi(int(mission) - 1, 0, director.missions.size() - 1) if mission.is_valid_int() else 0)
+	if Journey.retry_mission >= 0:  # Try again: the mission he died in, with the count it began with, whatever the flag says
+		_retrying = true
+		director.start_at(clampi(Journey.retry_mission, 0, director.missions.size() - 1))
+		director.restore(Journey.retry_broken)
+		Journey.retry_mission = -1
+		Journey.retry_broken = []
+		hud.show_card("")  # black while the warm-up runs, not the start card
+	else:
+		director.start_at(clampi(int(mission) - 1, 0, director.missions.size() - 1) if mission.is_valid_int() else 0)
 	pause = PauseMenu.new()
 	pause.name = "PauseMenu"
 	add_child(pause)
@@ -164,7 +176,10 @@ func _finish_loading() -> void:
 	await _compile_shaders()
 	loaded = true
 	hud.allow_start()
-	if Main.has_flag("smoke"):
+	if _retrying:
+		hud.start()
+		hud.hide_card(1.0)
+	elif Main.has_flag("smoke"):
 		_smoke()
 	elif Main.has_flag("perf"):
 		_automated = true
@@ -320,6 +335,23 @@ func _smoke() -> void:
 func finish(ending: StringName) -> void:
 	finished.emit(ending)
 	Journey.arrive(ending)
+
+
+## He died: he is held, and she comes for his face. The card follows once she is there.
+func _on_died(_cause: StringName) -> void:
+	player.input_enabled = false
+	her.come_for(player.camera)
+
+
+func _on_her_reached() -> void:
+	if director.dead != &"":  # not the caught ending's: that one has its own card
+		hud.show_card("")
+		hud.show_game_over(Journey.DEATHS[director.dead])
+
+
+## The scene is freed by the change: the director's count is read first.
+func _on_retry() -> void:
+	Journey.retry_road(director.mission_index, director.broken_at_start)
 
 
 func _on_cue(cue: StringName) -> void:

@@ -11,11 +11,17 @@ func _begin() -> void:
 	_was_ending = Journey.road_ending
 	Journey.change_scenes = false
 	Journey.road_ending = &""
+	Journey.retry_mission = -1
+	Journey.retry_broken = []
+	Journey.flat_retry = {}
 
 
 func _end() -> void:
 	Journey.change_scenes = _was_changing
 	Journey.road_ending = _was_ending
+	Journey.retry_mission = -1
+	Journey.retry_broken = []
+	Journey.flat_retry = {}
 
 
 ## Both scenes set `loaded` once their warm-up is done.
@@ -230,5 +236,46 @@ func test_the_card_fades_out_over_the_labels_and_under_the_subtitles() -> bool:
 	hud.hide_card(0.0)
 	check(not hud.is_card_shown(), "no seconds, no fade")
 	road.queue_free()
+	_end()
+	return true
+
+
+## Try again on the road: the mission he died in (0-based) and the count it began with, kept apart from the director that
+## is about to be freed.
+func test_retry_road_carries_the_mission_and_the_count() -> bool:
+	_begin()
+	eq(Journey.retry_mission, -1, "no retry to begin with")
+	var kept: Array[Dictionary] = [{"rule": &"overtook", "weight": 1, "t": 12.0, "mission": 1}]
+	Journey.retry_road(3, kept)
+	eq(Journey.retry_mission, 3, "the mission")
+	eq(Journey.retry_broken, kept, "and the count")
+	kept.clear()
+	eq(Journey.retry_broken.size(), 1, "a copy: the old director's own count does not change it")
+	_end()
+	return true
+
+
+## Try again in the flat keeps how the road ended: the flat wakes as it did.
+func test_retry_flat_keeps_the_road_ending() -> bool:
+	_begin()
+	Journey.road_ending = &"saved"
+	Journey.retry_flat({"clock": 1234})
+	eq(Journey.flat_retry, {"clock": 1234}, "the snapshot")
+	eq(Journey.road_ending, &"saved", "and the road's ending")
+	_end()
+	return true
+
+
+func test_restart_clears_every_retry() -> bool:
+	_begin()
+	var kept: Array[Dictionary] = [{"rule": &"overtook", "weight": 1, "t": 12.0, "mission": 1}]
+	Journey.road_ending = &"caught"
+	Journey.retry_road(3, kept)
+	Journey.retry_flat({"clock": 1234})
+	Journey.restart()
+	eq(Journey.retry_mission, -1, "no mission")
+	eq(Journey.retry_broken.size(), 0, "no count")
+	eq(Journey.flat_retry, {}, "no flat snapshot")
+	eq(Journey.road_ending, &"", "and the road's ending")
 	_end()
 	return true

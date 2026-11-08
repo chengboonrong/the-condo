@@ -105,7 +105,7 @@ func test_her_breath_on_the_cue_is_behind_him_and_captioned() -> bool:
 	EventBus.sound_requested.disconnect(on_sound)
 	EventBus.subtitle_requested.disconnect(on_caption)
 	eq(heard, [[&"rattle", road.her.global_position, Penanggal.BEHIND_DB]], "her breath, from where she hangs behind him, at her behind level")
-	eq(captions, [["[Breathing, right behind you]", 2.0]], "captioned each time")
+	eq(captions, [["[Breathing, close behind you]", 2.0]], "captioned each time")
 	check(not RoadMain.ONE_SET.has(&"she_closes"), "and not as a set")
 	road.queue_free()
 	Journey.change_scenes = was_changing

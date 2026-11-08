@@ -286,3 +286,64 @@ func test_start_card_warns_of_gore() -> bool:
 		scene.queue_free()
 		await tree.process_frame
 	return true
+
+
+var _retried := 0
+
+
+func _on_retry() -> void:
+	_retried += 1
+
+
+## GAME OVER: an opaque black card over every other element of the HUD, the cause's line under the title, and a
+## Try again button the mouse can press (the mouse is shown again: on the web that also lets go of the pointer lock).
+func test_game_over_shows_its_title_line_and_try_again() -> bool:
+	var hud := Hud.new()
+	tree.root.add_child(hud)
+	await tree.process_frame
+	check(not hud.is_game_over_shown(), "not before a death")
+	var mode := Input.mouse_mode
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	hud.show_game_over("[You looked back.]")
+	check(hud.is_game_over_shown(), "shown")
+	eq(hud._game_over_title.text, "GAME OVER", "with its title")
+	eq(hud._game_over_line.text, "[You looked back.]", "and the line it was given")
+	eq(Input.mouse_mode, Input.MOUSE_MODE_VISIBLE, "the mouse is back")
+	near(hud._game_over.color.a, 1.0, 0.001, "the card is opaque")
+	eq(hud._game_over.get_index(), hud._game_over.get_parent().get_child_count() - 1, "and the last child: over the prompt, the captions, the choices, every card")
+	await tree.process_frame  # laid out
+	hud.retry_pressed.connect(_on_retry)
+	_retried = 0
+	var at := hud._retry.get_global_rect().get_center()
+	check(hud.get_viewport().get_visible_rect().has_point(at), "the button is on screen (%s)" % at)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.position = at
+	click.pressed = true
+	tree.root.push_input(click, true)
+	click = click.duplicate()
+	click.pressed = false
+	tree.root.push_input(click, true)
+	eq(_retried, 1, "a click on Try again emits retry_pressed, once")
+	Input.mouse_mode = mode
+	hud.queue_free()
+	return true
+
+
+## A choice or a caption that is up when he dies is closed, not left to show over the card.
+func test_game_over_closes_choices_and_captions() -> bool:
+	var hud := Hud.new()
+	tree.root.add_child(hud)
+	await tree.process_frame
+	hud.show_choices(&"t", PackedStringArray(["\"Don't.\"", "\"Go.\""]))
+	hud.show_subtitle("Mei: \"That's him! I'm opening\u2014\"", 30.0, true)
+	hud.show_subtitle("[Knocking on Mei's window]", 30.0)
+	check(hud.is_choosing() and hud._subtitle.text != "" and hud._caption.text != "", "a choice, a line and a caption are up")
+	hud.show_game_over("[You opened the door.]")
+	check(not hud.is_choosing(), "the choice is closed")
+	eq(hud._subtitle.text, "", "the line is cleared")
+	eq(hud._caption.text, "", "and the caption")
+	for over: Control in [hud._choices, hud._subtitle, hud._caption]:
+		check(hud._game_over.get_index() > over.get_index(), "%s is under the card" % over.name)
+	hud.queue_free()
+	return true

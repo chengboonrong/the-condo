@@ -20,13 +20,19 @@ func _car() -> CarRig:
 func _road() -> RoadMain:
 	_was_changing = Journey.change_scenes
 	Journey.change_scenes = false
+	var road := await _road_loaded()
+	road.hud.start()
+	return road
+
+
+## The road scene, warmed up, not started: as Try again loads it.
+func _road_loaded() -> RoadMain:
 	var road: RoadMain = load(Journey.ROAD_SCENE).instantiate()
 	tree.root.add_child(road)
 	for i in 600:
 		if road.loaded:
 			break
 		await tree.process_frame
-	road.hud.start()
 	return road
 
 
@@ -316,3 +322,93 @@ func test_the_engine_ducks_under_the_overtake() -> bool:
 func _secs(s: float) -> void:
 	for i in roundi(s * 60.0):
 		await tree.process_frame
+
+
+## The count of a kept list.
+func _score(kept: Array[Dictionary]) -> int:
+	var total := 0
+	for b: Dictionary in kept:
+		total += b["weight"]
+	return total
+
+
+## He dies in the walk: it is quiet until she reaches him, then the card, with the cause's line, and nothing of the road
+## left over it. A choice and a caption that were up are gone. Its button works in the road itself.
+func test_a_death_shows_game_over_once_she_reaches_him() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(4)  # mission 5, the walk to the light
+	await _secs(0.2)
+	road.director.ask(&"t", PackedStringArray(["\"Don't.\"", "\"Go.\""]), 30.0, PackedInt32Array([0]), &"r")
+	EventBus.subtitle_requested.emit("[Breathing, close behind you]", 30.0)
+	check(road.hud.is_choosing() and road.hud._caption.text != "", "a choice and a caption are up")
+	road.director.die(&"looked_back")
+	await _secs(0.2)
+	check(not road.player.input_enabled, "he is held")
+	check(not road.hud.is_game_over_shown(), "no card before she reaches him")
+	var shown := await _until(func() -> bool: return road.hud.is_game_over_shown(), 10.0)
+	check(shown, "the card comes up within 10 s")
+	eq(road.hud._game_over_line.text, Journey.DEATHS[&"looked_back"], "with the cause's line")
+	check(not road.hud.is_choosing(), "no choice left")
+	eq(road.hud._caption.text, "", "no caption")
+	eq(road.hud._subtitle.text, "", "and no line")
+	check(road.hud.is_card_shown(), "the black card is under it")
+	await _secs(0.1)  # laid out
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.position = road.hud._retry.get_global_rect().get_center()
+	click.pressed = true
+	tree.root.push_input(click, true)
+	click = click.duplicate()
+	click.pressed = false
+	tree.root.push_input(click, true)
+	eq(Journey.retry_mission, 4, "a click on Try again in the road itself retries mission 5")
+	Journey.retry_mission = -1  # nobody loads the road here
+	Journey.retry_broken = []
+	_done(road)
+	return true
+
+
+## Try again loads the road at the mission he died in, with the count it began with, and he is playing at once: no start
+## card, only a black card that fades.
+func test_try_again_starts_the_mission_with_its_count() -> bool:
+	_was_changing = Journey.change_scenes
+	Journey.change_scenes = false
+	var kept: Array[Dictionary] = [{"rule": &"overtook", "weight": 1, "t": 12.0, "mission": 1}]
+	Journey.retry_road(3, kept)
+	var road := await _road_loaded()
+	eq(road.director.mission_index, 3, "the mission he died in")
+	eq(road.director.score(), 1, "with the count it began with")
+	eq(Journey.retry_mission, -1, "the retry is used up")
+	eq(Journey.retry_broken.size(), 0, "with its count")
+	check(not road.hud.is_on_start_card(), "no start card")
+	check(road.player.input_enabled, "he is back in play")
+	var gone := await _until(func() -> bool: return not road.hud.is_card_shown(), 3.0)
+	check(gone, "and the black card fades away")
+	_done(road)
+	return true
+
+
+## He dies after Mei opens the door, twice in a row: the count each retry starts with is the mission start's, not the
+## count he died with.
+func test_two_retries_keep_the_mission_start_count() -> bool:
+	_was_changing = Journey.change_scenes
+	Journey.change_scenes = false
+	var kept: Array[Dictionary] = [{"rule": &"overtook", "weight": 1, "t": 12.0, "mission": 1}]
+	Journey.retry_road(3, kept)
+	var road := await _road_loaded()
+	for attempt in 2:
+		await _secs(0.2)  # the mission begins
+		eq(road.director.score(), 1, "attempt %d: the kept count" % attempt)
+		road.director.break_rule(&"mei_opened", 2)
+		eq(road.director.score(), 3, "attempt %d: Mei opens" % attempt)
+		road.director.die(&"opened_door")
+		var shown := await _until(func() -> bool: return road.hud.is_game_over_shown(), 10.0)
+		check(shown, "attempt %d: the card" % attempt)
+		road.hud.retry_pressed.emit()
+		eq([Journey.retry_mission, _score(Journey.retry_broken)], [3, 1], "attempt %d: Try again keeps the mission start's count" % attempt)
+		road.queue_free()
+		await tree.process_frame
+		road = await _road_loaded()
+	eq([road.director.mission_index, road.director.score()], [3, 1], "the third try starts as the first did")
+	_done(road)
+	return true
