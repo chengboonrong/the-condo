@@ -504,13 +504,17 @@ func test_the_choice_opens_only_after_the_call_and_the_call_follows_the_road() -
 				check(_until(func() -> bool: return rt.scheduler.is_running(&"phone_ring"), 10.0), "%s: the intercom rings" % road)
 				check(not story.choice_open(), "%s: ringing is not the choice" % road)
 				EventBus.object_interacted.emit(&"intercom_mirror")
-				check(story.choice_open(), "%s: answered, the choice opens" % road)
+				check(not story.choice_open(), "%s: answered, the lines come before the choice" % road)
+				eq(WorldState.objective, "", "%s: answering the intercom is done" % road)
+				EventBus.object_interacted.emit(&"mirror_wall")
+				EventBus.object_interacted.emit(&"lift_button")
+				eq(WorldState.ending, &"", "%s: no ending while the call is queued" % road)
 			else:
 				check(not _until(func() -> bool: return story.choice_open(), 39.5), "%s: unanswered, not before 40 s" % road)
-				check(_until(func() -> bool: return story.choice_open(), 1.0), "%s: unanswered, at 40 s" % road)
+			check(_until(func() -> bool: return story.choice_open(), 30.0), "%s/%s: the choice opens after the lines" % [road, answer])
+			check(story._lines.is_empty() and story._line_left <= 0.0, "%s/%s: every line is over" % [road, answer])
 			eq(WorldState.prompts.get(&"mirror_wall"), "Answer it: knock back three times", "%s/%s: knock" % [road, answer])
 			eq(WorldState.prompts.get(&"lift_button"), "Don't answer: take the lift", "%s/%s: lift" % [road, answer])
-			_wait(30.0)
 			var rule := "[Don't answer, Bang Din said. Even if it sounds like %s.]" % ("Hafiz" if road == &"saved" else "you")
 			eq(lines.count(rule), 1 if road != &"" else 0, "%s/%s: Bang Din's rule after the road only" % [road, answer])
 			if answer:
@@ -521,6 +525,28 @@ func test_the_choice_opens_only_after_the_call_and_the_call_follows_the_road() -
 				check(lines.find(rule) > lines.find("[It's Hafiz's voice.]" if hafiz else "[It's your voice.]") or road == &"", "%s: the rule after the voice: %s" % [road, lines])
 			story.debug_skip()  # ends it: a story left open would still take the next one's wall
 			_done()
+	return true
+
+
+func test_answering_after_the_choice_opens_does_not_repeat_the_rule() -> bool:
+	for road: StringName in [&"caught", &"saved", &"alive", &""]:
+		WorldState.reset()
+		lines.clear()
+		var story := _setup(Vector3(8.0, 0, -16.0))  # B-11-07
+		story.road = road
+		_listen()
+		for i in 3:
+			story.debug_skip()
+		_wait(41.0)
+		check(_until(func() -> bool: return story.choice_open(), 30.0), "%s: the fallback opens the choice" % road)
+		check(rt.scheduler.is_running(&"phone_ring"), "%s: it still rings (90 s)" % road)
+		EventBus.object_interacted.emit(&"intercom_mirror")
+		check(WorldState.has_flag(&"answered_mirror"), "%s: the late call is answered" % road)
+		_wait(30.0)
+		var rule := "[Don't answer, Bang Din said. Even if it sounds like %s.]" % ("Hafiz" if road == &"saved" else "you")
+		eq(lines.count(rule), 1 if road != &"" else 0, "%s: a late answer never repeats Bang Din's rule" % road)
+		story.debug_skip()
+		_done()
 	return true
 
 

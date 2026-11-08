@@ -223,8 +223,10 @@ func tick(delta: float) -> void:
 			if _once("ring", 5.0):
 				scheduler.request(&"phone_ring", {"anchor": &"phone_mirror", "stop_flag": &"answered_mirror"})
 				WorldState.set_objective("Answer the intercom.")
-			if _once("choice", 40.0):
+			if not _fired.has("choice") and (WorldState.has_flag(&"answered_mirror") or t >= 40.0):
 				_offer_choice()
+			if _fired.has("choice") and not _fired.has("open") and _lines.is_empty() and _line_left <= 0.0:
+				_open_choice()
 			if _once("knocks", 120.0):
 				scheduler.request(&"knock_wall", {"anchor": &"knock_mirror"}, 5)
 			if t >= DECISION_WAIT:
@@ -353,18 +355,23 @@ func _start_act4() -> void:
 	_go(&"decision")
 
 
-## Knock back or take the lift: open only after the call (answered, or 40 s on), with Bang Din's rule after the road.
+## The call is over, answered or not (40 s on): Bang Din's rule after the road. Then _open_choice, once it is said.
 func _offer_choice() -> void:
 	_fired["choice"] = true
-	WorldState.set_prompt(&"mirror_wall", "Answer it: knock back three times")
-	WorldState.set_prompt(&"lift_button", "Don't answer: take the lift")
-	WorldState.set_objective("Answer it: knock back on the wall. Or don't: the lift is working.")
 	if road != &"":
 		say("[Don't answer, Bang Din said. Even if it sounds like %s.]" % ("Hafiz" if road == &"saved" else "you"), 4.0, true)
 
 
+## Knock back or take the lift, once every line is over.
+func _open_choice() -> void:
+	_fired["open"] = true
+	WorldState.set_prompt(&"mirror_wall", "Answer it: knock back three times")
+	WorldState.set_prompt(&"lift_button", "Don't answer: take the lift")
+	WorldState.set_objective("Answer it: knock back on the wall. Or don't: the lift is working.")
+
+
 func choice_open() -> bool:
-	return WorldState.act == WorldState.Act.DECISION and _fired.has("choice")
+	return WorldState.act == WorldState.Act.DECISION and _fired.has("open")
 
 
 func _end(ending_id: StringName, line := "") -> void:
@@ -490,7 +497,7 @@ func _answer_upstairs() -> void:
 		say("\"This is upstairs. 12-07.\"", 3.0)
 		say("\"Can you please stop the knocking?\"", 3.5)
 		say("[It's your voice.]", 3.0, true)
-	_offer_choice()
+	WorldState.set_objective("")
 
 
 func _on_room_entered(room_id: StringName) -> void:

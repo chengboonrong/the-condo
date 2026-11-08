@@ -133,8 +133,8 @@ voice, or Hafiz's after `saved`. `StoryDirector.ending_card(ending, road)` gives
 text: `caught` adds to or edits today's text, `saved` and `alive` have their own. With no road (the flat opened
 directly) every line is as before.
 
-In B-11-07 the two endings open only after the call, answered or not (`StoryDirector.choice_open()`, 40 s on at the
-latest): until then the wall is only cold and the lift is out of order. Then knocking back is answering it and the lift
+In B-11-07 the two endings open only once the call is over and every line said, answered or not (unanswered, 40 s
+on; `StoryDirector.choice_open()`): until then the wall is only cold and the lift is out of order. Then knocking back is answering it and the lift
 is not answering, with Bang Din's rule as a thought after the road. Waiting out `DECISION_WAIT` still ends it.
 
 The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
