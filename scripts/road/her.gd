@@ -40,6 +40,7 @@ const FADE := 0.1  # seconds she takes to come out of the fog, and to go back in
 const GLIMPSE_FOG := 0.1
 const ABOVE_ROAD := 2.45  # her skull above the road behind a walker: the ends of her insides just clear it
 const BEHIND := Vector2(18.0, 4.0)  # metres behind a walker along the road, from no rule broken to her nearest
+const BEHIND_STILL := 1.0  # and as near as she comes when he has stood still long enough (RoadDirector.closing 1)
 const FOLLOW := 6.0  # m/s at most, keeping behind a walker
 const SPEED := 6.0  # m/s, coming for the camera
 const LOW_IN := 2.0  # metres from the camera she comes down from ABOVE_ROAD to its height
@@ -345,7 +346,7 @@ func on_roof(car: CarRig) -> void:
 
 ## On the road behind the walker along the road, on his line, high enough that what hangs from her clears it: 18 m
 ## back with no rule broken, 4 m at her nearest (RoadDirector.her_near, read as he walks, so a rule he breaks on the
-## way brings her gliding in).
+## way brings her gliding in, and so does his standing still).
 func behind(walker: Node3D) -> void:
 	var was := _mode == &"behind"
 	_target = walker
@@ -514,8 +515,13 @@ func _feed(delta: float) -> void:
 func _behind_point() -> Vector3:
 	var at := _target.global_position
 	var s := RoadLayout.closest_s(at)
-	var back := lerpf(BEHIND.x, BEHIND.y, director.her_near)
+	var back := behind_distance(director.her_near, director.closing)
 	return RoadLayout.point(s - back, RoadLayout.across(at, s)) + Vector3.UP * ABOVE_ROAD
+
+
+## Metres behind a walker along the road: BEHIND by her_near, and on towards BEHIND_STILL as `closing` goes to 1.
+static func behind_distance(her_near: float, closing: float) -> float:
+	return lerpf(lerpf(BEHIND.x, BEHIND.y, her_near), BEHIND_STILL, closing)
 
 
 ## How far ahead of the car, along the road, her glimpse is.

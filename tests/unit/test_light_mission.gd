@@ -4,6 +4,7 @@ extends TestCase
 ## 30 m short of the light the road's count decides how it ends; that ending plays, and the road is over.
 
 const RECALL := "[Bang Din: \"When it goes quiet, walk to the light. Whatever is behind you, don't look back.\"]"
+const KEEP_WALKING := "[Bang Din: \"And keep walking. Stop, and it catches up.\"]"
 const VOICE := "[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]"
 const LOOKS := "[Mei looks back.]"
 const OPTIONS := ["\"Don't look. Hold my hand.\"", "\"Maybe it's him.\""]
@@ -125,6 +126,14 @@ func _play(answers: Dictionary, looks: Array = [], limit := 300.0) -> void:
 		d.step(0.1)
 		if m.beat != &"walk" and m.beat != &"get_out" and is_nan(walk_ended_s):
 			walk_ended_s = RoadLayout.closest_s(stage.position)
+
+
+## `seconds` of 0.1 s steps from beside the car, he creeping on at `pace` m/s along the road (0: the stage stays put).
+func _creep(pace: float, seconds: float) -> void:
+	for i in roundi(seconds / 0.1):
+		if pace > 0.0:
+			stage.position = RoadLayout.point(RoadLayout.closest_s(stage.position) + pace * 0.1, BESIDE)
+		d.step(0.1)
 
 
 func _rules() -> Array:
@@ -273,5 +282,59 @@ func test_every_choice_closes_after_three_seconds() -> bool:
 	for i in 2:
 		d.step(0.1)
 	eq(d.pending, &"", "closed after 3.1 s")
+	_teardown()
+	return true
+
+
+## Seated, Bang Din's rule comes back to him, and straight after it what to do on the walk.
+func test_bang_din_says_keep_walking() -> bool:
+	_setup()
+	for i in 70:
+		d.step(0.1)
+	eq(lines.slice(0, 2), [[RECALL, &""], [KEEP_WALKING, &""]], "keep walking follows the rule, a thought with no speaker")
+	_teardown()
+	return true
+
+
+func test_standing_still_for_five_seconds_kills_him() -> bool:
+	_setup(false)  # standing beside the car: he walks at once
+	_creep(0.0, 4.9)
+	eq(d.dead, &"", "alive at 4.9 s")
+	near(d.closing, 0.98, 0.001, "and she is that near")
+	_creep(0.0, 0.2)  # 5.0 s, give or take the step: fifty sums of 0.1 do not come to exactly 5
+	eq(d.dead, &"stood_still", "dead at 5.0 s")
+	eq(d.score(), 0, "and it counts for nothing")
+	_teardown()
+	return true
+
+
+func test_walking_slowly_brings_her_closer_and_walking_sends_her_back() -> bool:
+	_setup(false)
+	_creep(0.2, 2.5)  # under MIN_PACE
+	near(d.closing, 0.5, 0.05, "half the time to the kill: she is half way")
+	_creep(WALK, 0.1)
+	eq(d.closing, 0.0, "one step at a walk and she is back")
+	eq(d.dead, &"", "and he is alive")
+	_teardown()
+	return true
+
+
+func test_no_still_check_once_the_ending_is_decided() -> bool:
+	_setup(false)
+	for i in 2000:  # at a walk to 0.4 m short of where it is decided
+		if RoadLayout.closest_s(stage.position) >= d.light_s - LightMission.DECIDE - 0.4:
+			break
+		_creep(WALK, 0.1)
+	_creep(0.2, 1.0)
+	check(d.closing > 0.0, "slow, she comes in (%.2f)" % d.closing)
+	for i in 100:
+		if _mission()._decided != &"":
+			break
+		_creep(0.2, 0.1)
+	check(_mission()._decided != &"", "and then it is decided")
+	eq(d.closing, 0.0, "the step the ending is decided, she is back")
+	_creep(0.0, 10.0)
+	eq(d.dead, &"", "standing still 10 s now does not kill him")
+	eq(d.closing, 0.0, "nor bring her in")
 	_teardown()
 	return true

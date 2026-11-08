@@ -16,9 +16,12 @@ extends RoadMission
 const DOOR := &"car_door_inside"
 const RECALL := "[Bang Din: \"When it goes quiet, walk to the light. Whatever is behind you, don't look back.\"]"
 const OBJECTIVE := "Walk to the light. Don't look back."
+const KEEP_WALKING := "[Bang Din: \"And keep walking. Stop, and it catches up.\"]"
 const VOICE := "[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]"
 const LOOKS := "[Mei looks back.]"  # seen or not: she is at his side, out of his view ahead
 const ASKS := [[&"mei_look_1", 0.3], [&"mei_look_2", 0.65]]  # [choice, share of the way]: the voice, and Mei wants to look
+const STILL_SECONDS := 5.0  # seconds in a row under MIN_PACE: she catches him
+const MIN_PACE := 0.5  # m/s along the road; slower is standing still
 const DECIDE := 30.0  # metres short of the light: the ending is decided
 const THERE := 4.0  # metres short of it: they are there
 ## Seconds into each ending.
@@ -40,6 +43,8 @@ var _from_s := NAN  # where along the road he set off from
 var _asking: StringName = &""  # the choice open now, or answered and not yet seen to
 var _asked := 0  # of ASKS
 var _decided: StringName = &""
+var _last_s := NAN  # where along the road he was at the last step of the walk
+var _still := 0.0  # seconds he has been under MIN_PACE, in a row
 
 
 ## Out of the car already, standing beside his door: the car dead on the long straight, the light 150 m on.
@@ -54,10 +59,13 @@ func set_up_skipped() -> void:
 
 func begin() -> void:
 	_from_s = NAN
+	_last_s = NAN
 	_asking = &""
 	_asked = 0
 	_decided = &""
+	_still = 0.0
 	d.say(RECALL, 6.0)  # seated, this is all that tells him the door is the way on now
+	d.say(KEEP_WALKING, 4.0)
 	WorldState.set_objective(OBJECTIVE)
 	if d.seated:
 		WorldState.set_prompt(DOOR, "Get out")
@@ -69,7 +77,7 @@ func begin() -> void:
 func tick(delta: float) -> bool:
 	match beat:
 		&"walk":
-			_walking()
+			_walking(delta)
 		&"alive":
 			if _passed(ALIVE_HAFIZ, delta):
 				d.say("Hafiz: \"Eh! Found this uncle, he's going down. Jom.\"", 3.5, &"hafiz")
@@ -119,11 +127,20 @@ func _walk() -> void:
 
 
 ## Along the road to the light: the voice behind them and Mei wanting to look, the ending decided 30 m short of it
-## (once no choice is open), and the walk over there if she is to catch them, or 4 m short of it if not.
-func _walking() -> void:
+## (once no choice is open), and the walk over there if she is to catch them, or 4 m short of it if not. Until it is
+## decided, she comes in as long as he goes slower than MIN_PACE, and goes back as soon as he does not.
+func _walking(delta: float) -> void:
 	var s := RoadLayout.closest_s(d.stage.player_position())
 	if is_nan(_from_s):
 		_from_s = s
+		_last_s = s
+	if _decided == &"":
+		_still = _still + delta if s - _last_s < MIN_PACE * delta else 0.0
+		_last_s = s
+		d.closing = clampf(_still / STILL_SECONDS, 0.0, 1.0)
+		if _still >= STILL_SECONDS:
+			d.die(&"stood_still")
+			return
 	if _asking != &"" and d.answer(_asking) != RoadDirector.NONE:
 		if d.answer(_asking) != 0:
 			EventBus.road_cue.emit(&"mei_looks")  # she looks back
@@ -137,6 +154,7 @@ func _walking() -> void:
 	if _decided == &"" and s >= d.light_s - DECIDE and d.pending == &"":
 		_decided = d.outcome()
 		d.stop_look()
+		d.closing = 0.0
 		match _decided:
 			&"caught":
 				EventBus.road_cue.emit(&"light_out")

@@ -53,6 +53,34 @@ func test_behind_keeps_her_distance() -> bool:
 	return true
 
 
+## On the walk, the longer he stands still the nearer she comes (RoadDirector.closing), never into him.
+func test_she_closes_in_as_he_slows() -> bool:
+	check(Penanggal.behind_distance(0.0, 1.0) < Penanggal.behind_distance(0.0, 0.0), "standing still brings her in")
+	check(Penanggal.behind_distance(0.0, 1.0) >= 1.0, "but not inside him")
+	check(Penanggal.behind_distance(1.0, 1.0) >= 1.0, "even at her nearest")
+	eq([Penanggal.behind_distance(0.0, 0.0), Penanggal.behind_distance(1.0, 0.0)], [18.0, 4.0], "closing 0 is her_near's distance as it was")
+	return true
+
+
+## From 18 m back, FOLLOW takes her in as fast as `closing` rises: by the time he has stood still for the kill, she is 1 m
+## behind him.
+func test_she_reaches_him_by_the_time_he_has_stood_still() -> bool:
+	var her := _her()
+	var walker := Node3D.new()
+	tree.root.add_child(walker)
+	walker.global_position = RoadLayout.point(2000.0, 1.0)  # the long straight
+	her.behind(walker)
+	await _frames(2)
+	var frames := roundi(LightMission.STILL_SECONDS * 60.0)
+	for i in frames:
+		her.director.closing = float(i + 1) / frames
+		await tree.process_frame
+	await tree.process_frame
+	near((her.global_position - walker.global_position).slide(Vector3.UP).length(), 1.0, 0.1, "1 m behind him at the end")
+	her.hide_her()
+	return true
+
+
 ## Mission 2 shows her as the car, back in its lane after the overtake at 14 m/s, slows to its cruise: at s 523 the
 ## valley is on the left, at s 740 the hill; from s 608.4 she hangs in switchback 1's change-over (s 631, the hill
 ## coming round to the left over 12 m either side). One overtake brings her to 22.6 m, a second to 17.2, a third to 11.8.
