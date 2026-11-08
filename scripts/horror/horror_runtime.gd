@@ -56,6 +56,9 @@ func _exit_tree() -> void:
 
 ## Advances the whole simulation by delta seconds.
 func step(delta: float) -> void:
+	if dead != &"":  # nothing goes on for the dead but the clock: not even what he saw before
+		WorldState.advance_time(delta)
+		return
 	var t0 := Time.get_ticks_usec()
 	for _anchor in _sightings:  # applied inside the tick, so the core's order never depends on frame rate
 		scheduler.mark(&"silhouette", "seen")
@@ -65,8 +68,6 @@ func step(delta: float) -> void:
 		scheduler.mark(&"visitor", "peeked")
 		_peeked = false
 	WorldState.advance_time(delta)
-	if dead != &"":  # nothing goes on for the dead but the clock
-		return
 	profiler.observe(delta, ctx.stage.sample())
 	entity.tick(delta)
 	if story_running:

@@ -77,7 +77,11 @@ func _finish_loading() -> void:
 		await _compile_shaders()
 	loaded = true
 	hud.allow_start()
-	if not Journey.flat_retry.is_empty():  # Try again: no start card, and the act begins again
+	if not Journey.flat_retry.is_empty():  # Try again: no start card, and the act begins again where its lines say he is
+		var start: Dictionary = ApartmentLayout.ACT_STARTS[Journey.flat_retry["act"]]
+		player.global_position = start["pos"]
+		player.set_look(start["yaw"])
+		WorldState.set_player_room(ApartmentLayout.room_at(start["pos"], Journey.flat_retry["variants"]))
 		hud.start()  # the story starts with it
 		runtime.story.start_at_act(Journey.flat_retry)
 		Journey.flat_retry = {}
@@ -209,9 +213,13 @@ func _on_ending(_ending_id: StringName) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-## He died: he is held, and she comes for his face. The card follows once she is there.
+## He died: out of the peephole or the note he was at, and held (nothing is left open for E or Esc to close, and the
+## interaction stays off after what closing it turned on), and she comes for his face. The card follows once she is there.
 func _on_died(_cause: StringName) -> void:
+	if hud.is_inspecting():
+		hud.close_peephole()
 	player.input_enabled = false
+	player.interaction.set_deferred(&"enabled_input", false)
 	her.come_for(player.camera)
 
 

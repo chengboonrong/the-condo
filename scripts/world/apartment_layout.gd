@@ -136,6 +136,14 @@ const VARIANT_AREAS := {
 
 const SPAWN := Vector3(6.5, 0.0, 8.4)
 const SPAWN_YAW := 0.0
+## Where Try again puts him, by the act that begins: where its opening lines say he is. Yaw as PlayerController.set_look
+## takes it (0 faces -Z, north). Act 2: in the bedroom, at the north wall that knocked back; act 3: where the flat starts,
+## for the knocking at the front door; act 4: just inside B-11-07, past its door, looking in.
+const ACT_STARTS := {
+	WorldState.Act.DISTURBANCE: {"pos": Vector3(6.6, 0.0, -0.5), "yaw": 0.0},
+	WorldState.Act.IMPOSSIBLE: {"pos": SPAWN, "yaw": SPAWN_YAW},
+	WorldState.Act.DECISION: {"pos": Vector3(7.7, 0.0, -14.8), "yaw": 0.0},
+}
 const LIFT_POS := Vector3(18.5, 0, 11.25)
 
 

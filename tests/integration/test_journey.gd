@@ -374,6 +374,152 @@ func test_try_again_starts_the_flat_at_the_act() -> bool:
 	return true
 
 
+## The flat Try again loads for `act` (1 = the one before it, the opened-directly one), as it would be after a death there.
+## Returns it loaded and playing, with `lines` and `captions` recording what was said from its first frame.
+func _retried(act: int, lines: Array[String], captions: Array[String]) -> Main:
+	var first := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(first)
+	for i in act - 1:
+		first.runtime.story.debug_skip()
+	var snapshot: Dictionary = first.runtime.story.act_snapshot
+	first.queue_free()
+	await tree.process_frame
+	Journey.retry_flat(snapshot)
+	EventBus.line_requested.connect(func(text: String, _s: float) -> void: lines.append(text))
+	EventBus.subtitle_requested.connect(func(text: String, _s: float) -> void: captions.append(text))
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	return main
+
+
+## Where he stands when the act begins again is where its opening lines say he is.
+func test_an_act_two_retry_starts_in_the_bedroom_at_the_wall() -> bool:
+	_begin()
+	Journey.road_ending = &"caught"
+	var lines: Array[String] = []
+	var captions: Array[String] = []
+	var main := await _retried(2, lines, captions)
+	eq(WorldState.player_room, &"bedroom", "he is in the bedroom")
+	near(main.player.global_position.distance_to(ApartmentLayout.ACT_STARTS[WorldState.Act.DISTURBANCE]["pos"]), 0.0, 0.1, "at the place for act 2")
+	check(captions.has("[The wall is cold. Something on the other side knocks back. Once.]"), "the wall's line is shown")
+	await _until(func() -> bool: return lines.has(StoryDirector.SMELL), 6.0)
+	check(lines.has(StoryDirector.SMELL), "and the smell follows it, which only comes in the bedroom")
+	eq(WorldState.player_room, &"bedroom", "and he is still there a moment on")
+	main.queue_free()
+	_end()
+	return true
+
+
+func test_an_act_four_retry_starts_in_the_mirror_room() -> bool:
+	_begin()
+	Journey.road_ending = &"saved"
+	var main := await _retried(4, [] as Array[String], [] as Array[String])
+	eq(WorldState.player_room, &"mirror_room", "he is in B-11-07")
+	eq(WorldState.get_variant(&"bedroom"), &"door", "behind the bedroom's door")
+	await _until(func() -> bool: return false, 0.5)
+	eq(WorldState.player_room, &"mirror_room", "and stays")
+	near(main.player.global_position.y, 0.0, 0.05, "on its floor")
+	main.queue_free()
+	_end()
+	return true
+
+
+## Each place lies in its room (with the variants its act has), clear of everything he would collide with, and acts 2 and 4
+## face what their lines are about.
+func test_every_act_start_is_in_its_room_and_clear() -> bool:
+	_begin()
+	var starts: Dictionary = ApartmentLayout.ACT_STARTS
+	eq(starts.keys(), [WorldState.Act.DISTURBANCE, WorldState.Act.IMPOSSIBLE, WorldState.Act.DECISION], "one for each act that can be tried again")
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	var rooms := {WorldState.Act.DISTURBANCE: &"bedroom", WorldState.Act.IMPOSSIBLE: &"living", WorldState.Act.DECISION: &"mirror_room"}
+	var looks_at := {WorldState.Act.DISTURBANCE: ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"],  # act 3 starts where the flat does
+		WorldState.Act.DECISION: ApartmentLayout.room_center(&"mirror_room", {&"bedroom": &"door"})}
+	WorldState.set_variant(&"bedroom", &"door")  # act 4's, for its walls and floor
+	await _until(func() -> bool: return false, 0.2)
+	var space := main.player.get_world_3d().direct_space_state
+	for act: int in starts:
+		var pos: Vector3 = starts[act]["pos"]
+		var variants := {&"bedroom": &"door"} if act == WorldState.Act.DECISION else {}
+		eq(ApartmentLayout.room_at(pos, variants), rooms[act], "act %d: the place is in its room" % act)
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = main.player.shape.shape
+		query.transform = Transform3D(Basis.IDENTITY, pos + Vector3.UP * (main.player.shape.position.y + 0.02))  # off the floor itself
+		query.collision_mask = main.player.collision_mask
+		query.exclude = [main.player.get_rid()]
+		eq(space.intersect_shape(query, 4).size(), 0, "act %d: nothing for him to be inside" % act)
+		if looks_at.has(act):
+			var ahead := Vector3(-sin(starts[act]["yaw"]), 0.0, -cos(starts[act]["yaw"]))  # PlayerController.set_look's yaw
+			var to: Vector3 = looks_at[act] - pos
+			check(ahead.dot(Vector3(to.x, 0.0, to.z).normalized()) > 0.8, "act %d: he faces what its lines are about" % act)
+	main.queue_free()
+	_end()
+	return true
+
+
+func _press(main: Main, action: StringName) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = true
+	main.get_viewport().push_input(ev)
+
+
+## He stays down: neither E nor Esc gives him back his feet or opens the pause menu, and he can open nothing more to close.
+func _check_held(main: Main, what: String) -> void:
+	_press(main, &"interact")
+	_press(main, &"pause")
+	await _until(func() -> bool: return false, 0.2)
+	check(not main.player.input_enabled, "%s: still held after E and Esc" % what)
+	check(not main.pause.is_open() and not tree.paused, "%s: and no pause menu" % what)
+	check(not main.hud.is_inspecting(), "%s: nothing open to look at" % what)
+	check(not main.player.interaction.enabled_input, "%s: and nothing to open" % what)
+
+
+func test_dying_at_the_peephole_takes_him_out_of_it() -> bool:
+	_begin()
+	Journey.road_ending = &"saved"
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	var hole: Peephole = main.builder.doors[&"main_door"].get_node("peephole")
+	main.player.global_position = Vector3(1.5, 0.0, 9.0)
+	var to := hole.global_position - (main.player.global_position + Vector3.UP * 1.62)
+	main.player.set_look(atan2(-to.x, -to.z), atan2(to.y, Vector2(to.x, to.z).length()))
+	await _until(func() -> bool: return main.player.interaction.target == hole, 0.5)
+	main.player.interaction.try_interact()
+	await _until(func() -> bool: return false, 0.1)
+	check(main.hud.is_peeping() and main.get_viewport().get_camera_3d() == hole.view, "(he is at the peephole)")
+	main.runtime.die(&"front_door")
+	await _until(func() -> bool: return false, 0.1)
+	check(not main.hud.is_peeping(), "he is out of the peephole")
+	eq(main.get_viewport().get_camera_3d(), main.player.camera, "the view is his own again: she comes for it")
+	check(main.her.visible, "and she is there")
+	await _check_held(main, "peephole")
+	var came := await _until(func() -> bool: return main.hud.is_game_over_shown(), 10.0)
+	check(came, "the card follows")
+	eq(main.get_viewport().get_camera_3d(), main.player.camera, "behind his own view")
+	main.queue_free()
+	_end()
+	return true
+
+
+func test_dying_with_a_note_open_closes_it_and_keeps_him_down() -> bool:
+	_begin()
+	Journey.road_ending = &"saved"
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	main.hud.show_inspect("Note", "Unit B-12-07.")
+	check(main.hud.is_inspecting() and not main.player.input_enabled, "(a note is open)")
+	main.runtime.die(&"front_door")
+	await _until(func() -> bool: return false, 0.1)
+	await _check_held(main, "note")
+	var came := await _until(func() -> bool: return main.hud.is_game_over_shown(), 10.0)
+	check(came, "the card follows")
+	await _check_held(main, "card")
+	main.queue_free()
+	_end()
+	return true
+
+
 func test_restart_clears_every_retry() -> bool:
 	_begin()
 	var kept: Array[Dictionary] = [{"rule": &"overtook", "weight": 1, "t": 12.0, "mission": 1}]

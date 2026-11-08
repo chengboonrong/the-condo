@@ -272,6 +272,7 @@ func start_at_act(snapshot: Dictionary) -> void:
 	for door: StringName in snapshot["doors"]:
 		WorldState.set_door(door, snapshot["doors"][door], &"restore")  # put back, not opened by him
 	noticed = snapshot["noticed"]
+	_call_pending = snapshot["call_pending"]
 	_ever = snapshot["ever"].duplicate()
 	_t0 = now() - QUIET
 	match snapshot["act"]:
@@ -287,7 +288,7 @@ func start_at_act(snapshot: Dictionary) -> void:
 func _keep(act: int) -> void:
 	act_snapshot = {"act": act, "flags": WorldState.flags.duplicate(true), "clues": WorldState.clues.duplicate(true),
 		"variants": WorldState.variants.duplicate(true), "lights": WorldState.lights.duplicate(true),
-		"doors": WorldState.doors.duplicate(true), "noticed": noticed, "ever": _ever.duplicate(true)}
+		"doors": WorldState.doors.duplicate(true), "noticed": noticed, "call_pending": _call_pending, "ever": _ever.duplicate(true)}
 
 
 func _go(next: StringName) -> void:

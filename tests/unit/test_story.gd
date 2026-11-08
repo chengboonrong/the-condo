@@ -791,6 +791,46 @@ func test_start_at_act_four_has_the_bedroom_door() -> bool:
 	return _done()
 
 
+## The road's last call may still be waiting for Rosnah's lines when the wall answers: a retry keeps it waiting.
+func test_a_pending_last_call_is_kept_for_the_retry() -> bool:
+	var story := _rosnah_answers(&"caught", ENTRANCE)
+	check(story._call_pending, "(the last call waits for her lines)")
+	story.debug_skip()  # the wall answers: act 2
+	check(story.act_snapshot["call_pending"], "act 2 kept it pending")
+	var snapshot := story.act_snapshot
+	_done()
+	WorldState.reset()
+	story = _setup(ApartmentLayout.SPAWN)
+	story.road = &"caught"
+	_listen()
+	story.start_at_act(snapshot)
+	check(story._call_pending, "the retry has it pending too")
+	_wait(5.0)
+	eq(_last_calls(), 1, "and it plays")
+	_done()
+	WorldState.reset()
+	story = _setup(ApartmentLayout.SPAWN)
+	story.debug_skip()
+	check(not story.act_snapshot["call_pending"], "none pending where there is no call")
+	return _done()
+
+
+## A dead step only keeps the clock: what he saw or peeped at before it is not applied.
+func test_a_dead_step_applies_no_sighting() -> bool:
+	_setup(ApartmentLayout.SPAWN)
+	rt.story.debug_skip()  # act 2: the thing in the flat stirs
+	_wait(1.0)
+	check(WorldState.entity_state != &"dormant" and WorldState.entity_state != &"retreating", "(it watches: %s)" % WorldState.entity_state)
+	var state := WorldState.entity_state
+	rt.die(&"front_door")
+	EventBus.silhouette_seen.emit(&"still_hallway")
+	EventBus.object_interacted.emit(&"peephole")
+	rt.step(0.1)
+	eq(WorldState.entity_state, state, "the sighting did not send it back")
+	check(rt._sightings.size() == 1 and rt._peeked, "and both wait unapplied")
+	return _done()
+
+
 ## He dies once, in the flat: the story stops and nothing it asked for goes on. Only the clock does.
 func test_the_flat_dies_once_and_stops() -> bool:
 	var story := _setup(ApartmentLayout.SPAWN)
