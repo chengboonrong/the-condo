@@ -354,6 +354,11 @@ func behind(walker: Node3D) -> void:
 		_begin(&"behind", _behind_point())
 
 
+## Her breath, where she hangs behind a walker: she is closing in (the walk's `she_closes`).
+func breathe() -> void:
+	_play(&"rattle", BEHIND_DB)
+
+
 ## He looked back, and it counted: she is right behind him. In the same frame she is LUNGE_AT from his eyes in the
 ## middle of his view, wherever he looks up or down (the look counts on his yaw alone), upright and facing him in her
 ## own fill, as the stinger and her shriek sound in his head and the caption shows. Through LUNGE_HOLD she goes where he

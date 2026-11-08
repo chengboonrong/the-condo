@@ -491,6 +491,19 @@ func test_start_at_resets_the_ride_and_the_captions() -> bool:
 	return true
 
 
+func test_a_line_is_queued_until_it_is_said() -> bool:
+	_setup()
+	d.say("first", 1.0)
+	d.say("second")
+	check(d.is_queued("first") and d.is_queued("second"), "both wait")
+	d.step(0.1)
+	check(not d.is_queued("first") and d.is_queued("second"), "the first is out, the second waits its turn")
+	_run(2.0)
+	check(not d.is_queued("second") and not d.is_queued("never said"), "then none")
+	_teardown()
+	return true
+
+
 func test_end_keeps_a_decided_ending() -> bool:
 	_setup()
 	var ended: Array[StringName] = []

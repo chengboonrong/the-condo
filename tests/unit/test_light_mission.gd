@@ -1,7 +1,9 @@
 extends TestCase
 ## Mission 5, don't look back: he gets out of the dead car, and he and Mei walk 150 m down the road to the light at a
-## closed fruit stall while something follows behind them. The rules: don't look back, and keep Mei from looking.
-## 30 m short of the light the road's count decides how it ends; that ending plays, and the road is over.
+## closed fruit stall while something follows behind them. The rules: don't look back, keep Mei from looking, and keep
+## walking: she comes in as he slows, breathes down his neck once she is half way, and catches him if he stands still for
+## 5 s (the clock starts once Bang Din has said so). 30 m short of the light the road's count decides how it ends; that
+## ending plays, and the road is over.
 
 const RECALL := "[Bang Din: \"When it goes quiet, walk to the light. Whatever is behind you, don't look back.\"]"
 const KEEP_WALKING := "[Bang Din: \"And keep walking. Stop, and it catches up.\"]"
@@ -133,6 +135,14 @@ func _creep(pace: float, seconds: float) -> void:
 	for i in roundi(seconds / 0.1):
 		if pace > 0.0:
 			stage.position = RoadLayout.point(RoadLayout.closest_s(stage.position) + pace * 0.1, BESIDE)
+		d.step(0.1)
+
+
+## Stands still, as he does when the walk is skipped to, until Bang Din has said keep walking: the still clock waits for it.
+func _hear_keep_walking() -> void:
+	for i in 100:
+		if said_t.has(KEEP_WALKING):
+			return
 		d.step(0.1)
 
 
@@ -298,18 +308,40 @@ func test_bang_din_says_keep_walking() -> bool:
 
 func test_standing_still_for_five_seconds_kills_him() -> bool:
 	_setup(false)  # standing beside the car: he walks at once
+	_hear_keep_walking()
+	check(said_t.has(KEEP_WALKING), "Bang Din says it (%.1f s)" % said_t.get(KEEP_WALKING, -1.0))
+	eq([d.dead, d.closing], [&"", 0.0], "standing still while he is told to keep walking costs nothing")
 	_creep(0.0, 4.9)
-	eq(d.dead, &"", "alive at 4.9 s")
+	eq(d.dead, &"", "alive 4.9 s after")
 	near(d.closing, 0.98, 0.001, "and she is that near")
-	_creep(0.0, 0.2)  # 5.0 s, give or take the step: fifty sums of 0.1 do not come to exactly 5
-	eq(d.dead, &"stood_still", "dead at 5.0 s")
+	_creep(0.0, 0.1)
+	eq(d.dead, &"stood_still", "dead 5.0 s after")
+	near(WorldState.time - said_t[KEEP_WALKING], LightMission.STILL_SECONDS, 0.001, "to the step")
 	eq(d.score(), 0, "and it counts for nothing")
+	_teardown()
+	return true
+
+
+func test_she_breathes_down_his_neck_once_each_time_she_is_half_way() -> bool:
+	_setup(false)
+	_hear_keep_walking()
+	_creep(0.0, 2.4)
+	eq(cues.count(&"she_closes"), 0, "not yet at 2.4 s, with her under half way")
+	_creep(0.0, 0.3)
+	eq(cues.count(&"she_closes"), 1, "past half way: her breath, once")
+	_creep(0.0, 2.0)
+	eq(cues.count(&"she_closes"), 1, "and not again as she comes on")
+	_creep(WALK, 0.1)
+	_creep(0.0, 3.0)
+	eq(cues.count(&"she_closes"), 2, "once he has walked and stopped again, she does")
+	eq(d.dead, &"", "alive")
 	_teardown()
 	return true
 
 
 func test_walking_slowly_brings_her_closer_and_walking_sends_her_back() -> bool:
 	_setup(false)
+	_hear_keep_walking()
 	_creep(0.2, 2.5)  # under MIN_PACE
 	near(d.closing, 0.5, 0.05, "half the time to the kill: she is half way")
 	_creep(WALK, 0.1)

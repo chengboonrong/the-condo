@@ -29,6 +29,7 @@ const CAPTIONS := {
 	&"knock_window": ["[Knocking on Mei's window]", 3.0],
 	&"lorry_stops": ["[A lorry pulls up]", 4.0],
 	&"overtake": ["[The engine roars.]", 2.5],
+	&"she_closes": ["[Breathing, right behind you]", 2.0],
 }
 ## What each thump after the first is captioned as: the first landed, and now it moves about up there.
 const THUMP_AGAIN := ["[It moves on the roof.]", 2.5]
@@ -401,6 +402,8 @@ func _on_cue(cue: StringName) -> void:
 			out.tween_callback(_sound.bind(&"car_door_close", MEI_DOOR, 0.0))
 		&"her_behind":
 			her.behind(player)
+		&"she_closes":
+			her.breathe()
 		&"her_lunges":  # he looked back on the walk, and it counted
 			her.lunge(player.camera)
 		&"mei_looks":

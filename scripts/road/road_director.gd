@@ -139,6 +139,11 @@ func say(text: String, seconds := 3.5, speaker: StringName = &"") -> void:
 	_lines.append([text, seconds, speaker])
 
 
+## Whether `text` is still waiting its turn to be said, and so not yet on the screen.
+func is_queued(text: String) -> bool:
+	return _lines.any(func(line: Array) -> bool: return line[0] == text)
+
+
 ## Opens a choice of 1 to 3 options for `seconds`. `keeps` lists the answers that keep `rule` (-1: silence keeps it);
 ## any other answer breaks it. Asking again forgets the old answer. One choice at a time: an ask while another is open
 ## is a mistake, and closes that one as silence.

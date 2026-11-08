@@ -81,6 +81,37 @@ func test_she_reaches_him_by_the_time_he_has_stood_still() -> bool:
 	return true
 
 
+## Half way to the kill, the walk's cue (`she_closes`) is her breath right behind him, as loud as her other behind sounds, and
+## captioned.
+func test_her_breath_on_the_cue_is_behind_him_and_captioned() -> bool:
+	var was_changing := Journey.change_scenes
+	Journey.change_scenes = false
+	var road: RoadMain = load(Journey.ROAD_SCENE).instantiate()
+	tree.root.add_child(road)
+	for i in 600:
+		if road.loaded:
+			break
+		await tree.process_frame
+	road.set_physics_process(false)  # the core stands still: the cues come from here
+	EventBus.road_cue.emit(&"her_behind")
+	await _frames(2)
+	var heard: Array = []
+	var captions: Array = []
+	var on_sound := func(id: StringName, at: Vector3, volume_db: float) -> void: heard.append([id, at, volume_db])
+	var on_caption := func(text: String, seconds: float) -> void: captions.append([text, seconds])
+	EventBus.sound_requested.connect(on_sound)
+	EventBus.subtitle_requested.connect(on_caption)
+	EventBus.road_cue.emit(&"she_closes")
+	EventBus.sound_requested.disconnect(on_sound)
+	EventBus.subtitle_requested.disconnect(on_caption)
+	eq(heard, [[&"rattle", road.her.global_position, Penanggal.BEHIND_DB]], "her breath, from where she hangs behind him, at her behind level")
+	eq(captions, [["[Breathing, right behind you]", 2.0]], "captioned each time")
+	check(not RoadMain.ONE_SET.has(&"she_closes"), "and not as a set")
+	road.queue_free()
+	Journey.change_scenes = was_changing
+	return true
+
+
 ## Mission 2 shows her as the car, back in its lane after the overtake at 14 m/s, slows to its cruise: at s 523 the
 ## valley is on the left, at s 740 the hill; from s 608.4 she hangs in switchback 1's change-over (s 631, the hill
 ## coming round to the left over 12 m either side). One overtake brings her to 22.6 m, a second to 17.2, a third to 11.8.

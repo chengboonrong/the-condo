@@ -2,8 +2,10 @@ class_name LightMission
 extends RoadMission
 ## Mission 5, don't look back. The car is dead, and the light Mei saw is 150 m on, a bare bulb at a closed fruit stall.
 ## He gets out, and he and Mei walk down the road to it while something follows them, calling in Hafiz's voice. The
-## rules: don't look back, and keep Mei from looking. 30 m short of the light the count of every rule broken on the
-## road decides how it ends, once; that ending plays, and the road is over:
+## rules: don't look back, keep Mei from looking, and keep walking: the slower he walks the nearer she comes
+## (RoadDirector.closing), she breathes behind him once she is half way (she_closes), and he dies of standing still
+## (stood_still) for STILL_SECONDS, counted from the step after Bang Din has said so. 30 m short of the light the count
+## of every rule broken on the road decides how it ends, once; that ending plays, and the road is over:
 ##   alive   Hafiz walks up to the bulb out of the fog below; once they are there the lorry he flagged down comes down
 ##           behind them, slowly past them, and pulls up past the stall: it will take the three of them down
 ##   saved   nobody is there but his ringing phone, and a lorry takes the two of them down
@@ -20,7 +22,7 @@ const KEEP_WALKING := "[Bang Din: \"And keep walking. Stop, and it catches up.\"
 const VOICE := "[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]"
 const LOOKS := "[Mei looks back.]"  # seen or not: she is at his side, out of his view ahead
 const ASKS := [[&"mei_look_1", 0.3], [&"mei_look_2", 0.65]]  # [choice, share of the way]: the voice, and Mei wants to look
-const STILL_SECONDS := 5.0  # seconds in a row under MIN_PACE: she catches him
+const STILL_SECONDS := 5.0  # seconds in a row under MIN_PACE, from the step after Bang Din says so: she catches him
 const MIN_PACE := 0.5  # m/s along the road; slower is standing still
 const DECIDE := 30.0  # metres short of the light: the ending is decided
 const THERE := 4.0  # metres short of it: they are there
@@ -45,6 +47,8 @@ var _asked := 0  # of ASKS
 var _decided: StringName = &""
 var _last_s := NAN  # where along the road he was at the last step of the walk
 var _still := 0.0  # seconds he has been under MIN_PACE, in a row
+var _told := false  # KEEP_WALKING has gone out: only now does standing still count
+var _warned := false  # she_closes was cued, and closing has not fallen back to 0 since
 
 
 ## Out of the car already, standing beside his door: the car dead on the long straight, the light 150 m on.
@@ -64,6 +68,8 @@ func begin() -> void:
 	_asked = 0
 	_decided = &""
 	_still = 0.0
+	_told = false
+	_warned = false
 	d.say(RECALL, 6.0)  # seated, this is all that tells him the door is the way on now
 	d.say(KEEP_WALKING, 4.0)
 	WorldState.set_objective(OBJECTIVE)
@@ -135,10 +141,17 @@ func _walking(delta: float) -> void:
 		_from_s = s
 		_last_s = s
 	if _decided == &"":
-		_still = _still + delta if s - _last_s < MIN_PACE * delta else 0.0
+		if _told:
+			_still = _still + delta if s - _last_s < MIN_PACE * delta else 0.0
+		_told = _told or not d.is_queued(KEEP_WALKING)  # it counts from the next step
 		_last_s = s
 		d.closing = clampf(_still / STILL_SECONDS, 0.0, 1.0)
-		if _still >= STILL_SECONDS:
+		if d.closing > 0.5 and not _warned:
+			_warned = true
+			EventBus.road_cue.emit(&"she_closes")  # her breath, half way to the kill
+		elif d.closing == 0.0:
+			_warned = false
+		if _still >= STILL_SECONDS - 0.001:  # fifty steps of 0.1 s sum to a hair under 5
 			d.die(&"stood_still")
 			return
 	if _asking != &"" and d.answer(_asking) != RoadDirector.NONE:
