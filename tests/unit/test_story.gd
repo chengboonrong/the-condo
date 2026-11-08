@@ -693,5 +693,149 @@ func test_the_quiet_starts_on_the_first_tick_whatever_came_first() -> bool:
 	return _done()
 
 
+## Try again: each act's start is kept as it was before the act began (the act itself apart), as copies.
+func test_each_act_start_is_snapshotted() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	eq(story.act_snapshot, {}, "nothing is kept before an act starts")
+	WorldState.set_flag(&"washed")
+	WorldState.add_clue(&"notes")
+	var before := [WorldState.flags.duplicate(), WorldState.doors.duplicate(), WorldState.lights.duplicate()]
+	story.debug_skip()  # act 2
+	var first := story.act_snapshot
+	eq(first["act"], WorldState.Act.DISTURBANCE, "act 2 is kept")
+	eq(first["flags"], before[0], "with the flags it began with")
+	eq(first["clues"], {&"notes": true}, "the clues")
+	eq(first["doors"], before[1], "the doors")
+	eq(first["lights"], before[2], "and the lights")
+	WorldState.set_flag(&"answered_intercom")
+	WorldState.set_variant(&"living_chair", &"turned")
+	story.noticed = 2
+	story._ever["marker"] = true
+	var second_flags := WorldState.flags.duplicate()
+	story.debug_skip()  # act 3
+	var second := story.act_snapshot
+	eq(second["act"], WorldState.Act.IMPOSSIBLE, "act 3 is kept")
+	eq(second["flags"], second_flags, "with the flags it began with")
+	eq(second["variants"][&"living_chair"], &"turned", "the variants")
+	eq(second["noticed"], 2, "what he noticed")
+	check(second["ever"].has("marker"), "and the lines said once for the whole flat")
+	check(not first["flags"].has(&"answered_intercom") and first["variants"].get(&"living_chair", &"default") == &"default", "act 2's copy did not follow the flat")
+	WorldState.set_flag(&"later")
+	check(not second["flags"].has(&"later"), "nor does act 3's")
+	story.debug_skip()  # act 4
+	eq(story.act_snapshot["act"], WorldState.Act.DECISION, "act 4 is kept")
+	eq(story.act_snapshot["variants"][&"bedroom"], &"door", "with the bedroom door it began with")
+	check(story.act_snapshot["flags"].has(&"later"), "and its flags")
+	return _done()
+
+
+## Act 3 of the flat from the road is kept, and begun again on a fresh flat: what he had done is back, the road's ending is
+## kept, and neither the quiet nor the opening lines come again.
+func test_start_at_act_three_restores_and_starts_the_knocking() -> bool:
+	var was := Journey.road_ending
+	Journey.road_ending = &"saved"
+	var story := _setup(ApartmentLayout.SPAWN)  # the story reads the road's ending as it is made
+	Journey.road_ending = was
+	_wait(12.0)  # the opening lines are said
+	WorldState.set_flag(&"answered_intercom")
+	WorldState.set_flag(&"washed")
+	WorldState.add_clue(&"notes")
+	WorldState.set_variant(&"living_chair", &"turned")
+	WorldState.set_light(&"bedroom", true)
+	WorldState.set_door(&"kitchen_door", false, &"player")
+	story.noticed = 1
+	story.debug_skip()  # act 2
+	story.debug_skip()  # act 3
+	var snapshot := story.act_snapshot
+	_done()
+	WorldState.reset()
+	Journey.road_ending = &"saved"
+	story = _setup(ApartmentLayout.SPAWN)
+	Journey.road_ending = was
+	_listen()
+	var sources: Array[StringName] = []
+	var on_door := func(_id: StringName, _open: bool, source: StringName) -> void: sources.append(source)
+	EventBus.door_changed.connect(on_door)
+	story.start_at_act(snapshot)
+	EventBus.door_changed.disconnect(on_door)
+	eq(WorldState.act, WorldState.Act.IMPOSSIBLE, "act 3")
+	eq(story.beat, &"front_door", "at the knocking")
+	check(WorldState.has_flag(&"answered_intercom") and WorldState.has_flag(&"washed"), "with what he had done")
+	check(WorldState.clues.has(&"notes") and story.noticed == 1, "what he had found")
+	eq(WorldState.get_variant(&"living_chair"), &"turned", "and what had moved")
+	check(WorldState.is_light_on(&"bedroom") and not WorldState.is_door_open(&"kitchen_door"), "the lights and the doors as they were")
+	eq(sources, [&"restore"] as Array[StringName], "the door shut by restore, not by him")
+	eq(story.road, &"saved", "and the road's ending")
+	check(not story.quiet(), "the flat is not holding its breath")
+	check(rt.scheduler.is_running(&"knock_wall") or rt.scheduler.is_queued(&"knock_wall"), "the knocking at the door is asked for")
+	_wait(20.0)
+	for opening: Array in StoryDirector.OPENING_LINES:
+		check(not lines.has(opening[1]), "the road's opening line is not said again: %s" % opening[1])
+	eq(WorldState.objective, "Someone is knocking at the front door.", "he is told what to look for")
+	return _done()
+
+
+func test_start_at_act_four_has_the_bedroom_door() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	for i in 3:
+		story.debug_skip()
+	var snapshot := story.act_snapshot
+	_done()
+	WorldState.reset()
+	story = _setup(ApartmentLayout.SPAWN)
+	story.start_at_act(snapshot)
+	eq(WorldState.act, WorldState.Act.DECISION, "act 4")
+	eq(WorldState.get_variant(&"bedroom"), &"door", "the bedroom has its door")
+	eq(story.beat, &"decision", "at the decision")
+	eq(story.transformer.required_rooms, [&"mirror_room"] as Array[StringName], "and the mirror room is the one to be kept")
+	return _done()
+
+
+## He dies once, in the flat: the story stops and nothing it asked for goes on. Only the clock does.
+func test_the_flat_dies_once_and_stops() -> bool:
+	var story := _setup(ApartmentLayout.SPAWN)
+	_wait(2.0)
+	story.debug_skip()  # act 2: from here the thing in the flat stirs
+	rt.scheduler.request(&"knock_wall", {"anchor": &"knock_entrance_door"}, 10)
+	rt.scheduler.request(&"phone_ring", {"anchor": &"phone_intercom"}, 10)
+	rt.scheduler.request(&"phone_ring", {"anchor": &"phone_mirror"}, 10)
+	check(not rt.scheduler.running.is_empty() and not rt.scheduler.queue.is_empty(), "(something runs and something waits)")
+	var deaths: Array[StringName] = []
+	var on_died := func(cause: StringName) -> void: deaths.append(cause)
+	EventBus.player_died.connect(on_died)
+	rt.die(&"front_door")
+	eq(deaths, [&"front_door"] as Array[StringName], "player_died, once")
+	eq(rt.dead, &"front_door", "he is dead of it")
+	check(not rt.story_running, "the story has stopped")
+	check(rt.scheduler.running.is_empty() and rt.scheduler.queue.is_empty(), "and no event runs or waits")
+	rt.die(&"lights_on")
+	eq(deaths.size(), 1, "a second death emits nothing")
+	eq(rt.dead, &"front_door", "and changes nothing")
+	var events := WorldState.event_history.size()
+	var beat := story.beat
+	var time := WorldState.time
+	_wait(300.0)
+	near(WorldState.time, time + 300.0, 0.01, "the clock goes on")
+	eq(WorldState.event_history.size(), events, "no event starts")
+	eq(story.beat, beat, "the story stays where it was")
+	eq(WorldState.entity_state, &"dormant", "and the thing in the flat does not stir")
+	EventBus.player_died.disconnect(on_died)
+	_done()
+	WorldState.reset()
+	story = _setup(ApartmentLayout.SPAWN)
+	EventBus.player_died.connect(on_died)
+	story.killed.emit(&"lights_on")
+	eq(deaths, [&"front_door", &"lights_on"] as Array[StringName], "the story's killed is a death")
+	_done()
+	WorldState.reset()
+	story = _setup(ApartmentLayout.SPAWN)
+	WorldState.set_ending(&"vacant")
+	rt.die(&"front_door")
+	eq(deaths.size(), 2, "an ending decided: he cannot die")
+	eq(rt.dead, &"", "he is not dead")
+	EventBus.player_died.disconnect(on_died)
+	return _done()
+
+
 func _shifts_done() -> int:
 	return WorldState.event_history.filter(func(e: Dictionary) -> bool: return e["id"] == &"shift" and e["result"] == &"completed").size()

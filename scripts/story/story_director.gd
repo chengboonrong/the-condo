@@ -4,6 +4,9 @@ extends RefCounted
 ## asks the scheduler for story events. Every beat has a fail-safe, so the story always moves on and
 ## both endings stay reachable whatever the adaptive director does. Time is simulation time.
 
+## He broke a rule of the flat and dies of `cause` (HorrorRuntime.die).
+signal killed(cause: StringName)
+
 const SIGNS_NEEDED := 4
 const BED_WAIT := 150.0  # fail-safe: the intercom rings even if the player never goes to bed
 const ACT2_MIN := 240.0  # seconds of disturbance before act 3, even with enough signs
@@ -82,6 +85,8 @@ var beat: StringName = &""
 var road: StringName = &""  # how the road ended (Journey); &"" = the flat was opened directly
 var beat_started := 0.0
 var noticed := 0
+## The flat as its current act began, as copies, for Try again (start_at_act). Empty until act 2.
+var act_snapshot: Dictionary = {}
 var progress: Array[Dictionary] = []  # every beat change, for tests and the playthrough report
 var _fired: Dictionary = {}  # one-shot keys in the current beat
 var _ever: Dictionary = {}  # one-shot keys for the whole flat (unlike _fired, kept across beats)
@@ -90,7 +95,7 @@ var _line_left := 0.0
 var _last_shift := 0.0
 var _bedroom_since := -1.0
 var _next_beacon := INF
-var _t0 := -1.0  # when the first tick came
+var _t0 := INF  # when the first tick came
 var _asking := false  # the "How did you get home?" objective is showing
 var _call_pending := false  # he answered Rosnah on a road with a last call, and it has not played: it waits for the lines
 
@@ -126,7 +131,7 @@ func beat_time() -> float:
 
 ## True while the flat is still holding its breath after the road.
 func quiet() -> bool:
-	return road != &"" and (_t0 < 0.0 or now() - _t0 < QUIET)
+	return road != &"" and (_t0 == INF or now() - _t0 < QUIET)
 
 
 func signs() -> int:
@@ -147,7 +152,7 @@ func hint_room() -> StringName:
 
 func tick(delta: float) -> void:
 	_speak(delta)
-	if _t0 < 0.0:
+	if _t0 == INF:
 		_t0 = now()
 	if beat == &"":
 		_go(&"home")
@@ -253,6 +258,38 @@ func debug_skip() -> void:
 			_end(&"downstairs")
 
 
+## Try again: the flat as `snapshot` (act_snapshot) kept it when its act began, and that act begun again. The road's quiet and
+## the lines of the opening are over for him, as they were.
+func start_at_act(snapshot: Dictionary) -> void:
+	for flag: StringName in snapshot["flags"]:
+		WorldState.set_flag(flag, snapshot["flags"][flag])
+	for clue: StringName in snapshot["clues"]:
+		WorldState.add_clue(clue)
+	for area: StringName in snapshot["variants"]:
+		WorldState.set_variant(area, snapshot["variants"][area], false)
+	for room: StringName in snapshot["lights"]:
+		WorldState.set_light(room, snapshot["lights"][room])
+	for door: StringName in snapshot["doors"]:
+		WorldState.set_door(door, snapshot["doors"][door], &"restore")  # put back, not opened by him
+	noticed = snapshot["noticed"]
+	_ever = snapshot["ever"].duplicate()
+	_t0 = now() - QUIET
+	match snapshot["act"]:
+		WorldState.Act.DISTURBANCE:
+			_wall_answers()
+		WorldState.Act.IMPOSSIBLE:
+			_start_act3()
+		WorldState.Act.DECISION:
+			_start_act4()
+
+
+## Kept first thing as an act begins: what start_at_act puts back.
+func _keep(act: int) -> void:
+	act_snapshot = {"act": act, "flags": WorldState.flags.duplicate(true), "clues": WorldState.clues.duplicate(true),
+		"variants": WorldState.variants.duplicate(true), "lights": WorldState.lights.duplicate(true),
+		"doors": WorldState.doors.duplicate(true), "noticed": noticed, "ever": _ever.duplicate(true)}
+
+
 func _go(next: StringName) -> void:
 	beat = next
 	beat_started = now()
@@ -317,6 +354,7 @@ func _reversal() -> void:
 
 ## The wall's caption goes out with its knock, not through say(): it must not wait behind the lines already queued.
 func _wall_answers() -> void:
+	_keep(WorldState.Act.DISTURBANCE)
 	EventBus.sound_requested.emit(_knock(1), ApartmentLayout.ANCHORS[&"knock_bedroom_north"]["pos"], 0.0)
 	EventBus.subtitle_requested.emit("[The wall is cold. Something on the other side knocks back. Once.]", 4.0)
 	_smell()  # he touched the wall before the 4 s were up: it follows the answer, never comes first
@@ -327,6 +365,7 @@ func _wall_answers() -> void:
 
 
 func _start_act3() -> void:
+	_keep(WorldState.Act.IMPOSSIBLE)
 	WorldState.set_act(WorldState.Act.IMPOSSIBLE)
 	scheduler.request(&"knock_wall", {"anchor": &"knock_entrance_door", "volume_db": 3.0}, 10)
 	WorldState.set_objective("Someone is knocking at the front door.")
@@ -348,6 +387,7 @@ func _at_front_door() -> void:
 
 
 func _start_act4() -> void:
+	_keep(WorldState.Act.DECISION)
 	WorldState.set_act(WorldState.Act.DECISION)
 	transformer.required_rooms = [&"mirror_room"]
 	scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)

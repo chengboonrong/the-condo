@@ -266,6 +266,114 @@ func test_retry_flat_keeps_the_road_ending() -> bool:
 	return true
 
 
+## Frames until cond() holds or `seconds` pass, with the physics step they run on. Returns whether it held.
+func _until(cond: Callable, seconds: float) -> bool:
+	for i in int(seconds * 60.0):
+		if cond.call():
+			return true
+		await tree.physics_frame
+	return cond.call()
+
+
+## The flat's looping players that are sounding: everything under `audio` but its pool of one-shots.
+func _playing(audio: AudioDirector) -> Array[Node]:
+	var out: Array[Node] = []
+	for p: Node in audio.find_children("*", "AudioStreamPlayer3D", false, false) + audio.find_children("*", "AudioStreamPlayer", false, false):
+		if p.get("playing") and not (p is AudioStreamPlayer3D and audio._pool.has(p)):
+			out.append(p)
+	return out
+
+
+## He dies in the flat's act 3: she comes, and the card follows once she is there, with the cause's line and nothing of the
+## flat left over it, to see or to hear. Try again, a real click, keeps the act and how the road ended.
+func test_a_death_in_the_flat_shows_game_over_and_try_again_keeps_the_act() -> bool:
+	_begin()
+	Journey.road_ending = &"saved"
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	WorldState.set_flag(&"answered_intercom")
+	main.runtime.story.debug_skip()  # act 2
+	main.runtime.story.debug_skip()  # act 3
+	EventBus.subtitle_requested.emit("[Knocking at the front door]", 30.0)
+	EventBus.line_requested.emit("[Nobody there. The corridor is empty.]", 30.0)
+	check(main.hud._caption.text != "" and main.hud._subtitle.text != "", "a caption and a line are up")
+	var playing := _playing(main.audio)
+	check(playing.size() >= 3, "(the flat's drone, hums and beds are playing: %d)" % playing.size())
+	var reached: Array[bool] = []  # whether the card was up when she reached him: Main's own handler runs first
+	main.her.reached.connect(func() -> void: reached.append(main.hud.is_game_over_shown()))
+	main.runtime.die(&"front_door")
+	await _until(func() -> bool: return false, 0.2)
+	check(not main.player.input_enabled, "he is held")
+	check(main.her.visible and not main.hud.is_game_over_shown(), "she comes, and there is no card yet")
+	var early := false
+	var came := await _until(func() -> bool:
+		early = early or (main.hud.is_game_over_shown() and reached.is_empty())
+		return not reached.is_empty(), 10.0)
+	check(came, "she reaches him within 10 s")
+	check(not early, "and the card was not up before")
+	eq(reached, [true], "the card is up as she reaches him, once")
+	eq(main.hud._game_over_line.text, Journey.DEATHS[&"front_door"], "with the cause's line")
+	check(main.hud.is_card_shown(), "the black card is under it")
+	check(main.hud._caption.text == "" and main.hud._subtitle.text == "", "no caption and no line left")
+	check(not main.her.visible, "she is gone")
+	playing = _playing(main.audio)
+	check(playing.is_empty(), "the drone, the hums, the tap and the beds are off (%s)" % [playing.map(func(p: Node) -> String: return p.name)])
+	var heard: Array[StringName] = []
+	var on_sound := func(id: StringName, _at: Vector3, _db: float) -> void: heard.append(id)
+	EventBus.sound_requested.connect(on_sound)
+	await _until(func() -> bool: return false, 2.0)
+	EventBus.sound_requested.disconnect(on_sound)
+	eq(heard, [] as Array[StringName], "nothing new plays under the card (2 s)")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.position = main.hud._retry.get_global_rect().get_center()
+	click.pressed = true
+	tree.root.push_input(click, true)
+	click = click.duplicate()
+	click.pressed = false
+	tree.root.push_input(click, true)
+	eq(Journey.flat_retry, main.runtime.story.act_snapshot, "Try again keeps the act's start")
+	eq(Journey.flat_retry["act"], WorldState.Act.IMPOSSIBLE, "act 3")
+	eq(Journey.road_ending, &"saved", "and how the road ended")
+	main.queue_free()
+	_end()
+	return true
+
+
+## The flat Try again loads: a plain black card (not the road's 11:47 PM one, and no start card), then he is playing at the
+## act's start, with the road's ending and what he had done, and the card fades.
+func test_try_again_starts_the_flat_at_the_act() -> bool:
+	_begin()
+	Journey.road_ending = &"caught"
+	var first := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(first)
+	WorldState.set_flag(&"washed")
+	WorldState.set_flag(&"answered_intercom")
+	first.runtime.story.debug_skip()
+	first.runtime.story.debug_skip()
+	var snapshot: Dictionary = first.runtime.story.act_snapshot
+	Journey.retry_flat(snapshot)
+	first.queue_free()
+	await tree.process_frame
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	check(main.hud.is_card_shown() and main.hud.card_text() == "", "a plain black card from the first frame")
+	await _loaded(main)
+	check(not main.hud.is_on_start_card(), "no start card")
+	check(main.runtime.story_running and main.player.input_enabled, "he is playing")
+	eq(WorldState.act, WorldState.Act.IMPOSSIBLE, "at act 3")
+	eq(main.runtime.story.beat, &"front_door", "with the knocking")
+	check(WorldState.has_flag(&"washed") and WorldState.has_flag(&"answered_intercom"), "and what he had done")
+	eq(main.runtime.story.road, &"caught", "the road's ending")
+	check(not main.runtime.story.quiet(), "the flat is not holding its breath")
+	eq(Journey.flat_retry, {}, "the retry is used up")
+	eq(main.runtime.story.act_snapshot, snapshot, "and dying again retries the same start")
+	var gone := await _until(func() -> bool: return not main.hud.is_card_shown(), 3.0)
+	check(gone, "and the black card fades away")
+	main.queue_free()
+	_end()
+	return true
+
+
 func test_restart_clears_every_retry() -> bool:
 	_begin()
 	var kept: Array[Dictionary] = [{"rule": &"overtook", "weight": 1, "t": 12.0, "mission": 1}]

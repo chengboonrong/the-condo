@@ -348,6 +348,27 @@ func test_warm_up_shows_every_model() -> bool:
 	return true
 
 
+## She comes into the flat when he dies, so her materials are drawn behind the start card, as the figure's are: on
+## frames with the ceiling lights on or off and the phone light on or off, every mix of the two.
+func test_the_flat_warm_up_draws_her() -> bool:
+	var main := await _main()
+	var mesh: MeshInstance3D = main.her.find_child("Penanggal", true, false)
+	check(not mesh.is_visible_in_tree(), "she is hidden to begin with")
+	var lights: Array[Node] = main.builder.find_children("*", "OmniLight3D", true, false)
+	var mixes := {}  # [ceiling lights, phone light] on the frames she was drawn
+	var on_frame := func() -> void:
+		if mesh.is_visible_in_tree():
+			var phone: Array[Node] = main.find_children("*", "SpotLight3D", true, false).filter(func(l: Light3D) -> bool: return not main.player.is_ancestor_of(l))
+			mixes[[lights.any(func(l: Light3D) -> bool: return l.visible), phone.any(func(l: Light3D) -> bool: return l.visible)]] = true
+	tree.process_frame.connect(on_frame)
+	await main._compile_shaders()
+	tree.process_frame.disconnect(on_frame)
+	eq(mixes.size(), 4, "she is drawn under every mix of the ceiling lights and the phone light: %s" % [mixes.keys()])
+	check(not mesh.is_visible_in_tree(), "and is hidden again")
+	main.queue_free()
+	return true
+
+
 func test_every_borrowed_file_is_credited() -> bool:
 	var readme := FileAccess.get_file_as_string("res://README.md")
 	for dir in DirAccess.get_directories_at("res://art"):

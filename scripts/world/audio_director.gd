@@ -90,6 +90,14 @@ func _ready() -> void:
 	EventBus.variant_changed.connect(_on_variant)
 
 
+## The GAME OVER card: everything that loops stops, the drone, the hums, the tap and the beds. A sound still going runs out.
+func silence() -> void:
+	_drone.stop()
+	for p: AudioStreamPlayer3D in find_children("*", "AudioStreamPlayer3D", false, false):
+		if not _pool.has(p):
+			p.stop()
+
+
 func play_at(sound_id: StringName, pos: Vector3, volume_db: float) -> void:
 	var stream: AudioStream
 	if sound_id == &"footstep" or sound_id == &"player_step":

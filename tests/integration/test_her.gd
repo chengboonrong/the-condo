@@ -326,6 +326,31 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	return true
 
 
+## In the flat she has no road: no director, and the flat's floor under her, not the road's height. She comes in under its
+## ceiling and stops at the camera.
+func test_she_comes_for_a_camera_without_a_road() -> bool:
+	var her := Penanggal.new()
+	check(her.director == null, "(she has no director)")
+	tree.root.add_child(her)
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = ApartmentLayout.SPAWN + Vector3.UP * 1.6
+	var reached := [0]
+	her.reached.connect(func() -> void: reached[0] += 1)
+	her.come_for(camera)
+	var highest := 0.0
+	for i in 600:  # 10 s
+		await tree.process_frame
+		highest = maxf(highest, her.global_position.y)
+		if reached[0] > 0:
+			break
+	eq(reached[0], 1, "she reaches him within 10 s, once")
+	near(her.global_position.distance_to(camera.global_position), Penanggal.CLOSE, 0.05, "and stops 0.6 m away")
+	check(highest < ApartmentLayout.CEILING, "all the way under the flat's ceiling (%.2f m)" % highest)
+	her.hide_her()
+	return true
+
+
 ## He looks back on the walk and she is right behind him: in his face in the middle of his view (looking level, at his
 ## eye height; looking down, below it), lit by her own fill, captioned. She holds there as he moves (a step into her
 ## does not carry his eyes into her head) but not as he turns; half a second on she pulls back to where she follows,

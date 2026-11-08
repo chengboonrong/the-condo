@@ -14,13 +14,16 @@ var runtime: HorrorRuntime
 var pause: PauseMenu
 var look: Look
 var silhouette: Silhouette
+var her: Penanggal  # comes for him when he dies; hidden, and without a road
 var ready_msec := 0  # engine start to the condo built, for the perf report
 var loaded := false  # the shader warm-up is done and the player's camera is back (tools wait for this)
 var _automated := false
 
 
 func _ready() -> void:
-	if Journey.road_ending != &"":  # he has come down from the road: a black card until the flat is built
+	if not Journey.flat_retry.is_empty():  # Try again: a plain black card until the flat is built
+		hud.show_card("")
+	elif Journey.road_ending != &"":  # he has come down from the road: a black card until the flat is built
 		hud.show_card("11:47 PM")
 	WorldState.reset()
 	ApartmentLayout.apply_initial_state()
@@ -45,6 +48,9 @@ func _ready() -> void:
 	silhouette = Silhouette.new()
 	silhouette.stage = stage
 	add_child(silhouette)
+	her = Penanggal.new()
+	her.name = "Her"
+	add_child(her)
 	var overlay := DebugOverlay.new()
 	overlay.runtime = runtime
 	add_child(overlay)
@@ -59,6 +65,9 @@ func _ready() -> void:
 	add_child(look)
 	hud.started.connect(_on_started)
 	EventBus.ending_reached.connect(_on_ending)
+	EventBus.player_died.connect(_on_died)
+	her.reached.connect(_on_her_reached)
+	hud.retry_pressed.connect(_on_retry, CONNECT_ONE_SHOT)  # a second press would reload again
 	ready_msec = Time.get_ticks_msec()
 	_finish_loading.call_deferred()
 
@@ -68,7 +77,12 @@ func _finish_loading() -> void:
 		await _compile_shaders()
 	loaded = true
 	hud.allow_start()
-	if Journey.road_ending != &"":  # no start card: he was already playing, and wakes at 11:47
+	if not Journey.flat_retry.is_empty():  # Try again: no start card, and the act begins again
+		hud.start()  # the story starts with it
+		runtime.story.start_at_act(Journey.flat_retry)
+		Journey.flat_retry = {}
+		hud.hide_card(1.0)
+	elif Journey.road_ending != &"":  # no start card: he was already playing, and wakes at 11:47
 		hud.start()
 		hud.hide_card(1.5)
 	if has_flag("smoke"):
@@ -106,13 +120,16 @@ func _compile_shaders() -> void:
 				await get_tree().process_frame
 	# The figure's materials are its own, and a shadowed light on it is a variant of its own: show it under each
 	# light it can be met with. Drawn only with the phone light on it, its first sight by a ceiling light alone cost
-	# 44–107 ms on an M1 Max.
+	# 44–107 ms on an M1 Max. Her skin is her own too, and she comes for him in whatever light he dies in.
 	for state: Array in [[true, false], [false, true], [true, true], [false, false]]:
 		for l: Light3D in lights:
 			l.visible = state[0]
 		phone.visible = state[1]
 		silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
+		her.global_position = cam.global_position + cam.global_basis.z * -2.0  # her origin is her skull's centre
+		her.visible = true
 		await get_tree().process_frame
+	her.hide_her()
 	hud.set_lens(true)  # the peephole's lens, behind the start card, so its first look does not compile it
 	await get_tree().process_frame
 	hud.set_lens(false)
@@ -190,6 +207,27 @@ func _on_started() -> void:
 func _on_ending(_ending_id: StringName) -> void:
 	player.input_enabled = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## He died: he is held, and she comes for his face. The card follows once she is there.
+func _on_died(_cause: StringName) -> void:
+	player.input_enabled = false
+	her.come_for(player.camera)
+
+
+func _on_her_reached() -> void:
+	if runtime.dead != &"":
+		hud.show_card("")
+		hud.show_game_over(Journey.DEATHS[runtime.dead])
+		her.hide_her()  # in her come_for she wet-flaps every second, point blank, under the card
+		audio.silence()
+
+
+## The scene is freed by the change. The pointer lock is asked for here, inside the click: Safari grants it to a gesture
+## only, and the new scene's own request comes after its warm-up.
+func _on_retry() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Journey.retry_flat(runtime.story.act_snapshot)
 
 
 func _unhandled_input(event: InputEvent) -> void:

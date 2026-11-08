@@ -18,6 +18,7 @@ var director: HorrorDirector
 var transformer: RoomTransformer
 var story: StoryDirector
 var story_running := false
+var dead: StringName = &""  # what killed him (EventBus.player_died), once
 var _sightings: Array[StringName] = []  # silhouettes seen since the last step
 var _peeked := false  # looked through the peephole since the last step
 var last_step_usec := 0
@@ -41,6 +42,7 @@ func setup(stage: HorrorStage, seed_value: int) -> void:
 	scheduler.run_started.connect(_on_run_started)
 	director = HorrorDirector.new(scheduler, profiler)
 	story = StoryDirector.new(scheduler, transformer)
+	story.killed.connect(die)
 	EventBus.silhouette_seen.connect(_on_silhouette_seen)
 	EventBus.object_interacted.connect(_on_object_interacted)
 
@@ -63,6 +65,8 @@ func step(delta: float) -> void:
 		scheduler.mark(&"visitor", "peeked")
 		_peeked = false
 	WorldState.advance_time(delta)
+	if dead != &"":  # nothing goes on for the dead but the clock
+		return
 	profiler.observe(delta, ctx.stage.sample())
 	entity.tick(delta)
 	if story_running:
@@ -76,6 +80,19 @@ func step(delta: float) -> void:
 ## The story begins when the player dismisses the start card (tests and bots call it directly).
 func start_story() -> void:
 	story_running = true
+
+
+## He dies of `cause`, once, and never after an ending: the story stops and nothing it started or asked for goes on.
+## Whoever shows his death (Main) answers EventBus.player_died.
+func die(cause: StringName) -> void:
+	if dead != &"" or WorldState.ending != &"":
+		return
+	dead = cause
+	story_running = false
+	for run in scheduler.running.duplicate():
+		scheduler.cancel(run, "died")
+	scheduler.queue.clear()
+	EventBus.player_died.emit(cause)
 
 
 ## Debug: start event n (0-based) now. Preconditions and cooldowns still apply; only the act gate is skipped.

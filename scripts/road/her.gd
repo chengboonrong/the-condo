@@ -3,9 +3,10 @@ extends Node3D
 ## Her: the penanggal of Malay folklore, a woman's head flown loose of her body with her insides hanging beneath it
 ## (assets/models/penanggal.glb: its origin is the centre of her skull, and she faces +Z). Hidden until the road calls
 ## for her, then in one place at a time: glimpsed at the roadside ahead of the car, on the car's roof, behind a
-## walker, right behind him when he looks back, flying somewhere, catching someone, or coming for the camera. She
-## always hangs upright. She is lit by the scene's own lights, and in his face by her own dim fill as well. Her sounds
-## are wet, but for one: when he looks back and it counts, the stinger and her shriek.
+## walker, right behind him when he looks back, flying somewhere, catching someone, or coming for the camera. In the flat
+## she has no director and only comes for the camera. She always hangs upright. She is lit by the scene's own lights, and
+## in his face by her own dim fill as well. Her sounds are wet, but for one: when he looks back and it counts, the
+## stinger and her shriek.
 
 ## come_for: she is as close to the camera as she comes.
 signal reached
@@ -601,8 +602,11 @@ func _sway(delta: float) -> void:
 		m.set_shader_parameter(&"fog_share", GLIMPSE_FOG if _mode == &"glimpse" else 1.0)
 
 
-## The ground's height under `at`: the road's, and beside it the verge, the drain or the drop into the valley.
+## The ground's height under `at`: the road's, and beside it the verge, the drain or the drop into the valley. In the flat
+## (no director) it is the flat's floor.
 func _ground_under(at: Vector3) -> float:
+	if director == null:
+		return 0.0
 	var s := RoadLayout.closest_s(at)
 	var road := RoadLayout.point(s).y
 	return road + builder.ground_at(s, RoadLayout.across(at, s)) if builder != null else road
