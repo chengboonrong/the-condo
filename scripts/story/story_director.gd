@@ -248,6 +248,11 @@ func say(text: String, seconds := 3.5, always := false) -> void:
 	_lines.append([text, seconds, always])
 
 
+## A story line is showing or waiting to show (EntityController holds its first warning until this is false).
+func speaking() -> bool:
+	return not _lines.is_empty() or _line_left > 0.0
+
+
 ## Debug (F10): jump to the next act.
 func debug_skip() -> void:
 	match WorldState.act:

@@ -45,7 +45,13 @@ func setup(stage: HorrorStage, seed_value: int) -> void:
 	director = HorrorDirector.new(scheduler, profiler)
 	story = StoryDirector.new(scheduler, transformer)
 	story.killed.connect(die)
+	entity.story = story
 	EventBus.silhouette_seen.connect(_on_silhouette_seen)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and entity != null:
+		entity.story = null  # entity -> story -> scheduler -> ctx -> entity would keep all of them alive
 
 
 func _exit_tree() -> void:

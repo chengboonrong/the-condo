@@ -6,8 +6,8 @@ extends RefCounted
 ## FACE_SECONDS to turn and look at the doorway. If he doesn't, it kills him (killed).
 ##
 ##   dormant ──act 2──▶ observing ──(act 3+, after OBSERVE_TIME)──▶ approaching ──(his back to it FACE_SECONDS)──▶ killed
-##                         ▲                                            │ he looks at the doorway, or walks in │
-##                         └──────────── RETREAT_TIME ◀── retreating ◀──┴──────────────────────────────────────┘
+##                         ▲                                            │ he looks at the doorway, sees it, or walks in │
+##                         └──────────── RETREAT_TIME ◀── retreating ◀──┴───────────────────────────────────────────────┘
 
 ## He kept his back to it (HorrorRuntime.die answers).
 signal killed(cause: StringName)
@@ -24,11 +24,13 @@ const CAPTION := "[Breathing in the doorway]"  # every time after
 var graph: RoomGraph
 var rng: RandomNumberGenerator
 var stage: HorrorStage  # where he looks (HorrorRuntime gives it)
+var story: StoryDirector  # whose lines its first warning must not cut short; null in bare tests, which hear it directly
 var state_time := 0.0
 var _move_left := 0.0
 var _face_clock := -1.0  # seconds since it breathed in `_doorway`; -1 while it is not next to him
 var _doorway := Vector3.ZERO
 var _warned := false
+var _open := false  # act 3 has begun: it may come
 
 
 func _init(room_graph: RoomGraph, sim_rng: RandomNumberGenerator) -> void:
@@ -46,6 +48,10 @@ func room() -> StringName:
 
 func tick(delta: float) -> void:
 	state_time += delta
+	var open := WorldState.act >= WorldState.Act.IMPOSSIBLE
+	if open and not _open:
+		state_time = 0.0  # it starts watching from the act that lets it come, as after a retry
+	_open = open
 	var here := WorldState.player_room
 	if WorldState.act < WorldState.Act.DISTURBANCE or WorldState.act >= WorldState.Act.ENDED or here == &"":
 		_become(&"", &"dormant")
@@ -80,10 +86,13 @@ func tick(delta: float) -> void:
 
 
 ## Next to his room: it breathes in the doorway between them, then he looks at it (it backs off) or FACE_SECONDS pass (killed).
-## The first breath says what to do (WARN); later ones are the sound's caption. A retry makes a new controller, so it warns again.
+## The first breath says what to do (WARN), once the story's own line is over; later ones are the sound's caption, which
+## never cuts a line. A retry makes a new controller, so it warns again.
 func _face_the_sound(here: StringName, delta: float) -> void:
 	var door: Vector3 = graph.connection(room(), here)["pos"]
 	if _face_clock < 0.0 or door != _doorway:
+		if not _warned and story != null and story.speaking():
+			return  # it waits, next to him and silent, until the story is quiet: the warning cuts nothing and is not cut
 		_doorway = door
 		_face_clock = 0.0
 		EventBus.sound_requested.emit(&"rattle", door + Vector3.UP * 1.5, RATTLE_DB)
@@ -91,7 +100,10 @@ func _face_the_sound(here: StringName, delta: float) -> void:
 			EventBus.subtitle_requested.emit(CAPTION, 3.0)
 		else:
 			_warned = true
-			EventBus.line_requested.emit(WARN, 4.0)
+			if story != null:
+				story.say(WARN, 4.0, true)  # in the story's queue, so nothing it says next cuts the warning short
+			else:
+				EventBus.line_requested.emit(WARN, 4.0)
 	else:
 		_face_clock += delta
 	if not stage.is_behind(door):

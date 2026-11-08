@@ -141,7 +141,7 @@ func test_both_endings_and_the_decision_fail_safe() -> bool:
 		eq(WorldState.ending, ending if ending != &"" else &"downstairs", "ending for %s" % (ending if ending != &"" else &"waiting"))
 		eq(WorldState.act, WorldState.Act.ENDED, "the story is over")
 		check(rt.scheduler.running.is_empty() and rt.scheduler.queue.is_empty(), "and no event is left running")
-		rt.free()
+		_done()
 	return true
 
 

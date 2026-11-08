@@ -33,16 +33,54 @@ func _setup(room: StringName, yaw: float, entity_room: StringName, state := &"ap
 	lines.clear()
 	captions.clear()
 	kills.clear()
+	_listen()
+
+
+func _teardown() -> void:
+	entity.killed.disconnect(_on_killed)
+	_unlisten()
+
+
+func _listen() -> void:
 	EventBus.sound_requested.connect(_on_sound)
 	EventBus.line_requested.connect(_on_line)
 	EventBus.subtitle_requested.connect(_on_caption)
 
 
-func _teardown() -> void:
-	entity.killed.disconnect(_on_killed)
+func _unlisten() -> void:
 	EventBus.sound_requested.disconnect(_on_sound)
 	EventBus.line_requested.disconnect(_on_line)
 	EventBus.subtitle_requested.disconnect(_on_caption)
+
+
+## The whole core, its story running, with him in the hallway looking `yaw` and the neighbour in the living room
+## coming for him. Free it with _core_done.
+func _core(yaw: float) -> HorrorRuntime:
+	ApartmentLayout.apply_initial_state()
+	WorldState.act = WorldState.Act.IMPOSSIBLE
+	graph = RoomGraph.new(WorldState.variants)
+	stage = HorrorStage.new(graph)
+	_place(&"hallway", yaw)
+	var rt := HorrorRuntime.new()
+	rt.setup(stage, 3)
+	rt.start_story()
+	WorldState.set_entity(&"living", &"approaching")
+	sounds.clear()
+	lines.clear()
+	captions.clear()
+	_listen()
+	return rt
+
+
+func _core_done(rt: HorrorRuntime) -> bool:
+	_unlisten()
+	rt.free()
+	return true
+
+
+func _step(rt: HorrorRuntime, seconds: float) -> void:
+	for i in roundi(seconds * 10.0):
+		rt.step(0.1)
 
 
 func _place(room: StringName, yaw: float) -> void:
@@ -181,6 +219,77 @@ func test_it_stops_when_the_story_ends() -> bool:
 	return true
 
 
+## Act 2's watching does not count towards act 3's approach: it is OBSERVE_TIME from the act that lets it come, as after a retry.
+func test_it_waits_a_full_observe_time_when_act_three_begins() -> bool:
+	_setup(&"hallway", BACK_TURNED, &"entrance", &"observing", 2)
+	_run(60.0)  # a minute of act 2
+	eq(WorldState.entity_state, &"observing", "(it only watched)")
+	WorldState.act = WorldState.Act.IMPOSSIBLE
+	_run(EntityController.OBSERVE_TIME - 1.0)
+	eq(WorldState.entity_state, &"observing", "act 3 has just begun: it has not come yet")
+	_run(3.0)
+	eq(WorldState.entity_state, &"approaching", "it comes once OBSERVE_TIME has passed")
+	_teardown()
+	return true
+
+
+## The first time it comes while the story is speaking, it holds, next to him and silent, with no clock running: the
+## warning must not cut a line short, nor be cut. When the story is quiet it breathes and warns in that same step.
+func test_the_first_approach_waits_while_the_story_speaks() -> bool:
+	var rt := _core(BACK_TURNED)
+	rt.story.say("[Rosnah goes on.]", 3.0, true)
+	_step(rt, 3.0)
+	eq(lines, ["[Rosnah goes on.]"], "only the story's line is on screen")
+	eq(sounds, [], "it does not breathe over it")
+	eq(WorldState.entity_room, &"living", "it waits next to him")
+	eq(rt.dead, &"", "and no clock is running, though his back has been turned for three seconds")
+	var t := 0.0
+	while sounds.is_empty() and t < 2.0:
+		rt.step(0.1)
+		t += 0.1
+	eq(sounds.size(), 1, "the moment the story is quiet it breathes")
+	eq(lines, ["[Rosnah goes on.]", EntityController.WARN], "and says what to do, in the same step")
+	_step(rt, 3.0)
+	eq(rt.dead, &"", "(his four seconds run from the breath, not from before)")
+	_step(rt, 1.5)
+	eq(rt.dead, &"faced_away", "and run out")
+	_core_done(rt)
+	return true
+
+
+## The warning is the story's own line (in its queue, then on its timer): a line the story says next waits for it.
+func test_the_warning_goes_through_the_story() -> bool:
+	var rt := _core(BACK_TURNED)
+	rt.step(0.1)  # it breathes and warns
+	eq(lines, [EntityController.WARN], "said at once, the story having nothing to say")
+	check(rt.story.speaking(), "the story is speaking it")
+	stage.yaw = FACING  # (he looks, so the clock does not matter here)
+	rt.story.say("[Something else.]", 3.0, true)
+	_step(rt, 4.0)
+	eq(lines, [EntityController.WARN], "a line said right after waits for it to run its time")
+	_step(rt, 1.0)
+	eq(lines, [EntityController.WARN, "[Something else.]"], "and then comes")
+	_core_done(rt)
+	return true
+
+
+## Later approaches say the sound's caption, on the line that never cuts a spoken one, even while the story speaks.
+func test_later_approaches_do_not_wait_for_the_story() -> bool:
+	var rt := _core(BACK_TURNED)
+	rt.step(0.1)
+	stage.yaw = FACING
+	rt.step(0.1)  # it backs off
+	eq(WorldState.entity_state, &"retreating", "(he looked)")
+	stage.yaw = BACK_TURNED
+	WorldState.set_entity(&"living", &"approaching")
+	rt.story.say("[Rosnah goes on.]", 3.0, true)
+	rt.step(0.1)
+	eq(sounds.size(), 2, "the second time it breathes at once")
+	eq(captions, [EntityController.CAPTION], "as a caption")
+	_core_done(rt)
+	return true
+
+
 ## He walks out of reach before he has turned: the clock stops, it goes on coming, and when it is next to him again
 ## it breathes again, with the full FACE_SECONDS.
 func test_walking_out_of_reach_stops_the_clock() -> bool:
@@ -251,19 +360,22 @@ func test_the_doorway_is_the_one_the_variants_give() -> bool:
 	return true
 
 
-## The rule the whole thing rests on: a player who turns to the sound when he hears it survives.
+## The rule the whole thing rests on: a player who turns to the sound when he hears it survives. Every approach needs a
+## real turn: after it backs off he is put with his back to every doorway of the living room again (facing east).
 func test_a_player_who_turns_to_the_sound_survives() -> bool:
+	const AWAY := -PI / 2
 	ApartmentLayout.apply_initial_state()
 	WorldState.act = WorldState.Act.IMPOSSIBLE
 	var rt_stage := HorrorStage.new(RoomGraph.new(WorldState.variants))
 	rt_stage.position = ApartmentLayout.room_center(&"living")
+	rt_stage.yaw = AWAY
 	WorldState.set_player_room(&"living")
 	var rt := HorrorRuntime.new()
 	rt.setup(rt_stage, 11)
-	var heard: Array = []  # [when, where]
+	var heard: Array = []  # [when, where, whether his back was to it]
 	var on_sound := func(id: StringName, pos: Vector3, _db: float) -> void:
 		if id == &"rattle":
-			heard.append([WorldState.time, pos])
+			heard.append([WorldState.time, pos, rt_stage.is_behind(pos)])
 	EventBus.sound_requested.connect(on_sound)
 	var turned := 0
 	var t := 0.0
@@ -272,11 +384,14 @@ func test_a_player_who_turns_to_the_sound_survives() -> bool:
 			var at: Vector3 = heard[turned][1]
 			rt_stage.yaw = atan2(-(at.x - rt_stage.position.x), -(at.z - rt_stage.position.z))
 			turned += 1
+		elif WorldState.entity_state == &"retreating":
+			rt_stage.yaw = AWAY
 		rt.step(0.1)
 		t += 0.1
 	EventBus.sound_requested.disconnect(on_sound)
 	eq(rt.dead, &"", "he turned every time and lived for fifteen minutes")
 	check(heard.size() >= 3, "it came for him again and again (%d times)" % heard.size())
+	check(heard.all(func(h: Array) -> bool: return h[2]), "and each time his back was to it, so it took a real turn")
 	rt.free()
 	return true
 
@@ -296,10 +411,17 @@ func test_the_core_decides_the_death() -> bool:
 	var on_died := func(cause: StringName) -> void: deaths.append(cause)
 	EventBus.player_died.connect(on_died)
 	var t := 0.0
+	var evaluated_when_killed := -1
 	while rt.dead == &"" and t < 10.0:
+		rt.director._next_eval = 0.0  # the director would evaluate on every step it is allowed to run
+		var evals := rt.director.eval_count
 		rt.step(0.1)
 		t += 0.1
+		if rt.dead != &"":
+			evaluated_when_killed = rt.director.eval_count - evals
 	EventBus.player_died.disconnect(on_died)
+	check(rt.director.eval_count > 0, "(the director did run in the steps before)")
+	eq(evaluated_when_killed, 0, "but not in the step that killed him")
 	eq(rt.dead, &"faced_away", "the runtime has him dead of it")
 	eq(deaths, [&"faced_away"], "and says so once")
 	check(t > EntityController.FACE_SECONDS - 0.5 and t < EntityController.FACE_SECONDS + 1.0, "after about four seconds (%.1f)" % t)
