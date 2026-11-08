@@ -51,8 +51,9 @@ Branches are stacked: each starts from the previous one. Nothing is merged into 
    Every shift resets the clock to 11:47 PM.
 3. **The Impossible Room.** A knock at the front door draws you away. When you come back, the bedroom
    window is a door. Behind it, a corridor that cannot exist leads to B-11-07.
-4. **The Decision.** Inside B-11-07 the intercom rings again. Knock back three times (ending: *Downstairs*)
-   or run, along a corridor that is now longer than before, to the lift (ending: *Vacant*).
+4. **The Decision.** Inside B-11-07 the intercom rings again. Once the call is over, answer it by knocking back three
+   times (ending: *Downstairs*), or don't: run, along a corridor that is now longer than before, to the lift (ending:
+   *Vacant*).
 
 ## Known risks
 

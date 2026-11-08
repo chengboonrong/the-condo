@@ -18,6 +18,16 @@ const KNOCK_AT_CALL_DB := 8.0
 ## After the road the flat opens quiet: no event, and no ring, for this long from the story's first tick.
 const QUIET := 20.0
 const HOME_OBJECTIVE := "Wash up, then get some sleep."
+## After the road he is still lost: he washes the mountain off and tries to remember getting home (always shown).
+const ROAD_OBJECTIVE := "Wash the mountain off. Lie down. Try to remember."
+const ROAD_WASHED := "Lie down. Try to remember."
+const ROAD_WASH := "[Cold water. Red earth runs off your hands.]"
+## What he remembers last, lying down: the road's end, never getting home.
+const LAST_MEMORY := {
+	&"caught": "[You try to remember getting home. The bulb at the fruit stall going out. Then nothing.]",
+	&"saved": "[You try to remember getting home. The lorry's tailgate in the fog. Then nothing.]",
+	&"alive": "[You try to remember getting home. The lorry's tailgate in the fog. Then nothing.]",
+}
 ## New story lines after the road (always shown). SMELL is a copy of Penanggal.SMELL, so the flat doesn't load the road's
 ## script; a test keeps them equal.
 const SMELL := "[A sour smell, like vinegar.]"
@@ -54,8 +64,8 @@ const ROAD_ENDINGS := {
 		&"vacant": "The lift is warm, as if someone has just stepped out of it.\n\nYou don't go back up.\n\nHafiz never got home. Some nights you still hear him knocking.",
 	},
 	&"alive": {
-		&"downstairs": "You knock three times.\n\nSomething knocks back.\n\nAll three of you got home. Something else came down the mountain too.",
-		&"vacant": "The lift is warm, as if someone has just stepped out of it.\n\nYou don't go back up.\n\nAll three of you got home. Something else came down the mountain too.",
+		&"downstairs": "You knock three times.\n\nSomething knocks back.\n\nAll three of you got home. Something else came down the mountain too.\n\nOn the road it had Hafiz's voice. Tonight it has yours.",
+		&"vacant": "The lift is warm, as if someone has just stepped out of it.\n\nYou don't go back up.\n\nAll three of you got home. Something else came down the mountain too.\n\nOn the road it had Hafiz's voice. Tonight it has yours.",
 	},
 }
 ## The intercom's last call after the road: the first line of the one who is lost.
@@ -63,6 +73,8 @@ const LAST_CALL := {
 	&"caught": "\"Eh, you going down ah? Jom, we got space.\"",
 	&"saved": "\"Wah, so late still working ah? Kesian, bro.\"",
 }
+## B-11-07's call after `saved`: the one the road took, in the voice that called them out of the car (mimic_open_door).
+const HAFIZ_CALL := "\"Bro! Open the door, I found help!\""
 
 var scheduler: EventScheduler
 var transformer: RoomTransformer
@@ -211,8 +223,10 @@ func tick(delta: float) -> void:
 			if _once("ring", 5.0):
 				scheduler.request(&"phone_ring", {"anchor": &"phone_mirror", "stop_flag": &"answered_mirror"})
 				WorldState.set_objective("Answer the intercom.")
-			if _once("choice", 40.0):
+			if not _fired.has("choice") and (WorldState.has_flag(&"answered_mirror") or t >= 40.0):
 				_offer_choice()
+			if _fired.has("choice") and not _fired.has("open") and _lines.is_empty() and _line_left <= 0.0:
+				_open_choice()
 			if _once("knocks", 120.0):
 				scheduler.request(&"knock_wall", {"anchor": &"knock_mirror"}, 5)
 			if t >= DECISION_WAIT:
@@ -266,7 +280,7 @@ func _end_question() -> void:
 		return
 	_asking = false
 	if beat == &"home":
-		WorldState.set_objective("Get some sleep." if WorldState.has_flag(&"washed") else HOME_OBJECTIVE)
+		WorldState.set_objective(ROAD_WASHED if WorldState.has_flag(&"washed") else ROAD_OBJECTIVE)
 
 
 func _speak(delta: float) -> void:
@@ -337,15 +351,27 @@ func _start_act4() -> void:
 	WorldState.set_act(WorldState.Act.DECISION)
 	transformer.required_rooms = [&"mirror_room"]
 	scheduler.request(&"shift", {"area": &"gap", "variant": &"long"}, 20)
-	WorldState.set_prompt(&"mirror_wall", "Knock back three times")
-	WorldState.set_prompt(&"lift_button", "Call the lift")
 	say("[B-11-07. It's your flat, the wrong way round.]", 4.0, true)
 	_go(&"decision")
 
 
+## The call is over, answered or not (40 s on): Bang Din's rule after the road. Then _open_choice, once it is said.
 func _offer_choice() -> void:
 	_fired["choice"] = true
-	WorldState.set_objective("Knock back on the wall. Or get out: the lift is working.")
+	if road != &"":
+		say("[Don't answer, Bang Din said. Even if it sounds like %s.]" % ("Hafiz" if road == &"saved" else "you"), 4.0, true)
+
+
+## Knock back or take the lift, once every line is over.
+func _open_choice() -> void:
+	_fired["open"] = true
+	WorldState.set_prompt(&"mirror_wall", "Answer it: knock back three times")
+	WorldState.set_prompt(&"lift_button", "Don't answer: take the lift")
+	WorldState.set_objective("Answer it: knock back on the wall. Or don't: the lift is working.")
+
+
+func choice_open() -> bool:
+	return WorldState.act == WorldState.Act.DECISION and _fired.has("open")
 
 
 func _end(ending_id: StringName, line := "") -> void:
@@ -385,14 +411,21 @@ func _on_interacted(object_id: StringName) -> void:
 		&"sink":
 			if not WorldState.has_flag(&"washed"):
 				WorldState.set_flag(&"washed")
-				say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5, true)
+				if road != &"":
+					say(ROAD_WASH, 3.5, true)
+				else:
+					say("[Cold water. Your hands still smell of ghee and teh tarik. The oven clock says 11:47.]", 4.5, true)
 				if beat == &"home" and not _asking:
-					WorldState.set_objective("Get some sleep.")
+					WorldState.set_objective("Get some sleep." if road == &"" else ROAD_WASHED)
 			else:
 				say("[Cold water.]", 2.0, true)
 		&"bed":
 			if beat == &"home":
-				say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0, true)
+				if road != &"":
+					say(LAST_MEMORY[road], 4.5, true)
+					say("[Somewhere in the building, a lift hums and stops.]", 3.5, true)
+				else:
+					say("[You lie down. Somewhere in the building, a lift hums and stops.]", 4.0, true)
 				WorldState.set_objective("")
 				_asking = false  # lying down clears the objective, the question with it
 				_go(&"in_bed")
@@ -419,10 +452,12 @@ func _on_interacted(object_id: StringName) -> void:
 			else:
 				EventBus.inspect_requested.emit("Bedroom wall", "Cold. Colder than the rest of the room.")
 		&"mirror_wall":
-			if WorldState.act == WorldState.Act.DECISION:
+			if choice_open():
 				_end(&"downstairs")
+			else:
+				EventBus.inspect_requested.emit("Wall", "Cold. Colder than the rest of the room.")
 		&"lift_button":
-			if WorldState.act == WorldState.Act.DECISION:
+			if choice_open():
 				_end(&"vacant")
 			else:
 				EventBus.inspect_requested.emit("Lift", "LIF ROSAK — DALAM PENYELENGGARAAN\nUNDER MAINTENANCE\n\nThe button doesn't light up.")
@@ -454,11 +489,15 @@ func _answer_rosnah() -> void:
 
 func _answer_upstairs() -> void:
 	WorldState.set_flag(&"answered_mirror")
-	say("\"Hello? Sorry, so late. I just finished my shift at the mamak.\"", 3.5)
-	say("\"This is upstairs. 12-07.\"", 3.0)
-	say("\"Can you please stop the knocking?\"", 3.5)
-	say("[It's your voice.]", 3.0, true)
-	_offer_choice()
+	if road == &"saved":
+		say(HAFIZ_CALL, 3.5)
+		say("[It's Hafiz's voice.]", 3.0, true)
+	else:
+		say("\"Hello? Sorry, so late. I just finished my shift at the mamak.\"", 3.5)
+		say("\"This is upstairs. 12-07.\"", 3.0)
+		say("\"Can you please stop the knocking?\"", 3.5)
+		say("[It's your voice.]", 3.0, true)
+	WorldState.set_objective("")
 
 
 func _on_room_entered(room_id: StringName) -> void:

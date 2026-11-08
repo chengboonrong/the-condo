@@ -126,9 +126,16 @@ opening with a question, the road's smell and look-back lines (always shown), an
 knocks. Once he has answered Rosnah, the last call plays by itself, once, for `caught` and `saved` (wind and an idling
 engine, then Mei's or Hafiz's first line) when her lines are over, wherever he is and unless an ending has started; it
 waits for any line or knock still going. Inspecting the intercom after her call only shows the log. `alive` has no
-recording. The look-back line comes the first time he notices something a shift has moved. `StoryDirector.ending_card(ending, road)` gives the last card its
+recording. The look-back line comes the first time he notices something a shift has moved. He is still lost: the
+objective is to wash the mountain off and try to remember, the sink runs red earth, and lying down he remembers only
+the road's end (the lorry's tailgate, or the stall's bulb going out), never getting home. In B-11-07 the call is his own
+voice, or Hafiz's after `saved`. `StoryDirector.ending_card(ending, road)` gives the last card its
 text: `caught` adds to or edits today's text, `saved` and `alive` have their own. With no road (the flat opened
 directly) every line is as before.
+
+In B-11-07 the two endings open only once the call is over and every line said, answered or not (unanswered, 40 s
+on; `StoryDirector.choice_open()`): until then the wall is only cold and the lift is out of order. Then knocking back is answering it and the lift
+is not answering, with Bang Din's rule as a thought after the road. Waiting out `DECISION_WAIT` still ends it.
 
 The record of the simulated players (bots) is generated into `docs/playthroughs.md` by
 `tools/playthroughs.gd`; `tests/integration/test_playthroughs.gd` checks it on three seeds.

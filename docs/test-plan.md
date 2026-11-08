@@ -72,6 +72,8 @@ today's flat). Each test sets the ending itself and puts it back.
 | `test_a_pending_last_call_never_plays_after_an_ending` | `tests/unit/test_story.gd` | a pending last call does not play once the story has ended |
 | `test_a_road_without_a_last_call_never_leaves_one_pending` | `tests/unit/test_story.gd` | roads `alive` and none: pressing the intercom during and after her call never plays a last call or its crackle |
 | `test_his_recognition_of_his_own_voice_is_a_story_line` | `tests/unit/test_story.gd` | "[It's your voice.]" goes out as a story line, shown with "Captions for sounds" off, not as a sound caption |
+| `test_after_the_road_he_washes_the_mountain_off_and_cannot_remember_getting_home` | `tests/unit/test_story.gd` | After each road: the road's objective, red earth at the sink, and lying down the road's last memory (the stall's bulb or the lorry) before the lift |
+| `test_the_choice_opens_only_after_the_call_and_the_call_follows_the_road` | `tests/unit/test_story.gd` | In B-11-07 the wall and the lift do nothing until the call is answered or 40 s pass; then the answer-or-don't prompts, Bang Din's rule after a road, and Hafiz's voice after `saved`, his own otherwise |
 | `test_the_quiet_starts_on_the_first_tick_whatever_came_first` | `tests/unit/test_story.gd` | road `caught`, F10 before the first tick: the quiet still ends 20 s after that tick |
 
 ## Builds
