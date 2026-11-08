@@ -90,6 +90,22 @@ func test_his_own_rules_kill_at_once() -> bool:
 	return true
 
 
+## What the others' rules weigh: an overtake 1 (up to three), Mei opening her door 2, Mei looking back 2 (up to twice).
+func test_the_others_mistakes_reach_every_ending() -> bool:
+	_setup()
+	d.break_rule(&"overtook")
+	eq([d.score(), d.outcome(), d.dead], [1, &"alive", &""], "one overtake: all three get down")
+	d.break_rule(&"mei_opened", 2)
+	eq([d.score(), d.outcome(), d.dead], [3, &"saved", &""], "an overtake and Mei opening: he gets Mei out")
+	d.break_rule(&"overtook")
+	d.break_rule(&"overtook")
+	d.break_rule(&"mei_looked", 2)
+	d.break_rule(&"mei_looked", 2)
+	eq([d.score(), d.outcome(), d.dead], [9, &"caught", &""], "everything they can do wrong: caught")
+	_teardown()
+	return true
+
+
 func test_the_others_rules_still_count() -> bool:
 	_setup()
 	d.break_rule(&"overtook")

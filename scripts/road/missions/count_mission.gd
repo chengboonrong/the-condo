@@ -2,16 +2,15 @@ class_name CountMission
 extends RoadMission
 ## Mission 3, the extra passenger. A fourth sits beside him in the rear right seat, seen only in the rear-view mirror;
 ## Mei and Hafiz take her for his friend. The rule is not to turn round to look at her, and not to count her. Turning to
-## her shows her to him for a moment and breaks the rule, once at most. Mei asks how many of them there are: "Four."
-## counts her, "Three." or saying nothing keeps it, and "Why you ask?" has her ask once more. Whatever he says, Mei
-## counts three for herself, Hafiz brakes, and the seat in the mirror is empty, and wet.
+## her, or "Four." when Mei asks how many of them there are, kills him. "Three." or saying nothing keeps the rule, and
+## "Why you ask?" has her ask once more. Mei counts three for herself, Hafiz brakes, and the seat in the mirror is empty,
+## and wet.
 ##
 ## The look rule is armed when Bang Din's reminder is said (RECALL_AT), not before: until then he has not been told, and
 ## turning to "your friend" costs nothing. When the seat is empty a thought says nobody speaks and Hafiz drives faster,
 ## which the next mission's cruise (StallMission.CRUISE_SPEED) then does.
 ##
-## Beats: quiet (the mirror on, their talk, the rule), asked, asked_again (only after "Why you ask?"), counting (only
-## after "Four.": Mei counts heads for herself), empty.
+## Beats: quiet (the mirror on, their talk, the rule), asked, asked_again (only after "Why you ask?"), empty.
 
 const CRUISE_SPEED := 9.0
 const START_S := 900.0  # where set_up_skipped puts the car: after the slow car, which ends anywhere from s 680 to 1420
@@ -29,13 +28,11 @@ const HAFIZ_COUNT := "Hafiz: \"Four people in this small car, also nobody talk.\
 const ASK_AT := 30.0  # once both have spoken
 const AGAIN := "Mei: \"Just answer lah. How many?\""
 const THREE := "Mei: \"Three? Then who's sitting—\""
-const COUNTING_SECONDS := 3.0  # Mei counts heads after "Four.", before THREE
 const BRAKE_AT := 2.5  # seconds into the empty beat, as Mei breaks off
 const EMPTY_SECONDS := 7.0  # the mirror shows the empty seat, then goes off (leave)
 const NOBODY := "[Nobody says anything. Hafiz drives faster.]"  # his thought, as the seat empties for good
 
 var _mirror := false  # mirror_on sent, and mirror_off not yet
-var _seen := 0  # broken rules already looked at for a turn round
 var _recalled := false
 var _counted := false
 var _braked := false
@@ -54,7 +51,6 @@ func begin() -> void:
 	d.drive(CRUISE_SPEED)
 	_mirror = true
 	EventBus.road_cue.emit(&"mirror_on")
-	_seen = d.broken.size()
 	_recalled = false
 	_counted = false
 	_braked = false
@@ -64,39 +60,30 @@ func begin() -> void:
 
 
 func tick(_delta: float) -> bool:
-	# The look rule breaks in the director's step, before this tick: turned round to her, he sees her.
-	while _seen < d.broken.size():
-		if d.broken[_seen]["rule"] == RULE:
-			EventBus.road_cue.emit(&"fourth_glimpse")
-		_seen += 1
 	match beat:
 		&"quiet":
 			if not _recalled and beat_t >= RECALL_AT:
 				_recalled = true
 				d.say(RECALL, 5.0)
-				d.watch_look(RULE, 2.2, 1.0, 0.4, 1, 1)  # told now: from here, turning to her breaks it
+				d.watch_look(RULE, 2.2, 1.0, 0.4, 1, 1)  # told now: from here, turning to her kills him
 				WorldState.set_objective(OBJECTIVE)
 			if not _counted and beat_t >= COUNT_AT:
 				_counted = true
 				d.say(MEI_COUNT, 4.0, &"mei")
 				d.say(HAFIZ_COUNT, 3.5, &"hafiz")
 			if beat_t >= ASK_AT:
-				d.ask(&"count", PackedStringArray(["\"Three.\"", "\"Four.\"", "\"Why you ask?\""]), 6.0, PackedInt32Array([0, 2, -1]), &"counted_her")
+				d.ask(&"count", PackedStringArray(["\"Three.\"", "\"Four.\"", "\"Why you ask?\""]), RoadDirector.CHOICE_SECONDS, PackedInt32Array([0, 2, -1]), &"counted_her")
 				go(&"asked")
 		&"asked":
 			var answer := d.answer(&"count")
 			if answer == 2:
 				d.say(AGAIN, 3.0, &"mei")
-				d.ask(&"count_again", PackedStringArray(["\"Three.\"", "\"Four.\""]), 5.0, PackedInt32Array([0, -1]), &"counted_her")
+				d.ask(&"count_again", PackedStringArray(["\"Three.\"", "\"Four.\""]), RoadDirector.CHOICE_SECONDS, PackedInt32Array([0, -1]), &"counted_her")
 				go(&"asked_again")
-			elif answer != RoadDirector.NONE:
-				_answered(answer)
+			elif answer != RoadDirector.NONE:  # "Four." killed him in the choice's close: only "Three." and silence get here
+				_empty()
 		&"asked_again":
-			var answer := d.answer(&"count_again")
-			if answer != RoadDirector.NONE:
-				_answered(answer)
-		&"counting":
-			if beat_t >= COUNTING_SECONDS:
+			if d.answer(&"count_again") != RoadDirector.NONE:
 				_empty()
 		&"empty":
 			if not _braked and beat_t >= BRAKE_AT:
@@ -118,15 +105,6 @@ func leave() -> void:
 		d.stop_look()
 	if WorldState.objective == OBJECTIVE:
 		WorldState.set_objective("")
-
-
-## "Four." (answer 1 in both choices) has Mei count heads first; anything else goes straight to the empty seat.
-func _answered(answer: int) -> void:
-	if answer == 1:
-		d.say("Mei: \"Four meh? Wait, I count. One, two...\"", COUNTING_SECONDS, &"mei")
-		go(&"counting")
-	else:
-		_empty()
 
 
 ## Mei counts for herself.

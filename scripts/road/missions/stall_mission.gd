@@ -101,7 +101,7 @@ func tick(delta: float) -> bool:
 		&"voice":
 			if not _asked and beat_t >= ASK_VOICE:
 				_asked = true
-				d.ask(&"answer_voice", PackedStringArray(["\"Hafiz? That you?\"", "Stay quiet."]), 6.0, PackedInt32Array([1, -1]), &"answered")
+				d.ask(&"answer_voice", PackedStringArray(["\"Hafiz? That you?\"", "Stay quiet."]), RoadDirector.CHOICE_SECONDS, PackedInt32Array([1, -1]), &"answered")
 			elif _asked and d.answer(&"answer_voice") != RoadDirector.NONE:
 				EventBus.road_cue.emit(&"mei_reaches_door")  # she says it to her door, not to him
 				d.say(MEI_LINE, 3.0, &"mei")
@@ -110,7 +110,7 @@ func tick(delta: float) -> bool:
 		&"mei":
 			if not _asked and beat_t >= ASK_MEI:
 				_asked = true
-				d.ask(&"stop_mei", PackedStringArray(["\"Mei, don't. That's not him.\"", "\"Okay, open.\""]), 4.0, PackedInt32Array([0]), &"mei_opened")
+				d.ask(&"stop_mei", PackedStringArray(["\"Mei, don't. That's not him.\"", "\"Okay, open.\""]), RoadDirector.CHOICE_SECONDS, PackedInt32Array([0]), &"mei_opened", 2)
 			elif _asked and d.answer(&"stop_mei") != RoadDirector.NONE:
 				if d.answer(&"stop_mei") != 0:  # she opens her door, and something slaps it shut
 					EventBus.road_cue.emit(&"mei_door_cracked")
@@ -138,14 +138,13 @@ static func roll_distance(speed: float) -> float:
 	return speed * speed / (2.0 * ROLL_DECEL)
 
 
-## He opens his door, once: it opens a hand's width before something slaps it shut, and the prompt is gone.
+## He opens his door: it opens a hand's width before something slaps it shut, and that kills him (leave() takes the
+## prompt down). The cue comes first: nothing of the mission comes after his death.
 func interacted(object_id: StringName) -> void:
 	if object_id != DOOR or not _door:
 		return
-	_door = false
-	WorldState.set_prompt(DOOR, "")
-	d.break_rule(&"opened_door", 2)
 	EventBus.road_cue.emit(&"door_cracked")
+	d.break_rule(&"opened_door")
 
 
 func leave() -> void:

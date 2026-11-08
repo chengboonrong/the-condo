@@ -287,3 +287,20 @@ func test_a_skip_clears_the_slow_car_and_the_objective() -> bool:
 	eq(WorldState.objective, "", "and no objective")
 	_teardown()
 	return true
+
+
+func test_every_choice_closes_after_three_seconds() -> bool:
+	_setup()
+	for i in 1000:
+		if d.pending != &"":
+			break
+		_step()
+	eq(d.pending, &"overtake_1", "the first choice is open")
+	for i in 29:
+		_step()
+	eq(d.pending, &"overtake_1", "and still open after 2.9 s")
+	for i in 2:
+		_step()
+	eq(d.pending, &"", "closed after 3.1 s")
+	_teardown()
+	return true

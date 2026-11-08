@@ -19,7 +19,6 @@ const OBJECTIVE := "Walk to the light. Don't look back."
 const VOICE := "[Behind you, Hafiz's voice: \"Mei! Wait for me!\"]"
 const LOOKS := "[Mei looks back.]"  # seen or not: she is at his side, out of his view ahead
 const ASKS := [[&"mei_look_1", 0.3], [&"mei_look_2", 0.65]]  # [choice, share of the way]: the voice, and Mei wants to look
-const ASK_SECONDS := 5.0
 const DECIDE := 30.0  # metres short of the light: the ending is decided
 const THERE := 4.0  # metres short of it: they are there
 ## Seconds into each ending.
@@ -113,9 +112,8 @@ func leave() -> void:
 	d.stop_look()
 
 
-## Each look back that counts is her cue to lunge at him: the scare the presentation makes of it.
 func _walk() -> void:
-	d.watch_look(&"looked_back", 1.9, 1.9, 0.25, 3, 2, &"her_lunges")
+	d.watch_look(&"looked_back", 1.9, 1.9, 0.25, 1, 1)
 	EventBus.road_cue.emit(&"her_behind")
 	go(&"walk")
 
@@ -135,7 +133,7 @@ func _walking() -> void:
 		_asking = ASKS[_asked][0]
 		_asked += 1
 		d.say(VOICE, 4.0)
-		d.ask(_asking, PackedStringArray(["\"Don't look. Hold my hand.\"", "\"Maybe it's him.\""]), ASK_SECONDS, PackedInt32Array([0]), &"mei_looked")
+		d.ask(_asking, PackedStringArray(["\"Don't look. Hold my hand.\"", "\"Maybe it's him.\""]), RoadDirector.CHOICE_SECONDS, PackedInt32Array([0]), &"mei_looked", 2)
 	if _decided == &"" and s >= d.light_s - DECIDE and d.pending == &"":
 		_decided = d.outcome()
 		d.stop_look()

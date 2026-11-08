@@ -26,7 +26,6 @@ const BEND_WAIT := 10.0  # ...and no longer than this extra, waiting for a bend 
 const BEND_COS := 0.97  # the road turns by more than 14 degrees within AHEAD_GAP
 const FOLLOW_SECONDS := 23.0  # behind it, until he speaks
 const URGE_SECONDS := 5.0  # from what he says to the choice
-const ASK_SECONDS := 6.0
 const KEPT_SECONDS := 11.0  # his grumble, and the crawl on: the attempts come about 40 s apart
 const ATTEMPTS := 3
 const BEHIND := [&"seen", &"follow", &"urge", &"ask", &"kept", &"signal", &"lay_by"]  # beats spent closing up on it, or behind it
@@ -100,7 +99,7 @@ func tick(delta: float) -> bool:
 				_urge()
 		&"urge":
 			if beat_t >= URGE_SECONDS:
-				d.ask(_choice(), PackedStringArray(OPTIONS[_attempt - 1]), ASK_SECONDS, PackedInt32Array(KEEPS), &"overtook")
+				d.ask(_choice(), PackedStringArray(OPTIONS[_attempt - 1]), RoadDirector.CHOICE_SECONDS, PackedInt32Array(KEEPS), &"overtook")
 				go(&"ask")
 		&"ask":
 			var answer := d.answer(_choice())

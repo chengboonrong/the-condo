@@ -188,6 +188,7 @@ func test_looking_back_kills_him() -> bool:
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])
 	eq([d.dead, d.score()], [&"looked_back", 0], "a look back kills him, and counts for nothing")
+	eq(cues.count(&"her_lunges"), 0, "and she makes no lunge of it")
 	_teardown()
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [128.0])  # past the point where the ending is decided
@@ -197,29 +198,17 @@ func test_looking_back_kills_him() -> bool:
 	return true
 
 
-## A look back kills him, and the death gives no lunge cue; keeping every rule gives none either.
-func test_looking_back_gives_no_lunge() -> bool:
-	_setup()
-	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])
-	eq(cues.count(&"her_lunges"), 0, "a look back that kills him: no lunge")
-	_teardown()
-	_setup()
-	_play({&"mei_look_1": 0, &"mei_look_2": 0})
-	eq(cues.count(&"her_lunges"), 0, "keeping every rule: she never does")
-	_teardown()
-	return true
-
-
-func test_silence_lets_mei_look() -> bool:
+func test_letting_mei_look_costs_two_each() -> bool:
 	_setup()
 	_play({})
-	eq(_rules(), [[&"mei_looked", 1], [&"mei_looked", 1]], "both unanswered: she looks back twice")
+	eq(_rules(), [[&"mei_looked", 2], [&"mei_looked", 2]], "both unanswered: she looks back twice")
+	eq([d.score(), d.dead], [4, &""], "it costs four, and not his life")
 	eq(cues.count(&"mei_looks"), 2, "and is seen to")
 	eq(lines.filter(func(l: Array) -> bool: return l == [LOOKS, &""]).size(), 2, "and told, with no speaker: she is out of his view ahead")
 	_teardown()
 	_setup()
 	_play({&"mei_look_1": 1, &"mei_look_2": 0})
-	eq(_rules(), [[&"mei_looked", 1]], "\"Maybe it's him.\" lets her too")
+	eq(_rules(), [[&"mei_looked", 2]], "\"Maybe it's him.\" lets her too")
 	_teardown()
 	return true
 
@@ -264,5 +253,25 @@ func test_caught_ends_before_the_light() -> bool:
 	check(order[0] >= 0 and order[0] < order[1] and order[1] < order[2], "she catches Hafiz, then comes for them (%s)" % [order])
 	check(not cues.has(&"card_on"), "the card is hers to bring, with no caption")
 	eq(ended, [&"caught"], "all three caught")
+	_teardown()
+	return true
+
+
+func test_every_choice_closes_after_three_seconds() -> bool:
+	_setup(false)  # standing beside the car: he walks at once
+	var s := RoadLayout.closest_s(stage.position)
+	for i in 1000:
+		if d.pending != &"":
+			break
+		s += WALK * 0.1
+		stage.position = RoadLayout.point(s, BESIDE)
+		d.step(0.1)
+	eq(d.pending, &"mei_look_1", "the first choice is open")
+	for i in 29:
+		d.step(0.1)
+	eq(d.pending, &"mei_look_1", "and still open after 2.9 s")
+	for i in 2:
+		d.step(0.1)
+	eq(d.pending, &"", "closed after 3.1 s")
 	_teardown()
 	return true

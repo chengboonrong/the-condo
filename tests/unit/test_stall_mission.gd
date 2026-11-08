@@ -20,6 +20,7 @@ var ended: Array[StringName] = []
 var prompt_before_leaving := false  # the door's prompt was up before hafiz_leaves
 var stopped_at := NAN  # car_s the step the car stood still
 var stopped_after := NAN  # seconds from lights_dying to then
+var cues_at_death := -1  # how many cues had come when he died
 var _dying_at := NAN
 
 
@@ -35,12 +36,14 @@ func _setup() -> void:
 	prompt_before_leaving = false
 	stopped_at = NAN
 	stopped_after = NAN
+	cues_at_death = -1
 	_dying_at = NAN
 	EventBus.road_cue.connect(_on_cue)
 	EventBus.line_requested.connect(_on_line)
 	EventBus.road_line.connect(_on_speaker)
 	EventBus.choices_requested.connect(_on_asked)
 	EventBus.road_ended.connect(_on_ended)
+	EventBus.player_died.connect(_on_died)
 
 
 func _teardown() -> void:
@@ -49,6 +52,7 @@ func _teardown() -> void:
 	EventBus.road_line.disconnect(_on_speaker)
 	EventBus.choices_requested.disconnect(_on_asked)
 	EventBus.road_ended.disconnect(_on_ended)
+	EventBus.player_died.disconnect(_on_died)
 
 
 func _on_cue(cue: StringName) -> void:
@@ -72,6 +76,10 @@ func _on_asked(choice_id: StringName, options: PackedStringArray) -> void:
 
 func _on_ended(ending: StringName) -> void:
 	ended.append(ending)
+
+
+func _on_died(_cause: StringName) -> void:
+	cues_at_death = cues.size()
 
 
 ## Plays the mission to the end. `answers` by choice id, one second after it opens (-1 or missing: silence); the door
@@ -150,6 +158,8 @@ func test_opening_the_door_kills_him() -> bool:
 	eq([d.dead, _rules()], [&"opened_door", []], "opening the door kills him, and counts for nothing")
 	eq(cues.count(&"door_cracked"), 1, "the door opens a hand's width and is slapped shut once")
 	check(cues.find(&"door_cracked") > cues.find(&"hafiz_leaves"), "after Hafiz has gone")
+	check(cues.find(&"door_cracked") < cues_at_death, "it opens, and then he dies: no cue comes after his death")
+	eq(cues.size(), cues_at_death, "(none did)")
 	eq(WorldState.prompts.get(&"car_door_inside", ""), "", "the prompt is gone after it")
 	_teardown()
 	_setup()  # the prompt goes at once, not at the mission's end
@@ -174,20 +184,22 @@ func test_the_door_prompt_goes_when_the_light_comes_on() -> bool:
 	return true
 
 
-func test_silence_lets_mei_open() -> bool:
+func test_letting_mei_open_costs_two() -> bool:
 	_setup()
 	_play({&"answer_voice": 1})
-	eq(_rules(), [[&"mei_opened", 1]], "she opens it")
+	eq(_rules(), [[&"mei_opened", 2]], "she opens it")
+	eq([d.score(), d.dead], [2, &""], "it costs two, and not his life")
 	eq(cues.count(&"mei_door_cracked"), 1, "and it is slapped shut")
 	check(cues.find(&"mei_door_cracked") < cues.find(&"knock_window"), "before the knocks")
 	_teardown()
 	_setup()
 	_play({&"answer_voice": 1, &"stop_mei": 1})
-	eq(_rules(), [[&"mei_opened", 1]], "\"Okay, open.\" lets her too")
+	eq(_rules(), [[&"mei_opened", 2]], "\"Okay, open.\" lets her too")
 	_teardown()
 	_setup()
 	_play({})
-	eq(_rules(), [[&"mei_opened", 1]], "staying quiet for the voice keeps that rule")
+	eq(_rules(), [[&"mei_opened", 2]], "staying quiet for the voice keeps that rule")
+	eq(d.dead, &"", "and he is alive")
 	_teardown()
 	_setup()
 	_play({&"answer_voice": 0, &"stop_mei": 0})
@@ -209,5 +221,37 @@ func test_the_light_is_150_m_on() -> bool:
 	_play({&"answer_voice": 1, &"stop_mei": 0}, 0, 30.0)
 	check(stopped_at > 2000.0, "past the usual stop (%.1f)" % stopped_at)
 	near(d.light_s, stopped_at + 150.0, 0.001, "still 150 m on")
+	_teardown()
+	return true
+
+
+func test_staying_quiet_is_safe_on_the_short_clock() -> bool:
+	_setup()
+	for i in 3000:
+		if d.pending == &"answer_voice":
+			break
+		d.step(0.1)
+	eq(d.pending, &"answer_voice", "(the voice's choice is open)")
+	for i in 31:
+		d.step(0.1)
+	eq(d.answer(&"answer_voice"), -1, "no answer for 3.1 s: it closes")
+	eq([d.dead, d.score()], [&"", 0], "and silence keeps the rule")
+	_teardown()
+	return true
+
+
+func test_every_choice_closes_after_three_seconds() -> bool:
+	_setup()
+	for i in 3000:
+		if d.pending != &"":
+			break
+		d.step(0.1)
+	eq(d.pending, &"answer_voice", "the first choice is open")
+	for i in 29:
+		d.step(0.1)
+	eq(d.pending, &"answer_voice", "and still open after 2.9 s")
+	for i in 2:
+		d.step(0.1)
+	eq(d.pending, &"", "closed after 3.1 s")
 	_teardown()
 	return true

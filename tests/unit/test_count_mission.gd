@@ -8,7 +8,6 @@ const COUNT := [
 	"Hafiz: \"Four people in this small car, also nobody talk.\"",
 ]
 const THREE := "Mei: \"Three? Then who's sitting—\""
-const COUNTING := "Mei: \"Four meh? Wait, I count. One, two...\""
 const OBJECTIVE := "Don't turn round. Don't count her."
 
 var stage: RoadStage
@@ -112,7 +111,6 @@ func test_keeping_breaks_nothing() -> bool:
 	var asking := captions.find(COUNT[0])
 	check(asking > recall and captions.find(COUNT[1]) == asking + 1, "Mei asks how many, and Hafiz counts four")
 	check(captions.find(THREE) > asking, "then Mei: three?")
-	check(not captions.has(COUNTING), "with no counting first")
 	eq(asked, [&"count"], "asked once")
 	eq(cues, [&"mirror_on", &"brake", &"fourth_gone", &"mirror_off"], "the cues in order")
 	_run(0.3)  # the thought is said on the step after the mission ends
@@ -141,7 +139,7 @@ func test_turning_before_bang_din_says_the_rule_costs_nothing() -> bool:
 	return true
 
 
-func test_turning_to_her_kills_him() -> bool:
+func test_turning_round_after_the_reminder_kills_him() -> bool:
 	_setup({&"count": 0})
 	_run(10.0)  # the rule is said at 9 s
 	stage.view_yaw = -1.3  # to his right, where she sits
@@ -168,7 +166,6 @@ func test_why_asks_again_and_silence_keeps() -> bool:
 	eq(asked, [&"count", &"count_again"], "asked again")
 	check(d.progress.any(func(p: Dictionary) -> bool: return p["beat"] == &"asked_again"), "the asked_again beat")
 	eq(d.answer(&"count_again"), -1, "he says nothing")
-	check(not captions.has(COUNTING), "so Mei doesn't count")
 	eq(d.score(), 0, "which keeps the rule")
 	eq(d.dead, &"", "and he lives")
 	eq(cues.slice(-2), [&"fourth_gone", &"mirror_off"], "and the mission ends as kept")
@@ -181,7 +178,39 @@ func test_four_kills_him() -> bool:
 	_finish()
 	eq(d.dead, &"counted_her", "\"Four.\" counts her: he dies")
 	eq(asked, [&"count"], "and isn't asked again")
-	check(not captions.has(COUNTING), "Mei counts no heads")
+	_teardown()
+	_setup({&"count": 2, &"count_again": 1})  # "Why you ask?", then "Four."
+	_finish()
+	eq([d.dead, asked], [&"counted_her", [&"count", &"count_again"]], "\"Four.\" after \"Why you ask?\" kills him too")
+	_teardown()
+	return true
+
+
+func test_silence_is_safe_when_mei_counts() -> bool:
+	_setup()
+	for i in 600:
+		if not asked.is_empty():
+			break
+		_step()
+	eq(asked, [&"count"], "(Mei asks)")
+	_run(3.1)
+	eq(d.answer(&"count"), -1, "he says nothing for 3.1 s: it closes")
+	eq([d.dead, d.score()], [&"", 0], "and silence keeps the rule")
+	_teardown()
+	return true
+
+
+func test_every_choice_closes_after_three_seconds() -> bool:
+	_setup()
+	for i in 600:
+		if d.pending != &"":
+			break
+		_step()
+	eq(d.pending, &"count", "the first choice is open")
+	_run(2.9)
+	eq(d.pending, &"count", "and still open after 2.9 s")
+	_run(0.2)
+	eq(d.pending, &"", "closed after 3.1 s")
 	_teardown()
 	return true
 
