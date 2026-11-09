@@ -3,6 +3,13 @@ extends TestCase
 ## under it, then go without a sound. A story knock ends it. Once Rosnah has warned him (answered_intercom), opening
 ## the door or a light left on when the feet stop kills him; unwarned, opening the door ends the visit as before.
 
+## Ends its first update with a kill, as the visitor does when he breaks its rule.
+class KillerEvent extends HorrorEvent:
+	func update(_ctx: EventContext, run: Dictionary, _delta: float) -> bool:
+		run["kill"] = &"lights_on"
+		return true
+
+
 var sched: EventScheduler
 var ctx: EventContext
 var trail: Array = []  # every sound, feet request and caption, in the order they happened
@@ -199,6 +206,26 @@ func test_peeking_no_longer_ends_the_visit() -> bool:
 		rt.step(0.1)
 		t += 0.1
 	eq(rt.dead, &"lights_on", "the visit runs on to the lights check")
+	rt.free()
+	_teardown()
+	return true
+
+
+## A visitor's kill ends the step: the director, due to evaluate in it, does not, so nothing new begins under the card.
+func test_a_visitor_kill_begins_nothing_else_in_its_step() -> bool:
+	_setup(&"living", Vector3(6.5, 0, 8.4))
+	var rt := HorrorRuntime.new()
+	rt.setup(ctx.stage, 3)
+	var killer := KillerEvent.new()
+	killer.id = &"killer"
+	rt.scheduler.register(killer)
+	rt.scheduler.start(&"killer")
+	rt.director._next_eval = 0.0  # due now
+	var evals := rt.director.eval_count
+	rt.step(0.1)
+	eq(rt.dead, &"lights_on", "the kill is his death")
+	eq(rt.director.eval_count, evals, "the director does not evaluate after it")
+	check(rt.scheduler.running.is_empty() and rt.scheduler.queue.is_empty(), "and nothing is running or waiting")
 	rt.free()
 	_teardown()
 	return true

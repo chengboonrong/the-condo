@@ -76,7 +76,11 @@ func step(delta: float) -> void:
 		return
 	if story_running:
 		story.tick(delta)
+	if dead != &"":  # a death in the story's tick: the scheduler and the director do not run on
+		return
 	scheduler.tick(delta)
+	if dead != &"":  # a visitor's kill: the director begins nothing new under the card
+		return
 	director.tick(delta)
 	WorldState.behavior["tension"] = director.tension
 	last_step_usec = Time.get_ticks_usec() - t0
