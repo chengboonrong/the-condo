@@ -215,14 +215,17 @@ comes level over `Penanggal.TURN` (`PlayerController.turn_to`) and she starts al
 (0.3 m) short of the end of its clear run (`clear_run`: up to the first solid thing or, on the road, whose ground has
 no colliders, to where the ground comes up to his eyes' height), 15 m at the most. Where that run leaves her under
 `MIN_START` (2 m) off, his view turns another way and she starts along that: in the flat (`Main`) the clearest of the
-four level ways round him, on the road (`RoadMain`) down the road, away from the bank beside it and his car door.
-From a short way off she hangs at the start first, so she is in view for `SEEN` (0.5 s) at the least before she
-reaches him. So he sees her come wherever such a run is found, with two exceptions: in a corner closed on all four
-sides she would start `CLOSE` (0.6 m) off, and in the car (`not_locked`, `opened_door`) the run ahead of his seat
-passes Mei's head and the roof's edge, which have no colliders, so for most of the way she is behind them. In the
-flat she comes at his eye height all the way, under the door tops. When she has reached it (`reached`), a black card
-cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button (`Hud.show_game_over`). The card
-is opaque and over everything: a choice or a caption still up is closed and a line being said is cut off. The mouse is shown for the button. The road's loops are switched off (`RoadMain`), and the flat's
+four level ways round him, on the road (`RoadMain`) down the road, away from the bank beside it. In the car (the five
+deaths there: `turned_round`, `counted_her`, `answered`, `opened_door`, `not_locked`) his view always turns ahead,
+through the windscreen, and Mei leans aside out of his line and stays so (`Couple.mei_faces(&"ahead")`, the lean that
+uncovers the road past her); Hafiz, at the wheel, sits well to the right of it. She keeps pace with the car while it
+brakes (`come_for`'s `carrier`), so a bend does not swing her round to a side window. From a short way off she hangs
+at the start first, so she is in view for `SEEN` (0.5 s) at the least before she reaches him. So he sees her come
+wherever such a run is found; in a corner closed on all four sides she would start `CLOSE` (0.6 m) off. In the flat
+and in the car she comes at his eye height all the way, under the door tops and the car's roof. When she has reached
+it (`reached`), a black card cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button
+(`Hud.show_game_over`). The card is opaque and over everything: a choice or a caption still up is closed and a line
+being said is cut off. The mouse is shown for the button. The road's loops are switched off (`RoadMain`), and the flat's
 beds and drone are (`AudioDirector.silence`). On the road, a car he is in brakes (`RoadDirector.die` stops it) and the
 director keeps stepping until the card is up, so it does not stop dead; a car he is not in goes on (the couple drive off
 from the lift without him). In the flat she has no director and is hidden otherwise; she is drawn once behind the
