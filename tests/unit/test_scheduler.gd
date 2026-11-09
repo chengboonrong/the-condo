@@ -288,10 +288,11 @@ func test_a_run_cancelled_by_another_runs_end_is_not_run_again() -> bool:
 	bystander.channels = PackedStringArray(["b"])
 	sched.register(killer)
 	sched.register(bystander)
-	sched.run_finished.connect(func(run: Dictionary) -> void:
+	var on_finished := func(run: Dictionary) -> void:
 		if run.has("kill"):
 			for other in sched.running.duplicate():
-				sched.cancel(other, "died"))
+				sched.cancel(other, "died")
+	sched.run_finished.connect(on_finished)
 	sched.start(&"killer")
 	var other := sched.start(&"bystander")
 	sched.tick(0.1)
@@ -299,5 +300,6 @@ func test_a_run_cancelled_by_another_runs_end_is_not_run_again() -> bool:
 	eq(bystander.updates, 0, "and is not updated again")
 	eq(bystander.finishes, 1, "nor finished a second time")
 	check(sched.running.is_empty(), "nothing is left running")
+	sched.run_finished.disconnect(on_finished)  # it holds sched: connected, the two would keep each other
 	_teardown()
 	return true
