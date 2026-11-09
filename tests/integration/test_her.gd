@@ -405,6 +405,30 @@ func test_she_comes_for_a_camera_without_a_road() -> bool:
 	return true
 
 
+## As she comes for the camera her own dim fill is on and steady, lighting her alone (render layer 12, which her mesh is
+## on as well as layer 1); anywhere else, and once she is gone, it is off.
+func test_her_fill_lights_her_alone_while_she_comes() -> bool:
+	var her := _her()
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = RoadLayout.point(900.0) + Vector3.UP * 1.6
+	var mesh := her.find_child("Penanggal", true, false) as MeshInstance3D
+	eq(mesh.layers, 1 | Penanggal.LAYER, "her mesh is on layer 1 and her own")
+	eq(her.fill.light_cull_mask, Penanggal.LAYER, "her fill lights her layer alone")
+	check(not her.fill.visible, "off until she comes")
+	her.come_for(camera)
+	var steady := true
+	for i in 30:
+		await tree.process_frame
+		steady = steady and her.fill.is_visible_in_tree() and is_equal_approx(her.fill.light_energy, Penanggal.FILL_ENERGY)
+	check(steady, "on and steady while she comes")
+	her.fly_to(camera.global_position + Vector3(0.0, 0.0, -10.0))
+	check(not her.fill.visible, "off while she flies")
+	her.hide_her()
+	check(not her.fill.visible, "off once she is gone")
+	return true
+
+
 ## Her first wet flap behind him is captioned, with the flap itself and once: a second flap is not. The caption shows
 ## only with captions on, so it goes out on subtitle_requested with the sound.
 func test_her_first_flap_behind_is_captioned() -> bool:

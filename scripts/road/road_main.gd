@@ -198,7 +198,8 @@ func _finish_loading() -> void:
 ## included, is drawn on a board in front of a camera of its own under every mix of the road's lights, so that nothing
 ## compiles a shader mid-game. In this renderer a light changes the shaders by its kind and by whether it casts a
 ## shadow, not by which light it is, so three stand in for them all: an omni light for the sodium lamps, the tunnel's,
-## her fill in the mirror and the endings' bulb, ring light and fallen phone; an unshadowed
+## her fill in the mirror, her own as she comes for him (Penanggal.fill: her mesh is drawn here on its layers, under the
+## stand-in) and the endings' bulb, ring light and fallen phone; an unshadowed
 ## spot for the headlights, the dash, Mei's screen, Hafiz's torch and the lorry's lamps; and a copy of his phone light,
 ## the one with a shadow.
 ## The mirror's camera draws the board each time too: its picture is drawn without shadow maps and with a pass after

@@ -4,7 +4,8 @@ extends Node3D
 ## (assets/models/penanggal.glb: its origin is the centre of her skull, and she faces +Z). Hidden until the road calls
 ## for her, then in one place at a time: glimpsed at the roadside ahead of the car, on the car's roof, behind a
 ## walker, flying somewhere, catching someone, or coming for the camera. In the flat she has no director and only comes
-## for the camera. She always hangs upright. She is lit by the scene's own lights alone. Her sounds are wet.
+## for the camera. She always hangs upright. She is lit by the scene's own lights, and as she comes for the camera by
+## her own dim fill as well, so she is seen coming in the dark. Her sounds are wet.
 
 ## come_for: she is as close to the camera as she comes.
 signal reached
@@ -56,6 +57,12 @@ const SHORT := 0.3
 const TURN := 0.25
 const SEEN := 0.5
 const STEP := 0.25  # metres between the ground's samples along a clear run
+## come_for: her own fill, in her own space: off to her left, above and a little in front, so her brow leaves her eyes
+## in deep sockets, her right cheek falls into shadow and her left eye catches it. It lights her alone, on render layer
+## 12 (LAYER), steady while she comes: in a dark room she is seen from across it, dim, not lit like a lamp.
+const FILL := Vector3(0.22, 0.18, 0.14)
+const FILL_ENERGY := 0.7
+const LAYER := 1 << 11  # render layer 12: her alone (the mirror's is 11)
 ## Her first wet flap behind him, captioned once: the same noise after it is not. Her flaps in her other places have no
 ## caption, and the door's slap has its own (RoadMain.CAPTIONS).
 const FLAP_CAPTION := "[Behind you, something wet flaps.]"
@@ -204,6 +211,7 @@ void fragment() {
 var director: RoadDirector  # the ride: where the car is, and how near she has come
 var builder: RoadBuilder  # the ground beside the road; without it, the road's plane runs on
 var pool: MeshInstance3D  # catch: what spreads under him
+var fill: OmniLight3D  # come_for: her own light on her
 
 var _skin: Array[ShaderMaterial] = []  # her four surfaces
 var _pool_material := ShaderMaterial.new()
@@ -257,6 +265,15 @@ func _ready() -> void:
 			m.set_shader_parameter(&"specular", 0.2)
 		mesh.set_surface_override_material(i, m)
 		_skin.append(m)
+	mesh.layers |= LAYER
+	fill = OmniLight3D.new()
+	fill.light_color = Color(0.75, 0.8, 0.9)  # the fog's grey, as the mirror's fourth passenger's
+	fill.light_energy = FILL_ENERGY
+	fill.omni_range = 2.5
+	fill.light_cull_mask = LAYER
+	fill.position = FILL
+	fill.visible = false
+	add_child(fill)
 	_pool_material.shader = Shader.new()
 	_pool_material.shader.code = POOL_SHADER
 	_pool_material.resource_name = "pool"
@@ -371,9 +388,9 @@ func fly_to(at: Vector3) -> void:
 	_begin(&"fly", global_position if visible else at)
 
 
-## She comes straight at the camera at SPEED from where he sees her, or from `from`, or from along its level view
-## (start_along), high enough that what hangs from her clears the road, and comes down to its height over the last
-## LOW_IN metres. In the flat (no director) she comes at its height all the way, along the clear line she
+## She comes straight at the camera at SPEED, lit by her fill, from where he sees her, or from `from`, or from along
+## its level view (start_along), high enough that what hangs from her clears the road, and comes down to its height over
+## the last LOW_IN metres. In the flat (no director) she comes at its height all the way, along the clear line she
 ## starts on and under every door's top; what hangs from her lies on the floor, as it does once she is there. She stops
 ## CLOSE to it, face to face: `reached`, TURN + SEEN after this at the soonest.
 func come_for(camera: Camera3D, from := Vector3.INF) -> void:
@@ -419,6 +436,7 @@ func hide_her() -> void:
 	_mode = &""
 	_target = null
 	visible = false
+	fill.visible = false
 	pool.visible = false
 
 
@@ -562,6 +580,7 @@ func _begin(mode: StringName, at: Vector3) -> void:
 	global_position = at
 	_timers.clear()
 	_set_fade(1.0)
+	fill.visible = mode == &"come_for"
 	visible = true
 
 

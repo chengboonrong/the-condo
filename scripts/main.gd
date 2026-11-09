@@ -124,7 +124,9 @@ func _compile_shaders() -> void:
 				await get_tree().process_frame
 	# The figure's materials are its own, and a shadowed light on it is a variant of its own: show it under each
 	# light it can be met with. Drawn only with the phone light on it, its first sight by a ceiling light alone cost
-	# 44–107 ms on an M1 Max. Her skin is her own too, and she comes for him in whatever light he dies in.
+	# 44–107 ms on an M1 Max. Her skin is her own too, and she comes for him in whatever light he dies in, always lit by
+	# her own fill (an unshadowed omni light, as the ceiling lights are: in this renderer a light picks the shader by its
+	# kind and whether it casts a shadow, so with it on every state below is one she can be seen in).
 	for state: Array in [[true, false], [false, true], [true, true], [false, false]]:
 		for l: Light3D in lights:
 			l.visible = state[0]
@@ -132,6 +134,7 @@ func _compile_shaders() -> void:
 		silhouette.warm_up(cam.global_position + cam.global_basis.z * -2.0 + Vector3.DOWN * 1.6)
 		her.global_position = cam.global_position + cam.global_basis.z * -2.0  # her origin is her skull's centre
 		her.visible = true
+		her.fill.visible = true
 		await get_tree().process_frame
 	her.hide_her()
 	hud.set_lens(true)  # the peephole's lens, behind the start card, so its first look does not compile it
