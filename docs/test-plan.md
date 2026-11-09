@@ -91,7 +91,7 @@ see [performance.md](performance.md).
 
 ## Manual checks (need a window)
 
-* The road's stills: `GODOT=<Godot 4.7.2> tools/road_stills.sh <dir>` renders 44 of them at 1920×1080 and a contact sheet.
+* The road's stills: `GODOT=<Godot 4.7.2> tools/road_stills.sh <dir>` renders 46 of them at 1920×1080 and a contact sheet.
   Look at each at full size against the four anti-goals (a ghost that looks fake, cheap jump scares, not Malaysian
   enough, boring missions).
 * The flat after the road: `"<Godot 4.7.2>" --path . --script res://tools/stills.gd -- --out=<dir> --road=caught`

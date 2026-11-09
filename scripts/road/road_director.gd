@@ -55,7 +55,6 @@ var _look_right := 0.0
 var _look_hold := 0.0
 var _look_weight := 1
 var _look_max := 1
-var _look_cue: StringName = &""
 var _look_count := 0
 var _look_held := 0.0
 var _look_armed := true
@@ -171,15 +170,13 @@ func answer(choice_id: StringName) -> int:
 
 ## Breaks `rule` when his look has been past `left` (to his left) or `right` (to his right) for `hold` seconds, at
 ## most `max_count` times. After a break it can only break again once he has looked back towards the front.
-## `cue`, if given, is emitted right after each break: the scare the presentation makes of it (the bots ignore it).
-func watch_look(rule: StringName, left: float, right: float, hold: float, weight: int, max_count: int, cue: StringName = &"") -> void:
+func watch_look(rule: StringName, left: float, right: float, hold: float, weight: int, max_count: int) -> void:
 	look_rule = rule
 	_look_left = left
 	_look_right = right
 	_look_hold = hold
 	_look_weight = weight
 	_look_max = max_count
-	_look_cue = cue
 	_look_count = 0
 	_look_held = 0.0
 	_look_armed = true
@@ -320,8 +317,6 @@ func _watch(delta: float) -> void:
 			_look_count += 1
 			_look_armed = false
 			break_rule(look_rule, _look_weight)
-			if _look_cue != &"" and dead == &"":
-				EventBus.road_cue.emit(_look_cue)
 	else:
 		_look_held = 0.0
 

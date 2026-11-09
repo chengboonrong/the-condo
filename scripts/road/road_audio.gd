@@ -19,8 +19,6 @@ const SOUNDS := {
 	&"starter_crank": preload("res://assets/audio/starter_crank.wav"),  # and not starting
 	&"thump_roof": preload("res://assets/audio/thump_roof.wav"),  # something landing on it
 	&"knock_glass": preload("res://assets/audio/knock_glass.wav"),  # on Mei's window
-	&"stinger": preload("res://assets/audio/stinger.wav"),  # the flat's, as he looks back and she is right behind him
-	&"shriek": preload("res://assets/audio/shriek.wav"),  # and hers
 }
 const STEPS := [
 	preload("res://assets/audio/road_step_1.wav"), preload("res://assets/audio/road_step_2.wav"),

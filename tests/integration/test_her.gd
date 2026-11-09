@@ -405,89 +405,13 @@ func test_she_comes_for_a_camera_without_a_road() -> bool:
 	return true
 
 
-## He looks back on the walk and she is right behind him: in his face in the middle of his view (looking level, at his
-## eye height; looking down, below it), lit by her own fill, captioned. She holds there as he moves (a step into her
-## does not carry his eyes into her head) but not as he turns; half a second on she pulls back to where she follows,
-## her fill fading out on the way.
-func test_lunge_puts_her_in_his_face_then_back() -> bool:
-	var her := _her()
-	her.director.her_near = 0.36  # one counted look (0.12 x 3): she follows 13 m back
-	her.audio = RoadAudio.new()
-	tree.root.add_child(her.audio)
-	var walker := Node3D.new()
-	tree.root.add_child(walker)
-	walker.global_position = RoadLayout.point(900.0)
-	var camera := Camera3D.new()
-	tree.root.add_child(camera)
-	camera.global_position = walker.global_position + Vector3.UP * 1.6
-	camera.rotation.y = RoadBuilder.yaw_along(900.0) + PI  # looking back up the road
-	var captions := []
-	var on_caption := func(text: String, _seconds: float) -> void: captions.append(text)
-	EventBus.subtitle_requested.connect(on_caption)
-	her.behind(walker)
-	await _frames(2)
-	her.lunge(camera)
-	await _frames(1)
-	var to := her.global_position - camera.global_position
-	near(to.length(), Penanggal.LUNGE_AT, 0.02, "she is LUNGE_AT from his eyes")
-	near(her.global_position.y, camera.global_position.y, 0.02, "looking level, at their height")
-	check(to.normalized().dot(-camera.global_basis.z) > 0.98, "where he looks")
-	var face := her.global_basis.z.slide(Vector3.UP).normalized()
-	near(face.dot(-to.slide(Vector3.UP).normalized()), 1.0, 0.02, "her face to him")
-	check(her.fill.is_visible_in_tree() and her.fill.light_energy > 0.0, "lit by her own fill")
-	eq(her.fill.light_cull_mask, Penanggal.LAYER, "her fill lights her layer alone, so the road's light budget never counts it")
-	eq(captions, [Penanggal.LUNGE_CAPTION], "and captioned, once")
-	for id: StringName in [&"stinger", &"shriek"]:
-		check(her.audio.here.has(id) and her.audio.here[id].playing, "%s, in his head" % id)
-	var held := her.global_position - camera.global_position
-	camera.rotation.y += PI / 2.0  # he turns his head mid-hold: she does not follow where he turns
-	await _frames(2)
-	near((her.global_position - camera.global_position).distance_to(held), 0.0, 0.02, "she keeps her place when he only turns")
-	camera.rotation.y -= PI / 2.0
-	camera.global_position -= camera.global_basis.z * 0.6  # he walks into her, mid-hold: she stays 0.5 m from his eyes
-	await _frames(2)
-	near(her.global_position.distance_to(camera.global_position), Penanggal.LUNGE_AT, 0.02, "he walks at her and she keeps LUNGE_AT from his eyes")
-	await _frames(roundi((Penanggal.LUNGE_HOLD + 0.5) * 60.0))
-	var away := her.global_position.distance_to(camera.global_position)
-	check(away >= 2.2, "half a second after the hold she has pulled back (%.2f m)" % away)
-	await _frames(roundi((3.0 - Penanggal.LUNGE_HOLD - 0.5) * 60.0))
-	check(her.global_position.distance_to(her._behind_point()) < 0.5, "3 s on she follows where she did")
-	eq(her.fill.light_energy, 0.0, "and her fill is out")
-	her.lunge(camera)
-	await _frames(20)
-	her.lunge(camera)  # he looks back again mid-hold: it starts over
-	await _frames(20)  # past where the first hold would have ended
-	near(her.global_position.distance_to(camera.global_position), Penanggal.LUNGE_AT, 0.02, "a second lunge mid-hold starts it over")
-	EventBus.subtitle_requested.disconnect(on_caption)
-	her.hide_her()
-	her.lunge(camera)
-	check(not her.visible, "hidden, she does not lunge")
-	camera.rotation.x = deg_to_rad(-50.0)  # he looks back and down at the road: the look counts on his yaw alone
-	her.behind(walker)
-	await _frames(2)
-	her.lunge(camera)
-	await _frames(1)
-	to = her.global_position - camera.global_position
-	near(to.length(), Penanggal.LUNGE_AT, 0.02, "looking down, she is LUNGE_AT from his eyes")
-	check(to.normalized().dot(-camera.global_basis.z) > 0.98, "in the middle of his view, not above it")
-	face = her.global_basis.z.slide(Vector3.UP).normalized()
-	near(face.dot(-to.slide(Vector3.UP).normalized()), 1.0, 0.02, "and still upright, her face to him")
-	return true
-
-
-## Her first wet flap behind him is captioned, with the flap itself and once: a second flap, and one after a lunge,
-## are not. The caption shows only with captions on, so it goes out on subtitle_requested with the sound.
+## Her first wet flap behind him is captioned, with the flap itself and once: a second flap is not. The caption shows
+## only with captions on, so it goes out on subtitle_requested with the sound.
 func test_her_first_flap_behind_is_captioned() -> bool:
 	var her := _her()
-	her.audio = RoadAudio.new()
-	tree.root.add_child(her.audio)
 	var walker := Node3D.new()
 	tree.root.add_child(walker)
 	walker.global_position = RoadLayout.point(900.0)
-	var camera := Camera3D.new()
-	tree.root.add_child(camera)
-	camera.global_position = walker.global_position + Vector3.UP * 1.6
-	camera.rotation.y = RoadBuilder.yaw_along(900.0) + PI
 	var flaps: Array[int] = []  # the frame of each wet flap
 	var captions: Array[String] = []
 	var when: Array[int] = []  # the frame of each caption
@@ -510,14 +434,6 @@ func test_her_first_flap_behind_is_captioned() -> bool:
 	eq(captions, ["[Behind you, something wet flaps.]"] as Array[String], "one caption, hers")
 	eq(length, [2.5] as Array[float], "for 2.5 s")
 	eq(when, [flaps[0]] as Array[int], "with the first flap")
-	her.lunge(camera)
-	flaps.clear()
-	frames = 0
-	while flaps.size() < 1 and frames < 1500:
-		await tree.process_frame
-		frames += 1
-	eq(flaps.size(), 1, "a flap after the lunge")
-	eq(captions.slice(1), [Penanggal.LUNGE_CAPTION] as Array[String], "after it only the lunge's, not another flap's")
 	EventBus.sound_requested.disconnect(on_sound)
 	EventBus.subtitle_requested.disconnect(on_caption)
 	her.queue_free()

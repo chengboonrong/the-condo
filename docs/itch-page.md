@@ -21,13 +21,13 @@ trailer is from before the road and needs re-shooting. The cover and the
 thumbnail show no gore (itch.io's guidelines ask for no explicit cover image, and shock images can get a page delisted
 from browse and search; see `docs/research/2026-11-06-gore-rules.md`).
 
-`tools/road_stills.sh <dir>` renders the road's 49 stills, three of them for checking only (`lunge`, `lunge_phone`, `lunge_back`).
+`tools/road_stills.sh <dir>` renders the road's 46 stills.
 Only the ones that show the road, the car and the couple,
 the mirror, the light and the stall belong on this page: `road_exit`, `road_stop`, `road_bend`, `road_tunnel`,
 `road_tunnel_in`, `road_awas40`, `road_city`, `car_arrives`, `lorry_pass`, `back_seat`, `slow_car`, `slow_car_ahead`, `overtake`,
 `lay_by`, `couple`, `mei_turns`, `mirror_fourth`, `light_seen`, `walk_mei`, `walk_mei_looks`, `walk_light`, `walk_near`
 and `stall`, and the ten far, fogged glimpses (every `her_glimpse_*`), where she is a few pixels of dark shape. Never
-on the page: `her_full`, `her_close`, `her_roof`, `her_comes`, `lunge`, `lunge_phone`, `lunge_back`,
+on the page: `her_full`, `her_close`, `her_roof`, `her_comes`,
 every ending (`ending_saved`, `ending_alive`,
 `ending_caught`) and the shots of how `alive` is decided (`alive_before`, `alive_decided`, `alive_2s`, `alive_torch`,
 `alive_pass`).

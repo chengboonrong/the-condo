@@ -105,8 +105,7 @@ deterministic, and a bot sees the same cues a player does.
 | `her_catches_hafiz`, `her_comes` | 5 | `caught`: 6 s and 12.5 s after it |
 | `rule_broken` | any | `break_rule`, for a rule of the others' |
 
-`fourth_glimpse` (turning to her) and `her_lunges` (looking back) used to be sent: those rules kill him now, so they are
-not. A death sends `EventBus.player_died` and no cue.
+A death sends `EventBus.player_died` and no cue.
 
 ### When a rule breaks
 

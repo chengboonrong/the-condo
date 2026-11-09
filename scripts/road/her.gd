@@ -3,10 +3,8 @@ extends Node3D
 ## Her: the penanggal of Malay folklore, a woman's head flown loose of her body with her insides hanging beneath it
 ## (assets/models/penanggal.glb: its origin is the centre of her skull, and she faces +Z). Hidden until the road calls
 ## for her, then in one place at a time: glimpsed at the roadside ahead of the car, on the car's roof, behind a
-## walker, right behind him when he looks back, flying somewhere, catching someone, or coming for the camera. In the flat
-## she has no director and only comes for the camera. She always hangs upright. She is lit by the scene's own lights, and
-## in his face by her own dim fill as well. Her sounds are wet, but for one: when he looks back and it counts, the
-## stinger and her shriek.
+## walker, flying somewhere, catching someone, or coming for the camera. In the flat she has no director and only comes
+## for the camera. She always hangs upright. She is lit by the scene's own lights alone. Her sounds are wet.
 
 ## come_for: she is as close to the camera as she comes.
 signal reached
@@ -56,25 +54,9 @@ const MIN_START := 2.0
 const SHORT := 0.3
 const TURN := 0.25
 const SEEN := 0.5
-## lunge: metres from his eyes to her skull's centre when he looks back and it counts. From here her head, crown to
-## chin, fills over a third of his view (72 degrees high; 0.38 on the lunge still): size wins over distance.
-const LUNGE_AT := 0.45
-const LUNGE_HOLD := 0.5  # seconds she stays in his face before she pulls back
-const LUNGE_CAPTION := "[She is right behind you.]"
 ## Her first wet flap behind him, captioned once: the same noise after it is not. Her flaps in her other places have no
 ## caption, and the door's slap has its own (RoadMain.CAPTIONS).
 const FLAP_CAPTION := "[Behind you, something wet flaps.]"
-## The stinger's and her shriek's play levels in his head (RoadAudio.play_here, so exact): their file peaks (0.80 and
-## 0.32) summed at the master's 0.8 come to -6.7 dBFS, under the road's loudest peak now (-6.1). See
-## docs/architecture.md, "Audio levels".
-const STING_DB := -8.0
-const SHRIEK_DB := -2.0
-## Her fill, in her own space: off to her left, above and a little in front, so her brow leaves her eyes in deep
-## sockets, her right cheek falls into shadow and her left eye catches it. It lights her alone, on render layer 12
-## (LAYER), and only for a lunge.
-const FILL := Vector3(0.22, 0.18, 0.14)
-const FILL_ENERGY := 0.5  # dim and steady at a lunge; it fades out over the pull-back
-const LAYER := 1 << 11  # render layer 12: her alone (the mirror's is 11)
 const SWOOP := 8.0  # m/s at most, dropping onto someone
 const SHOULDERS := 1.42  # a standing victim's shoulders, above his feet
 const DROP := 0.35  # seconds she takes to drop onto them, at the least
@@ -219,22 +201,17 @@ void fragment() {
 
 var director: RoadDirector  # the ride: where the car is, and how near she has come
 var builder: RoadBuilder  # the ground beside the road; without it, the road's plane runs on
-var audio: RoadAudio  # lunge: where the stinger and her shriek are played, in his head
 var pool: MeshInstance3D  # catch: what spreads under him
-var fill: OmniLight3D  # lunge: her own light on her
 
 var _skin: Array[ShaderMaterial] = []  # her four surfaces
 var _pool_material := ShaderMaterial.new()
-var _mode := &""  # where she is: &"glimpse", &"behind", &"lunge", &"catch", &"fly", &"come_for", &"roof", or nowhere
+var _mode := &""  # where she is: &"glimpse", &"behind", &"catch", &"fly", &"come_for", &"roof", or nowhere
 var _t := 0.0  # seconds there
 var _target: Node3D  # the walker, the victim, the camera or the car
 var _drop := DROP  # catch: seconds she takes to drop onto him
 var _from := Vector3.ZERO  # catch: where she drops from
 var _to := Vector3.ZERO  # fly: where she flies to
 var _hold := 0.0  # come_for: seconds she hangs at the start before she comes
-var _pull_from := 1.0  # behind, back from a lunge: metres she had to go back, which her fill fades out over
-var _lunge_eyes: Camera3D  # lunge: his eyes, whose place she holds her offset from
-var _lunge_off := Vector3.ZERO  # lunge: where she is from his eyes, in the world: it does not turn with him
 var _ahead := 0.0  # glimpse: metres ahead of the car she keeps pace at
 var _out := 0.0  # glimpse: metres across
 var _pace := 0.0  # glimpse: seconds she keeps pace for, before she stops dead
@@ -278,13 +255,6 @@ func _ready() -> void:
 			m.set_shader_parameter(&"specular", 0.2)
 		mesh.set_surface_override_material(i, m)
 		_skin.append(m)
-	mesh.layers |= LAYER
-	fill = OmniLight3D.new()
-	fill.light_color = Color(0.75, 0.8, 0.9)  # the fog's grey, as the mirror's fourth passenger's
-	fill.omni_range = 2.5
-	fill.light_cull_mask = LAYER
-	fill.position = FILL
-	add_child(fill)
 	_pool_material.shader = Shader.new()
 	_pool_material.shader.code = POOL_SHADER
 	_pool_material.resource_name = "pool"
@@ -371,24 +341,6 @@ func breathe() -> void:
 	_play(&"rattle", BEHIND_DB)
 
 
-## He looked back, and it counted: she is right behind him. In the same frame she is LUNGE_AT from his eyes in the
-## middle of his view, wherever he looks up or down (the look counts on his yaw alone), upright and facing him in her
-## own fill, as the stinger and her shriek sound in his head and the caption shows. Through LUNGE_HOLD she goes where he
-## goes, so a step into her does not carry his eyes into her head, but she does not turn with him. Then she pulls back to
-## where she follows him (behind), at FOLLOW, from where she is. Only from behind him; a lunge during a lunge starts it
-## over.
-func lunge(camera: Camera3D) -> void:
-	if _mode != &"behind" and _mode != &"lunge":
-		return
-	_lunge_eyes = camera
-	_lunge_off = -camera.global_basis.z * LUNGE_AT
-	_begin(&"lunge", camera.global_position + _lunge_off)
-	_face(camera.global_position)
-	audio.play_here(&"stinger", STING_DB)
-	audio.play_here(&"shriek", SHRIEK_DB)
-	EventBus.subtitle_requested.emit(LUNGE_CAPTION, 3.0)
-
-
 ## She drops onto the victim's shoulders and he falls, away from where she came from, over FALL seconds. She stays
 ## over him while a dark pool spreads under his shoulders.
 func catch(victim: Node3D) -> void:
@@ -444,7 +396,6 @@ func hide_her() -> void:
 	_mode = &""
 	_target = null
 	visible = false
-	fill.visible = false
 	pool.visible = false
 
 
@@ -469,18 +420,6 @@ func _process(delta: float) -> void:
 		&"behind":
 			_base = _base.move_toward(_behind_point(), FOLLOW * delta)
 			_face(_target.global_position)
-			if fill.visible:  # back from a lunge: her fill fades out as she goes, and is out once she is there
-				fill.light_energy = minf(fill.light_energy, FILL_ENERGY * _base.distance_to(_behind_point()) / _pull_from)
-				fill.visible = fill.light_energy > 0.0
-		&"lunge":
-			bob = 0.0
-			if is_instance_valid(_lunge_eyes):
-				_base = _lunge_eyes.global_position + _lunge_off
-				_face(_lunge_eyes.global_position)
-			if _t >= LUNGE_HOLD:
-				_mode = &"behind"
-				_t = 0.0
-				_pull_from = maxf(_base.distance_to(_behind_point()), 0.01)
 		&"catch":
 			_feed(delta)
 			bob = 0.02
@@ -600,8 +539,6 @@ func _begin(mode: StringName, at: Vector3) -> void:
 	global_position = at
 	_timers.clear()
 	_set_fade(1.0)
-	fill.visible = mode == &"lunge"
-	fill.light_energy = FILL_ENERGY if fill.visible else 0.0
 	visible = true
 
 

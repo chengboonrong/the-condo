@@ -22,7 +22,6 @@ const ENERGY := 1.4  # her fill: her dark hair over her paler skin and baju kuru
 const SHINE := 0.05  # her fill's specular on her: low, so her crown has no hotspot, only streaks down her wet hair
 const WET_ENERGY := 3.0  # and once she is gone, on the wet seat: brighter, or its sheen doesn't show
 const WET_SHINE := 1.0  # the wet seat's sheen is all that shows of the wet
-const GLIMPSE := 0.3  # seconds the player's camera sees her when he turns round to her
 
 var viewport: SubViewport
 var camera: Camera3D
@@ -141,12 +140,6 @@ func set_on(on: bool) -> void:
 		_follow()
 
 
-## He turned round to her: for a moment his own camera sees her too.
-func glimpse() -> void:
-	_layers(LAYER | 1)
-	create_tween().tween_callback(_layers.bind(LAYER)).set_delay(GLIMPSE)
-
-
 ## She is gone: the mirror shows her seat empty, and wet.
 func empty() -> void:
 	fourth.visible = false
@@ -158,11 +151,6 @@ func empty() -> void:
 ## The camera follows the car: it is in the viewport, outside the car's own transforms.
 func _follow() -> void:
 	camera.global_transform = global_transform * _aim
-
-
-func _layers(mask: int) -> void:
-	for v: VisualInstance3D in fourth.find_children("*", "VisualInstance3D", true, false):
-		v.layers = mask
 
 
 static func _mesh(mesh: Mesh, material: Material) -> MeshInstance3D:

@@ -207,7 +207,6 @@ func test_looking_back_kills_him() -> bool:
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [10.0, 30.0, 50.0])
 	eq([d.dead, d.score()], [&"looked_back", 0], "a look back kills him, and counts for nothing")
-	eq(cues.count(&"her_lunges"), 0, "and she makes no lunge of it")
 	_teardown()
 	_setup()
 	_play({&"mei_look_1": 0, &"mei_look_2": 0}, [128.0])  # past the point where the ending is decided

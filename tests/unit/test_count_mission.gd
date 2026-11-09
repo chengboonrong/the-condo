@@ -131,7 +131,6 @@ func test_turning_before_bang_din_says_the_rule_costs_nothing() -> bool:
 	eq(captions.find(RECALL), -1, "(Bang Din has not said it yet)")
 	eq(_rules(), [], "turning to her breaks nothing")
 	eq(d.dead, &"", "and does not kill him")
-	check(not cues.has(&"fourth_glimpse"), "and shows her to him no more than before")
 	_run(4.0)  # he is still turned when the rule is said: now it breaks
 	check(captions.has(RECALL), "(Bang Din has said it)")
 	eq(d.dead, &"turned_round", "turning to her after it kills him")
@@ -155,7 +154,6 @@ func test_looking_out_of_his_own_window_is_allowed() -> bool:
 	_run(13.0)  # past the rule's being said
 	eq(_rules(), [], "his own window: no break")
 	eq(d.dead, &"", "and no death")
-	check(not cues.has(&"fourth_glimpse"), "and no glimpse of her")
 	_teardown()
 	return true
 
