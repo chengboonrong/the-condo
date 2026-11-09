@@ -378,7 +378,7 @@ func _start_act3() -> void:
 	_keep(WorldState.Act.IMPOSSIBLE)
 	WorldState.set_act(WorldState.Act.IMPOSSIBLE)
 	scheduler.request(&"knock_wall", {"anchor": &"knock_entrance_door", "volume_db": 3.0}, 10)
-	WorldState.set_objective("Someone is knocking at the front door.")
+	WorldState.set_objective("Someone is knocking at the front door. Don't open it.")
 	_go(&"front_door")
 
 

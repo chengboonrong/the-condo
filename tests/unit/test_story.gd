@@ -782,7 +782,7 @@ func test_start_at_act_three_restores_and_starts_the_knocking() -> bool:
 	_wait(20.0)
 	for opening: Array in StoryDirector.OPENING_LINES:
 		check(not lines.has(opening[1]), "the road's opening line is not said again: %s" % opening[1])
-	eq(WorldState.objective, "Someone is knocking at the front door.", "he is told what to look for")
+	eq(WorldState.objective, "Someone is knocking at the front door. Don't open it.", "he is told what to look for, and not to open it")
 	return _done()
 
 
