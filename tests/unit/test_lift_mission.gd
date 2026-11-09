@@ -194,10 +194,10 @@ func test_too_slow_to_get_in_he_is_left_and_dies() -> bool:
 	_run(1.0)
 	check(d.car_speed > 0.0, "and the car drives off")
 	eq(d.dead, &"", "(he is still standing there)")
-	_run(LiftMission.LEFT_SECONDS)
-	eq(d.dead, &"missed_lift", "left behind on the mountain")
 	EventBus.object_interacted.emit(&"car_door")
 	check(not d.seated, "too late to get in")
+	_run(LiftMission.LEFT_SECONDS)
+	eq(d.dead, &"missed_lift", "left behind on the mountain")
 	_teardown()
 	return true
 
