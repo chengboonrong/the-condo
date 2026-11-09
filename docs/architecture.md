@@ -207,9 +207,14 @@ memory lines said as the rule applies (the three new ones with the clocks: `Lift
 * **`HorrorRuntime.die`** stops the story, cancels every running event, empties the scheduler's queue and sends
   `player_died`. Once he is dead `step()` only advances the clock.
 
-**What he sees.** The scene holds him (no input, a peephole or a note he was reading is closed) and she comes for his
-face (`Penanggal.come_for`), the same head that comes for the camera in the `caught` ending. When she has reached it
-(`reached`), a black card cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button
+**What he sees.** The scene holds him (no input, a peephole or a note he was reading is closed), his view comes level
+over `Penanggal.TURN` (`PlayerController.turn_to`), and she comes for his face (`Penanggal.come_for`), the same head
+that comes for the camera in the `caught` ending. He always sees her come: she starts where she is only if she is in
+his view, with nothing solid in the way and `MIN_START` (2 m) or more off; otherwise on the road she starts out of the
+fog 15 m ahead along his level view, and in the flat `Main` finds a clear line (straight ahead, or whichever of the four
+level ways round him runs furthest, which his view turns to) and starts her `SHORT` of what ends it. From a short way
+off she hangs at the start first, so she is in view for `SEEN` (0.5 s) at the least before she reaches him. In the flat
+she comes at his eye height all the way, under the door tops. When she has reached it (`reached`), a black card cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button
 (`Hud.show_game_over`). The card is opaque and over everything: a choice or a caption still up is closed and a line
 being said is cut off. The mouse is shown for the button. The road's loops are switched off (`RoadMain`), and the flat's
 beds and drone are (`AudioDirector.silence`). On the road, a car he is in brakes (`RoadDirector.die` stops it) and the

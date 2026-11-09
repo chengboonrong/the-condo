@@ -502,6 +502,52 @@ func test_dying_at_the_peephole_takes_him_out_of_it() -> bool:
 	return true
 
 
+## At the peephole the door is a step in front of him: his view turns and comes level, and he sees her come for at least
+## Penanggal.SEEN, with nothing between them, before she reaches him.
+func test_dying_at_the_peephole_he_sees_her_come() -> bool:
+	_begin()
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	var hole: Peephole = main.builder.doors[&"main_door"].get_node("peephole")
+	main.player.global_position = Vector3(1.5, 0.0, 9.0)
+	var to := hole.global_position - (main.player.global_position + Vector3.UP * 1.62)
+	main.player.set_look(atan2(-to.x, -to.z), atan2(to.y, Vector2(to.x, to.z).length()))
+	await _until(func() -> bool: return main.player.interaction.target == hole, 0.5)
+	main.player.interaction.try_interact()
+	await _until(func() -> bool: return false, 0.1)
+	check(main.hud.is_peeping(), "(he is at the peephole)")
+	var yaw := main.player.yaw
+	check(main._clear_run(yaw) - Penanggal.SHORT < Penanggal.MIN_START, "(the door is too near for her to come from)")
+	main.runtime.die(&"front_door")
+	var seen := await seen_before_reached(main.her, main.player.camera, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(absf(angle_difference(yaw, main.player.yaw)) > 1.0, "his view turned away from the door")
+	near(main.player.pitch, 0.0, 0.001, "and came level")
+	main.queue_free()
+	_end()
+	return true
+
+
+## He dies facing a wall a step away (the living room's front wall): his view turns to the clearest way round him, and
+## he sees her come along it.
+func test_dying_against_a_wall_he_turns_and_sees_her_come() -> bool:
+	_begin()
+	var main := _scene(Journey.FLAT_SCENE) as Main
+	await _loaded(main)
+	main.player.global_position = Vector3(6.5, 0.0, 9.4)
+	main.player.set_look(PI, -0.6)  # at the wall, and down
+	await _until(func() -> bool: return false, 0.1)
+	check(main._clear_run(PI) - Penanggal.SHORT < Penanggal.MIN_START, "(he faces a wall a step away)")
+	main.runtime.die(&"lights_on")
+	var seen := await seen_before_reached(main.her, main.player.camera, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(absf(angle_difference(PI, main.player.yaw)) > 1.0, "his view turned from the wall")
+	near(main.player.pitch, 0.0, 0.001, "and came level")
+	main.queue_free()
+	_end()
+	return true
+
+
 func test_dying_with_a_note_open_closes_it_and_keeps_him_down() -> bool:
 	_begin()
 	Journey.road_ending = &"saved"

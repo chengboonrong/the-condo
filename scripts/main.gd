@@ -214,13 +214,38 @@ func _on_ending(_ending_id: StringName) -> void:
 
 
 ## He died: out of the peephole or the note he was at, and held (nothing is left open for E or Esc to close, and the
-## interaction stays off after what closing it turned on), and she comes for his face. The card follows once she is there.
+## interaction stays off after what closing it turned on), and she comes for his face along a clear line, seen on the
+## way: straight ahead of him if it is clear for Penanggal.MIN_START, else whichever of the four level ways round him is
+## clearest, which his held view turns to. His view comes level either way. The card follows once she is there.
 func _on_died(_cause: StringName) -> void:
 	if hud.is_inspecting():
 		hud.close_peephole()
 	player.input_enabled = false
 	player.interaction.set_deferred(&"enabled_input", false)
-	her.come_for(player.camera)
+	var yaw := player.yaw
+	var run := _clear_run(yaw)
+	if run - Penanggal.SHORT < Penanggal.MIN_START:
+		for k in range(1, 4):
+			if _clear_run(player.yaw + k * PI / 2.0) > run:
+				run = _clear_run(player.yaw + k * PI / 2.0)
+				yaw = player.yaw + k * PI / 2.0
+	player.turn_to(yaw, 0.0, Penanggal.TURN)
+	var start := clampf(run - Penanggal.SHORT, Penanggal.CLOSE, Penanggal.AHEAD)
+	her.come_for(player.camera, player.camera.global_position + _level(yaw) * start)
+
+
+## Metres from his eyes along the level way `yaw` faces to the first solid thing in it; INF if nothing is within
+## Penanggal.AHEAD.
+func _clear_run(yaw: float) -> float:
+	var eye := player.camera.global_position
+	var ray := PhysicsRayQueryParameters3D.create(eye, eye + _level(yaw) * Penanggal.AHEAD)
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
+	return eye.distance_to(hit["position"]) if not hit.is_empty() else INF
+
+
+## The level way he faces at `yaw` (PlayerController.set_look's).
+static func _level(yaw: float) -> Vector3:
+	return Vector3(-sin(yaw), 0.0, -cos(yaw))
 
 
 func _on_her_reached() -> void:

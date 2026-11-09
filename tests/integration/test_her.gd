@@ -300,7 +300,7 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	var camera := Camera3D.new()
 	tree.root.add_child(camera)
 	camera.global_position = RoadLayout.point(900.0) + Vector3.UP * 1.6
-	her.global_position = camera.global_position + Vector3(0.0, 0.0, 10.0)
+	her.global_position = camera.global_position + Vector3(0.0, 0.0, -10.0)  # in his view
 	her.visible = true
 	var reached := [0]
 	her.reached.connect(func() -> void: reached[0] += 1)
@@ -326,8 +326,62 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	return true
 
 
-## In the flat she has no road: no director, and the flat's floor under her, not the road's height. She comes in under its
-## ceiling and stops at the camera.
+## He sees her come: she starts where she is only if he sees her there (in his view, nothing in the way, MIN_START off or
+## more), else where she is told to or AHEAD along his level view. However near she starts, she hangs there until she
+## can still be seen TURN + SEEN before she reaches him.
+func test_come_for_starts_where_he_sees_her_come() -> bool:
+	var her := _her()
+	var camera := Camera3D.new()
+	tree.root.add_child(camera)
+	camera.global_position = RoadLayout.point(900.0) + Vector3.UP * 1.6
+	var eye := camera.global_position
+	var ahead := eye + Vector3(0.0, 0.0, -Penanggal.AHEAD)  # the camera looks along -Z
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(4.0, 4.0, 0.2)
+	wall.add_child(shape)
+	tree.root.add_child(wall)
+	wall.global_position = eye + Vector3(3.0, 0.0, -4.0)  # to his right, clear of his level view ahead
+	for i in 2:
+		await tree.physics_frame
+	var cases := [  # where she is, where she starts
+		[eye + Vector3(0.0, 0.0, -2.5), eye + Vector3(0.0, 0.0, -2.5), "in his view, 2.5 m off: where she is"],
+		[eye + Vector3(0.0, 0.0, 10.0), ahead, "behind him: out of the fog ahead"],
+		[eye + Vector3(0.0, 0.0, -1.5), ahead, "in his view but 1.5 m off, too near to be seen coming: ahead"],
+		[eye + Vector3(6.0, 0.0, -8.0), ahead, "in his view, but behind a wall: ahead"],
+	]
+	for c: Array in cases:
+		her.global_position = c[0]
+		her.visible = true
+		her.come_for(camera)
+		near(her.global_position.distance_to(c[1]), 0.0, 0.001, c[2])
+	her.hide_her()
+	her.come_for(camera, eye + Vector3(3.0, 0.0, 0.0))
+	near(her.global_position.distance_to(eye + Vector3(3.0, 0.0, 0.0)), 0.0, 0.001, "hidden, she starts where she is told to")
+	her.hide_her()
+	var start := eye + Vector3(0.0, 0.0, -2.5)
+	her.global_position = start
+	her.visible = true
+	var reached := [-1]
+	var frames := [0]
+	her.reached.connect(func() -> void: reached[0] = frames[0])
+	her.come_for(camera)
+	await _frames(20)  # a third of a second: she has 1.9 m to come, 0.32 s of it
+	near(her.global_position.distance_to(start), 0.0, 0.05, "from 2.5 m off she hangs where she is first")
+	for i in 120:
+		await tree.process_frame
+		frames[0] = 20 + i + 1
+		if reached[0] >= 0:
+			break
+	check(reached[0] >= roundi((Penanggal.TURN + Penanggal.SEEN) * 60.0), "and reaches him no sooner than TURN + SEEN (%.2f s)" % (reached[0] / 60.0))
+	check(reached[0] > 0 and reached[0] < roundi((Penanggal.TURN + Penanggal.SEEN + 0.5) * 60.0), "nor much later")
+	wall.queue_free()
+	return true
+
+
+## In the flat she has no road: no director, and the flat's floor under her, not the road's height. She comes in at the
+## camera's height all the way, under the flat's door tops, and stops at the camera.
 func test_she_comes_for_a_camera_without_a_road() -> bool:
 	var her := Penanggal.new()
 	check(her.director == null, "(she has no director)")
@@ -346,7 +400,7 @@ func test_she_comes_for_a_camera_without_a_road() -> bool:
 			break
 	eq(reached[0], 1, "she reaches him within 10 s, once")
 	near(her.global_position.distance_to(camera.global_position), Penanggal.CLOSE, 0.05, "and stops 0.6 m away")
-	check(highest < ApartmentLayout.CEILING, "all the way under the flat's ceiling (%.2f m)" % highest)
+	check(highest < camera.global_position.y + 0.05, "at his eyes' height all the way, under the door tops (%.2f m)" % highest)
 	her.hide_her()
 	return true
 

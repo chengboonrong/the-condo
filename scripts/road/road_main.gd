@@ -338,9 +338,11 @@ func finish(ending: StringName) -> void:
 	Journey.arrive(ending)
 
 
-## He died: he is held, and she comes for his face. The card follows once she is there.
+## He died: he is held, his view comes level, and she comes for his face, seen on the way. The card follows once she is
+## there.
 func _on_died(_cause: StringName) -> void:
 	player.input_enabled = false
+	player.turn_to(player.yaw, 0.0, Penanggal.TURN)
 	her.come_for(player.camera)
 
 

@@ -414,6 +414,54 @@ func test_a_death_in_a_moving_car_brakes_it() -> bool:
 	return true
 
 
+## He stands still on the walk until it kills him: she was right behind him, out of his view, so she comes from ahead,
+## and he sees her come for at least Penanggal.SEEN, with nothing between them, before she reaches him.
+func test_standing_still_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(4)  # mission 5, the walk to the light: he stands beside his door and never moves
+	var her := road.her
+	var cam := road.player.camera
+	var behind := [false]  # she was out of his view, and near him, the frame before he died
+	var died := await _until(func() -> bool:
+		if road.director.dead == &"":
+			behind[0] = her.visible and not cam.is_position_in_frustum(her.global_position)
+			behind[0] = behind[0] and her.global_position.distance_to(cam.global_position) < Penanggal.MIN_START
+		return road.director.dead != &"", 40.0)
+	eq(road.director.dead, &"stood_still", "standing still kills him")
+	check(died and behind[0], "with her right behind him, out of his view")
+	var seen := await seen_before_reached(her, cam, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	near(road.player.pitch, 0.0, 0.001, "his view has come level")
+	_done(road)
+	return true
+
+
+## The lock's clock runs out while he looks ahead and up at the roof, where the thumps were: she is on the roof by his
+## window, too near to be seen coming, so she comes from ahead along his level view, and he sees her come for at least
+## Penanggal.SEEN, with nothing between them, before she reaches him.
+func test_not_locking_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(3)  # mission 4, the car dies
+	await _secs(0.2)  # it begins
+	var stall := road.director.missions[3] as StallMission
+	road.director.car_s = StallMission.STOP_S  # the car stands dead, and something lands on the roof
+	road.director.drive(0.0)
+	road.director.car_speed = 0.0
+	stall.go(&"thumps")
+	await _secs(0.2)
+	road.player.set_look(PI, 0.35)  # the seat's ahead (PlayerController.sit), and up
+	var cam := road.player.camera
+	var roof := await _until(func() -> bool: return road.her.visible, 3.0)
+	check(roof and road.her.global_position.distance_to(cam.global_position) < Penanggal.MIN_START, "(she is on the roof, by his window)")
+	var died := await _until(func() -> bool: return road.director.dead != &"", StallMission.LOCK_SECONDS + 1.0)
+	check(died and road.director.dead == &"not_locked", "he did not lock the doors in time")
+	var seen := await seen_before_reached(road.her, cam, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	near(road.player.pitch, 0.0, 0.001, "his view has come level")
+	_done(road)
+	return true
+
+
 ## Try again loads the road at the mission he died in, with the count it began with, and he is playing at once: no start
 ## card, only a black card that fades.
 func test_try_again_starts_the_mission_with_its_count() -> bool:

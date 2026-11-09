@@ -46,6 +46,16 @@ const FOLLOW := 6.0  # m/s at most, keeping behind a walker
 const SPEED := 6.0  # m/s, coming for the camera
 const LOW_IN := 2.0  # metres from the camera she comes down from ABOVE_ROAD to its height
 const CLOSE := 0.6  # metres from the camera she stops at
+## come_for: he sees her come. She starts where she is only if he sees her there: in view, with nothing solid in the way,
+## and MIN_START or more from him. Otherwise she starts where she is told to (the flat's Main finds a clear line, and
+## keeps her SHORT of what ends it), or out of the fog AHEAD of the camera along its level view. His held view turns to
+## her over TURN (the presentation's PlayerController.turn_to), and then she is in it SEEN at the least before she
+## reaches him: from a short way off she hangs at the start first.
+const AHEAD := 15.0
+const MIN_START := 2.0
+const SHORT := 0.3
+const TURN := 0.25
+const SEEN := 0.5
 ## lunge: metres from his eyes to her skull's centre when he looks back and it counts. From here her head, crown to
 ## chin, fills over a third of his view (72 degrees high; 0.38 on the lunge still): size wins over distance.
 const LUNGE_AT := 0.45
@@ -221,6 +231,7 @@ var _target: Node3D  # the walker, the victim, the camera or the car
 var _drop := DROP  # catch: seconds she takes to drop onto him
 var _from := Vector3.ZERO  # catch: where she drops from
 var _to := Vector3.ZERO  # fly: where she flies to
+var _hold := 0.0  # come_for: seconds she hangs at the start before she comes
 var _pull_from := 1.0  # behind, back from a lunge: metres she had to go back, which her fill fades out over
 var _lunge_eyes: Camera3D  # lunge: his eyes, whose place she holds her offset from
 var _lunge_off := Vector3.ZERO  # lunge: where she is from his eyes, in the world: it does not turn with him
@@ -406,15 +417,26 @@ func fly_to(at: Vector3) -> void:
 	_begin(&"fly", global_position if visible else at)
 
 
-## She comes straight at the camera at SPEED from wherever she is (if hidden, out of the fog 15 m ahead of it), high
-## enough that what hangs from her clears the road, and comes down to its height over the last LOW_IN metres. She
-## stops CLOSE to it, face to face: `reached`.
-func come_for(camera: Camera3D) -> void:
+## She comes straight at the camera at SPEED from where he sees her, or from `from`, or out of the fog ahead of it, high
+## enough that what hangs from her clears the road, and comes down to its height over the last LOW_IN metres. In the
+## flat (no director) she comes at its height all the way, along the clear line she starts on and under every door's
+## top; what hangs from her lies on the floor, as it does once she is there. She stops CLOSE to it, face to face:
+## `reached`, TURN + SEEN after this at the soonest.
+func come_for(camera: Camera3D, from := Vector3.INF) -> void:
 	_target = camera
 	_arrived = false
-	var ahead := camera.global_position - camera.global_basis.z.slide(Vector3.UP).normalized() * 15.0
-	_begin(&"come_for", global_position if visible else ahead)
+	var eye := camera.global_position
+	var start := global_position
+	if not (visible and start.distance_to(eye) >= MIN_START and camera.is_position_in_frustum(start) and _in_sight(eye, start)):
+		start = from if from.is_finite() else eye - camera.global_basis.z.slide(Vector3.UP).normalized() * AHEAD
+	_begin(&"come_for", start)
+	_hold = maxf(0.0, TURN + SEEN - ((eye - start).slide(Vector3.UP).length() - CLOSE) / SPEED)
 	_play(&"rattle")
+
+
+## Whether nothing solid is between `eye` and `at`.
+func _in_sight(eye: Vector3, at: Vector3) -> bool:
+	return get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(eye, at)).is_empty()
 
 
 ## She is gone, and so is anything she left.
@@ -471,15 +493,16 @@ func _process(delta: float) -> void:
 				arrived.emit()
 		&"come_for":
 			var cam := _target.global_position
-			var flat := (cam - _base).slide(Vector3.UP)
-			_base += flat.normalized() * clampf(flat.length() - CLOSE, 0.0, SPEED * delta)
-			var left := (cam - _base).slide(Vector3.UP).length() - CLOSE
-			var high := maxf(cam.y, _ground_under(_base) + ABOVE_ROAD)
-			_base.y = move_toward(_base.y, lerpf(cam.y, high, clampf(left / LOW_IN, 0.0, 1.0)), SPEED * delta)
-			if left <= 0.001 and absf(_base.y - cam.y) < 0.001 and not _arrived:
-				_arrived = true
-				_play(&"rattle")  # her breath, in his face
-				reached.emit()
+			if _t >= _hold:
+				var flat := (cam - _base).slide(Vector3.UP)
+				_base += flat.normalized() * clampf(flat.length() - CLOSE, 0.0, SPEED * delta)
+				var left := (cam - _base).slide(Vector3.UP).length() - CLOSE
+				var high := cam.y if director == null else maxf(cam.y, _ground_under(_base) + ABOVE_ROAD)
+				_base.y = move_toward(_base.y, lerpf(cam.y, high, clampf(left / LOW_IN, 0.0, 1.0)), SPEED * delta)
+				if left <= 0.001 and absf(_base.y - cam.y) < 0.001 and not _arrived:
+					_arrived = true
+					_play(&"rattle")  # her breath, in his face
+					reached.emit()
 			_face(cam)
 			bob = 0.0 if _arrived else 0.04
 		&"roof":

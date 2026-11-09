@@ -52,6 +52,13 @@ func set_look(new_yaw: float, new_pitch: float = 0.0) -> void:
 	head.rotation.x = pitch
 
 
+## His look turns to `to_yaw` and `to_pitch` over `seconds`, the short way round: his held view, when he dies, turns to
+## where she comes from (Penanggal.come_for).
+func turn_to(to_yaw: float, to_pitch: float, seconds: float) -> void:
+	create_tween().tween_method(func(look: Vector2) -> void: set_look(look.x, look.y), Vector2(yaw, pitch),
+		Vector2(yaw + angle_difference(yaw, to_yaw), to_pitch), seconds)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
