@@ -437,8 +437,8 @@ func test_standing_still_he_sees_her_come() -> bool:
 
 
 ## The lock's clock runs out while he looks ahead and up at the roof, where the thumps were: she is on the roof by his
-## window, too near to be seen coming, so she comes from ahead along his level view, and he sees her come for at least
-## Penanggal.SEEN, with nothing between them, before she reaches him.
+## window, out of his view, so his view comes level and ahead and she comes in through the windscreen, past Mei and
+## under the roof (_past_the_couple), for at least Penanggal.SEEN before she reaches him.
 func test_not_locking_he_sees_her_come() -> bool:
 	var road: RoadMain = await _road()
 	road.director.start_at(3)  # mission 4, the car dies
@@ -455,11 +455,43 @@ func test_not_locking_he_sees_her_come() -> bool:
 	check(roof and road.her.global_position.distance_to(cam.global_position) < Penanggal.MIN_START, "(she is on the roof, by his window)")
 	var died := await _until(func() -> bool: return road.director.dead != &"", StallMission.LOCK_SECONDS + 1.0)
 	check(died and road.director.dead == &"not_locked", "he did not lock the doors in time")
-	var seen := await seen_before_reached(road.her, cam, 10.0)
+	var seen := await seen_before_reached(road.her, cam, 10.0, _past_the_couple(road))
 	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
 	near(road.player.pitch, 0.0, 0.001, "his view has come level")
+	check(_ahead_in_the_car(road), "and ahead")
 	_done(road)
 	return true
+
+
+## How near the line from his eyes to her may pass the middle of Mei's or Hafiz's head: about its half-width.
+const HEAD := 0.12
+## The roof's front edge in the car's space: the windscreen's top (hatchback.glb's glass), at the lining's height.
+const ROOF_EDGE_Z := 0.26
+
+
+## For seen_before_reached in the car: the line from his eyes to her passes HEAD clear of Mei's head, and of Hafiz's
+## while he is at the wheel (people have no colliders), and under the car's roof line: below its lining (LOCK_AT) where
+## it leaves through the windscreen's top, or wherever she is once she is inside.
+func _past_the_couple(road: RoadMain) -> Callable:
+	return func() -> bool:
+		var eye := road.player.camera.global_position
+		var at := road.her.global_position
+		for head: MeshInstance3D in [road.couple._her_head, road.couple._his_head]:
+			if head.is_visible_in_tree():
+				var mid := (head.global_transform * head.get_aabb()).get_center()
+				if mid.distance_to(Geometry3D.get_closest_point_to_segment(mid, eye, at)) < HEAD:
+					return false
+		var inv := road.car.global_transform.affine_inverse()
+		var a := inv * eye
+		var b := inv * at
+		var k := clampf((ROOF_EDGE_Z - a.z) / (b.z - a.z), 0.0, 1.0) if b.z > ROOF_EDGE_Z else 1.0
+		return a.lerp(b, k).y < CarRig.LOCK_AT.y
+
+
+## Whether his level view runs ahead of the car, through the windscreen.
+static func _ahead_in_the_car(road: RoadMain) -> bool:
+	var way := -road.player.camera.global_basis.z.slide(Vector3.UP).normalized()
+	return way.dot(road.car.global_basis.z.slide(Vector3.UP).normalized()) > 0.99
 
 
 ## Turns him level to the bank on the road's left where he stands.
@@ -478,7 +510,8 @@ static func _down_the_road(p: PlayerController) -> bool:
 
 
 ## He opens his door in the dead car (a forced pose: his view on the door, as using it has it): she is on the roof by
-## his window, and he sees her come, out of the ground and with nothing between them, for at least Penanggal.SEEN.
+## his window, his view turns ahead, and he sees her come in through the windscreen, past Mei and under the roof
+## (_past_the_couple), for at least Penanggal.SEEN.
 func test_opening_his_door_he_sees_her_come() -> bool:
 	var road: RoadMain = await _road()
 	road.director.start_at(3)  # mission 4, the car dies
@@ -496,8 +529,77 @@ func test_opening_his_door_he_sees_her_come() -> bool:
 	stall._door = true  # the door can be opened, as it can from Hafiz leaving
 	EventBus.object_interacted.emit(StallMission.DOOR)
 	eq(road.director.dead, &"opened_door", "opening the door kills him")
-	var seen := await seen_before_reached(road.her, road.player.camera, 10.0)
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0, _past_the_couple(road))
 	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(_ahead_in_the_car(road), "his view turned ahead")
+	_done(road)
+	return true
+
+
+## He answers the voice at the dead car's window, looking out of it (Hafiz is still at the wheel here: the test skips
+## his leaving): his view turns ahead, and he sees her come in through the windscreen, past Mei and Hafiz and under the
+## roof, for at least Penanggal.SEEN.
+func test_answering_the_voice_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(3)  # mission 4, the car dies
+	await _secs(0.2)
+	var stall := road.director.missions[3] as StallMission
+	road.director.car_s = StallMission.STOP_S
+	road.director.drive(0.0)
+	road.director.car_speed = 0.0
+	stall.go(&"voice")
+	var asked := await _until(func() -> bool: return road.director.pending == &"answer_voice", 3.0)
+	check(asked, "(the voice's choice is open)")
+	road.player.set_look(PI + 1.2, 0.1)  # out of his window, where the voice is
+	await _secs(0.1)
+	EventBus.choice_made.emit(&"answer_voice", 0)  # "Hafiz? That you?"
+	eq(road.director.dead, &"answered", "answering kills him")
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0, _past_the_couple(road))
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(_ahead_in_the_car(road), "his view turned ahead")
+	_done(road)
+	return true
+
+
+## He says "Four." in the moving car, glancing at Hafiz at the wheel: the car brakes (RoadDirector.die), his view turns
+## ahead, and he sees her come in through the windscreen, past Mei and Hafiz and under the roof, for at least
+## Penanggal.SEEN, though the car closes on her as she comes.
+func test_counting_her_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(2)  # mission 3, the fourth passenger: cruising
+	await _secs(0.2)
+	var count := road.director.missions[2] as CountMission
+	count.beat_t = CountMission.ASK_AT  # Mei asks how many of them there are
+	var asked := await _until(func() -> bool: return road.director.pending == &"count", 1.0)
+	check(asked, "(Mei's question is open)")
+	road.player.set_look(PI - 0.8, 0.0)  # at Hafiz
+	await _secs(0.1)
+	EventBus.choice_made.emit(&"count", 1)  # "Four."
+	eq(road.director.dead, &"counted_her", "counting her kills him")
+	check(road.director.car_speed > 5.0, "(the car is moving: %.1f m/s)" % road.director.car_speed)
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0, _past_the_couple(road))
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(_ahead_in_the_car(road), "his view turned ahead")
+	_done(road)
+	return true
+
+
+## He turns round to the fourth passenger in the moving car once he has been told not to: his view turns from her
+## seat to ahead, and he sees her come in through the windscreen, past Mei and Hafiz and under the roof, for at least
+## Penanggal.SEEN.
+func test_turning_round_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(2)  # mission 3, the fourth passenger: cruising
+	await _secs(0.2)
+	var count := road.director.missions[2] as CountMission
+	count.beat_t = CountMission.RECALL_AT  # Bang Din's rule is said: the look watch is on
+	await _secs(0.2)
+	road.player.set_look(PI - 1.4, 0.0)  # round to his right, to her seat
+	var died := await _until(func() -> bool: return road.director.dead != &"", 2.0)
+	check(died and road.director.dead == &"turned_round", "turning round kills him")
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0, _past_the_couple(road))
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(_ahead_in_the_car(road), "his view turned ahead")
 	_done(road)
 	return true
 

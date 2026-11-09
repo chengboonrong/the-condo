@@ -24,9 +24,9 @@ func near(actual: float, expected: float, tol: float, msg: String) -> void:
 
 ## Physics frames until `her` (the Penanggal: untyped here, as the runner compiles this before the autoloads she uses)
 ## reaches `camera` (`reached`), at most `seconds` of them. Returns the seconds she was in its view without a break just
-## before, with nothing solid between them (a ray from the camera) and above the ground (the road's has no colliders),
-## or -1 if she never reached it.
-func seen_before_reached(her: Node3D, camera: Camera3D, seconds: float) -> float:
+## before, with nothing solid between them (a ray from the camera), above the ground (the road's has no colliders) and
+## with `also` holding, if given; or -1 if she never reached it.
+func seen_before_reached(her: Node3D, camera: Camera3D, seconds: float, also := Callable()) -> float:
 	var reached := [false]
 	var on_reached := func() -> void: reached[0] = true
 	her.connect(&"reached", on_reached)
@@ -39,6 +39,7 @@ func seen_before_reached(her: Node3D, camera: Camera3D, seconds: float) -> float
 		var clear := camera.get_world_3d().direct_space_state.intersect_ray(ray).is_empty()
 		var above: bool = her.global_position.y > her._ground_under(her.global_position)
 		var shown: bool = her.visible and camera.is_position_in_frustum(her.global_position)
-		seen = seen + 1.0 / 60.0 if shown and clear and above else 0.0
+		var more: bool = not also.is_valid() or also.call()
+		seen = seen + 1.0 / 60.0 if shown and clear and above and more else 0.0
 	her.disconnect(&"reached", on_reached)
 	return seen if reached[0] else -1.0

@@ -49,8 +49,8 @@ const CLOSE := 0.6  # metres from the camera she stops at
 ## told to, or along the camera's level view: SHORT of the end of its clear run (clear_run: up to something solid or, on
 ## the road, the ground coming up to his eyes' height), AHEAD at the most. A caller whose clear run is under
 ## MIN_START turns his held view another way over TURN (the presentation's PlayerController.turn_to: the flat to its
-## clearest way round him, the road down the road), and then she is in it SEEN at the least before she reaches him: from
-## a short way off she hangs at the start first.
+## clearest way round him, the road down the road; in the car it always turns ahead, through the windscreen), and then
+## she is in it SEEN at the least before she reaches him: from a short way off she hangs at the start first.
 const AHEAD := 15.0
 const MIN_START := 2.0
 const SHORT := 0.3
@@ -231,6 +231,8 @@ var _fall := Vector3.ZERO  # the way the victim falls
 var _victim_at := Transform3D.IDENTITY  # where he stood
 var _arrived := false
 var _base := Vector3.ZERO  # where she is, before she bobs
+var _carrier: Node3D  # come_for: the car he sits in, whose motion she shares, or null
+var _carried := Transform3D()  # where it was last frame
 var _last := Vector3.ZERO  # last frame
 var _swing := Vector3.ZERO  # what hangs from her lags her motion: a velocity, on a spring
 var _swing_v := Vector3.ZERO
@@ -390,10 +392,12 @@ func fly_to(at: Vector3) -> void:
 
 ## She comes straight at the camera at SPEED, lit by her fill, from where he sees her, or from `from`, or from along
 ## its level view (start_along), high enough that what hangs from her clears the road, and comes down to its height over
-## the last LOW_IN metres. In the flat (no director) she comes at its height all the way, along the clear line she
-## starts on and under every door's top; what hangs from her lies on the floor, as it does once she is there. She stops
-## CLOSE to it, face to face: `reached`, TURN + SEEN after this at the soonest.
-func come_for(camera: Camera3D, from := Vector3.INF) -> void:
+## the last LOW_IN metres. In the flat (no director), and with him seated in a `carrier` (the car), she comes at its
+## height all the way, along the clear line she starts on: under every door's top, or under the car's roof and in
+## through its windscreen; what hangs from her lies on the floor or the road, as it does once she is there. She shares
+## the carrier's motion as she comes, so a car still braking or on a bend does not swing her round to its side
+## windows. She stops CLOSE to it, face to face: `reached`, TURN + SEEN after this at the soonest.
+func come_for(camera: Camera3D, from := Vector3.INF, carrier: Node3D = null) -> void:
 	_target = camera
 	_arrived = false
 	var eye := camera.global_position
@@ -401,6 +405,9 @@ func come_for(camera: Camera3D, from := Vector3.INF) -> void:
 	if not in_view(camera):
 		start = from if from.is_finite() else start_along(eye, -camera.global_basis.z.slide(Vector3.UP).normalized())
 	_begin(&"come_for", start)
+	_carrier = carrier
+	if carrier != null:
+		_carried = carrier.global_transform
 	_hold = maxf(0.0, TURN + SEEN - ((eye - start).slide(Vector3.UP).length() - CLOSE) / SPEED)
 	_play(&"rattle")
 
@@ -473,11 +480,15 @@ func _process(delta: float) -> void:
 				arrived.emit()
 		&"come_for":
 			var cam := _target.global_position
+			if _carrier != null:  # where the car has taken her since the last frame
+				_base = _carrier.global_transform * _carried.affine_inverse() * _base
+				_carried = _carrier.global_transform
 			if _t >= _hold:
 				var flat := (cam - _base).slide(Vector3.UP)
 				_base += flat.normalized() * clampf(flat.length() - CLOSE, 0.0, SPEED * delta)
 				var left := (cam - _base).slide(Vector3.UP).length() - CLOSE
-				var high := cam.y if director == null else maxf(cam.y, _ground_under(_base) + ABOVE_ROAD)
+				var low := director == null or _carrier != null  # the flat's doors, the car's roof
+				var high := cam.y if low else maxf(cam.y, _ground_under(_base) + ABOVE_ROAD)
 				_base.y = move_toward(_base.y, lerpf(cam.y, high, clampf(left / LOW_IN, 0.0, 1.0)), SPEED * delta)
 				if left <= 0.001 and absf(_base.y - cam.y) < 0.001 and not _arrived:
 					_arrived = true
@@ -576,6 +587,7 @@ func _begin(mode: StringName, at: Vector3) -> void:
 		_swing_v = Vector3.ZERO
 	_mode = mode
 	_t = 0.0
+	_carrier = null
 	_base = at
 	global_position = at
 	_timers.clear()

@@ -340,9 +340,11 @@ func finish(ending: StringName) -> void:
 
 ## He died: he is held, and she comes for his face, seen on the way. If he sees her where she is, she comes from there
 ## and his view stays as it is. Otherwise his view comes level and she starts along it, clear of the ground and of
-## anything solid (Penanggal.start_along); where that leaves her under Penanggal.MIN_START off (the bank beside the
-## road, his car door), his view turns down the road instead and she starts along that. The card follows once she is
-## there.
+## anything solid (Penanggal.start_along). In the car his view turns ahead, through the windscreen, and Mei leans aside
+## out of his line and stays so (Hafiz, at the wheel, sits well to its right); she comes at his eyes' height, under the
+## roof, keeping pace with the car (Penanggal.come_for's carrier) while it brakes. Out of it, where his own way leaves
+## her under Penanggal.MIN_START off (the bank beside the road), his view turns down the road instead. The card follows
+## once she is there.
 func _on_died(_cause: StringName) -> void:
 	player.input_enabled = false
 	if her.in_view(player.camera):
@@ -350,13 +352,16 @@ func _on_died(_cause: StringName) -> void:
 		return
 	var eye := player.camera.global_position
 	var way := -player.camera.global_basis.z.slide(Vector3.UP).normalized()
-	var yaw := player.yaw
-	if her.clear_run(eye, way) - Penanggal.SHORT < Penanggal.MIN_START:
-		var down := RoadLayout.tangent(RoadLayout.closest_s(eye)).slide(Vector3.UP).normalized()
-		yaw += way.signed_angle_to(down, Vector3.UP)  # his look is in his parent's frame, which turns about the up axis
-		way = down
-	player.turn_to(yaw, 0.0, Penanggal.TURN)
-	her.come_for(player.camera, her.start_along(eye, way))
+	var to := way
+	if director.seated:
+		to = car.global_basis.z.slide(Vector3.UP).normalized()  # the car faces +Z
+		couple.mei_faces(&"ahead")  # her lean to see down the road, which uncovers it past her
+		couple.turn_to(&"mei", INF)  # now, and for good
+	elif her.clear_run(eye, way) - Penanggal.SHORT < Penanggal.MIN_START:
+		to = RoadLayout.tangent(RoadLayout.closest_s(eye)).slide(Vector3.UP).normalized()
+	# his look is in his parent's frame, which turns about the up axis
+	player.turn_to(player.yaw + way.signed_angle_to(to, Vector3.UP), 0.0, Penanggal.TURN)
+	her.come_for(player.camera, her.start_along(eye, to), car if director.seated else null)
 
 
 func _on_her_reached() -> void:
