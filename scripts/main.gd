@@ -222,25 +222,17 @@ func _on_died(_cause: StringName) -> void:
 		hud.close_peephole()
 	player.input_enabled = false
 	player.interaction.set_deferred(&"enabled_input", false)
+	var eye := player.camera.global_position
 	var yaw := player.yaw
-	var run := _clear_run(yaw)
+	var run := her.clear_run(eye, _level(yaw))
 	if run - Penanggal.SHORT < Penanggal.MIN_START:
 		for k in range(1, 4):
-			if _clear_run(player.yaw + k * PI / 2.0) > run:
-				run = _clear_run(player.yaw + k * PI / 2.0)
+			var other := her.clear_run(eye, _level(player.yaw + k * PI / 2.0))
+			if other > run:
+				run = other
 				yaw = player.yaw + k * PI / 2.0
 	player.turn_to(yaw, 0.0, Penanggal.TURN)
-	var start := clampf(run - Penanggal.SHORT, Penanggal.CLOSE, Penanggal.AHEAD)
-	her.come_for(player.camera, player.camera.global_position + _level(yaw) * start)
-
-
-## Metres from his eyes along the level way `yaw` faces to the first solid thing in it; INF if nothing is within
-## Penanggal.AHEAD.
-func _clear_run(yaw: float) -> float:
-	var eye := player.camera.global_position
-	var ray := PhysicsRayQueryParameters3D.create(eye, eye + _level(yaw) * Penanggal.AHEAD)
-	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
-	return eye.distance_to(hit["position"]) if not hit.is_empty() else INF
+	her.come_for(player.camera, her.start_along(eye, _level(yaw)))
 
 
 ## The level way he faces at `yaw` (PlayerController.set_look's).

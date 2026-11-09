@@ -326,9 +326,9 @@ func test_come_for_stops_short_of_the_camera() -> bool:
 	return true
 
 
-## He sees her come: she starts where she is only if he sees her there (in his view, nothing in the way, MIN_START off or
-## more), else where she is told to or AHEAD along his level view. However near she starts, she hangs there until she
-## can still be seen TURN + SEEN before she reaches him.
+## He sees her come: she starts where she is if he sees her there (in his view, nothing in the way), however near, else
+## where she is told to or along his level view. However near she starts, she hangs there until she can still be seen
+## TURN + SEEN before she reaches him.
 func test_come_for_starts_where_he_sees_her_come() -> bool:
 	var her := _her()
 	var camera := Camera3D.new()
@@ -348,7 +348,7 @@ func test_come_for_starts_where_he_sees_her_come() -> bool:
 	var cases := [  # where she is, where she starts
 		[eye + Vector3(0.0, 0.0, -2.5), eye + Vector3(0.0, 0.0, -2.5), "in his view, 2.5 m off: where she is"],
 		[eye + Vector3(0.0, 0.0, 10.0), ahead, "behind him: out of the fog ahead"],
-		[eye + Vector3(0.0, 0.0, -1.5), ahead, "in his view but 1.5 m off, too near to be seen coming: ahead"],
+		[eye + Vector3(0.0, 0.0, -1.5), eye + Vector3(0.0, 0.0, -1.5), "in his view 1.5 m off: where she is, however near"],
 		[eye + Vector3(6.0, 0.0, -8.0), ahead, "in his view, but behind a wall: ahead"],
 	]
 	for c: Array in cases:

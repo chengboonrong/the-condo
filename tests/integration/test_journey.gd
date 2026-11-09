@@ -532,7 +532,8 @@ func test_dying_at_the_peephole_he_sees_her_come() -> bool:
 	await _until(func() -> bool: return false, 0.1)
 	check(main.hud.is_peeping(), "(he is at the peephole)")
 	var yaw := main.player.yaw
-	check(main._clear_run(yaw) - Penanggal.SHORT < Penanggal.MIN_START, "(the door is too near for her to come from)")
+	var run := main.her.clear_run(main.player.camera.global_position, Main._level(yaw))
+	check(run - Penanggal.SHORT < Penanggal.MIN_START, "(the door is too near for her to come from)")
 	main.runtime.die(&"front_door")
 	var seen := await seen_before_reached(main.her, main.player.camera, 10.0)
 	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
@@ -552,7 +553,8 @@ func test_dying_against_a_wall_he_turns_and_sees_her_come() -> bool:
 	main.player.global_position = Vector3(6.5, 0.0, 9.4)
 	main.player.set_look(PI, -0.6)  # at the wall, and down
 	await _until(func() -> bool: return false, 0.1)
-	check(main._clear_run(PI) - Penanggal.SHORT < Penanggal.MIN_START, "(he faces a wall a step away)")
+	var run := main.her.clear_run(main.player.camera.global_position, Main._level(PI))
+	check(run - Penanggal.SHORT < Penanggal.MIN_START, "(he faces a wall a step away)")
 	main.runtime.die(&"lights_on")
 	var seen := await seen_before_reached(main.her, main.player.camera, 10.0)
 	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)

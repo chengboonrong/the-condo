@@ -44,16 +44,18 @@ const FOLLOW := 6.0  # m/s at most, keeping behind a walker
 const SPEED := 6.0  # m/s, coming for the camera
 const LOW_IN := 2.0  # metres from the camera she comes down from ABOVE_ROAD to its height
 const CLOSE := 0.6  # metres from the camera she stops at
-## come_for: he sees her come. She starts where she is only if he sees her there: in view, with nothing solid in the way,
-## and MIN_START or more from him. Otherwise she starts where she is told to (the flat's Main finds a clear line, and
-## keeps her SHORT of what ends it), or out of the fog AHEAD of the camera along its level view. His held view turns to
-## her over TURN (the presentation's PlayerController.turn_to), and then she is in it SEEN at the least before she
-## reaches him: from a short way off she hangs at the start first.
+## come_for: he sees her come. She starts where she is if he sees her there (in_view). Otherwise she starts where she is
+## told to, or along the camera's level view: SHORT of the end of its clear run (clear_run: up to something solid or, on
+## the road, the ground coming up to his eyes' height), AHEAD at the most. A caller whose clear run is under
+## MIN_START turns his held view another way over TURN (the presentation's PlayerController.turn_to: the flat to its
+## clearest way round him, the road down the road), and then she is in it SEEN at the least before she reaches him: from
+## a short way off she hangs at the start first.
 const AHEAD := 15.0
 const MIN_START := 2.0
 const SHORT := 0.3
 const TURN := 0.25
 const SEEN := 0.5
+const STEP := 0.25  # metres between the ground's samples along a clear run
 ## Her first wet flap behind him, captioned once: the same noise after it is not. Her flaps in her other places have no
 ## caption, and the door's slap has its own (RoadMain.CAPTIONS).
 const FLAP_CAPTION := "[Behind you, something wet flaps.]"
@@ -369,26 +371,47 @@ func fly_to(at: Vector3) -> void:
 	_begin(&"fly", global_position if visible else at)
 
 
-## She comes straight at the camera at SPEED from where he sees her, or from `from`, or out of the fog ahead of it, high
-## enough that what hangs from her clears the road, and comes down to its height over the last LOW_IN metres. In the
-## flat (no director) she comes at its height all the way, along the clear line she starts on and under every door's
-## top; what hangs from her lies on the floor, as it does once she is there. She stops CLOSE to it, face to face:
-## `reached`, TURN + SEEN after this at the soonest.
+## She comes straight at the camera at SPEED from where he sees her, or from `from`, or from along its level view
+## (start_along), high enough that what hangs from her clears the road, and comes down to its height over the last
+## LOW_IN metres. In the flat (no director) she comes at its height all the way, along the clear line she
+## starts on and under every door's top; what hangs from her lies on the floor, as it does once she is there. She stops
+## CLOSE to it, face to face: `reached`, TURN + SEEN after this at the soonest.
 func come_for(camera: Camera3D, from := Vector3.INF) -> void:
 	_target = camera
 	_arrived = false
 	var eye := camera.global_position
 	var start := global_position
-	if not (visible and start.distance_to(eye) >= MIN_START and camera.is_position_in_frustum(start) and _in_sight(eye, start)):
-		start = from if from.is_finite() else eye - camera.global_basis.z.slide(Vector3.UP).normalized() * AHEAD
+	if not in_view(camera):
+		start = from if from.is_finite() else start_along(eye, -camera.global_basis.z.slide(Vector3.UP).normalized())
 	_begin(&"come_for", start)
 	_hold = maxf(0.0, TURN + SEEN - ((eye - start).slide(Vector3.UP).length() - CLOSE) / SPEED)
 	_play(&"rattle")
 
 
-## Whether nothing solid is between `eye` and `at`.
-func _in_sight(eye: Vector3, at: Vector3) -> bool:
-	return get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(eye, at)).is_empty()
+## Whether `camera` sees her where she is: shown, in its view, and nothing solid between them.
+func in_view(camera: Camera3D) -> bool:
+	var eye := camera.global_position
+	return visible and camera.is_position_in_frustum(global_position) and _ray(eye, global_position).is_empty()
+
+
+## Metres from `eye` along the level `way` that she could be seen in: to the first solid thing, or (on the road, whose
+## ground has no colliders) to where the ground comes up to his eyes' height. INF if both are past AHEAD.
+func clear_run(eye: Vector3, way: Vector3) -> float:
+	var hit := _ray(eye, eye + way * AHEAD)
+	var run: float = eye.distance_to(hit["position"]) if not hit.is_empty() else INF
+	for k in range(1, int(minf(run, AHEAD) / STEP) + 1):
+		if _ground_under(eye + way * k * STEP) >= eye.y:
+			return k * STEP
+	return run
+
+
+## Where she starts coming for `eye` along the level `way`: SHORT of the end of its clear run, CLOSE to AHEAD from him.
+func start_along(eye: Vector3, way: Vector3) -> Vector3:
+	return eye + way * clampf(clear_run(eye, way) - SHORT, CLOSE, AHEAD)
+
+
+func _ray(from: Vector3, to: Vector3) -> Dictionary:
+	return get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
 
 
 ## She is gone, and so is anything she left.

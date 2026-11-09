@@ -462,6 +462,80 @@ func test_not_locking_he_sees_her_come() -> bool:
 	return true
 
 
+## Turns him level to the bank on the road's left where he stands.
+func _face_the_bank(p: PlayerController) -> void:
+	var eye := p.camera.global_position
+	var bank := RoadLayout.point(RoadLayout.closest_s(eye), 30.0)
+	bank.y = eye.y
+	_face(p, bank)
+
+
+## Whether his level view runs down the road.
+static func _down_the_road(p: PlayerController) -> bool:
+	var way := -p.camera.global_basis.z.slide(Vector3.UP).normalized()
+	var down := RoadLayout.tangent(RoadLayout.closest_s(p.camera.global_position)).slide(Vector3.UP).normalized()
+	return way.dot(down) > 0.99
+
+
+## He opens his door in the dead car (a forced pose: his view on the door, as using it has it): she is on the roof by
+## his window, and he sees her come, out of the ground and with nothing between them, for at least Penanggal.SEEN.
+func test_opening_his_door_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(3)  # mission 4, the car dies
+	await _secs(0.2)
+	var stall := road.director.missions[3] as StallMission
+	road.director.car_s = StallMission.STOP_S
+	road.director.drive(0.0)
+	road.director.car_speed = 0.0
+	stall.go(&"thumps")
+	var roof := await _until(func() -> bool: return road.her.visible, 3.0)
+	check(roof, "(she is on the roof)")
+	var door: MeshInstance3D = road.car.door_rear_left.get_node("door_rear_left")
+	_face(road.player, door.global_transform * door.get_aabb().get_center())
+	await _secs(0.1)
+	stall._door = true  # the door can be opened, as it can from Hafiz leaving
+	EventBus.object_interacted.emit(StallMission.DOOR)
+	eq(road.director.dead, &"opened_door", "opening the door kills him")
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	_done(road)
+	return true
+
+
+## He misses the lift facing the bank at the stop (a forced death: the couple's wait is a minute): the bank is too near
+## for her to come from, so his view turns down the road, and he sees her come along it for at least Penanggal.SEEN.
+func test_missing_the_lift_facing_the_bank_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.player.global_position = RoadLayout.BUS_STOP + Vector3.UP * 0.05
+	await _secs(0.2)
+	_face_the_bank(road.player)
+	await _secs(0.1)
+	var eye := road.player.camera.global_position
+	check(road.her.clear_run(eye, -road.player.camera.global_basis.z) < Penanggal.MIN_START, "(the bank is a step away)")
+	road.director.die(&"missed_lift")
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(_down_the_road(road.player), "his view turned down the road")
+	_done(road)
+	return true
+
+
+## He stands still on the walk facing the bank: his view turns down the road, and he sees her come along it, out of the
+## ground and with nothing between them, for at least Penanggal.SEEN.
+func test_standing_still_facing_the_bank_he_sees_her_come() -> bool:
+	var road: RoadMain = await _road()
+	road.director.start_at(4)  # mission 5, the walk to the light
+	await _secs(0.2)
+	_face_the_bank(road.player)
+	var died := await _until(func() -> bool: return road.director.dead != &"", 40.0)
+	check(died and road.director.dead == &"stood_still", "standing still kills him")
+	var seen := await seen_before_reached(road.her, road.player.camera, 10.0)
+	check(seen >= Penanggal.SEEN, "he sees her come for %.2f s before she reaches him" % seen)
+	check(_down_the_road(road.player), "his view turned down the road")
+	_done(road)
+	return true
+
+
 ## Try again loads the road at the mission he died in, with the count it began with, and he is playing at once: no start
 ## card, only a black card that fades.
 func test_try_again_starts_the_mission_with_its_count() -> bool:

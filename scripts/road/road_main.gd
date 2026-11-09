@@ -337,12 +337,25 @@ func finish(ending: StringName) -> void:
 	Journey.arrive(ending)
 
 
-## He died: he is held, his view comes level, and she comes for his face, seen on the way. The card follows once she is
+## He died: he is held, and she comes for his face, seen on the way. If he sees her where she is, she comes from there
+## and his view stays as it is. Otherwise his view comes level and she starts along it, clear of the ground and of
+## anything solid (Penanggal.start_along); where that leaves her under Penanggal.MIN_START off (the bank beside the
+## road, his car door), his view turns down the road instead and she starts along that. The card follows once she is
 ## there.
 func _on_died(_cause: StringName) -> void:
 	player.input_enabled = false
-	player.turn_to(player.yaw, 0.0, Penanggal.TURN)
-	her.come_for(player.camera)
+	if her.in_view(player.camera):
+		her.come_for(player.camera)
+		return
+	var eye := player.camera.global_position
+	var way := -player.camera.global_basis.z.slide(Vector3.UP).normalized()
+	var yaw := player.yaw
+	if her.clear_run(eye, way) - Penanggal.SHORT < Penanggal.MIN_START:
+		var down := RoadLayout.tangent(RoadLayout.closest_s(eye)).slide(Vector3.UP).normalized()
+		yaw += way.signed_angle_to(down, Vector3.UP)  # his look is in his parent's frame, which turns about the up axis
+		way = down
+	player.turn_to(yaw, 0.0, Penanggal.TURN)
+	her.come_for(player.camera, her.start_along(eye, way))
 
 
 func _on_her_reached() -> void:
