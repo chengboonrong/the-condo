@@ -207,20 +207,26 @@ memory lines said as the rule applies (the three new ones with the clocks: `Lift
 * **`HorrorRuntime.die`** stops the story, cancels every running event, empties the scheduler's queue and sends
   `player_died`. Once he is dead `step()` only advances the clock.
 
-**What he sees.** The scene holds him (no input, a peephole or a note he was reading is closed), his view comes level
-over `Penanggal.TURN` (`PlayerController.turn_to`), and she comes for his face (`Penanggal.come_for`), the same head
-that comes for the camera in the `caught` ending. He always sees her come: she starts where she is only if she is in
-his view, with nothing solid in the way and `MIN_START` (2 m) or more off; otherwise on the road she starts out of the
-fog 15 m ahead along his level view, and in the flat `Main` finds a clear line (straight ahead, or whichever of the four
-level ways round him runs furthest, which his view turns to) and starts her `SHORT` of what ends it. From a short way
-off she hangs at the start first, so she is in view for `SEEN` (0.5 s) at the least before she reaches him. In the flat
-she comes at his eye height all the way, under the door tops. When she has reached it (`reached`), a black card cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button
-(`Hud.show_game_over`). The card is opaque and over everything: a choice or a caption still up is closed and a line
-being said is cut off. The mouse is shown for the button. The road's loops are switched off (`RoadMain`), and the flat's
+**What he sees.** The scene holds him (no input, a peephole or a note he was reading is closed), and she comes for his
+face (`Penanggal.come_for`), the same head that comes for the camera in the `caught` ending, lit by her own dim fill
+(`Penanggal.fill`, render layer 12) so she is seen in a dark room. If he sees her where she is (`Penanggal.in_view`:
+shown, in his view, nothing solid between them) she comes from there and his view stays as it is. Otherwise his view
+comes level over `Penanggal.TURN` (`PlayerController.turn_to`) and she starts along it (`start_along`): `SHORT`
+(0.3 m) short of the end of its clear run (`clear_run`: up to the first solid thing or, on the road, whose ground has
+no colliders, to where the ground comes up to his eyes' height), 15 m at the most. Where that run leaves her under
+`MIN_START` (2 m) off, his view turns another way and she starts along that: in the flat (`Main`) the clearest of the
+four level ways round him, on the road (`RoadMain`) down the road, away from the bank beside it and his car door.
+From a short way off she hangs at the start first, so she is in view for `SEEN` (0.5 s) at the least before she
+reaches him. So he sees her come wherever such a run is found, with two exceptions: in a corner closed on all four
+sides she would start `CLOSE` (0.6 m) off, and in the car (`not_locked`, `opened_door`) the run ahead of his seat
+passes Mei's head and the roof's edge, which have no colliders, so for most of the way she is behind them. In the
+flat she comes at his eye height all the way, under the door tops. When she has reached it (`reached`), a black card
+cuts in with "GAME OVER", one bracketed line for the cause and a "Try again" button (`Hud.show_game_over`). The card
+is opaque and over everything: a choice or a caption still up is closed and a line being said is cut off. The mouse is shown for the button. The road's loops are switched off (`RoadMain`), and the flat's
 beds and drone are (`AudioDirector.silence`). On the road, a car he is in brakes (`RoadDirector.die` stops it) and the
 director keeps stepping until the card is up, so it does not stop dead; a car he is not in goes on (the couple drive off
-from the lift without him). In the flat she has no director and is hidden otherwise; she is drawn once behind the start card under each of its
-four lights (the shader warm-up), so nothing compiles when she comes.
+from the lift without him). In the flat she has no director and is hidden otherwise; she is drawn once behind the
+start card under each of its four lights with her fill on (the shader warm-up), so nothing compiles when she comes.
 
 **Try again** is one click. The pointer lock is asked for inside the click (Safari grants it only to a gesture), then
 the scene is reloaded and what it starts from waits in `Journey`.
@@ -488,7 +494,7 @@ the fog, places the car, seats him and drives the loops.
 | `Lorry` | `scripts/road/lorry.gd` | Passes in Mission 1; in the endings it comes down the walkers' lane and pulls up, yielding to anyone in its way. |
 | `SlowCar` | `scripts/road/slow_car.gd` | The slow car ahead, from the core's `slow_gap`, 1 m in from the lane's centre towards the line so that it shows past Mei's head. |
 | `Audio` (`RoadAudio`) | `scripts/road/road_audio.gd` | A pool of eight positional players for `sound_requested`, the seven loops (`RoadAudio.LOOPS`), and `play_here`: one non-positional player for each sound played in his head (the rev and the engine dying). |
-| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, flying, catching someone, or coming for the camera, which is also how he dies, on the road and in the flat (`come_for`, then `reached`). Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Behind a walker she is 18 m back with no rule broken and 4 m at her nearest (`her_near`), and closer as he stands still: `behind_distance(her_near, closing)` goes on to 1 m (`BEHIND_STILL`) as `closing` goes to 1, and `breathe()` is her breath there (`she_closes`). Her sounds are wet. |
+| `Her` (`Penanggal`) | `scripts/road/her.gd` | The penanggal. Hidden until called, in one place at a time: glimpsed at the roadside, on the car's roof, behind a walker, flying, catching someone, or coming for the camera, which is also how he dies, on the road and in the flat (`come_for`, then `reached`; her own dim fill lights her as she comes). Her glimpse is 28 m ahead of the car with no rule broken, closing to 10 m by the time `her_near` reaches 0.4. Behind a walker she is 18 m back with no rule broken and 4 m at her nearest (`her_near`), and closer as he stands still: `behind_distance(her_near, closing)` goes on to 1 m (`BEHIND_STILL`) as `closing` goes to 1, and `breathe()` is her breath there (`she_closes`). Her sounds are wet. |
 | `Endings` | `scripts/road/endings.gd` | The fruit stall, its bulb, the phones, Hafiz's walk and each ending's moments. |
 | `PauseMenu` | `scripts/ui/pause_menu.gd` | The flat's, with its web guard for a lost pointer lock. |
 
@@ -501,6 +507,8 @@ the fog, places the car, seats him and drives the loops.
   The mirror's camera draws it, the player's camera (cull mask 1047551) leaves it out.
   In the warm-up only, a picture of a viewport goes on layer 20 (`PICTURE_LAYER`) so the mirror's camera leaves it
   out: drawn into its own viewport it would read the texture it writes, which WebGL refuses.
+* **Render layer 12** is hers (`Penanggal.LAYER`): her mesh is on it as well as layer 1, and her fill (`Penanggal.fill`,
+  on only while she comes for him) lights it alone, so it lights her and nothing else.
 * **Sounds.** The road's sounds go through `EventBus.sound_requested` like the flat's (`RoadAudio.play_here` plays one in
   his head: the rev and the engine dying). The levels are in "Audio levels".
   The stall's sounds are played now: the lorry idling and braking, the phone ringing as a loop, her wet flap and drip.
@@ -912,6 +920,7 @@ the slam.
 |---|---|
 | 1 | everything the player's camera draws (Godot's default) |
 | 11 | mirror only: the road's fourth passenger and the wet patch she leaves (`Mirror`). The rear-view mirror's camera draws it; the player's camera (`scenes/player/player.tscn`, cull mask 1047551) leaves it out. Her fill light lights layer 11 alone. |
+| 12 | the penanggal (`Penanggal.LAYER`), on it as well as layer 1: her own fill, on only while she comes for him (`come_for`), lights layer 12 alone, so it lights her and nothing else. Every camera draws it. |
 
 Room membership comes from `ApartmentLayout.room_at(position)` (a point-in-rect test against the
 active variant's rects), not from Area3D triggers, so it is exact and identical in simulation.
