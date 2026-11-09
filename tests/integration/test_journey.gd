@@ -4,6 +4,8 @@ extends TestCase
 
 var _was_changing := true
 var _was_ending: StringName = &""
+var _lines: Array[String] = []  # what a flat _retried loads says, and its captions, until _end
+var _captions: Array[String] = []
 
 
 func _begin() -> void:
@@ -22,6 +24,17 @@ func _end() -> void:
 	Journey.retry_mission = -1
 	Journey.retry_broken = []
 	Journey.flat_retry = {}
+	if EventBus.line_requested.is_connected(_on_line):
+		EventBus.line_requested.disconnect(_on_line)
+		EventBus.subtitle_requested.disconnect(_on_caption)
+
+
+func _on_line(text: String, _seconds: float) -> void:
+	_lines.append(text)
+
+
+func _on_caption(text: String, _seconds: float) -> void:
+	_captions.append(text)
 
 
 ## Both scenes set `loaded` once their warm-up is done.
@@ -385,8 +398,10 @@ func _retried(act: int, lines: Array[String], captions: Array[String]) -> Main:
 	first.queue_free()
 	await tree.process_frame
 	Journey.retry_flat(snapshot)
-	EventBus.line_requested.connect(func(text: String, _s: float) -> void: lines.append(text))
-	EventBus.subtitle_requested.connect(func(text: String, _s: float) -> void: captions.append(text))
+	_lines = lines
+	_captions = captions
+	EventBus.line_requested.connect(_on_line)  # until _end
+	EventBus.subtitle_requested.connect(_on_caption)
 	var main := _scene(Journey.FLAT_SCENE) as Main
 	await _loaded(main)
 	return main
