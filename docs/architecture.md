@@ -228,7 +228,9 @@ the scene is reloaded and what it starts from waits in `Journey`.
 * **On the road** `Journey.retry_road(mission, kept)` is given the mission he died in and the count the mission began
   with (`RoadDirector.broken_at_start`). The road scene starts at once with a plain black card, no start card: it calls
   `RoadDirector.start_at(mission)` (as `-- --mission=N` does) and `restore(kept)`, which gives back the fog and her
-  nearness that count had. Whatever he broke in the failed try is dropped, and dying adds nothing to the count.
+  nearness that count had, and marks the director `retried`: Mission 1 then skips its 13 s opening card and lines and
+  starts at the walk with its objective. Whatever he broke in the failed try is dropped, and dying adds nothing to the
+  count.
 * **In the flat** `Journey.retry_flat(snapshot)` is given `StoryDirector.act_snapshot`, the flat as the act began
   (`_keep`, first thing in acts 2, 3 and 4): flags, clues, variants, lights, doors, how many things he had noticed,
   the pending last call and the one-shot lines already said. `scenes/main.tscn` loads with a plain black card, puts him

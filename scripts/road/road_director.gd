@@ -39,6 +39,7 @@ var broken_at_start: Array[Dictionary] = []  # `broken` as it was when the curre
 var progress: Array[Dictionary] = []  # {"t", "mission", "beat"}: every beat change
 var ending: StringName = &""
 var dead: StringName = &""  # the rule that killed him; once set, only time and the ride go on
+var retried := false  # a Try again (restore): the mission he died in starts without what he has already seen
 var closing := 0.0  # 0 to 1: on the walk, how near she has come because he stood still
 
 var _begun := false
@@ -215,6 +216,7 @@ func die(cause: StringName) -> void:
 
 ## A retry: the count as it was kept, with the fog and her nearness it had by then.
 func restore(kept: Array[Dictionary]) -> void:
+	retried = true
 	broken = kept.duplicate(true)
 	fog = minf(1.0, 0.12 * score())
 	her_near = fog

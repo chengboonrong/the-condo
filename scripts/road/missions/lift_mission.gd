@@ -35,10 +35,15 @@ func set_up_skipped() -> void:
 	d.drive(0.0)
 
 
+## A retry (RoadDirector.retried) skips the opening: he has read it, and is walking again at once.
 func begin() -> void:
 	set_up_skipped()
 	_waited = 0.0
 	_talk_ends = INF
+	if d.retried:
+		WorldState.set_objective(OBJECTIVE)
+		go(&"walk")
+		return
 	_card_on = true
 	EventBus.road_cue.emit(&"card_on")
 	for line: Array in OPENING:

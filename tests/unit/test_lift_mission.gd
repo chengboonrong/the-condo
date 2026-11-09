@@ -102,6 +102,27 @@ func test_opening_then_walk_then_wait() -> bool:
 	return true
 
 
+## Try again after missing the lift: no card and no opening again, he is walking at once (a first play is
+## test_opening_then_walk_then_wait).
+func test_a_retry_skips_the_opening() -> bool:
+	_setup()
+	check(not d.retried, "a first play is not a retry")
+	d.restore([])
+	WorldState.set_objective("")
+	_run(0.1)
+	eq(_lift().beat, &"walk", "he walks at once")
+	eq(WorldState.objective, "Walk down to the bus stop and wait for a lift.", "with the objective")
+	eq(cues, [] as Array[StringName], "no black card")
+	_run(14.0)
+	check(not captions.has(OPENING[0]) and not captions.has(OPENING[2]), "and no opening lines")
+	eq(cues, [] as Array[StringName], "nor a card_off later")
+	stage.position = RoadLayout.BUS_STOP
+	_run(0.2)
+	eq(_lift().beat, &"wait", "then the wait, as on a first play")
+	_teardown()
+	return true
+
+
 func test_the_car_door_works_only_once_the_car_has_stopped() -> bool:
 	_setup()
 	_run(14.0)
