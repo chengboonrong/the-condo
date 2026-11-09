@@ -13,10 +13,10 @@ extends RefCounted
 ## the keeper follows the slow car all three times, the wobbly one overtakes at the third, and the breaker says nothing:
 ## Hafiz overtakes. In mission 3 none of them turns round, and all three say "Three." (the wobbly one asks why first):
 ## his own rules kill him, so no bot breaks them. In mission 4 all three lock the doors when something lands on the
-## roof (5 s), never open the door and stay quiet for the voice; the keeper and the wobbly one stop Mei (the wobbly one
-## says nothing), and the breaker says nothing, so she opens hers. In mission 5 all three get out and walk straight down
-## the road to the light, never looking back and never standing still. The keeper and the wobbly one hold Mei's hand
-## the first time; the breaker says nothing to both, so she looks twice. That brings the keeper home alive with all
+## roof (5 s), never open the door and stay quiet for the voice; the keeper stops Mei, and the wobbly one and the breaker
+## say nothing, so she opens hers. In mission 5 all three get out and walk straight down the road to the light, never
+## looking back and never standing still. The keeper and the wobbly one hold Mei's hand both times; the breaker says
+## nothing to both, so she looks twice. That brings the keeper home alive with all
 ## three (score 0), the wobbly one out with Mei (3) and the breaker to be caught with both of them (9). None of them
 ## dies: a bot that does is a bot that broke a rule it should keep, and the tests say so (`dead`).
 ##
