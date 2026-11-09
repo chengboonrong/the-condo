@@ -701,6 +701,7 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Her shriek, with it (the road, in his head; not played now) ‡ | −14.6 | −2 | −16.6 |
 | Light buzz (flicker) | −10.8 | −6 | −16.8 |
 | His answers; the intercom's voices (Rosnah, his own, the last call); the voice outside the car | −16.7 to −16.3 | 0 | −16.7 to −16.3 |
+| Tap running (loop; ducked 30 dB under the neighbour's rattle; Godot's default unit size of 10, so 3 m adds 10.5 dB) | −19.4 | −8 | −16.9 (−16.4, at the cap, within 2.8 m) |
 | Engine dying (the road, in his head, so it rides with the car: `RoadAudio.play_here`) | −17.0 | 0 | −17.0 |
 | The voice behind him on the walk (the road) | −17.4 | 0 | −17.4 |
 | Phone ringing on the table (the road, loop: one ring) | −19.0 | 0 | −19.0 |
@@ -723,7 +724,6 @@ same level, its power shared between the ears, so one held at the cap is heard a
 | Light switch, phone light | −24 (RMS) | −8 / −18 | −32 / −42 |
 | Her wet flap elsewhere, her breath (the road) | −27.0 | 0 | −27.0 |
 | Her drip (the road) | −28.0 | 0 | −28.0 |
-| Tap running (loop; ducked 30 dB under the neighbour's rattle) | −19.4 | −8 | −27.4 |
 | Indicator (the road, loop: one flash) | −24.0 | −5 | −29.0 |
 | Hatchback engine from the back seat (loop, a recording since 2026-11-08, pitch 0.78× to 1.12× with speed) | −16.0 | −13.5 (−19.5 from the signal to the rev's end) | −29.5 (−35.5) |
 | Slow car's old engine (loop, a recording since 2026-11-08) | −20.0 | −12 | −32.0 |
@@ -865,7 +865,7 @@ where each moment is heard; it is not a bound for every place, and for the thump
     drone is not positional, so its volume is all there is. The hums and the tap are, and a positional player's gain is
     clamped after its `volume_db` is added: ducking only the tap's volume left it down by 21 dB of 30 at 1 m (−38 dB plus
     the gain of +20 dB is still under the cap, at −18, where the unducked tap is at +3) and by about 18 dB with his head over
-    the basin (0.7 m), where the rattle then stood only 10.5 dB over it (9.7 by the review's reckoning). So each one's `max_db` goes
+    the basin (0.7 m), where the rattle then stood only 10.5 dB over it. So each one's `max_db` goes
     down by the duck with its volume, and the duck is the full 30 dB at every distance (`test_home_beds.gd` checks the
     gain at 0.65, 1, 2, 5 and 12 m). The hums are ducked because they are a bed too: with only the drone and the tap
     ducked, the entrance's far corner, 1.9 m from the corridor's hum, was the weakest point, 9.5 dB over it.

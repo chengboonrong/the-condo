@@ -96,7 +96,7 @@ func test_the_drone_ducks_under_the_rattle_and_comes_back() -> bool:
 
 
 ## A positional player adds its volume to its distance gain and only then clamps to max_db, so with only the volume
-## ducked a close one is down by less than the duck (the tap, with his head over the basin, by about 21 dB of 30).
+## ducked a close one is down by less than the duck (the tap by about 18 dB of 30 with his head over the basin, 21 at 1 m).
 func test_the_tap_and_the_hums_are_down_the_whole_duck_however_close() -> bool:
 	var main := await _main()
 	var audio: AudioDirector = main.audio
